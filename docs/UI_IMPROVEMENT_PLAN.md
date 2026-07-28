@@ -200,40 +200,79 @@ concrete action, instead of truncating twelve lines to one at the first clause.
 
 ---
 
-## Part 4 — Landing page and accounts
+## Part 4 — Landing page, no login
 
-Requested 2026-07-28. This reverses a scope cut: `CLAUDE.md` lists accounts and
-multi-tenancy under **Dropped — single demo tenant**. Recording that plainly, along with
-the two risks, then the design.
+Requested 2026-07-28, revised the same day to **drop the login gate entirely**: the
+landing page has a *Try the demo* button that goes straight into the dashboard. No
+signup, no password, no session.
 
-### Two risks worth naming before building
+This is the better call and it restores the `CLAUDE.md` scope cut ("Dropped: Stripe,
+accounts, multi-tenancy. Single demo tenant") rather than reversing it. It removes about
+three and a half days of work — password hashing, session storage, a Lambda authorizer,
+tenant-isolation test coverage — from a schedule that still owes deployment, the Ask
+agent, and the README before the **Aug 14 freeze**. None of that work was required by the
+rules; all of what it displaces is.
 
-**1. A registration wall sits between a judge and the demo.** Some fraction of judges
-will not create an account to evaluate an entry, and the rules require setup
-instructions a judge "can actually follow." Mitigation is item **L4** below: a
-**one-click read-only demo session** with no registration, linked as prominently as the
-signup button. The signup flow still exists and still gets demoed — it just is not the
-only door.
+It also removes the risk that mattered most: a judge meeting a registration form instead
+of the product.
 
-**2. It competes with work the rules actually require.** Accounts are not a hackathon
-requirement. Deployment, the Ask agent over the MCP server (the second CockroachDB tool
-at runtime), and the README are. Roughly four days of work sits below against a **Aug 14
-freeze**. Sequencing recommendation is at the end of this section.
+### The one thing that has to come with it
 
-The good news: **less new work than it sounds.** `business_id` is already threaded
-through all nine tables with `ON DELETE CASCADE`, and both vector indexes are already
-prefixed by it. The tenancy boundary exists — it just has no owner attached to it.
+Removing the login is only safe if **the deployed API has no public write path.** A login
+wall in front of a writable API and no wall at all in front of a writable API differ by
+one accident. Concretely:
+
+- The public API is **read-only**. It serves the dashboard's data and nothing else.
+- **No endpoint triggers an agent run.** The nightly loop is invoked by EventBridge
+  Scheduler calling the Lambdas directly — it is never reachable through API Gateway.
+  A public "run the agents" endpoint is a button that spends Bedrock and Anthropic
+  budget once per click, from anyone, forever.
+- **"Run autopilot" is a client-side replay** of state already in the database. It is
+  already built this way in the mock; it must stay that way once deployed.
+- Throttling and a short cache TTL on API Gateway, so the read path cannot be used to
+  hammer the cluster either.
+
+With those four in place, the entire abuse surface is "someone reads the demo tenant's
+data," which is exactly what we are publishing anyway.
+
+### How interaction survives without accounts
+
+The interesting interactions — accepting a find, saving one for later, running the
+autopilot animation — all still work, because **decisions stay in the browser and are
+never written to CockroachDB.** Reads are live from the cluster; writes are local state,
+and a refresh resets them. The React build already did this with `useState`, and the
+mock's animation is already client-side, so this is the existing behaviour rather than
+new work.
+
+Disclose it in the UI, in the footer that already reads *"Live data · 127 observations ·
+6 of 7 calls verified"*: add *"· your changes stay in this browser."* One clause, and
+nobody mistakes a demo click for a change to a real business.
+
+### What is dropped from the earlier draft
+
+`account` and `session` tables, Argon2id hashing, opaque session tokens, the cookie
+policy, the API Gateway authorizer, login rate-limiting, and the read-only session flag.
+All of it — the `read_only` column existed only to stop one visitor's clicks from
+changing what the next visitor sees, and client-side state solves that for free.
+
+**Keep** the cheap repository-scoping tests: every read is scoped by `business_id`, and
+vector search never crosses the tenant boundary even when another tenant's rows are the
+nearest neighbours. There is one tenant today, so these are guarding the future rather
+than the present, but they are a few lines each and the vector index is already prefixed
+by `business_id`.
+
+**If lead capture is wanted later**, an email field on the landing page is one table and
+no auth — but it is PII in the cluster and needs rate-limiting and a line in the README
+about retention. Genuinely optional; not planned here.
 
 ### L1 — The landing page
 
-Routes:
+Two routes, both public:
 
-| Path | Access |
+| Path | What it is |
 |---|---|
-| `/` | public — the landing page |
-| `/signup`, `/login` | public |
-| `/demo` | public — creates a read-only session on the seeded tenant |
-| `/app` | requires a session |
+| `/` | the landing page |
+| `/app` | the dashboard — the existing `web/index.html` |
 
 **The hero should be our real record, not a value proposition.** This product's most
 distinctive asset is that it publishes its failures, so the honest thing is also the
@@ -251,7 +290,9 @@ Sections below the hero, each showing a real artifact rather than an icon:
    observations with dates and similarity, the prediction, the outcome. This is the
    "show, don't tell" section and it doubles as the thing the demo video points at.
 3. **Plain terms** — what it does overnight, what it asks of you in the morning.
-4. **Two calls to action, equal weight** — *Create your account* and *See the live demo*.
+4. **One call to action** — *Try the demo →*, repeated at the top and bottom, going
+   straight to `/app`. One button, one destination, no form. A second CTA competing with
+   it would only dilute the one thing we want a judge to do.
 
 Build it by extending `build_web.py` to emit `web/landing.html` from the same
 `demo.json`. The landing page's numbers are then generated from the cluster, so it
@@ -259,113 +300,45 @@ Build it by extending `build_web.py` to emit `web/landing.html` from the same
 overstating the record. Same cream/brass tokens, same Fraunces, same dotted texture. No
 new visual language; this is a fourth page in the existing one.
 
-### L2 — Schema
+### L2 — The read-only API contract
 
-Two new tables, one new column. Additive, no migration of existing rows.
+The dashboard is served as static HTML with data spliced in at build time today, and
+that can survive deployment: `build_web.py` regenerates `web/` after each nightly run,
+and the pages go to S3. No API is strictly required for the demo.
 
-```sql
-CREATE TABLE IF NOT EXISTS account (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email         STRING NOT NULL,          -- normalized (trimmed, lowercased) at the boundary
-  password_hash STRING NOT NULL,          -- Argon2id, encoded form; never a raw digest
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-  UNIQUE INDEX account_email_idx (email)
-);
+If a live API is added anyway (worth it, so the page reflects the cluster without a
+rebuild), it exposes exactly these, all `GET`:
 
-CREATE TABLE IF NOT EXISTS session (
-  token_hash  BYTES PRIMARY KEY,          -- SHA-256 of the token; the token itself is never stored
-  account_id  UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
-  read_only   BOOL NOT NULL DEFAULT false,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-  expires_at  TIMESTAMPTZ NOT NULL,
-  INDEX (account_id)
-);
+| Endpoint | Returns |
+|---|---|
+| `GET /api/summary` | ledger counts, verified daily rate, goal, corpus size |
+| `GET /api/finds` | finds with their evidence rows and similarity scores |
+| `GET /api/monthly` | the real per-month aggregate behind the growth chart |
 
-ALTER TABLE business ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES account(id);
-CREATE INDEX IF NOT EXISTS business_account_idx ON business (account_id);
-```
+No `POST`, no `PUT`, no `DELETE`, no path that starts an agent run. `business_id` is
+resolved server-side from configuration — never read from a query string or body, so
+there is no parameter to tamper with.
 
-Normalize email in Python rather than indexing `lower(email)` — it is testable offline
-and does not depend on expression-index support. `clock_timestamp()` everywhere, per the
-finding that `now()` is transaction-scoped in CockroachDB.
+### L3 — Rules that must not be broken
 
-**Sessions live in CockroachDB.** The reflex would be DynamoDB or ElastiCache;
-`CLAUDE.md` forbids a second store, and correctly — the session store is a genuine
-second runtime use of the cluster, and it is a better disclosure answer than a
-dev-time-only one.
+- The nightly loop is reachable **only** from EventBridge Scheduler, never through
+  API Gateway.
+- No deployed endpoint calls Bedrock or the Anthropic API on request. Model spend is
+  driven by the schedule, on our cadence, not by traffic.
+- API Gateway throttling and a short cache TTL on every read route.
+- `frontend/src/fixtures/demo.json` is committed to the repo — `export_fixture.py` must
+  never export anything that is not already public. That rule outlives this decision.
+- Seed and demo data carry no real names, emails, or third-party trademarks.
 
-### L3 — Auth mechanics
-
-- **Argon2id** via `argon2-cffi`. Library defaults; do not hand-tune. Note that its 64MiB
-  memory cost means the auth Lambda needs ≥512MB.
-- **Opaque session tokens** — `secrets.token_urlsafe(32)`. Store `sha256(token)` as the
-  primary key and look up by hash, so no secret comparison happens in application code.
-- **Cookie**: `HttpOnly; Secure; SameSite=Lax; Path=/`. `SameSite=Lax` also blocks
-  cross-site state-changing POSTs, which covers CSRF without a token scheme.
-- **14-day absolute expiry.** No sliding refresh, no rotation — deferred, and say so.
-- **Rate-limit login** — API Gateway throttling plus a per-account attempt counter.
-- **Identical response and timing** for unknown-email and wrong-password. Never reveal
-  which accounts exist.
-
-**Deliberately not built, each because it opens a real surface:** email verification and
-password reset (both need SES sender identity and a token flow), OAuth/social login,
-MFA, and billing. Name these in the README as known gaps rather than leaving them
-ambiguous.
-
-### L4 — The judge path, and why `read_only` is a column
-
-`/demo` mints a session bound to the seeded tenant with `read_only = true`. Because it is
-a shared account, **read-only must be enforced in the repository layer, not the UI** —
-otherwise one judge's clicking changes what the next judge sees. Any write path that
-receives a read-only session raises before it reaches SQL.
-
-### L5 — API Gateway authorizer
-
-A REQUEST-type Lambda authorizer validates the session against CockroachDB and returns
-the `business_id` and `read_only` flag in the authorizer context. Every downstream
-handler scopes its queries by that `business_id` and never by one taken from the request
-body.
-
-### L6 — Tenant isolation is now the highest-risk code
-
-The working agreement names the money math as highest-risk; **tenant isolation now
-joins it.** Add to the shared contract suite, so both the in-memory and CockroachDB
-implementations are held to it:
-
-- every read scoped to business A returns zero rows belonging to business B
-- vector search never crosses the tenant boundary, including when B's rows are the
-  nearest neighbours
-- a find and its evidence can never be written under a mismatched `business_id`
-- a read-only session raises on every write path
-
-The third case is the one to get right: `find_evidence` has no `business_id` of its own
-and inherits it through `find_id`.
-
-### Rules that must not be broken
-
-- **`frontend/src/fixtures/demo.json` is committed to the repo.** `export_fixture.py`
-  must never read `account` or `session`. A password hash reaching that file is a
-  published credential.
-- Never log tokens, hashes, or passwords — not at debug level, not in `agent_run`.
-- The demo account's password is generated by a script and never printed, per the
-  existing rule for the SQL password.
-- Seed files carry no real email addresses.
-
-### Effort and sequencing
+### Effort
 
 | Item | Estimate |
 |---|---|
 | L1 landing page | ~1 day |
-| L2 + L3 schema, hashing, sessions, tests | ~1.5 days |
-| L5 authorizer and wiring | ~1 day |
-| L4 + L6 read-only demo path and isolation tests | ~0.5 day |
+| L2 read-only API, if added | ~0.5 day |
 
-**Recommendation:** build **L1 now** — it is cheap, it is the public face of the
-submission, and it does not block anything. Hold **L2–L6 until deployment and the Ask
-agent are done**, because those are required by the rules and accounts are not. If the
-schedule tightens in the second week of August, ship the landing page with a waitlist
-field instead of half-finished auth. A polished landing page plus a working demo beats a
-login screen in front of an unfinished product.
+About three and a half days cheaper than the account-based draft, and the saved time
+goes to deployment and the Ask agent — both required by the rules, unlike accounts.
 
 ---
 
@@ -377,15 +350,15 @@ login screen in front of an unfinished product.
   needs to use it.
 - **No new framework.** Everything above is edits to the mock plus `build_web.py`. The
   React build stays unused.
-- **No billing, and no multi-tenant onboarding beyond one business per account.** Signup
-  creates exactly one business. Team members, roles, and invites stay cut.
+- **No accounts, no login, no billing.** Per `CLAUDE.md`: single demo tenant. The landing
+  page opens straight into the product.
 
 ## Suggested sequence
 
 1. Seed more open finds — items 1, 4 and the jars all look better with 5 open finds than
    with 1, and that is a data change, not a UI change.
 2. **P0** in order, then **P1**.
-3. **L1**, the landing page — it can run in parallel with P0, since it is a new file.
-4. Deployment and the Ask agent — required by the rules.
-5. **L2–L6**, accounts — only once step 4 is done.
-6. P2 and README, then freeze **Aug 14**.
+3. **L1**, the landing page — can run in parallel with P0, since it is a new file.
+4. Deployment and the Ask agent — required by the rules. **L2/L3** are constraints on how
+   that deployment is configured, not separate work.
+5. P2 and README, then freeze **Aug 14**.
