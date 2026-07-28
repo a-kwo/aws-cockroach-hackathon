@@ -8,73 +8,211 @@
         "role": "neutral",
         "displayName": "Cream Paper",
         "canonical": "#F5F1E8",
-        "tonalRamp": ["#2A2721", "#463F33", "#635A48", "#847A64", "#A79C84", "#C8BFA9", "#E3DBC9", "#F5F1E8"]
+        "tonalRamp": [
+          "#2A2721",
+          "#463F33",
+          "#635A48",
+          "#847A64",
+          "#A79C84",
+          "#C8BFA9",
+          "#E3DBC9",
+          "#F5F1E8"
+        ]
       },
       "ink": {
         "role": "neutral",
         "displayName": "Ledger Ink",
         "canonical": "#232936",
-        "tonalRamp": ["#0D0F14", "#161A22", "#232936", "#3A4254", "#525C73", "#7A8397", "#AEB5C2", "#DDE0E6"]
+        "tonalRamp": [
+          "#0D0F14",
+          "#161A22",
+          "#232936",
+          "#3A4254",
+          "#525C73",
+          "#7A8397",
+          "#AEB5C2",
+          "#DDE0E6"
+        ]
       },
       "muted": {
         "role": "neutral",
         "displayName": "Warm Slate",
-        "canonical": "#8B8778",
-        "tonalRamp": ["#221F19", "#3A362C", "#534E40", "#6D6755", "#8B8778", "#ABA79A", "#CBC8BE", "#E8E6E0"]
+        "canonical": "#6E6A5C",
+        "tonalRamp": [
+          "#221F19",
+          "#3A362C",
+          "#534E40",
+          "#6D6755",
+          "#8B8778",
+          "#ABA79A",
+          "#CBC8BE",
+          "#E8E6E0"
+        ]
       },
       "line": {
         "role": "neutral",
         "displayName": "Hairline",
         "canonical": "#E4DECD",
-        "tonalRamp": ["#2B2820", "#443F33", "#5E5847", "#7A735D", "#9C9480", "#BFB8A4", "#E4DECD", "#F4F1E9"]
+        "tonalRamp": [
+          "#2B2820",
+          "#443F33",
+          "#5E5847",
+          "#7A735D",
+          "#9C9480",
+          "#BFB8A4",
+          "#E4DECD",
+          "#F4F1E9"
+        ]
       },
       "brass": {
         "role": "primary",
         "displayName": "Brass",
         "canonical": "#A8781F",
-        "tonalRamp": ["#2A1E08", "#463111", "#63461A", "#835D23", "#A8781F", "#C79A45", "#E0BE7F", "#F2DEB8"]
+        "tonalRamp": [
+          "#2A1E08",
+          "#463111",
+          "#63461A",
+          "#835D23",
+          "#A8781F",
+          "#C79A45",
+          "#E0BE7F",
+          "#F2DEB8"
+        ]
       },
       "brass-deep": {
         "role": "primary",
         "displayName": "Deep Brass",
         "canonical": "#8A6217",
-        "tonalRamp": ["#241905", "#3B290C", "#523A13", "#6C4C18", "#8A6217", "#AE8434", "#D0AE6C", "#EBD5A6"]
+        "tonalRamp": [
+          "#241905",
+          "#3B290C",
+          "#523A13",
+          "#6C4C18",
+          "#8A6217",
+          "#AE8434",
+          "#D0AE6C",
+          "#EBD5A6"
+        ]
       },
       "gold-light": {
         "role": "primary",
         "displayName": "Coin Highlight",
         "canonical": "#F2D689",
-        "tonalRamp": ["#3A2E0E", "#5A4818", "#7A6323", "#9C8032", "#BE9F47", "#DBBE68", "#F2D689", "#FBEEC6"]
+        "tonalRamp": [
+          "#3A2E0E",
+          "#5A4818",
+          "#7A6323",
+          "#9C8032",
+          "#BE9F47",
+          "#DBBE68",
+          "#F2D689",
+          "#FBEEC6"
+        ]
       },
       "gold-mid": {
         "role": "primary",
         "displayName": "Coin Body",
         "canonical": "#D9A93F",
-        "tonalRamp": ["#33230A", "#523A12", "#71511B", "#916927", "#B28937", "#D9A93F", "#E9C777", "#F6E4B4"]
+        "tonalRamp": [
+          "#33230A",
+          "#523A12",
+          "#71511B",
+          "#916927",
+          "#B28937",
+          "#D9A93F",
+          "#E9C777",
+          "#F6E4B4"
+        ]
       },
       "verdict-verified": {
         "role": "secondary",
         "displayName": "Verified Green",
         "canonical": "#118066",
-        "tonalRamp": ["#03211A", "#06382C", "#0A4F3F", "#0D6753", "#118066", "#22A585", "#5CC7AC", "#A6E4D5"]
+        "tonalRamp": [
+          "#03211A",
+          "#06382C",
+          "#0A4F3F",
+          "#0D6753",
+          "#118066",
+          "#22A585",
+          "#5CC7AC",
+          "#A6E4D5"
+        ]
       },
       "verdict-miss": {
         "role": "secondary",
         "displayName": "Miss Red",
         "canonical": "#C0442A",
-        "tonalRamp": ["#2E0D06", "#4C160C", "#6B2013", "#8B2C1B", "#A93823", "#C0442A", "#DB7A64", "#F2BCAF"]
+        "tonalRamp": [
+          "#2E0D06",
+          "#4C160C",
+          "#6B2013",
+          "#8B2C1B",
+          "#A93823",
+          "#C0442A",
+          "#DB7A64",
+          "#F2BCAF"
+        ]
       },
       "verdict-estimated": {
         "role": "secondary",
         "displayName": "Modelled Blue",
         "canonical": "#2E5EA8",
-        "tonalRamp": ["#081428", "#0F2444", "#173562", "#204781", "#2E5EA8", "#5382C9", "#8CAEE0", "#C6D8F1"]
+        "tonalRamp": [
+          "#081428",
+          "#0F2444",
+          "#173562",
+          "#204781",
+          "#2E5EA8",
+          "#5382C9",
+          "#8CAEE0",
+          "#C6D8F1"
+        ]
       },
       "verdict-measuring": {
         "role": "secondary",
         "displayName": "Measuring Brass",
         "canonical": "#A8781F",
-        "tonalRamp": ["#2A1E08", "#463111", "#63461A", "#835D23", "#A8781F", "#C79A45", "#E0BE7F", "#F2DEB8"]
+        "tonalRamp": [
+          "#2A1E08",
+          "#463111",
+          "#63461A",
+          "#835D23",
+          "#A8781F",
+          "#C79A45",
+          "#E0BE7F",
+          "#F2DEB8"
+        ]
+      },
+      "verdict-verified-ink": {
+        "role": "secondary",
+        "displayName": "Verified Ink",
+        "canonical": "#0D6450",
+        "tonalRamp": [
+          "#03211A",
+          "#06382C",
+          "#0A4F3F",
+          "#0D6753",
+          "#118066",
+          "#22A585",
+          "#5CC7AC",
+          "#A6E4D5"
+        ]
+      },
+      "verdict-measuring-ink": {
+        "role": "secondary",
+        "displayName": "Measuring Ink",
+        "canonical": "#8A6217",
+        "tonalRamp": [
+          "#241905",
+          "#3B290C",
+          "#523A13",
+          "#6C4C18",
+          "#8A6217",
+          "#AE8434",
+          "#D0AE6C",
+          "#EBD5A6"
+        ]
       }
     },
     "typographyMeta": {
@@ -149,9 +287,18 @@
       }
     ],
     "breakpoints": [
-      { "name": "stack", "value": "900px" },
-      { "name": "landing-md", "value": "880px" },
-      { "name": "landing-sm", "value": "620px" }
+      {
+        "name": "stack",
+        "value": "900px"
+      },
+      {
+        "name": "landing-md",
+        "value": "880px"
+      },
+      {
+        "name": "landing-sm",
+        "value": "620px"
+      }
     ]
   },
   "components": [
@@ -247,14 +394,46 @@
       "Physical signatures — a coin jar, a drawn road — that state the product's promise."
     ],
     "rules": [
-      { "name": "The Reserved Verdict Rule", "body": "The four verdict colours mean one thing each and are never borrowed for emphasis, series colour, or decoration. A fifth thing that needs colour uses brass or nothing.", "section": "colors" },
-      { "name": "The Never-Colour-Alone Rule", "body": "A verdict is always carried by a word as well as a colour — VERIFIED, MISSED, Modelled, Measuring. Removing all colour from any screen must leave every outcome still readable.", "section": "colors" },
-      { "name": "The Brass Rarity Rule", "body": "Brass marks money or a decision the owner owes. If it appears anywhere that is neither, it is wrong.", "section": "colors" },
-      { "name": "The Fraunces-for-Money Rule", "body": "A figure set in Fraunces is a claim about the owner's money. A figure set in Inter is interface furniture. Never set a projection or an unverified number in the display face at display size.", "section": "typography" },
-      { "name": "The Tabular Ledger Rule", "body": "Anywhere two numbers are meant to be compared down a column — predicted against actual — figures are tabular-lining so digits align.", "section": "typography" },
-      { "name": "The One Measure Rule", "body": "Prose never exceeds ~68ch. When a panel is wider than that, the prose column narrows rather than the text running the full width.", "section": "layout" },
-      { "name": "The Flat-Page Rule", "body": "If it is part of the page, it is flat. If it covers the page, it gets the floating-panel shadow. There is no third tier.", "section": "elevation" },
-      { "name": "The Pill-Means-State Rule", "body": "A pill labels a condition. A rounded rectangle holds content or takes an action. Do not put a pill radius on a container.", "section": "shapes" }
+      {
+        "name": "The Reserved Verdict Rule",
+        "body": "The four verdict colours mean one thing each and are never borrowed for emphasis, series colour, or decoration. A fifth thing that needs colour uses brass or nothing.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never-Colour-Alone Rule",
+        "body": "A verdict is always carried by a word as well as a colour — VERIFIED, MISSED, Modelled, Measuring. Removing all colour from any screen must leave every outcome still readable.",
+        "section": "colors"
+      },
+      {
+        "name": "The Brass Rarity Rule",
+        "body": "Brass marks money or a decision the owner owes. If it appears anywhere that is neither, it is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fraunces-for-Money Rule",
+        "body": "A figure set in Fraunces is a claim about the owner's money. A figure set in Inter is interface furniture. Never set a projection or an unverified number in the display face at display size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Ledger Rule",
+        "body": "Anywhere two numbers are meant to be compared down a column — predicted against actual — figures are tabular-lining so digits align.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Measure Rule",
+        "body": "Prose never exceeds ~68ch. When a panel is wider than that, the prose column narrows rather than the text running the full width.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-Page Rule",
+        "body": "If it is part of the page, it is flat. If it covers the page, it gets the floating-panel shadow. There is no third tier.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Pill-Means-State Rule",
+        "body": "A pill labels a condition. A rounded rectangle holds content or takes an action. Do not put a pill radius on a container.",
+        "section": "shapes"
+      }
     ],
     "dos": [
       "Do pair every verdict colour with its word. The screen must survive being read in greyscale.",

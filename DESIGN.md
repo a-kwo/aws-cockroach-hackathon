@@ -6,13 +6,15 @@ colors:
   card: "#FFFFFF"
   ink: "#232936"
   ink-soft: "#4A5160"
-  muted: "#8B8778"
+  muted: "#6E6A5C"
   line: "#E4DECD"
   brass: "#A8781F"
   brass-deep: "#8A6217"
   gold-light: "#F2D689"
   gold-mid: "#D9A93F"
   verdict-verified: "#118066"
+  verdict-verified-ink: "#0D6450"
+  verdict-measuring-ink: "#8A6217"
   verdict-miss: "#C0442A"
   verdict-estimated: "#2E5EA8"
   verdict-measuring: "#A8781F"
@@ -46,10 +48,12 @@ typography:
     lineHeight: 1.2
     letterSpacing: "0.08em"
 rounded:
-  pill: "999px"
+  xs: "4px"
   sm: "8px"
   md: "12px"
+  commit: "14px"
   lg: "18px"
+  pill: "999px"
 spacing:
   xs: "6px"
   sm: "8px"
@@ -89,7 +93,7 @@ components:
   nav-item:
     backgroundColor: "{colors.card}"
     textColor: "{colors.ink}"
-    rounded: "13px"
+    rounded: "{rounded.md}"
     padding: "7px 16px 8px"
   nav-item-active:
     backgroundColor: "{colors.ink}"
@@ -162,6 +166,14 @@ and red pair they replaced scored 6.0 on precisely this distinction.
   family from verified so it can never be mistaken for a win.
 - **Measuring Brass** (`#A8781F`): a call in flight, outcome unknown.
 
+**Mark colours versus ink.** The four above are *marks* — bars, dots, fills — and are
+the exact CVD-validated set. Set as text on paper, verified measures 4.33:1 and
+measuring 3.47:1, both under AA, so two ink variants exist: **Verified Ink**
+(`#0D6450`, 6.30:1) and **Measuring Ink** (`#8A6217`, 4.85:1). Do not "fix" the mark
+colours by darkening them — dropping verified to `#0F7259` was tried and takes chroma
+under the floor while collapsing CVD separation from ΔE 10.0 to 6.7. Verified with
+the palette validator.
+
 ### Neutral
 
 - **Paper** (`#F5F1E8`): the field colour for every screen. Carries a radial highlight
@@ -170,9 +182,24 @@ and red pair they replaced scored 6.0 on precisely this distinction.
 - **Ink** (`#232936`): primary text, and the fill for the active nav item and primary
   button.
 - **Ink Soft** (`#4A5160`): secondary prose, body copy in cards.
-- **Muted** (`#8B8778`): labels, captions, metadata, timestamps. Warm grey, not neutral
-  grey — it belongs to the paper.
+- **Muted** (`#6E6A5C`): labels, captions, metadata, timestamps. Warm grey, not neutral
+  grey — it belongs to the paper. It was `#8B8778` until a contrast pass: that value
+  measured 3.19:1 on paper and failed AA in every place it was used.
 - **Line** (`#E4DECD`): every rule, divider and resting border in the system.
+
+### Surface tints
+
+Repeated tints were literals scattered across the sheet until a consolidation pass.
+They are tokens now, and a second red (`#C05B4D`) that had been living beside the
+validated miss colour was folded into it — two reds a few points apart, on the one
+distinction this product exists to make.
+
+- **Line Soft** (`#F0EDE5`) — the lightest divider, inside a panel.
+- **Line Firm** (`#C9C2B0`) — a border under hover or emphasis.
+- **Brass Tint** (`#F6EFDF`) / **Brass Line** (`#E3D2A8`) — the warm fill and border
+  used when something is waiting on the owner.
+- **Shadow 1 / 2 / 3** (`rgba(35,41,54,0.05 / 0.12 / 0.18)`) — the only three shadow
+  alphas in the system.
 
 ### Named Rules
 
@@ -386,12 +413,22 @@ label. Below 900px the arrows are hidden and the rail scrolls horizontally.
 - **Don't** put gold on anything that is not a coin.
 - **Don't** add a third elevation tier.
 
-### Known debt
+### Iconography
 
-**Iconography is emoji, and that is incumbent rather than intended.** Emoji currently
-carry find identity, nav labels, and verdict marks. They render differently per platform,
-cannot be styled or aligned reliably, and are the system's weakest craft signal. The
-replacement — a single-weight drawn line set at 16/20/24px inheriting `currentColor` — is
-the top outstanding item, recorded here so future work has a target rather than a
-decision to re-litigate. Until it ships, emoji usage stays as-is; do not partially
-replace them, which would leave two icon languages on one screen.
+**Interface icons are a drawn set; find emoji are content.** The line is deliberate and
+worth keeping:
+
+- **Drawn icons** carry every interface job — the four loop tabs, the four vitals, the
+  evidence clip, close, send, the road's start pin and goal flag. One weight (1.7),
+  a 24px grid, `currentColor`, no fills, defined once as `<symbol>` and referenced with
+  `<use>`. They inherit text colour, so they take state for free.
+- **Emoji stay on finds.** Each find's emoji comes from the database — the Analyst
+  chooses it — and it is that find's identity as it moves from the road to the jar to
+  the ledger. Replacing it would mean changing the agent's output schema, and a drawn
+  icon cannot say *tiramisu*.
+
+Emoji also survive in the agent's chat messages, where they are voice rather than
+iconography. Use them sparingly there and never as the only carrier of meaning.
+
+**Do not add a second icon language.** If a new interface icon is needed, draw it on the
+same grid at the same weight and add it to the sprite.
