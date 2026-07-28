@@ -88,11 +88,41 @@ variables, where they would be readable from the console.
 put() { aws ssm put-parameter --type SecureString \
           --overwrite --name "/brasstacks/$1" --value "$2"; }
 
-put COCKROACH_DATABASE_URL 'postgresql://…?sslmode=verify-full'
+put COCKROACH_DATABASE_URL 'postgresql://…?sslmode=verify-full&sslrootcert=system'
 put ANTHROPIC_API_KEY      'sk-ant-…'
 put COCKROACH_MCP_TOKEN    '…'          # from step 2
 put BRASSTACKS_BUSINESS_ID '…'          # printed by scripts/seed.py
 ```
+
+Two more, not secrets but needed — without them the Ask agent rediscovers the
+cluster and schema on every question (measured: 8 tool calls per question
+instead of 2):
+
+```bash
+aws ssm put-parameter --type String --overwrite \
+  --name /brasstacks/COCKROACH_CLUSTER_ID --value '…'
+aws ssm put-parameter --type String --overwrite \
+  --name /brasstacks/COCKROACH_DATABASE --value defaultdb
+```
+
+### The connection string is not the same one you use locally
+
+`sslrootcert` must differ by environment, and copying the local value across is
+a deploy failure that reads as a certificate problem:
+
+| | `sslrootcert` |
+|---|---|
+| Local (Windows) | an absolute path to `cockroach-certs/ca.crt` — `system` does not work, because psycopg's bundled libpq will not resolve it to the Windows trust store |
+| Lambda (Linux) | `system` |
+
+CockroachDB Cloud clusters present a **Let's Encrypt** certificate, so Linux
+verifies it from the OS trust store with nothing bundled. This keeps
+`sslmode=verify-full` — the point is to avoid weakening TLS, not to avoid
+carrying a file.
+
+Do **not** `COPY cockroach-certs/ca.crt` into the image as an alternative. That
+file is gitignored, so it does not exist in a fresh clone and the build would
+fail for anyone but you — a judge included.
 
 ## 4. Create the artifact bucket
 
