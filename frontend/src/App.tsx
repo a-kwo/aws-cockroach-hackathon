@@ -2,129 +2,99 @@ import { useMemo, useState } from "react";
 
 import demo from "./fixtures/demo.json";
 import type { DemoData, Find, FindStatus } from "./types";
-import { MorningDecision } from "./components/MorningDecision";
-import { ReceiptLedger } from "./components/ReceiptLedger";
-import { EvidenceTrail } from "./components/EvidenceTrail";
-import { PathToGoal } from "./components/PathToGoal";
-import { Numbers } from "./components/Numbers";
-import { money } from "./format";
+import { FindSheet } from "./components/FindSheet";
+import { RecordRail } from "./components/RecordRail";
+import { ProofMargin } from "./components/ProofMargin";
+import { Road } from "./components/Road";
+import { MarginNotes } from "./components/MarginNotes";
 import "./styles/tokens.css";
-import "./styles/app.css";
-import "./styles/dashboard.css";
+import "./styles/desk.css";
 
 const data = demo as unknown as DemoData;
 
-/* The tabs mirror the loop the agents actually run: observe what's out there,
- * decide what to do, check whether it worked. Naming them after the owner's
- * question rather than the agent's name keeps the interface on her side. */
-const TABS = [
-  { id: "morning", label: "This morning", hint: "What needs you" },
-  { id: "road", label: "The road", hint: "What gets you to your goal" },
-  { id: "numbers", label: "The numbers", hint: "Whether it's working" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
-
 export default function App() {
-  const [tab, setTab] = useState<TabId>("morning");
   const [decisions, setDecisions] = useState<Record<string, FindStatus>>({});
-  const [evidenceFor, setEvidenceFor] = useState<Find | null>(null);
+  const [proofFor, setProofFor] = useState<Find | null>(null);
 
   const finds = useMemo(
     () =>
-      data.finds.map((find) =>
-        decisions[find.id] ? { ...find, status: decisions[find.id] } : find,
-      ),
+      data.finds.map((f) => (decisions[f.id] ? { ...f, status: decisions[f.id] } : f)),
     [decisions],
   );
 
-  const undecided = finds.filter(
-    (f) => f.verdict === null && f.status === "proposed",
-  );
+  const undecided = finds.filter((f) => f.verdict === null && f.status === "proposed");
   const open = finds.filter(
     (f) => f.verdict === null && (f.status === "proposed" || f.status === "later"),
   );
+  const tonight = undecided[0];
+  const decidedCount = Object.keys(decisions).length;
 
   const handleDecide = (findId: string, status: FindStatus) =>
     setDecisions((prev) => ({ ...prev, [findId]: status }));
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar__brand">
-          <span className="topbar__mark" aria-hidden="true" />
-          <span className="topbar__name">Brass Tacks</span>
+    <div className="desk">
+      <header className="masthead">
+        <div className="masthead__brand">
+          <svg className="masthead__mark" viewBox="0 0 22 22" aria-hidden="true">
+            <rect x="1" y="1" width="20" height="20" rx="2" fill="none" stroke="currentColor" strokeWidth="1.4" />
+            <line x1="5.5" y1="7" x2="16.5" y2="7" stroke="currentColor" strokeWidth="1.4" />
+            <line x1="5.5" y1="11" x2="16.5" y2="11" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="11" cy="16" r="1.9" fill="currentColor" />
+          </svg>
+          <span className="masthead__name">Brass Tacks</span>
         </div>
-        <div className="topbar__meta">
-          <span className="topbar__earning">
-            {money(data.summary.verified_daily_cents)}
-            <span> a day, earning now</span>
-          </span>
-          <span className="topbar__shop">{data.business.name}</span>
-        </div>
+        <p className="masthead__slug head">
+          {data.business.name}
+          {data.business.city && <> · {data.business.city}</>}
+        </p>
       </header>
 
-      <nav className="tabs" aria-label="Sections">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`tab${tab === t.id ? " is-active" : ""}`}
-            onClick={() => setTab(t.id)}
-            aria-current={tab === t.id ? "page" : undefined}
-          >
-            <span className="tab__label">
-              {t.label}
-              {t.id === "morning" && undecided.length > 0 && (
-                <span className="tab__badge">{undecided.length}</span>
-              )}
-            </span>
-            <span className="tab__hint">{t.hint}</span>
-          </button>
-        ))}
-      </nav>
+      <div className="chassis">
+        <RecordRail
+          finds={finds}
+          summary={data.summary}
+          corpusCount={data.corpus.observations}
+          onShowProof={setProofFor}
+        />
 
-      <main className="main">
-        {tab === "morning" && (
-          <>
-            <MorningDecision
-              find={undecided[0]}
+        <main className="column">
+          {tonight ? (
+            <FindSheet
+              find={tonight}
               summary={data.summary}
-              queued={undecided.length}
+              issueNumber={finds.length - undecided.length + 1}
               onDecide={handleDecide}
-              onShowEvidence={setEvidenceFor}
+              onShowProof={setProofFor}
             />
-            <ReceiptLedger
-              finds={finds}
-              summary={data.summary}
-              onShowEvidence={setEvidenceFor}
-            />
-          </>
-        )}
+          ) : (
+            <article className="sheet sheet--quiet">
+              <p className="sheet__kicker head">This morning</p>
+              <h1 className="sheet__title">Nothing needs you.</h1>
+              <p className="sheet__lede">
+                {decidedCount > 0
+                  ? `You settled ${decidedCount} this morning. The agents run again tonight and will file whatever they find.`
+                  : "The agents ran overnight and found nothing worth interrupting you for. Go run your shop."}
+              </p>
+              <p className="sheet__byline head">
+                Radar, Analyst and Meter ran overnight · nothing filed
+              </p>
+            </article>
+          )}
 
-        {tab === "road" && (
-          <PathToGoal
+          <Road
             realizedDailyCents={data.summary.verified_daily_cents}
             openFinds={open}
             goalMonthlyCents={data.business.goal_monthly_cents}
-            goalNote={data.business.goal_note}
-            onShowEvidence={setEvidenceFor}
+            monthsOfLedger={data.monthly.length}
+            onShowProof={setProofFor}
           />
-        )}
+        </main>
 
-        {tab === "numbers" && <Numbers data={data} />}
+        <MarginNotes find={tonight} onExpand={setProofFor} />
+      </div>
 
-        <footer className="footnote">
-          <p>
-            Your agent has read <strong>{data.corpus.observations}</strong>{" "}
-            things about your business and remembers all of them.
-          </p>
-          <p className="footnote__quiet">
-            Seeded demonstration data for a fictional restaurant.
-          </p>
-        </footer>
-      </main>
-
-      <EvidenceTrail find={evidenceFor} onClose={() => setEvidenceFor(null)} />
+      <ProofMargin find={proofFor} onClose={() => setProofFor(null)} />
     </div>
   );
 }

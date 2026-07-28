@@ -1,0 +1,987 @@
+/* The desk. Implements docs/DESIGN_SPEC.md section 6.
+ *
+ * 1440 = 56 gutter | 272 rail | 40 | 680 sheet | 40 | 296 margin | 56 gutter
+ *
+ * The reading column is 680px because that is correct for 18px Newsreader, and
+ * stretching it would wreck the one thing that matters. The margins are not
+ * empty: the left carries the record (should I believe this) and the right the
+ * receipts (prove it). The desk bleeds edge to edge, so a wide viewport reads as
+ * a desk rather than as a stranded column in a void.
+ */
+
+.desk {
+  min-height: 100vh;
+  background: var(--desk);
+}
+
+/* ------------------------------------------------------------- masthead */
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s5);
+  padding: var(--s4) var(--s7);
+  background: var(--desk);
+  border-bottom: var(--b-desk);
+  color: var(--on-desk);
+}
+
+.masthead__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.masthead__mark {
+  width: 20px;
+  height: 20px;
+  color: var(--brass-on-desk);
+}
+
+.masthead__name {
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.masthead__slug {
+  color: var(--on-desk-3);
+}
+
+/* -------------------------------------------------------------- chassis */
+
+.chassis {
+  display: grid;
+  grid-template-columns: 272px 680px minmax(0, 296px);
+  gap: var(--s8);
+  justify-content: center;
+  padding: var(--s8) var(--s10) var(--s12);
+  align-items: start;
+}
+
+@media (min-width: 1561px) {
+  .chassis {
+    grid-template-columns: 300px 720px minmax(0, 340px);
+  }
+}
+
+@media (max-width: 1279px) {
+  .chassis {
+    grid-template-columns: 240px minmax(600px, 1fr) 0;
+    gap: var(--s7);
+    padding: var(--s7) var(--s7) var(--s11);
+  }
+  .margin {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .chassis {
+    grid-template-columns: minmax(0, 720px);
+    justify-content: center;
+    padding: var(--s6) var(--s5) var(--s10);
+    gap: var(--s6);
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ the rail */
+
+.rail {
+  position: sticky;
+  top: calc(52px + var(--s7));
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  color: var(--on-desk);
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .rail {
+    position: static;
+    order: 2;
+  }
+}
+
+.rail__block {
+  background: var(--desk-raised);
+  border: var(--b-desk);
+  border-radius: var(--r-block);
+  padding: var(--s5);
+}
+
+.rail__head {
+  color: var(--on-desk-3);
+  margin-bottom: var(--s3);
+}
+
+.rail__figure {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--brass-on-desk);
+  line-height: 1;
+}
+
+.rail__unit,
+.rail__record {
+  font-size: 0.875rem;
+  color: var(--on-desk-3);
+  margin-top: var(--s2);
+}
+
+.rail__record strong {
+  color: var(--on-desk);
+  font-weight: 600;
+}
+
+.rail__tally {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: var(--b-desk);
+  font-size: 0.8125rem;
+}
+
+.rail__foot {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--on-desk-3);
+  padding: 0 var(--s2);
+}
+
+/* Marks on the desk use the lighter step for contrast against #11151C. */
+.rail .mark--verified { color: #3fae8f; }
+.rail .mark--miss { color: #e07a63; }
+.rail .mark--measuring { color: #7ba3e0; }
+.rail .mark--waiting { color: var(--brass-on-desk); }
+
+/* --------------------------------------------------------- the ledger */
+
+.ledger {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ledgerRow + .ledgerRow {
+  border-top: var(--b-desk);
+}
+
+.ledgerRow__btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--s3) 0;
+}
+
+.ledgerRow__btn:hover .ledgerRow__title {
+  color: #fff;
+}
+
+.ledgerRow__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.ledgerRow__amount {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-desk);
+}
+
+.ledgerRow--miss .ledgerRow__amount {
+  color: var(--on-desk-3);
+}
+
+.ledgerRow__title {
+  display: block;
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--on-desk);
+  margin-top: var(--s2);
+  transition: color 140ms var(--ease);
+}
+
+.ledgerRow__meta {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--on-desk-3);
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------- the marks */
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  white-space: nowrap;
+}
+
+.mark svg {
+  flex: 0 0 auto;
+}
+
+.mark__label {
+  font-family: var(--sans);
+  font-variation-settings: "wdth" 112;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
+.mark--verified { color: var(--verified-ink); }
+.mark--miss { color: var(--miss-ink); }
+.mark--measuring { color: var(--measuring-ink); }
+.mark--waiting { color: var(--brass-ink); }
+
+/* --------------------------------------------------------- the sheet */
+
+.sheet {
+  background: var(--paper);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--sh-sheet);
+  padding: var(--s8) var(--s8) var(--s7);
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .sheet {
+    box-shadow: var(--sh-sheet-mobile);
+    padding: var(--s6) var(--s5);
+  }
+}
+
+.sheet__kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-bottom: var(--s4);
+}
+
+.sheet__kickerDot {
+  opacity: 0.5;
+}
+
+.sheet__title {
+  font-family: var(--serif);
+  font-size: 2.625rem;
+  font-weight: 500;
+  line-height: 1.13;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  max-width: 24ch;
+}
+
+@media (max-width: 767px) {
+  .sheet__title {
+    font-size: 1.75rem;
+    line-height: 1.18;
+  }
+}
+
+.sheet__lede {
+  font-size: 1.3125rem;
+  line-height: 1.42;
+  color: var(--ink);
+  margin-top: var(--s6);
+}
+
+.sheet__byline {
+  margin-top: var(--s8);
+  padding-top: var(--s4);
+  border-top: var(--b-paper);
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.sheet--quiet .sheet__title {
+  max-width: 20ch;
+}
+
+/* ----------------------------------------------------------- the ask */
+
+.ask {
+  margin-top: var(--s6);
+  background: var(--paper-dim);
+  border: var(--b-paper);
+  border-radius: var(--r-block);
+  padding: var(--s6);
+}
+
+.ask__money {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+}
+
+.ask__figure {
+  font-size: 2.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.ask__unit {
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+  color: var(--ink-3);
+}
+
+.ask__month {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  margin-left: auto;
+}
+
+.ask__check {
+  font-size: 1.0625rem;
+  color: var(--ink-2);
+  margin-top: var(--s3);
+}
+
+.ask__record {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: var(--b-paper);
+}
+
+.ask__record strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+.btn {
+  font-family: var(--sans);
+  font-variation-settings: "wdth" 112;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: var(--r-block);
+  padding: 0 var(--s6);
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.btn--yes {
+  background: var(--ink);
+  color: var(--paper);
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.btn--yes:hover {
+  background: #0d1118;
+}
+
+.btn--no {
+  border: var(--b-paper-strong);
+  color: var(--ink-2);
+  background: var(--paper);
+}
+
+.btn--no:hover {
+  border-color: var(--ink-3);
+}
+
+.btn--later {
+  color: var(--ink-3);
+  font-weight: 500;
+  padding: 0 var(--s3);
+}
+
+.btn--later:hover {
+  color: var(--ink-2);
+}
+
+.ask__promise {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  margin-top: var(--s3);
+}
+
+/* ---------------------------------------------------------- the work */
+
+.work,
+.guards,
+.why {
+  margin-top: var(--s8);
+}
+
+.work__head,
+.guards__head,
+.why__head {
+  padding-bottom: var(--s3);
+  border-bottom: var(--b-paper-strong);
+  margin-bottom: var(--s4);
+  color: var(--ink);
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+}
+
+.work__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 3.75rem 1fr;
+  gap: var(--s4);
+  padding: var(--s4) 0;
+}
+
+.step + .step {
+  border-top: var(--b-paper);
+}
+
+.step__owner {
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  padding-top: 4px;
+  color: var(--ink-3);
+}
+
+.step--owner .step__owner {
+  color: var(--brass-ink);
+  font-weight: 600;
+}
+
+.step--owner {
+  background: var(--brass-wash);
+  margin: 0 calc(var(--s4) * -1);
+  padding-inline: var(--s4);
+  border-radius: var(--r-chip);
+}
+
+.step__text {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+/* Clamping is CSS only. The full text stays in the DOM so find-in-page, screen
+ * readers and copy-paste all get every word. */
+.step__text.is-clamped,
+.why__text.is-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.step__text.is-clamped {
+  -webkit-line-clamp: 2;
+}
+
+.why__text.is-clamped {
+  -webkit-line-clamp: 3;
+}
+
+.step__more,
+.why__more {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brass-ink);
+  margin-top: var(--s2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* -------------------------------------------------------- the guards */
+
+.guards__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.guards__list li {
+  font-style: italic;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  padding-left: var(--s4);
+  border-left: 2px solid var(--brass);
+}
+
+/* ----------------------------------------------------------- the why */
+
+.why__text {
+  font-size: 1.125rem;
+  line-height: 1.62;
+  color: var(--ink-2);
+  max-width: 64ch;
+}
+
+/* --------------------------------------------------- proof + as written */
+
+.proofLink {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: var(--s7);
+  padding: var(--s4) var(--s5);
+  background: var(--paper-dim);
+  border: var(--b-paper);
+  border-radius: var(--r-block);
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+  transition: border-color 140ms var(--ease);
+}
+
+.proofLink:hover {
+  border-color: var(--brass);
+}
+
+.proofLink__arrow {
+  color: var(--brass-ink);
+}
+
+.asWritten {
+  margin-top: var(--s4);
+}
+
+.asWritten summary {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: var(--s2) 0;
+}
+
+.asWritten summary:hover {
+  color: var(--ink-2);
+}
+
+.asWritten__body {
+  font-size: 1.1875rem;
+  line-height: 1.68;
+  color: var(--ink-2);
+  max-width: 66ch;
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: var(--b-paper);
+}
+
+/* ---------------------------------------------------------- the road */
+
+.road__title {
+  font-family: var(--serif);
+  font-size: 1.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ruler {
+  display: flex;
+  gap: 2px;
+  height: 40px;
+  margin-top: var(--s6);
+  background: var(--paper-dim);
+  border-radius: var(--r-chip);
+  overflow: hidden;
+}
+
+.ruler__seg {
+  min-width: 3px;
+  transition: filter 140ms var(--ease);
+}
+
+.ruler__seg--earning {
+  background: var(--verified);
+}
+
+.ruler__seg--waiting {
+  background: var(--brass);
+  /* 45-degree hatch so the waiting segments are distinguishable from earning
+   * without relying on the colour pair alone. */
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.28) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+.ruler__seg--gap {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--rule) 0 5px,
+    var(--paper-dim) 5px 11px
+  );
+}
+
+.ruler__seg:hover,
+.ruler__seg.is-hot {
+  filter: brightness(1.12);
+}
+
+.ruler__readout {
+  font-size: 1.0625rem;
+  color: var(--ink-2);
+  margin-top: var(--s4);
+  min-height: 2.6em;
+}
+
+.ruler__readout strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ruler__key {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5);
+  margin-top: var(--s2);
+}
+
+.road__refusal {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: var(--b-paper);
+  font-size: 0.9375rem;
+  color: var(--ink-3);
+}
+
+.road__counter {
+  flex: 0 0 auto;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  border: var(--b-paper-strong);
+  border-radius: var(--r-chip);
+  padding: 2px var(--s2);
+}
+
+.stops {
+  list-style: none;
+  margin-top: var(--s6);
+  display: flex;
+  flex-direction: column;
+}
+
+.stop {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  gap: var(--s4);
+  align-items: baseline;
+  padding: var(--s4) 0;
+}
+
+.stop + .stop {
+  border-top: var(--b-paper);
+}
+
+.stop__money {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.stop__title {
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.stop__proof {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--brass-ink);
+  margin-top: var(--s1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.stop__flag {
+  font-size: 0.625rem;
+  color: var(--brass-ink);
+}
+
+/* -------------------------------------------------------- proof panel */
+
+.proof {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.proof__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 21, 28, 0.62);
+  cursor: default;
+  animation: proofFade 200ms var(--ease) both;
+}
+
+@keyframes proofFade {
+  from {
+    opacity: 0;
+  }
+}
+
+.proof__panel {
+  position: relative;
+  width: min(620px, 100%);
+  background: var(--paper);
+  overflow-y: auto;
+  padding: var(--s7);
+  animation: proofSlide 280ms var(--ease) both;
+  box-shadow: -24px 0 64px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes proofSlide {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .proof__panel {
+    padding: var(--s5);
+  }
+}
+
+.proof__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s5);
+  padding-bottom: var(--s4);
+  border-bottom: var(--b-paper-strong);
+}
+
+.proof__title {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.22;
+  margin-top: var(--s2);
+  max-width: 26ch;
+}
+
+.proof__close {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--s2);
+}
+
+.proof__close:hover {
+  color: var(--ink);
+}
+
+.proof__lede {
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: var(--s5) 0 var(--s6);
+}
+
+.notes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.note {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: var(--s3);
+  padding: var(--s4) 0;
+}
+
+.note + .note {
+  border-top: var(--b-paper);
+}
+
+.note__num {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  padding-top: 5px;
+}
+
+/* Full ink, always. Text contrast is never a data channel here: 46% of real
+ * evidence sits below 0.30 similarity, so proportional ink would render most of
+ * the product's receipts illegibly. */
+.note__quote {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.note__meta {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  margin-top: var(--s2);
+}
+
+.proof__outcome {
+  margin-top: var(--s6);
+  padding: var(--s5);
+  border-radius: var(--r-block);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.proof__outcome--verified {
+  background: var(--verified-wash);
+  border: 1px solid #b9ddd2;
+  color: var(--verified-ink);
+}
+
+.proof__outcome--miss {
+  background: var(--miss-wash);
+  border: 1px solid #eec8bf;
+  color: var(--ink-2);
+}
+
+.proof__outcomeHead {
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  color: var(--miss-ink);
+  margin-bottom: var(--s2);
+}
+
+.proof__method {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  margin-top: var(--s2);
+}
+
+/* ----------------------------------------------------- the right margin */
+
+.margin {
+  position: sticky;
+  top: calc(52px + var(--s7));
+  color: var(--on-desk);
+  min-width: 0;
+}
+
+@media (max-width: 1279px) {
+  .margin { display: none; }
+}
+
+.margin__head {
+  color: var(--on-desk-3);
+  padding-bottom: var(--s3);
+  border-bottom: var(--b-desk);
+  margin-bottom: var(--s4);
+}
+
+.margin__quiet {
+  font-size: 0.8125rem;
+  color: var(--on-desk-3);
+  font-style: italic;
+}
+
+.margin__notes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.mnote {
+  position: relative;
+  padding: var(--s4) 0 var(--s4) var(--s6);
+}
+
+.mnote + .mnote { border-top: var(--b-desk); }
+
+.mnote__num {
+  position: absolute;
+  left: 0;
+  top: var(--s4);
+  font-size: 0.6875rem;
+  color: var(--brass-on-desk);
+}
+
+/* Full ink. Text contrast is never a data channel. */
+.mnote__quote {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--on-desk);
+}
+
+.mnote__src {
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  color: var(--on-desk-3);
+  margin-top: var(--s2);
+}
+
+.margin__more {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brass-on-desk);
+  margin-top: var(--s5);
+  padding: var(--s2) 0;
+  text-align: left;
+}
+
+.margin__more:hover { color: #f0c877; }
+
+/* Money reads badly in mono once a comma appears ("$3 , 335"), so figures with
+ * thousands separators use the serif's own numerals; mono is kept for columns
+ * where vertical alignment is the point. */
+.ruler__readout .fig,
+.road__title,
+.ask__month {
+  font-family: var(--serif);
+  font-variant-numeric: normal;
+  letter-spacing: 0;
+}
