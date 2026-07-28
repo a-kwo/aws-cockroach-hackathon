@@ -973,7 +973,17 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 #roadBase { fill: none; stroke: #E7E0CD; stroke-width: 15; stroke-linecap: round; }
 #roadDash { fill: none; stroke: #FDFCF8; stroke-width: 2.5; stroke-dasharray: 10 13; }
 #roadProg { fill: none; stroke: var(--green); stroke-width: 15; stroke-linecap: round; opacity: 0.9; transition: stroke-dashoffset 1100ms cubic-bezier(0.22,1,0.36,1); }
-.rstop { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; z-index: 5; }
+.rstop { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; z-index: 5;
+  background: none; border: 0; padding: 0; font: inherit; color: inherit; }
+
+/* Keyboard focus was invisible almost everywhere — two rules in the whole file.
+   One visible ring, on everything interactive. */
+button:focus-visible, a:focus-visible, input:focus-visible,
+summary:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
 .rstop i {
   width: 48px; height: 48px; border-radius: 50%; font-style: normal;
   background: var(--card); border: 3px solid #D2A64B;
@@ -1789,7 +1799,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
                 <div class="ktile"><div class="kt-ic">👥</div><div class="kt-body"><span>Labor</span><b>38%</b></div><i class="kt-delta down">high</i></div>
               </div>
               <div id="weekBars"></div>
-              <div class="gc-cap">4 of 7 nights below break-even · Tuesday bleeds worst</div>
+              <div class="gc-cap" id="moneyCap"></div>
             </div>
             <div class="chart" id="chRep">
               <div id="repC"></div>
@@ -2519,7 +2529,12 @@ const ROAD_D = 'M60,330 C230,340 240,120 450,118 C660,116 610,310 858,152';
 function placeOnRoad(el, pt) { el.style.left = (pt.x / 920 * 100) + '%'; el.style.top = (pt.y / 400 * 100) + '%'; }
 function pathPt(t) { const b = $('roadBase'); return b.getPointAtLength(t * b.getTotalLength()); }
 function makeNode(s) {
-  const el = document.createElement('div');
+  /* A button, not a div: these were the only way to reach a find's evidence and
+     they could not be tabbed to or opened from the keyboard at all. */
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.setAttribute('aria-label', s.title + ' — predicts ' + s.find.predictedDailyTxt +
+    ' a day, ' + s.find.evidenceCount + ' memories behind it');
   el.className = 'rstop ' + (s.done || s.resolved === 'did' ? 'done-n' : s.resolved === 'later' ? 'snz-n' : 'ping-n')
     + (s.side === 'above' ? ' lbl-above' : '');
   placeOnRoad(el, pathPt(s.t));
@@ -2878,6 +2893,13 @@ function renderWeek() {
     $('weekBars').querySelectorAll('i[data-h]').forEach(b => b.style.height = b.dataset.h + 'px');
   }));
 }
+function renderMoneyCap() {
+  const cap = $('moneyCap');
+  if (cap) cap.innerHTML =
+    `Every call the Meter has settled · <b style="color:var(--v-verified)">${D.summary.verified} paid</b>` +
+    (D.summary.miss ? ` · <b style="color:var(--v-miss)">${D.summary.miss} missed</b>` : '') +
+    ` · bars show what each one actually made per day`;
+}
 function moneyDetail() {
   $('segDetail').innerHTML = `
     <div class="sd-head"><span>💰</span><b>${D.summary.dailyTxt}/day, all of it verified</b><i style="background:var(--v-verified)"></i></div>
@@ -3160,7 +3182,7 @@ function chatSend() {
     }
     if (chefStage === 0 && /chef|cousin|marco|quit|leav|resign|lose him/i.test(v)) {
       chefStage = 1;
-      setTimeout(() => cmsg('a', "That's a heavy one — and it's exactly the kind you can't ask your staff about. Let's work it together 🤝<br><b>What I know:</b> your labor runs 31% — there's room. Kitchen leads nearby earn <b>$4–6/hr more</b> than yours likely does. And losing him mid-lunch-launch costs far more than any raise.<br><b>The play:</b> don't offer a raise — offer a <b>stake</b>. Profit-share on the new lunch, a real title, his Sundays back.<br>Worried about promising money you don't have? Tell me."), 1200);
+      setTimeout(() => cmsg('a', "That's a heavy one, and it's exactly the kind you can't ask your staff about. But I should be straight with you: <b>I don't hold your payroll</b>, so anything I said about what to pay him would be invented — and inventing numbers is the one thing I won't do.<br>Tell me your labour cost and what he earns now, and I'll store it and work the problem properly. Until then the honest answer is that I don't know."), 1200);
       return;
     }
     // "send it" — post the drafted review reply
@@ -3384,6 +3406,7 @@ function boot() {
     ? 'Earning now · showing 6 of ' + D.earning.length : 'Earning now';
 
   renderLedger();
+  renderMoneyCap();
 
   // The receipts modal was four hardcoded rows. Same data as the ledger now.
   const RC = { verified: 'v', miss: 'm', estimated: 'e' };
