@@ -198,17 +198,194 @@ concrete action, instead of truncating twelve lines to one at the first clause.
 
 ---
 
+---
+
+## Part 4 — Landing page and accounts
+
+Requested 2026-07-28. This reverses a scope cut: `CLAUDE.md` lists accounts and
+multi-tenancy under **Dropped — single demo tenant**. Recording that plainly, along with
+the two risks, then the design.
+
+### Two risks worth naming before building
+
+**1. A registration wall sits between a judge and the demo.** Some fraction of judges
+will not create an account to evaluate an entry, and the rules require setup
+instructions a judge "can actually follow." Mitigation is item **L4** below: a
+**one-click read-only demo session** with no registration, linked as prominently as the
+signup button. The signup flow still exists and still gets demoed — it just is not the
+only door.
+
+**2. It competes with work the rules actually require.** Accounts are not a hackathon
+requirement. Deployment, the Ask agent over the MCP server (the second CockroachDB tool
+at runtime), and the README are. Roughly four days of work sits below against a **Aug 14
+freeze**. Sequencing recommendation is at the end of this section.
+
+The good news: **less new work than it sounds.** `business_id` is already threaded
+through all nine tables with `ON DELETE CASCADE`, and both vector indexes are already
+prefixed by it. The tenancy boundary exists — it just has no owner attached to it.
+
+### L1 — The landing page
+
+Routes:
+
+| Path | Access |
+|---|---|
+| `/` | public — the landing page |
+| `/signup`, `/login` | public |
+| `/demo` | public — creates a read-only session on the seeded tenant |
+| `/app` | requires a session |
+
+**The hero should be our real record, not a value proposition.** This product's most
+distinctive asset is that it publishes its failures, so the honest thing is also the
+strongest marketing:
+
+> **Six of our last seven calls paid.**
+> Here is the one that didn't. ☕ Espresso upsell — predicted +$18.00/day, actual $0.00.
+
+Sections below the hero, each showing a real artifact rather than an icon:
+
+1. **The loop** — Radar → Analyst → Meter as three steps, each illustrated with an
+   actual row: a real observation, a real find with its evidence chips, a real ledger
+   verdict.
+2. **The receipt** — one find fully expanded: the six hypothesis queries, the retrieved
+   observations with dates and similarity, the prediction, the outcome. This is the
+   "show, don't tell" section and it doubles as the thing the demo video points at.
+3. **Plain terms** — what it does overnight, what it asks of you in the morning.
+4. **Two calls to action, equal weight** — *Create your account* and *See the live demo*.
+
+Build it by extending `build_web.py` to emit `web/landing.html` from the same
+`demo.json`. The landing page's numbers are then generated from the cluster, so it
+**cannot drift from the product** — a marketing page that is structurally incapable of
+overstating the record. Same cream/brass tokens, same Fraunces, same dotted texture. No
+new visual language; this is a fourth page in the existing one.
+
+### L2 — Schema
+
+Two new tables, one new column. Additive, no migration of existing rows.
+
+```sql
+CREATE TABLE IF NOT EXISTS account (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         STRING NOT NULL,          -- normalized (trimmed, lowercased) at the boundary
+  password_hash STRING NOT NULL,          -- Argon2id, encoded form; never a raw digest
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  UNIQUE INDEX account_email_idx (email)
+);
+
+CREATE TABLE IF NOT EXISTS session (
+  token_hash  BYTES PRIMARY KEY,          -- SHA-256 of the token; the token itself is never stored
+  account_id  UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  read_only   BOOL NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  INDEX (account_id)
+);
+
+ALTER TABLE business ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES account(id);
+CREATE INDEX IF NOT EXISTS business_account_idx ON business (account_id);
+```
+
+Normalize email in Python rather than indexing `lower(email)` — it is testable offline
+and does not depend on expression-index support. `clock_timestamp()` everywhere, per the
+finding that `now()` is transaction-scoped in CockroachDB.
+
+**Sessions live in CockroachDB.** The reflex would be DynamoDB or ElastiCache;
+`CLAUDE.md` forbids a second store, and correctly — the session store is a genuine
+second runtime use of the cluster, and it is a better disclosure answer than a
+dev-time-only one.
+
+### L3 — Auth mechanics
+
+- **Argon2id** via `argon2-cffi`. Library defaults; do not hand-tune. Note that its 64MiB
+  memory cost means the auth Lambda needs ≥512MB.
+- **Opaque session tokens** — `secrets.token_urlsafe(32)`. Store `sha256(token)` as the
+  primary key and look up by hash, so no secret comparison happens in application code.
+- **Cookie**: `HttpOnly; Secure; SameSite=Lax; Path=/`. `SameSite=Lax` also blocks
+  cross-site state-changing POSTs, which covers CSRF without a token scheme.
+- **14-day absolute expiry.** No sliding refresh, no rotation — deferred, and say so.
+- **Rate-limit login** — API Gateway throttling plus a per-account attempt counter.
+- **Identical response and timing** for unknown-email and wrong-password. Never reveal
+  which accounts exist.
+
+**Deliberately not built, each because it opens a real surface:** email verification and
+password reset (both need SES sender identity and a token flow), OAuth/social login,
+MFA, and billing. Name these in the README as known gaps rather than leaving them
+ambiguous.
+
+### L4 — The judge path, and why `read_only` is a column
+
+`/demo` mints a session bound to the seeded tenant with `read_only = true`. Because it is
+a shared account, **read-only must be enforced in the repository layer, not the UI** —
+otherwise one judge's clicking changes what the next judge sees. Any write path that
+receives a read-only session raises before it reaches SQL.
+
+### L5 — API Gateway authorizer
+
+A REQUEST-type Lambda authorizer validates the session against CockroachDB and returns
+the `business_id` and `read_only` flag in the authorizer context. Every downstream
+handler scopes its queries by that `business_id` and never by one taken from the request
+body.
+
+### L6 — Tenant isolation is now the highest-risk code
+
+The working agreement names the money math as highest-risk; **tenant isolation now
+joins it.** Add to the shared contract suite, so both the in-memory and CockroachDB
+implementations are held to it:
+
+- every read scoped to business A returns zero rows belonging to business B
+- vector search never crosses the tenant boundary, including when B's rows are the
+  nearest neighbours
+- a find and its evidence can never be written under a mismatched `business_id`
+- a read-only session raises on every write path
+
+The third case is the one to get right: `find_evidence` has no `business_id` of its own
+and inherits it through `find_id`.
+
+### Rules that must not be broken
+
+- **`frontend/src/fixtures/demo.json` is committed to the repo.** `export_fixture.py`
+  must never read `account` or `session`. A password hash reaching that file is a
+  published credential.
+- Never log tokens, hashes, or passwords — not at debug level, not in `agent_run`.
+- The demo account's password is generated by a script and never printed, per the
+  existing rule for the SQL password.
+- Seed files carry no real email addresses.
+
+### Effort and sequencing
+
+| Item | Estimate |
+|---|---|
+| L1 landing page | ~1 day |
+| L2 + L3 schema, hashing, sessions, tests | ~1.5 days |
+| L5 authorizer and wiring | ~1 day |
+| L4 + L6 read-only demo path and isolation tests | ~0.5 day |
+
+**Recommendation:** build **L1 now** — it is cheap, it is the public face of the
+submission, and it does not block anything. Hold **L2–L6 until deployment and the Ask
+agent are done**, because those are required by the rules and accounts are not. If the
+schedule tightens in the second week of August, ship the landing page with a waitlist
+field instead of half-finished auth. A polished landing page plus a working demo beats a
+login screen in front of an unfinished product.
+
+---
+
 ## What is deliberately not in this plan
 
 - **No redesign.** The visual language, the jar metaphor, the road, and the chat-first
-  posture all stay exactly as they are.
+  posture all stay exactly as they are — the landing page included.
 - **No new palette.** The validated four-color set is already chosen; the Ledger just
   needs to use it.
 - **No new framework.** Everything above is edits to the mock plus `build_web.py`. The
   React build stays unused.
+- **No billing, and no multi-tenant onboarding beyond one business per account.** Signup
+  creates exactly one business. Team members, roles, and invites stay cut.
 
 ## Suggested sequence
 
-Seed more open finds **first** — items 1, 4 and the jars all look better with 5 open
-finds than with 1, and that is a data change, not a UI change. Then P0 in order, then
-P1. P2 only if the schedule holds.
+1. Seed more open finds — items 1, 4 and the jars all look better with 5 open finds than
+   with 1, and that is a data change, not a UI change.
+2. **P0** in order, then **P1**.
+3. **L1**, the landing page — it can run in parallel with P0, since it is a new file.
+4. Deployment and the Ask agent — required by the rules.
+5. **L2–L6**, accounts — only once step 4 is done.
+6. P2 and README, then freeze **Aug 14**.
