@@ -1,0 +1,59 @@
+# --- Secrets / credentials (most important: CockroachDB + AWS) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+.aws/
+credentials
+secrets.json
+cockroach-cert*/
+ca.crt
+client.*.crt
+client.*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Node ---
+node_modules/
+dist/
+build/
+.next/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Infra / deploy state ---
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+cdk.out/
+.serverless/
+samconfig.toml
+.aws-sam/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- Local agent/tool state ---
+.claude/settings.local.json
+*.log
+tmp/
+.DS_Store
