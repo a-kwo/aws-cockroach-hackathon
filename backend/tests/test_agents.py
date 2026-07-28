@@ -446,3 +446,72 @@ class TestMeter:
         assert result.failed == 1
         [run] = repo.recent_runs(business, limit=1)
         assert run.status == "ok"  # partial measurement is not a failed night
+
+
+# ---------------------------------------------------------------------------
+# The night — the whole spine, in order
+# ---------------------------------------------------------------------------
+
+class TestRunNight:
+    """The loop the product is: observe, reason, do, measure.
+
+    Order is the thing being asserted here. Each agent depends on the state the
+    previous one left, and a reordering would not fail any single-agent test.
+    """
+
+    FIND = {
+        "emoji": "✍️",
+        "title": "Reply to every recent low review",
+        "rationale": "Unanswered reviews read as indifference.",
+        "move": "I will draft a reply to each review from the last 30 days.",
+        "predicted_daily_cents": 1500,
+        "confidence": 0.55,
+        "verify_after_days": 14,
+        "evidence_observation_ids": [],
+    }
+
+    def _signals(self):
+        return [StubSource([RawSignal(
+            content="Nobody ever replies to our reviews.", kind="review",
+            observed_at=datetime(2026, 7, 20, tzinfo=timezone.utc))])]
+
+    def test_runs_every_agent_in_order(self, repo, business):
+        from brasstacks.artifacts import FakeArtifactStore
+        from brasstacks.night import run_night
+
+        # Seed the observation the find will cite. Radar re-observes the same
+        # content during the night, so this also exercises dedup end to end.
+        content = "Nobody ever replies to our reviews."
+        observation_id = repo.insert_observation(
+            business, content=content, kind="review",
+            embedding=FakeEmbedder().embed([content])[0],
+            observed_at=datetime(2026, 7, 20, tzinfo=timezone.utc))
+
+        find = dict(self.FIND, evidence_observation_ids=[observation_id])
+        store = FakeArtifactStore()
+
+        result = run_night(
+            repo=repo, embedder=FakeEmbedder(),
+            reasoner=FakeReasoner([find, {"title": "Draft replies",
+                                          "body": "Thank you for telling us."}]),
+            outcomes=NoOutcomeSource(), business_id=business, today=TODAY,
+            sources=self._signals(), store=store, accept_proposals=True)
+
+        agents = [r.agent for r in repo.recent_runs(business, limit=10)]
+        assert agents == ["meter", "maker", "analyst", "radar"]  # newest first
+        assert result.analyst.find_id
+        assert result.maker.artifact_id
+        assert store.puts, "the Maker should have written the draft"
+
+    def test_the_maker_is_skipped_when_no_store_is_configured(self, repo, business):
+        # S3 being unconfigured must cost us the drafts, not the night.
+        from brasstacks.night import run_night
+
+        result = run_night(
+            repo=repo, embedder=FakeEmbedder(),
+            reasoner=FakeReasoner([dict(self.FIND, evidence_observation_ids=[])]),
+            outcomes=NoOutcomeSource(), business_id=business, today=TODAY,
+            sources=self._signals(), store=None)
+
+        assert result.maker is None
+        assert "maker" not in [r.agent for r in repo.recent_runs(business, limit=10)]

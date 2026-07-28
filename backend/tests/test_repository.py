@@ -604,5 +604,73 @@ class TestLedger:
             )
 
 
+# ---------------------------------------------------------------------------
+# Artifacts — the done-for-you deliverable, and where it lives
+# ---------------------------------------------------------------------------
+
+class TestArtifacts:
+    def _a_find(self, repo, business) -> str:
+        observation_id = repo.insert_observation(
+            business, content="Slow replies to reviews", kind="review",
+            embedding=DESSERT, observed_at=_dt(TODAY - timedelta(days=3)))
+        return repo.insert_find_with_evidence(
+            business, title="Reply to every recent low review",
+            rationale="Unanswered reviews read as indifference.",
+            move="I will draft a reply to each review from the last 30 days.",
+            emoji="✍️", predicted_daily_cents=1500, confidence=0.6,
+            verify_after=TODAY + timedelta(days=14), status="accepted",
+            evidence=[EvidenceRef(observation_id, 0.51)])
+
+    def test_stores_an_artifact_against_its_find(self, repo, business):
+        find_id = self._a_find(repo, business)
+        artifact_id = repo.insert_artifact(
+            find_id=find_id, kind="review_reply",
+            title="Draft replies for 4 reviews",
+            preview="Thank you for telling us about the wait...",
+            s3_bucket="brasstacks-artifacts", s3_key=f"{find_id}/replies.md")
+
+        assert artifact_id
+        stored = repo.get_artifacts(find_id)
+        assert len(stored) == 1
+        assert stored[0].kind == "review_reply"
+        assert stored[0].title == "Draft replies for 4 reviews"
+        assert stored[0].s3_key.endswith("replies.md")
+        assert stored[0].preview.startswith("Thank you")
+
+    def test_a_find_with_no_artifact_returns_empty(self, repo, business):
+        find_id = self._a_find(repo, business)
+        assert repo.get_artifacts(find_id) == []
+
+    def test_artifacts_come_back_newest_first(self, repo, business):
+        find_id = self._a_find(repo, business)
+        repo.insert_artifact(find_id=find_id, kind="review_reply",
+                             title="First pass")
+        repo.insert_artifact(find_id=find_id, kind="review_reply",
+                             title="Second pass")
+
+        assert [a.title for a in repo.get_artifacts(find_id)] == [
+            "Second pass", "First pass"]
+
+    def test_an_artifact_must_belong_to_a_real_find(self, repo, business):
+        # The artifact is the deliverable for a specific promise. One with no
+        # find behind it is a document nobody asked for.
+        with pytest.raises(RepositoryError):
+            repo.insert_artifact(
+                find_id=str(uuid.uuid4()), kind="review_reply", title="Orphan")
+
+    def test_s3_location_is_optional(self, repo, business):
+        # A preview alone is a legitimate state: the draft exists and is
+        # readable even if the upload failed. Losing the row because S3 was
+        # unavailable would be worse than recording it without a key.
+        find_id = self._a_find(repo, business)
+        repo.insert_artifact(find_id=find_id, kind="review_reply",
+                             title="Local only", preview="Dear guest,")
+
+        stored = repo.get_artifacts(find_id)[0]
+        assert stored.s3_bucket is None
+        assert stored.s3_key is None
+        assert stored.preview == "Dear guest,"
+
+
 def _dt(d: date) -> datetime:
     return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
