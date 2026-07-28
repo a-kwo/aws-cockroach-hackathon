@@ -54,6 +54,13 @@ $RECYCLE.BIN/
 
 # --- Local agent/tool state ---
 .claude/settings.local.json
+# Design tooling, installed per machine: npx impeccable install
+# 2.9 MB of vendored skill files, regenerable in one command. PRODUCT.md and
+# DESIGN.md are its output and ARE tracked — they are the durable artifacts.
+.claude/skills/
+# Nested checkouts created by EnterWorktree — never part of the repo.
+.claude/worktrees/
+.impeccable/live/
 *.log
 tmp/
 .DS_Store
