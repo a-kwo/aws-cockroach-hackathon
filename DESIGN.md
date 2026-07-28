@@ -22,19 +22,19 @@ colors:
   verdict-measuring: "#A8781F"
 typography:
   display:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "clamp(38px, 6.4vw, 74px)"
     fontWeight: 700
     lineHeight: 1.03
     letterSpacing: "-0.025em"
   headline:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "25px"
     fontWeight: 700
     lineHeight: 1.14
     letterSpacing: "-0.02em"
   title:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "17px"
     fontWeight: 600
     lineHeight: 1.3
@@ -50,13 +50,13 @@ typography:
     lineHeight: 1.2
     letterSpacing: "0.08em"
   marketing-display:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "clamp(42px, 7vw, 86px)"
     fontWeight: 700
     lineHeight: 1.0
     letterSpacing: "-0.03em"
   marketing-head:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "clamp(28px, 3.8vw, 44px)"
     fontWeight: 600
     lineHeight: 1.1
@@ -73,25 +73,25 @@ typography:
     lineHeight: 1.3
     letterSpacing: "0.11em"
   marketing-lead:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "clamp(24px, 3vw, 34px)"
     fontWeight: 600
     lineHeight: 1.15
     letterSpacing: "-0.015em"
   marketing-stat:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "clamp(34px, 4.4vw, 52px)"
     fontWeight: 600
     lineHeight: 1.0
     letterSpacing: "-0.025em"
   marketing-figure:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "32px"
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "-0.02em"
   marketing-title:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: "Newsreader, Georgia, serif"
     fontSize: "21px"
     fontWeight: 600
     lineHeight: 1.25
@@ -274,21 +274,23 @@ anywhere that is neither, it is wrong.
 
 ## Typography
 
-**Display Font:** Fraunces (with Georgia, serif)
+**Display Font:** Newsreader (with Georgia, serif)
 **Body Font:** Inter (with system-ui, sans-serif)
 
-**Character:** Fraunces is a soft, high-contrast serif with an old-catalogue warmth; it
-does the ledger's handwriting. Inter does the interface's clerical work. The pairing is
+**Character:** Newsreader is an old-style serif drawn for screen reading — sharper
+serifs, more ink on the page, and figures that sit like a printed account book's.
+It replaced Newsreader, which read softer and is one of the handful of faces every
+recent AI-built interface reaches for. Inter does the interface's clerical work. The pairing is
 deliberately lopsided — the serif appears rarely and always on something consequential,
 so its arrival reads as significance rather than styling.
 
 ### Hierarchy
 
-- **Display** (Fraunces 700, `clamp(38px, 6.4vw, 74px)`, 1.03, −0.025em): the landing
+- **Display** (Newsreader 700, `clamp(38px, 6.4vw, 74px)`, 1.03, −0.025em): the landing
   hero and the running money figure. One per screen, never two.
-- **Headline** (Fraunces 700, 25px, 1.14, −0.02em): screen titles — *Every call, and how
+- **Headline** (Newsreader 700, 25px, 1.14, −0.02em): screen titles — *Every call, and how
   it turned out*, *The road to your goal*.
-- **Title** (Fraunces 600, 17–22px, 1.3): find titles, card headings, the goal figure on
+- **Title** (Newsreader 600, 17–22px, 1.3): find titles, card headings, the goal figure on
   the road.
 - **Body** (Inter 400, 13–14.5px, 1.55): all prose, evidence quotations, agent messages.
   Reading columns cap around 62–68ch.
@@ -311,7 +313,7 @@ pure white on ink reads colder than this world wants.
 
 ### Named Rules
 
-**The Fraunces-for-Money Rule.** A figure set in Fraunces is a claim about the owner's
+**The Serif-for-Money Rule.** A figure set in the serif is a claim about the owner's
 money. A figure set in Inter is interface furniture — a count, an index, a percentage of
 a chart axis. Never set a projection or an unverified number in the display face at
 display size; that is the typographic equivalent of claiming it.
@@ -464,7 +466,7 @@ label. Below 900px the arrows are hidden and the rail scrolls horizontally.
 
 - **Do** pair every verdict colour with its word. The screen must survive being read in
   greyscale.
-- **Do** set money in Fraunces and interface numbers in Inter — the face is the claim.
+- **Do** set money in Newsreader and interface numbers in Inter — the face is the claim.
 - **Do** use pills for state and soft rectangles for surfaces.
 - **Do** keep raised surfaces flat with a 1px `Line` border; spend shadow only on the
   popover, the decision card, and the object layer.

@@ -418,7 +418,7 @@
       "refersTo": "card-surface",
       "description": "Flat at rest — a 1px hairline on cream, no shadow. Depth is reserved for what leaves the page.",
       "html": "<div class=\"ds-card\"><p class=\"ds-card-k\">Waiting on you · 1 of 5</p><h3 class=\"ds-card-t\">Raise pasta mains by $2</h3><p class=\"ds-card-v\">+$62<span>/day</span></p></div>",
-      "css": ".ds-card { background: #fff; border: 1px solid #E4DECD; border-radius: 18px; padding: 20px 22px; max-width: 300px; } .ds-card-k { font-family: Inter, system-ui, sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8A6217; margin: 0 0 8px; } .ds-card-t { font-family: Fraunces, Georgia, serif; font-size: 21px; font-weight: 600; color: #232936; margin: 0 0 10px; } .ds-card-v { font-family: Fraunces, Georgia, serif; font-size: 32px; font-weight: 700; color: #118066; margin: 0; } .ds-card-v span { font-size: 15px; color: #8B8778; }"
+      "css": ".ds-card { background: #fff; border: 1px solid #E4DECD; border-radius: 18px; padding: 20px 22px; max-width: 300px; } .ds-card-k { font-family: Inter, system-ui, sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8A6217; margin: 0 0 8px; } .ds-card-t { font-family: Newsreader, Georgia, serif; font-size: 21px; font-weight: 600; color: #232936; margin: 0 0 10px; } .ds-card-v { font-family: Newsreader, Georgia, serif; font-size: 32px; font-weight: 700; color: #118066; margin: 0; } .ds-card-v span { font-size: 15px; color: #8B8778; }"
     },
     {
       "name": "Ledger Row",
@@ -472,8 +472,8 @@
         "section": "colors"
       },
       {
-        "name": "The Fraunces-for-Money Rule",
-        "body": "A figure set in Fraunces is a claim about the owner's money. A figure set in Inter is interface furniture. Never set a projection or an unverified number in the display face at display size.",
+        "name": "The Serif-for-Money Rule",
+        "body": "A figure set in Newsreader is a claim about the owner's money. A figure set in Inter is interface furniture. Never set a projection or an unverified number in the display face at display size.",
         "section": "typography"
       },
       {
@@ -504,7 +504,7 @@
     ],
     "dos": [
       "Do pair every verdict colour with its word. The screen must survive being read in greyscale.",
-      "Do set money in Fraunces and interface numbers in Inter — the face is the claim.",
+      "Do set money in Newsreader and interface numbers in Inter — the face is the claim.",
       "Do use pills for state and soft rectangles for surfaces.",
       "Do keep raised surfaces flat with a 1px Line border; spend shadow only on the popover, the decision card, and the object layer.",
       "Do show retrieval similarity as a number (0.743) beside the row it belongs to.",

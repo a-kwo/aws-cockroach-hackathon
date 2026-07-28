@@ -7,7 +7,7 @@
 <meta name="description" content="A team of AI agents that finds revenue for a small business overnight, then checks whether it actually paid — and publishes the misses.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ---------------------------------------------------------------------------
    Reworked against website-screenshots/. Three things the fourteen shipped
@@ -57,14 +57,14 @@ body {
   font-size: 17px; line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
-.serif { font-family: 'Fraunces', Georgia, serif; }
+.serif { font-family: 'Newsreader', Georgia, serif; }
 .wrap { width: min(1120px, 100% - 48px); margin: 0 auto; }
 a { color: inherit; }
 
 /* ---------- four type sizes, and that is the whole scale ---------- */
-.t-display { font-family: 'Fraunces', Georgia, serif; font-weight: 700;
+.t-display { font-family: 'Newsreader', Georgia, serif; font-weight: 700;
   font-size: clamp(42px, 7vw, 86px); line-height: 1.0; letter-spacing: -0.03em; }
-.t-head { font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+.t-head { font-family: 'Newsreader', Georgia, serif; font-weight: 600;
   font-size: clamp(28px, 3.8vw, 44px); line-height: 1.1; letter-spacing: -0.02em; }
 .t-label { font-size: 12px; font-weight: 600; letter-spacing: 0.11em;
   text-transform: uppercase; color: var(--muted); }
@@ -74,7 +74,7 @@ header { position: sticky; top: 0; z-index: 20; background: rgba(245,241,232,0.9
   backdrop-filter: blur(10px); border-bottom: 1px solid transparent; transition: border-color 200ms; }
 header.stuck { border-bottom-color: var(--line); }
 .hrow { display: flex; align-items: center; gap: 14px; padding: 16px 0; }
-.wordmark { font-family: 'Fraunces', serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.wordmark { font-family: 'Newsreader', Georgia, serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
 .wordmark i { display: inline-block; width: 8px; height: 8px; background: var(--brass);
   border-radius: 50%; margin-right: 8px; vertical-align: 8%; }
 .hspace { margin-left: auto; }
@@ -142,8 +142,8 @@ section { padding: clamp(56px, 8vw, 96px) 0 0; }
 .step { padding: 26px 32px 30px 0; border-right: 1px solid var(--line); }
 .step:last-child { border-right: 0; padding-right: 0; }
 .step:not(:first-child) { padding-left: 32px; }
-.step-n { font-family: 'Fraunces', serif; font-size: 13px; font-weight: 700; color: var(--brass); }
-.step h3 { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; margin: 6px 0 10px; }
+.step-n { font-family: 'Newsreader', Georgia, serif; font-size: 13px; font-weight: 700; color: var(--brass); }
+.step h3 { font-family: 'Newsreader', Georgia, serif; font-size: 21px; font-weight: 600; margin: 6px 0 10px; }
 .step p { font-size: 15px; color: var(--ink-soft); }
 .step .art { margin-top: 18px; padding-left: 15px; border-left: 2px solid var(--brass-line);
   font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
@@ -153,12 +153,12 @@ section { padding: clamp(56px, 8vw, 96px) 0 0; }
 /* the miss — the strongest thing on the page, so it gets size, not a border */
 .miss { border-top: 1px solid var(--line); padding-top: 30px;
   display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr); gap: 24px 56px; }
-.miss-t { font-family: 'Fraunces', serif; font-size: clamp(24px, 3vw, 34px);
+.miss-t { font-family: 'Newsreader', Georgia, serif; font-size: clamp(24px, 3vw, 34px);
   font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; }
 .miss-n { color: var(--ink-soft); margin-top: 12px; max-width: 54ch; }
 .miss-fig { display: flex; gap: 40px; align-self: start; }
 .miss-fig div { font-size: 13px; color: var(--muted); }
-.miss-fig b { display: block; font-family: 'Fraunces', serif; font-weight: 600;
+.miss-fig b { display: block; font-family: 'Newsreader', Georgia, serif; font-weight: 600;
   font-size: 32px; color: var(--ink); line-height: 1.1; letter-spacing: -0.02em; }
 .miss-fig .z { color: var(--miss); }
 
@@ -167,10 +167,10 @@ section { padding: clamp(56px, 8vw, 96px) 0 0; }
 .r-head { padding: 24px 28px; border-bottom: 1px solid var(--line);
   display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
 .r-em { font-size: 21px; }
-.r-t { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; }
+.r-t { font-family: 'Newsreader', Georgia, serif; font-size: 21px; font-weight: 600; }
 .r-m { font-size: 15px; color: var(--ink-soft); margin-top: 5px; }
 .r-p { margin-left: auto; text-align: right; white-space: nowrap; }
-.r-p b { display: block; font-family: 'Fraunces', serif; font-size: 32px; color: var(--verified-ink); }
+.r-p b { display: block; font-family: 'Newsreader', Georgia, serif; font-size: 32px; color: var(--verified-ink); }
 .r-p span { font-size: 13px; color: var(--muted); }
 .r-qs { padding: 22px 28px; border-bottom: 1px solid var(--line); background: #FBFAF6; }
 .r-cap { font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
@@ -194,7 +194,7 @@ section { padding: clamp(56px, 8vw, 96px) 0 0; }
 .stat { padding: 26px 24px 4px 0; border-right: 1px solid var(--line); }
 .stat:last-child { border-right: 0; }
 .stat:not(:first-child) { padding-left: 24px; }
-.stat b { display: block; font-family: 'Fraunces', serif; font-size: clamp(34px, 4.4vw, 52px);
+.stat b { display: block; font-family: 'Newsreader', Georgia, serif; font-size: clamp(34px, 4.4vw, 52px);
   font-weight: 600; line-height: 1; letter-spacing: -0.025em; }
 .stat span { display: block; margin-top: 10px; font-size: 13px; color: var(--muted); }
 .stat.v b { color: var(--verified-ink); } .stat.m b { color: var(--miss); }

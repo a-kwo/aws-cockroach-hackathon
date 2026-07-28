@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Brass Tacks â€” Found Money</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --paper:      #F5F1E8;
@@ -46,7 +46,7 @@ body {
   display: flex;
   flex-direction: column;
 }
-.serif { font-family: 'Fraunces', serif; }
+.serif { font-family: 'Newsreader', Georgia, serif; }
 svg.ic { flex: 0 0 auto; vertical-align: -2px; }
 
 
@@ -69,7 +69,7 @@ header {
   align-items: center;
   gap: 16px;
 }
-.wordmark { font-family: 'Fraunces', serif; font-weight: 700; font-size: 17px; }
+.wordmark { font-family: 'Newsreader', Georgia, serif; font-weight: 700; font-size: 17px; }
 .wordmark i { display: inline-block; width: 8px; height: 8px; background: var(--brass); border-radius: 50%; margin-right: 8px; vertical-align: 8%; font-style: normal; }
 .who { font-size: 13px; color: var(--muted); }
 .head-btns { margin-left: auto; display: flex; gap: 8px; }
@@ -113,7 +113,7 @@ body:not([data-view="auto"]) #miniCard { display: none; }
 }
 #totalWrap.show { opacity: 1; }
 #totalNum {
-  font-family: 'Fraunces', serif;
+  font-family: 'Newsreader', Georgia, serif;
   font-weight: 700;
   font-size: clamp(64px, 9vw, 118px);
   line-height: 1;
@@ -259,13 +259,13 @@ body:not([data-view="auto"]) #miniCard { display: none; }
 }
 #miniCard.show { opacity: 1; transform: none; }
 #miniCard .mc-what {
-  font-family: 'Fraunces', serif;
+  font-family: 'Newsreader', Georgia, serif;
   font-size: 23px;
   font-weight: 600;
   line-height: 1.25;
 }
 #miniCard .mc-val {
-  font-family: 'Fraunces', serif;
+  font-family: 'Newsreader', Georgia, serif;
   font-size: 34px;
   font-weight: 700;
   color: var(--green);
@@ -352,7 +352,7 @@ body.queue-done #totalWrap { z-index: 9; }
 body.queue-done #sessLine,
 body.queue-done #meterHint { display: none; }
 body.queue-done #endLine { margin-top: 26px; }
-#endLine .el-big { font-family: 'Fraunces', serif; font-size: 25px; font-weight: 600; }
+#endLine .el-big { font-family: 'Newsreader', Georgia, serif; font-size: 25px; font-weight: 600; }
 #endLine .el-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .fin-pills { margin-top: 12px; display: flex; justify-content: center; }
 
@@ -382,7 +382,7 @@ body.queue-done #endLine { margin-top: 26px; }
 #rateLine { font-size: 16px; color: var(--ink-soft); margin-top: 10px; }
 #rateLine b {
   color: var(--green);
-  font-family: 'Fraunces', serif;
+  font-family: 'Newsreader', Georgia, serif;
   font-size: 24px;
   display: inline-block;
   transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -407,7 +407,7 @@ body.queue-done #endLine { margin-top: 26px; }
   opacity: 1;
   box-shadow: 0 6px 18px rgba(23,122,76,0.25);
 }
-.st-amt { font-family: 'Fraunces', serif; font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
+.st-amt { font-family: 'Newsreader', Georgia, serif; font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
 .st-bar.hot .st-amt { color: var(--green); }
 .st-mo { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
@@ -441,7 +441,7 @@ body.queue-done #endLine { margin-top: 26px; }
 .view.on { display: flex; }
 .v-inner { width: min(600px, 92%); display: flex; flex-direction: column; padding: 24px 0 22px; min-height: 0; }
 .v-head { flex: 0 0 auto; margin-bottom: 6px; }
-.v-head b { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; display: block; }
+.v-head b { font-family: 'Newsreader', Georgia, serif; font-size: 22px; font-weight: 600; display: block; }
 .v-head span { font-size: 13px; color: var(--muted); }
 
 /* chat view â€” dashboard layout */
@@ -456,7 +456,7 @@ body.queue-done #endLine { margin-top: 26px; }
   padding: 18px 22px;
   overflow-y: auto;
 }
-.kp-t { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 600; }
+.kp-t { font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 600; }
 .kp-meter { height: 7px; border-radius: 4px; background: rgba(35,41,54,0.08); overflow: hidden; margin: 12px 0 6px; }
 .kp-meter i { display: block; height: 100%; border-radius: 4px; background: var(--green); transition: width 700ms cubic-bezier(0.22,1,0.36,1); }
 .kp-pct { font-size: 11.5px; color: var(--muted); }
@@ -488,7 +488,7 @@ body.queue-done #endLine { margin-top: 26px; }
 .mg-head b.serif, .mg-h1 { font-size: 22px; font-weight: 600; margin: 0; }
 /* Every view needs a heading, or the dashboard has no outline at all:
    before this the document went straight to <h3>, inside modals. */
-.v-h1 { font-family: 'Fraunces', serif; font-size: 25px; font-weight: 700;
+.v-h1 { font-family: 'Newsreader', Georgia, serif; font-size: 25px; font-weight: 700;
         letter-spacing: -0.02em; margin: 0; }
 .mg-feed { margin-left: auto; font-size: 12.5px; color: var(--muted); cursor: pointer; transition: color 150ms; }
 .mg-feed:hover { color: var(--ink); }
@@ -516,7 +516,7 @@ body.queue-done #endLine { margin-top: 26px; }
    Meter has not checked it. Dashed, and counted separately in the caption. */
 .jcoin.pending { border: 2px dashed var(--brass-deep); opacity: 0.86; }
 .jn-p { color: var(--brass-deep); font-weight: 600; }
-#planLine b { font-family: 'Fraunces', serif; font-size: 15px; }
+#planLine b { font-family: 'Newsreader', Georgia, serif; font-size: 15px; }
 
 /* ---------- narrow screens ----------
    This was built as a fixed-viewport desktop app: body overflow hidden, views
@@ -623,8 +623,8 @@ body.queue-done #endLine { margin-top: 26px; }
 .lg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 6px; }
 .lg-title { margin: 0; font-size: 25px; font-weight: 700; }
 .lg-sub { font-size: 13.5px; color: var(--muted); margin-top: 5px; }
-.lg-score { font-family: 'Fraunces', serif; font-size: 15px; color: var(--ink-soft); text-align: right; white-space: nowrap; }
-/* Inter, not Fraunces: a hit rate is not money, and the display face is
+.lg-score { font-family: 'Newsreader', Georgia, serif; font-size: 15px; color: var(--ink-soft); text-align: right; white-space: nowrap; }
+/* Inter, not the display face: a hit rate is not money, and the serif is
    reserved for claims about the owner's money. Our own rule. */
 .lg-jump { display: block; margin-top: 4px; font: inherit; font-size: 12.5px; font-weight: 600;
   color: var(--v-miss); background: none; border: 0; padding: 0; cursor: pointer;
@@ -714,7 +714,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 #growBase { position: absolute; left: 0; right: 0; bottom: 36px; height: 2px; background: #CFC6AC; }
 #growChart { position: relative; display: flex; gap: 28px; align-items: flex-end; height: 330px; flex: 1; min-width: 0; padding: 0 10px; }
 .gyear { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; }
-.gyear .gv { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: var(--ink-soft); margin-bottom: 7px; display: inline-block; transition: transform 250ms cubic-bezier(0.22,1,0.36,1); }
+.gyear .gv { font-family: 'Newsreader', Georgia, serif; font-size: 15px; font-weight: 700; color: var(--ink-soft); margin-bottom: 7px; display: inline-block; transition: transform 250ms cubic-bezier(0.22,1,0.36,1); }
 .gyear .gv.bump { transform: scale(1.3); }
 .gyear .gcol {
   width: 58px; position: relative;
@@ -732,7 +732,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .gyear.live .gcol.flash26 { box-shadow: 0 0 0 7px rgba(23,122,76,0.28), 0 12px 30px rgba(23,122,76,0.3); }
 .gyear.ghost .gcol { background: transparent; border: 2.5px dashed #D6CCAE; box-shadow: none; opacity: 1; }
 .gyear.ghost:hover .gcol { border-color: #C2B78F; opacity: 1; }
-.gyear.ghost .gv { color: var(--muted); font-size: 13px; font-weight: 600; font-style: italic; font-family: 'Fraunces', serif; }
+.gyear.ghost .gv { color: var(--muted); font-size: 13px; font-weight: 600; font-style: italic; font-family: 'Newsreader', Georgia, serif; }
 .gyear.ghost .gy { color: var(--muted); }
 .gcap {
   position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
@@ -808,7 +808,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .vt-dot.act { background: var(--v-miss); animation: pulse 1.6s ease-in-out infinite; }
 /* details live in a hover tip â€” the tab itself stays clean */
 .vt-tip { display: flex; flex-direction: column; gap: 1px; align-items: flex-start; min-width: 0; width: 100%; }
-.vt-v { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.15; }
+.vt-v { font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.15; }
 .vt-s { font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .vt.on .vt-v { color: var(--v-verified-ink); }
 .vt-fly {
@@ -881,7 +881,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .kt-ic { width: 36px; height: 36px; flex: 0 0 auto; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 16px; }
 .kt-body { flex: 1; min-width: 0; }
 .ktile span { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); margin-bottom: 1px; white-space: nowrap; }
-.ktile b { font-family: 'Fraunces', serif; font-size: 20px; }
+.ktile b { font-family: 'Newsreader', Georgia, serif; font-size: 20px; }
 .kt-delta { flex: 0 0 auto; font-style: normal; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 3px 8px; }
 .kt-delta.up { color: var(--green); background: var(--green-soft, #E7F4EC); }
 .kt-delta.ok { color: #3E5C76; background: #EAF0F5; }
@@ -919,7 +919,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .lb-name { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-row.me .lb-name { color: var(--green); }
 .lb-name small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
-.lb-star { flex: 0 0 auto; font-family: 'Fraunces', serif; font-size: 16px; font-weight: 700; width: 46px; text-align: right; }
+.lb-star { flex: 0 0 auto; font-family: 'Newsreader', Georgia, serif; font-size: 16px; font-weight: 700; width: 46px; text-align: right; }
 .lb-bar { flex: 0 0 110px; height: 8px; border-radius: 4px; background: var(--line-soft, var(--line-soft)); overflow: hidden; }
 .lb-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #D8CFB4, #C2B78F); transition: width 1000ms cubic-bezier(0.22,1,0.36,1); }
 .lb-row.me .lb-bar i { background: linear-gradient(90deg, #8FD4AF, var(--green)); }
@@ -936,7 +936,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .vs-card.you { border-top: 3px solid var(--green); }
 .vs-card.them { border-top: 3px solid var(--v-miss); }
 .vs-name { font-size: 11.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
-.vs-big { font-family: 'Fraunces', serif; font-size: 36px; font-weight: 700; line-height: 1; }
+.vs-big { font-family: 'Newsreader', Georgia, serif; font-size: 36px; font-weight: 700; line-height: 1; }
 .vs-big i { font-style: normal; font-size: 19px; }
 .vs-card.you .vs-big { color: var(--green); }
 .vs-card.them .vs-big { color: var(--v-miss); }
@@ -949,7 +949,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .vs-meta b { color: var(--ink); }
 .vs-mid {
   align-self: center; flex: 0 0 auto;
-  font-family: 'Fraunces', serif; font-style: italic; font-size: 14px; color: var(--muted);
+  font-family: 'Newsreader', Georgia, serif; font-style: italic; font-size: 14px; color: var(--muted);
   background: var(--paper); border: 1px solid var(--line); border-radius: 50%;
   width: 38px; height: 38px;
   display: flex; align-items: center; justify-content: center;
@@ -962,7 +962,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' âŒ
 .race-track i { display: block; height: 100%; width: 0; border-radius: 8px; transition: width 1100ms cubic-bezier(0.22,1,0.36,1); }
 .race-track.you-t i { background: linear-gradient(90deg, #8FD4AF, var(--green)); }
 .race-track.them-t i { background: linear-gradient(90deg, #EDB6AE, var(--v-miss)); }
-.race-row b { width: 24px; text-align: right; font-family: 'Fraunces', serif; font-size: 16px; flex: 0 0 auto; }
+.race-row b { width: 24px; text-align: right; font-family: 'Newsreader', Georgia, serif; font-size: 16px; flex: 0 0 auto; }
 .race-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
 /* detail is on-demand: click a chart element to open, âœ• to dismiss */
 .mg-detail {
@@ -1090,10 +1090,10 @@ summary:focus-visible, [tabindex]:focus-visible {
 /* Today's figure is verified money, so it wears the verified colour. The goal
    below is a target nobody has earned yet â€” it does not. This was the wrong
    way round. */
-.road-start span { display: block; font-family: 'Fraunces', serif; font-size: 14px; font-weight: 700; color: var(--v-verified-ink); }
+.road-start span { display: block; font-family: 'Newsreader', Georgia, serif; font-size: 14px; font-weight: 700; color: var(--v-verified-ink); }
 .road-flag i { font-style: normal; display: block; color: var(--v-verified); }
 .road-flag i .ic { width: 26px; height: 26px; }
-.road-flag b { display: block; font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: var(--ink); }
+.road-flag b { display: block; font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 700; color: var(--ink); }
 .road-flag span { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
 .road-flag.party i { animation: flagParty 700ms cubic-bezier(0.34,1.56,0.64,1) 3; }
 @keyframes flagParty { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35) rotate(-8deg); } }
@@ -1115,7 +1115,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   box-shadow: 0 10px 30px rgba(35,41,54,0.22);
 }
 .gb-head { display: flex; align-items: baseline; gap: 10px; font-size: 15px; color: #C9CFDA; }
-.gb-head b { font-family: 'Fraunces', serif; font-size: 20px; color: #fff; }
+.gb-head b { font-family: 'Newsreader', Georgia, serif; font-size: 20px; color: #fff; }
 .gb-head span { margin-left: auto; font-weight: 700; color: #fff; font-size: 13px; }
 #gbNow { color: #7FDCA8; font-weight: 700; }
 
@@ -1123,8 +1123,8 @@ summary:focus-visible, [tabindex]:focus-visible {
 .goal-set { background: var(--brass-tint); border: 1.5px dashed var(--brass-line); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
 .goal-set em { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--brass-deep); margin-bottom: 9px; }
 .gs-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.gs-pre, .gs-suf { font-family: 'Fraunces', serif; font-weight: 700; font-size: 16px; }
-#goalAmt { width: 92px; font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: var(--ink); background: var(--card); border: 1px solid var(--brass-line); border-radius: 12px; padding: 6px 10px; outline: none; text-align: right; }
+.gs-pre, .gs-suf { font-family: 'Newsreader', Georgia, serif; font-weight: 700; font-size: 16px; }
+#goalAmt { width: 92px; font-family: 'Newsreader', Georgia, serif; font-size: 18px; font-weight: 700; color: var(--ink); background: var(--card); border: 1px solid var(--brass-line); border-radius: 12px; padding: 6px 10px; outline: none; text-align: right; }
 .gs-chip { font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
 .gs-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 #goalSetBtn { margin-left: auto; font-family: 'Inter', sans-serif; background: #A8781F; color: #fff; border: none; border-radius: 12px; font-weight: 700; font-size: 13px; padding: 8px 18px; cursor: pointer; }
@@ -1237,7 +1237,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .sig-tag.alert { color: var(--v-miss); background: #FBEAEA; border: 1px solid #EFC9C6; }
 .sig-tag.opp { color: var(--brass-deep, var(--brass-deep)); background: var(--brass-tint); border: 1px solid var(--brass-line); }
 .sig-tag.okk { color: var(--green); background: var(--green-soft); border: 1px solid var(--green-line); }
-.sig-title { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 600; line-height: 1.25; }
+.sig-title { font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 600; line-height: 1.25; }
 .sig-body { font-size: 14px; color: var(--ink-soft); margin-top: 10px; }
 /* Opening the run receipt used to push Do-it / Not-now out of the 400px
    popover with no scroll affordance: the owner opened the evidence to build
@@ -1289,7 +1289,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   background: var(--card); border: 1px solid var(--line); border-radius: 18px;
   padding: 16px 18px;
 }
-.pp-head { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 600; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft, var(--line-soft)); }
+.pp-head { font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 600; padding-bottom: 10px; border-bottom: 1px solid var(--line-soft, var(--line-soft)); }
 .pp-head span { display: block; font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
 #ppList { flex: 1 1 auto; overflow-y: auto; padding: 6px 0; min-height: 0; }
 .pp-empty { font-size: 12.5px; color: var(--muted); padding: 12px 2px; }
@@ -1304,11 +1304,11 @@ summary:focus-visible, [tabindex]:focus-visible {
 .pp-row.snz { color: var(--muted); }
 .pp-row.snz b { color: var(--muted); font-weight: 500; }
 .pp-total { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid var(--line-soft, var(--line-soft)); padding-top: 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
-.pp-total b { font-family: 'Fraunces', serif; font-size: 22px; letter-spacing: 0; color: var(--green); transition: transform 250ms cubic-bezier(0.22,1,0.36,1); display: inline-block; }
+.pp-total b { font-family: 'Newsreader', Georgia, serif; font-size: 22px; letter-spacing: 0; color: var(--green); transition: transform 250ms cubic-bezier(0.22,1,0.36,1); display: inline-block; }
 .pp-total b.bump { transform: scale(1.18); }
 .ac-big { text-align: center; padding: 8px 0 4px; }
 .ac-big .ac-ic { width: 62px; height: 62px; border-radius: 50%; background: var(--green-soft); border: 1.5px solid var(--green-line); color: var(--green); font-size: 26px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
-.ac-big h3 { font-family: 'Fraunces', serif; font-size: 23px; font-weight: 600; }
+.ac-big h3 { font-family: 'Newsreader', Georgia, serif; font-size: 23px; font-weight: 600; }
 .ac-big .ac-sub { font-size: 13px; color: var(--muted); margin: 6px 0 16px; }
 #guessSlot .guess { border-radius: 14px; text-align: left; }
 .r-sec {
@@ -1357,7 +1357,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   text-align: center;
 }
 #wheelCenter b { font-size: 44px; }
-#wheelCenter span { font-family: 'Fraunces', serif; font-size: 23px; font-weight: 600; color: var(--ink); }
+#wheelCenter span { font-family: 'Newsreader', Georgia, serif; font-size: 23px; font-weight: 600; color: var(--ink); }
 #wheelCenter em { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 
 #wheelLegend { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0 12px; }
@@ -1376,7 +1376,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 #segDetail { border-top: 1px solid var(--line-soft, var(--line-soft)); padding-top: 12px; }
 .sd-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .sd-head span { font-size: 18px; }
-.sd-head b { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 600; }
+.sd-head b { font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 600; }
 .sd-head i { margin-left: auto; width: 26px; height: 5px; border-radius: 4px; font-style: normal; }
 .sd-item {
   display: flex; align-items: baseline; gap: 9px;
@@ -1442,10 +1442,10 @@ summary:focus-visible, [tabindex]:focus-visible {
   padding: 14px 18px;
 }
 .guess .g-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--brass-deep); }
-.guess .g-t { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; margin: 5px 0 10px; }
+.guess .g-t { font-family: 'Newsreader', Georgia, serif; font-size: 16px; font-weight: 600; margin: 5px 0 10px; }
 .g-row { display: flex; align-items: center; gap: 14px; }
 .g-row input[type=range] { flex: 1; accent-color: var(--brass); }
-.g-val { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 700; width: 64px; text-align: right; }
+.g-val { font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 700; width: 64px; text-align: right; }
 .g-lock {
   background: var(--brass); color: #fff; border: none; border-radius: 12px;
   font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
@@ -1453,7 +1453,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 }
 .g-result { display: none; }
 .g-result.show { display: block; }
-.g-result .g-big { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; }
+.g-result .g-big { font-family: 'Newsreader', Georgia, serif; font-size: 21px; font-weight: 600; }
 .g-result .g-big b { color: var(--green); }
 .g-result .g-sub { font-size: 13px; color: var(--muted); margin-top: 5px; }
 
@@ -1493,7 +1493,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   padding: 22px 24px;
   max-height: 84%; overflow-y: auto;
 }
-.modal-card h3 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; padding-right: 30px; }
+.modal-card h3 { font-family: 'Newsreader', Georgia, serif; font-size: 20px; font-weight: 600; padding-right: 30px; }
 .modal-card .m-sub { font-size: 12.5px; color: var(--muted); margin: 3px 0 12px; }
 .m-close { position: absolute; margin-left: auto; float: right; width: 28px; height: 28px; border: none; background: var(--paper); color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 14px; }
 
@@ -1522,8 +1522,8 @@ summary:focus-visible, [tabindex]:focus-visible {
 
 /* deliverable preview */
 .menu-prev { background: #FFFDF7; border: 1.5px solid var(--brass-line); border-radius: 12px; padding: 16px 18px; margin: 6px 0 4px; }
-.menu-prev h5 { font-family: 'Fraunces', serif; font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--brass-deep, var(--brass-deep)); text-align: center; margin-bottom: 10px; }
-.mp-item { display: flex; justify-content: space-between; gap: 12px; font-family: 'Fraunces', serif; font-size: 13.5px; padding: 5px 0; border-top: 1px dotted #E9E0C8; }
+.menu-prev h5 { font-family: 'Newsreader', Georgia, serif; font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--brass-deep, var(--brass-deep)); text-align: center; margin-bottom: 10px; }
+.mp-item { display: flex; justify-content: space-between; gap: 12px; font-family: 'Newsreader', Georgia, serif; font-size: 13.5px; padding: 5px 0; border-top: 1px dotted #E9E0C8; }
 .mp-item.hl { font-weight: 700; }
 .mp-item.hl b { color: var(--green); }
 .art-foot { margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--green); font-weight: 600; }
@@ -1537,7 +1537,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   font-size: 11px; font-weight: 700;
   border-radius: 999px; padding: 1px 6px;
 }
-.td-head { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; }
+.td-head { font-family: 'Newsreader', Georgia, serif; font-size: 16px; font-weight: 600; }
 .td-sub { font-size: 11.5px; color: var(--muted); margin: 3px 0 8px; }
 .td-sub b { color: var(--green); }
 .td-sec { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
@@ -1563,7 +1563,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .rules-btn { min-width: 44px; min-height: 44px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; margin-left: 14px; }
 .rules-btn:hover { border-color: var(--line-firm); }
 .rules-panel { position: absolute; right: 0; top: 40px; z-index: 60; width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 20px 50px rgba(35,41,54,0.16); padding: 16px 18px; }
-.rules-panel h4 { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+.rules-panel h4 { font-family: 'Newsreader', Georgia, serif; font-size: 16px; font-weight: 600; margin-bottom: 2px; }
 .rules-panel .rp-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
 .rule-list { list-style: none; margin: 0; padding: 0; }
 .rule-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 9px 0; border-top: 1px solid var(--line-soft, var(--line-soft)); }
@@ -1636,7 +1636,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
   opacity: 0.85;
 }
-.mini-jar .amt { font-family: 'Fraunces', serif; font-size: 13.5px; font-weight: 700; margin-top: 7px; }
+.mini-jar .amt { font-family: 'Newsreader', Georgia, serif; font-size: 13.5px; font-weight: 700; margin-top: 7px; }
 .mini-jar .lbl { font-size: 11px; color: var(--muted); }
 
 /* finale pills */
