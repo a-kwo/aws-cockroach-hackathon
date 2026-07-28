@@ -69,6 +69,73 @@ a { color: inherit; }
 .t-label { font-size: 12px; font-weight: 600; letter-spacing: 0.11em;
   text-transform: uppercase; color: var(--muted); }
 
+/* ---------------------------------------------------------------------------
+   MOTION — one material idea: ink arriving on paper.
+
+   Focal moment: the tally under the headline. Seven marks, one per judged call,
+   inked in sequence — six verified, the last one missed and struck through.
+   It is drawn from the same summary that writes the sentence above it, so the
+   ornament cannot disagree with the claim.
+
+   Carried through to one supporting beat: the verdict stamping onto the miss
+   section as it arrives. That is the Meter, performed once, in the place where
+   the page says it publishes failures.
+
+   Everything renders at its end state by default; motion is additive and only
+   runs when the page adds .mo. A failed script or a reduced-motion preference
+   leaves a correct, complete page.
+--------------------------------------------------------------------------- */
+.tally { display: flex; align-items: flex-end; gap: 9px; margin-top: 26px; height: 34px; }
+.tick { position: relative; width: 4px; height: 30px; border-radius: 4px;
+  background: var(--verified); transform: rotate(4deg); transform-origin: bottom center; }
+.tick.is-miss { background: var(--miss); }
+/* the struck mark: a ledger crosses out what did not pay */
+.tick.is-miss::after { content: ''; position: absolute; left: -7px; right: -7px; top: 46%;
+  height: 3px; border-radius: 4px; background: var(--miss); transform: rotate(-24deg);
+  transform-origin: center; }
+.tally-note { margin-left: 12px; align-self: center; font-size: 13px; color: var(--muted); }
+
+/* --- focal sequence: only with .mo on <html> --- */
+.mo .tick { clip-path: inset(100% 0 0 0); animation: inkUp 420ms cubic-bezier(0.16,1,0.3,1) forwards; }
+.mo .tick::after { transform: rotate(-24deg) scaleX(0); transform-origin: left center;
+  animation: inkStrike 260ms cubic-bezier(0.16,1,0.3,1) var(--strike-delay, 0ms) forwards; }
+.mo .tally-note { opacity: 0; animation: inkFade 340ms cubic-bezier(0.16,1,0.3,1) forwards; }
+@keyframes inkUp     { to { clip-path: inset(0 0 0 0); } }
+@keyframes inkStrike { to { transform: rotate(-24deg) scaleX(1); } }
+@keyframes inkFade   { to { opacity: 1; } }
+
+/* --- the verdict stamp on the miss --- */
+.miss-verdict { display: inline-flex; align-items: center; margin-top: 16px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--miss); border: 2px solid var(--miss); border-radius: 4px;
+  padding: 6px 12px; transform: rotate(-3deg); }
+.mo .miss-verdict { opacity: 0; }
+.mo .miss-verdict.stamped {
+  animation: stamp 380ms cubic-bezier(0.16,1,0.3,1) forwards; }
+@keyframes stamp {
+  from { opacity: 0; transform: rotate(-3deg) scale(1.14); clip-path: inset(0 0 0 100%); }
+  to   { opacity: 1; transform: rotate(-3deg) scale(1);    clip-path: inset(0 0 0 0); }
+}
+
+/* --- feedback, not decoration --- */
+.window { transition: transform 220ms cubic-bezier(0.16,1,0.3,1), box-shadow 220ms; }
+.window:hover { transform: translateY(-3px); box-shadow: 0 30px 60px rgba(35,41,54,0.14); }
+/* the live dot breathes only while it is on screen */
+.eyebrow i.beating { animation: beat 3.2s ease-in-out infinite; }
+@keyframes beat {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(17,128,102,0.16); }
+  50%      { box-shadow: 0 0 0 7px rgba(17,128,102,0.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mo .tick, .mo .tick::after, .mo .tally-note,
+  .mo .miss-verdict, .mo .miss-verdict.stamped { animation: none; }
+  .mo .tick { clip-path: inset(0 0 0 0); }
+  .mo .tick::after { transform: rotate(-24deg) scaleX(1); }
+  .mo .tally-note, .mo .miss-verdict { opacity: 1; }
+  .eyebrow i.beating { animation: none; }
+}
+
 /* ---------- chrome ---------- */
 header { position: sticky; top: 0; z-index: 20; background: rgba(245,241,232,0.9);
   backdrop-filter: blur(10px); border-bottom: 1px solid transparent; transition: border-color 200ms; }
@@ -252,6 +319,7 @@ footer a { color: var(--brass-deep); }
       <div class="hero-r">
         <p class="lede" id="heroLede"></p>
       </div>
+      <div class="tally" id="tally" aria-hidden="true"></div>
       <div class="hero-cta">
         <a class="cta" href="app/">Try the demo <em>— no signup</em></a>
         <span class="no-signup">Live data from the cluster. Nothing you click is saved.</span>
@@ -363,6 +431,15 @@ if (!D.finds) {
     'and the local trends, proposes one move with a dollar figure attached. Weeks later it ' +
     'checks whether that move actually paid.';
 
+  /* One mark per judged call, verified first, the missed one struck through.
+     Built from the same summary that writes the headline, so the ornament can
+     never disagree with the sentence above it. */
+  const marks = [];
+  for (let i = 0; i < s.verified; i++) marks.push('<i class="tick"></i>');
+  for (let i = 0; i < s.miss; i++)     marks.push('<i class="tick is-miss"></i>');
+  $('tally').innerHTML = marks.join('') +
+    `<span class="tally-note">${s.verified} paid · ${s.miss} missed</span>`;
+
   $('finePrint').innerHTML =
     '<b>Rosa’s Trattoria is a fiction.</b> The corpus is hand-written so the demo is ' +
     'reproducible and carries nobody’s real reviews. Every number on this page and ' +
@@ -374,6 +451,7 @@ if (!D.finds) {
       <div>
         <p class="miss-t">${esc(miss.emoji)} ${esc(miss.title)}</p>
         <p class="miss-n">${esc(miss.note || '')}</p>
+        <span class="miss-verdict" id="missVerdict">Missed</span>
       </div>
       <div class="miss-fig">
         <div>Predicted<b>+${esc(miss.predictedDailyTxt)}</b></div>
@@ -444,6 +522,47 @@ if (!D.finds) {
     `${s.verified} of ${s.judged} verified · seeded demo tenant`;
 
   addEventListener('scroll', () => $('hdr').classList.toggle('stuck', scrollY > 8), { passive: true });
+
+  /* Motion is additive. The page above is already in its finished state; this
+     only replays how it got there. Nothing here is required to read the page. */
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  if (!still.matches) {
+    document.documentElement.classList.add('mo');
+
+    // the focal sequence: ink the tally in, one mark at a time, capped
+    const ticks = [...document.querySelectorAll('.tick')];
+    const STEP = 55;
+    ticks.forEach((t, i) => {
+      t.style.animationDelay = (i * STEP) + 'ms';
+      const strike = i >= s.verified;              // the struck mark draws last
+      if (strike) t.style.setProperty('--strike-delay', (i * STEP + 300) + 'ms');
+    });
+    const note = document.querySelector('.tally-note');
+    if (note) note.style.animationDelay = (ticks.length * STEP + 120) + 'ms';
+    const missTick = document.querySelector('.tick.is-miss');
+    if (missTick) missTick.style.setProperty('animation-delay', ((ticks.length - 1) * STEP) + 'ms');
+
+    // the supporting beat: the verdict stamps when its section arrives
+    const verdict = $('missVerdict');
+    if (verdict && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) { verdict.classList.add('stamped'); io.disconnect(); }
+        });
+      }, { threshold: 0.9 });
+      io.observe(verdict);
+    } else if (verdict) {
+      verdict.classList.add('stamped');
+    }
+
+    // the live dot breathes only while it is on screen
+    const dot = document.querySelector('.eyebrow i');
+    if (dot && 'IntersectionObserver' in window) {
+      new IntersectionObserver(es => es.forEach(e =>
+        dot.classList.toggle('beating', e.isIntersecting)
+      )).observe(dot);
+    }
+  }
 }
 </script>
 </body>
