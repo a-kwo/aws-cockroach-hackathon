@@ -74,7 +74,7 @@ shot for the demo video.
 | AWS service | Role | Why it is load-bearing |
 |---|---|---|
 | Bedrock | Titan Text Embeddings V2 | Generates every vector in the index. No embeddings → no retrieval → no memory. |
-| Lambda | One function per agent | The whole agent runtime |
+| Lambda | Two container-image functions: `night` (the whole loop) and `ask` | The agent runtime |
 | EventBridge Scheduler | The nightly 6 AM wake | What makes the loop autonomous rather than a button |
 | S3 | Maker artifacts | The done-for-you deliverables |
 | API Gateway | Frontend → backend | How the demo URL reaches the agents |
@@ -109,8 +109,17 @@ judge finding it unstated is worse than reading it up front.
 
 ### Scope cuts (deliberate)
 
-Build Mapper, Radar, Analyst, Meter. **Dropped:** Stripe, accounts, multi-tenancy.
-Single demo tenant. Maker ships exactly one artifact type.
+Build Radar, Analyst, Maker, Meter, Ask. **Dropped:** Stripe, accounts,
+multi-tenancy, and the **Mapper** — its job, chat → business profile, is already
+served by the seeded `business_fact` rows, and it contributes to neither required
+disclosure. Single demo tenant. Maker ships exactly one artifact type.
+
+**Why two Lambdas and not one per agent.** `run_night()` already sequences
+Radar → Analyst → Maker → Meter and is covered by the offline suite. Splitting it
+across four functions would move that ordering into infrastructure, where it is
+less tested, and buy cross-invoke IAM and three new failure modes for nothing. A
+night is single-digit minutes against a fifteen-minute ceiling. Ask is separate
+because it is request-driven rather than scheduled.
 
 ---
 

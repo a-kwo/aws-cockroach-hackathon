@@ -67,8 +67,27 @@ class AskResult:
     error: str | None = None
 
 
+def trail_lines(answer: Answer) -> list[str]:
+    """The trail as display lines: what was called, and what it ran.
+
+    Public because the API handler returns this to the browser and the run note
+    stores it — both should format the receipt the same way rather than each
+    inventing one.
+    """
+    lines = []
+    for call in answer.tool_calls:
+        detail = call.input.get("sql") or call.input.get("query")
+        if detail is None:
+            # Non-query tools (list_databases, get_table_schema) carry their
+            # arguments instead of SQL.
+            detail = ", ".join(f"{k}={v!r}" for k, v in call.input.items())
+        flag = " [FAILED]" if call.is_error else ""
+        lines.append(f"{call.name}{flag} {detail}".rstrip())
+    return lines
+
+
 def _trail_note(answer: Answer) -> str:
-    """One line per tool call, prefixed, plus a header naming the count.
+    """The stored form: a count, then one prefixed line per call.
 
     Recorded even when empty — an answer with no tool calls is the model
     reasoning from its own knowledge instead of from the cluster, and that is
@@ -77,16 +96,10 @@ def _trail_note(answer: Answer) -> str:
     if not answer.tool_calls:
         return "answered with no tool calls — nothing was read from the cluster"
 
-    lines = [f"{len(answer.tool_calls)} tool call(s)"]
-    for call in answer.tool_calls:
-        detail = call.input.get("sql") or call.input.get("query")
-        if detail is None:
-            # Non-query tools (list_databases, get_table_schema) carry their
-            # arguments instead of SQL.
-            detail = ", ".join(f"{k}={v!r}" for k, v in call.input.items())
-        flag = " [FAILED]" if call.is_error else ""
-        lines.append(f"{TRAIL_PREFIX}{call.name}{flag} {detail}".rstrip())
-    return "\n".join(lines)
+    return "\n".join(
+        [f"{len(answer.tool_calls)} tool call(s)"]
+        + [TRAIL_PREFIX + line for line in trail_lines(answer)]
+    )
 
 
 def parse_trail(note: str | None) -> list[str]:

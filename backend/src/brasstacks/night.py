@@ -16,6 +16,7 @@ demo run needs to move the calendar the way real time would.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
@@ -33,7 +34,14 @@ from brasstacks.repository import Repository
 from brasstacks.signals import CorpusSignalSource, SignalSource, TavilySignalSource
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CORPUS_PATH = REPO_ROOT / "db" / "seed" / "observations.json"
+
+#: Overridable because the packaged Lambda does not have the repository's
+#: directory shape, and deriving this from `parents[3]` would silently resolve
+#: to the wrong place inside the image.
+CORPUS_PATH = Path(
+    os.environ.get("BRASSTACKS_CORPUS_PATH")
+    or REPO_ROOT / "db" / "seed" / "observations.json"
+)
 
 
 @dataclass(frozen=True)
