@@ -77,6 +77,10 @@ class Settings:
     # raises, naming the variable, only when the Ask path is actually used.
     cockroach_mcp_url: str = DEFAULT_MCP_URL
     cockroach_mcp_token: str | None = field(default=None, repr=False)
+    # Not a secret — an identifier. Supplying it lets the Ask agent skip the
+    # cluster-discovery round trips it would otherwise repeat every question.
+    cockroach_cluster_id: str | None = None
+    cockroach_database: str = "defaultdb"
 
     @property
     def reasoning_model_id(self) -> str:
@@ -176,6 +180,10 @@ class Settings:
                 _clean(env.get("COCKROACH_MCP_URL")) or DEFAULT_MCP_URL
             ),
             cockroach_mcp_token=_clean(env.get("COCKROACH_MCP_TOKEN")),
+            cockroach_cluster_id=_clean(env.get("COCKROACH_CLUSTER_ID")),
+            cockroach_database=(
+                _clean(env.get("COCKROACH_DATABASE")) or "defaultdb"
+            ),
         )
 
     @classmethod

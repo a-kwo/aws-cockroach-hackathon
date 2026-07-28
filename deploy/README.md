@@ -54,11 +54,30 @@ for step 3.
 Read-only is the server's default and we never grant write consent — an agent
 that can answer questions about the ledger must not be able to edit it.
 
-> **The one thing to check by hand.** The Console's generated snippet is the
-> authoritative source for the auth header shape. `McpAsker` sends the key as
-> `authorization_token` on the MCP server declaration, which is what Anthropic's
-> connector expects; if the Console shows something different, that is the place
-> the two have to be reconciled.
+Assign **Cluster Operator**, scoped to this cluster.
+
+**Not Cluster Developer** — that is below the threshold for the Cloud API's
+list/read-cluster operations, and the failure is quiet in an expensive way: the
+key authenticates (HTTP 200), `list_clusters` returns an empty array, and the
+agent reports that it cannot find any database. Nothing in that chain looks like
+a permissions error. Verify with:
+
+```bash
+curl -s https://cockroachlabs.cloud/api/v1/clusters \
+  -H "Authorization: Bearer $COCKROACH_MCP_TOKEN" | jq '.clusters | length'
+```
+
+Zero means the role, not the key. If the query tools still fail on Operator,
+`Cluster Admin` scoped to the same single cluster is the next step — at the cost
+that read-only then rests on the MCP server's default rather than on the role
+itself.
+
+**Auth shape — confirmed, no longer an open question.** The Cloud API
+authenticates service-account keys as `Authorization: Bearer {secret_key}`, and
+Anthropic's MCP connector renders `authorization_token` into exactly that header.
+So the raw secret key goes into `COCKROACH_MCP_TOKEN` verbatim — no `Bearer`
+prefix, no encoding. Adding the prefix by hand produces `Bearer Bearer …` and a
+401 that reads like a bad key.
 
 ## 3. Put the secrets in Parameter Store
 

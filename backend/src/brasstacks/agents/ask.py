@@ -60,6 +60,35 @@ reading this between other jobs.
 - Never modify anything. You have read access only, and that is deliberate."""
 
 
+DEFAULT_DATABASE = "defaultdb"
+
+
+def ask_system_prompt(*, cluster_id: str | None,
+                      database: str = DEFAULT_DATABASE) -> str:
+    """The prompt, with the cluster named so the agent can skip discovery.
+
+    Measured against the live cluster: without this, six of eight tool calls
+    went on finding the cluster id and reading schemas before the first real
+    query — repeated on every question, with one call failing outright because
+    the query tools require a cluster id the agent had not yet fetched.
+
+    Returns the plain prompt when no cluster is configured, so an unset value
+    costs latency rather than correctness.
+    """
+    if not cluster_id:
+        return ASK_SYSTEM_PROMPT
+
+    return ASK_SYSTEM_PROMPT + f"""
+
+You already know where the data is. Do NOT call list_clusters — it is a wasted \
+round trip and the answer is here:
+- cluster_id: {cluster_id}
+- database: {database}
+
+Pass that cluster_id to every tool that takes one; they fail without it. Go \
+straight to the query you need."""
+
+
 @dataclass(frozen=True)
 class AskResult:
     run_id: str

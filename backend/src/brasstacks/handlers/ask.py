@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from brasstacks.agents.ask import run_ask, trail_lines
+from brasstacks.agents.ask import ask_system_prompt, run_ask, trail_lines
 from brasstacks.config import Settings
 from brasstacks.providers import ModelRefusedError, ProviderError, build_asker
 from brasstacks.secrets import hydrate_environment
@@ -105,6 +105,10 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             business_id=settings.business_id,
             question=question,
             model_id=settings.anthropic_model_id,
+            system=ask_system_prompt(
+                cluster_id=settings.cockroach_cluster_id,
+                database=settings.cockroach_database,
+            ),
         )
 
     if result.answer is None:

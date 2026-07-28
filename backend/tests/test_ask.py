@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from brasstacks.agents.ask import ASK_SYSTEM_PROMPT, run_ask
+from brasstacks.agents.ask import ASK_SYSTEM_PROMPT, ask_system_prompt, run_ask
 from brasstacks.providers import (
     Answer,
     FakeAsker,
@@ -383,3 +383,42 @@ class TestRunAsk:
         # inventing a number. That has to be in the prompt, not just the docs.
         assert "do not" in ASK_SYSTEM_PROMPT.lower()
         assert "I don't know" in ASK_SYSTEM_PROMPT
+
+
+class TestAskSystemPrompt:
+    """Telling it where the database is, instead of making it search.
+
+    Measured against the live cluster: without this the agent spent six of its
+    eight tool calls discovering the cluster id and schema before it could ask
+    a real question — on every single question, and one of those six failed
+    outright. That is latency and model spend on the demo path.
+    """
+
+    CLUSTER = "41b89d47-dce7-419b-8a63-77db2a7044f9"
+
+    def test_names_the_cluster_and_database(self):
+        prompt = ask_system_prompt(cluster_id=self.CLUSTER, database="defaultdb")
+
+        assert self.CLUSTER in prompt
+        assert "defaultdb" in prompt
+
+    def test_tells_it_not_to_go_looking(self):
+        # Naming the cluster is not enough on its own; the model will still
+        # call list_clusters unless told the lookup is unnecessary.
+        prompt = ask_system_prompt(cluster_id=self.CLUSTER).lower()
+
+        assert "list_clusters" in prompt
+
+    def test_keeps_the_honesty_rules(self):
+        # The cluster hint must not displace the constraints that make the
+        # answers trustworthy.
+        prompt = ask_system_prompt(cluster_id=self.CLUSTER)
+
+        assert "I don't know" in prompt
+        assert "INTEGER CENTS" in prompt
+        assert "verified" in prompt
+
+    def test_falls_back_cleanly_when_the_cluster_is_unknown(self):
+        # Without a configured id it must still work — just slower, by
+        # discovering the cluster itself.
+        assert ask_system_prompt(cluster_id=None) == ASK_SYSTEM_PROMPT
