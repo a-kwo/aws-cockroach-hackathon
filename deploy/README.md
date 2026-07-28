@@ -107,22 +107,45 @@ aws ssm put-parameter --type String --overwrite \
 
 ### The connection string is not the same one you use locally
 
-`sslrootcert` must differ by environment, and copying the local value across is
-a deploy failure that reads as a certificate problem:
+`sslrootcert` must differ by environment. Copying the local value across is a
+deploy failure that reads as a certificate problem rather than a path problem.
+Both values below are confirmed against the deployed function:
 
 | | `sslrootcert` |
 |---|---|
-| Local (Windows) | an absolute path to `cockroach-certs/ca.crt` — `system` does not work, because psycopg's bundled libpq will not resolve it to the Windows trust store |
-| Lambda (Linux) | `system` |
+| Local (Windows) | absolute path to `cockroach-certs/ca.crt`. `system` does not work — psycopg's bundled libpq will not resolve it to the Windows trust store |
+| Lambda (Linux) | `/etc/pki/tls/certs/ca-bundle.crt` |
 
-CockroachDB Cloud clusters present a **Let's Encrypt** certificate, so Linux
-verifies it from the OS trust store with nothing bundled. This keeps
-`sslmode=verify-full` — the point is to avoid weakening TLS, not to avoid
-carrying a file.
+**`sslrootcert=system` also fails on Lambda**, which is counter-intuitive enough
+to be worth stating plainly. The container *does* carry OS CA bundles at all
+three standard locations, and the cluster presents an ordinary **Let's Encrypt**
+certificate. The problem is that `psycopg[binary]` bundles its own OpenSSL,
+whose compiled-in default cert path does not exist in the Amazon Linux image, so
+`system` resolves to nothing. Naming the bundle explicitly is the fix; the OS
+path is stable for as long as the base image stays Amazon Linux.
 
-Do **not** `COPY cockroach-certs/ca.crt` into the image as an alternative. That
-file is gitignored, so it does not exist in a fresh clone and the build would
-fail for anyone but you — a judge included.
+`sslmode=verify-full` is retained throughout — the aim was never to weaken TLS.
+
+Do **not** `COPY cockroach-certs/ca.crt` into the image instead. That file is
+gitignored, so it is absent from a fresh clone and the build would fail for
+everyone but this machine, a judge included.
+
+### Rotating a secret needs a cold start
+
+`secrets.py` loads Parameter Store into the environment once per execution
+environment and then leaves it alone, so a warm container keeps serving the old
+value after you rotate one. Symptom: you fix a parameter, redeploy nothing, and
+the same error persists at suspiciously low latency (~200ms — it never reached
+the network). Force new containers:
+
+```bash
+aws lambda update-function-configuration --function-name <fn> \
+  --environment "Variables={DEPLOY_NONCE=$(date +%s),...}"
+```
+
+Any configuration change replaces every execution environment. This is a
+deliberate trade — reading SSM on every invocation would add latency and cost to
+each request to save a step that happens rarely.
 
 ## 4. Create the artifact bucket
 
@@ -137,11 +160,21 @@ repo root so the image can carry both `backend/src` and the seed corpus.
 
 ```bash
 sam build --template deploy/template.yaml
-sam deploy --guided
+
+sam deploy \
+  --template .aws-sam/build/template.yaml \
+  --stack-name brasstacks --region us-east-1 \
+  --capabilities CAPABILITY_IAM \
+  --resolve-image-repos --resolve-s3 \
+  --no-confirm-changeset --no-fail-on-empty-changeset \
+  --parameter-overrides ArtifactBucket=<your-bucket>
 ```
 
-`--guided` will ask for `ArtifactBucket`; the rest have defaults. It prints the
-Ask endpoint URL on completion.
+`--resolve-image-repos` creates the ECR repositories the two container images
+need; `--resolve-s3` handles the deployment bucket. `sam deploy --guided` is the
+interactive equivalent and asks the same questions.
+
+It prints the Ask endpoint URL on completion.
 
 ## 6. Prove it works
 

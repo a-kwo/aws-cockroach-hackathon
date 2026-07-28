@@ -88,7 +88,14 @@ Resources:
               Action:
                 - ssm:GetParametersByPath
                 - ssm:GetParameter
-              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+              Resource:
+                # Both forms are required. GetParametersByPath authorises
+                # against the path resource itself, while GetParameter
+                # authorises against each parameter beneath it. Granting only
+                # the `/*` form denies the path call — which is what happened
+                # on the first deploy.
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
             - Sid: DecryptSecrets
               Effect: Allow
               Action: kms:Decrypt
@@ -130,7 +137,14 @@ Resources:
               Action:
                 - ssm:GetParametersByPath
                 - ssm:GetParameter
-              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+              Resource:
+                # Both forms are required. GetParametersByPath authorises
+                # against the path resource itself, while GetParameter
+                # authorises against each parameter beneath it. Granting only
+                # the `/*` form denies the path call — which is what happened
+                # on the first deploy.
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
             - Sid: DecryptSecrets
               Effect: Allow
               Action: kms:Decrypt
@@ -164,7 +178,9 @@ Resources:
 
 Outputs:
   AskEndpoint:
-    Description: POST a JSON {"question": "..."} here. Splice into the built site.
+    # Quoted: the JSON braces contain a colon, which bare YAML reads as a
+    # key/value split and rejects.
+    Description: 'POST a JSON body {"question": "..."} here. Splice into the built site.'
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/ask
 
   NightFunctionName:
