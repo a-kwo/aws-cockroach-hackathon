@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-28T00:00:00Z",
+  "generatedAt": "2026-07-28T16:20:00Z",
   "title": "Design System: Brass Tacks",
   "extensions": {
     "colorMeta": {
@@ -213,6 +213,36 @@
           "#D0AE6C",
           "#EBD5A6"
         ]
+      },
+      "paper-on-ink": {
+        "role": "neutral",
+        "displayName": "Paper on Ink",
+        "canonical": "#FBF9F4",
+        "tonalRamp": [
+          "#2A2721",
+          "#463F33",
+          "#635A48",
+          "#847A64",
+          "#A79C84",
+          "#C8BFA9",
+          "#E3DBC9",
+          "#F5F1E8"
+        ]
+      },
+      "ink-hover": {
+        "role": "neutral",
+        "displayName": "Ink Hover",
+        "canonical": "#333B4D",
+        "tonalRamp": [
+          "#0D0F14",
+          "#161A22",
+          "#232936",
+          "#3A4254",
+          "#525C73",
+          "#7A8397",
+          "#AEB5C2",
+          "#DDE0E6"
+        ]
       }
     },
     "typographyMeta": {
@@ -235,6 +265,30 @@
       "label": {
         "displayName": "Label",
         "purpose": "Verdict tags, eyebrows, section kickers, jar captions. Uppercase."
+      },
+      "marketing-display": {
+        "displayName": "Marketing Display",
+        "purpose": "The landing hero only. One per page, never two."
+      },
+      "marketing-head": {
+        "displayName": "Marketing Head",
+        "purpose": "Landing section headings."
+      },
+      "marketing-lead": {
+        "displayName": "Marketing Lead",
+        "purpose": "The published miss, stated at size instead of in a card."
+      },
+      "marketing-stat": {
+        "displayName": "Marketing Stat",
+        "purpose": "The four record figures on the landing page."
+      },
+      "marketing-body": {
+        "displayName": "Marketing Body",
+        "purpose": "Landing prose. Larger than the dashboard's body: Persuade, not Operate."
+      },
+      "marketing-label": {
+        "displayName": "Marketing Label",
+        "purpose": "Section eyebrows on the landing page."
       }
     },
     "shadows": [
@@ -381,6 +435,14 @@
       "description": "Pill field with a brass send affordance. The only text entry in the product.",
       "html": "<div class=\"ds-comp\"><input class=\"ds-comp-i\" placeholder=\"Answer or ask anything…\"><button class=\"ds-comp-b\" aria-label=\"Send\">➤</button></div>",
       "css": ".ds-comp { display: flex; align-items: center; gap: 10px; } .ds-comp-i { flex: 1; background: #fff; border: 1px solid #E4DECD; border-radius: 999px; padding: 13px 18px; font-family: Inter, system-ui, sans-serif; font-size: 14px; color: #232936; } .ds-comp-i::placeholder { color: #8B8778; } .ds-comp-i:focus-visible { outline: 3px solid #A8781F; outline-offset: 3px; } .ds-comp-b { width: 42px; height: 42px; border-radius: 50%; border: none; background: #A8781F; color: #fff; font-size: 15px; cursor: pointer; } .ds-comp-b:focus-visible { outline: 3px solid #A8781F; outline-offset: 3px; }"
+    },
+    {
+      "name": "Product Window",
+      "kind": "custom",
+      "refersTo": "card-surface",
+      "description": "The live dashboard cropped by the fold. An iframe rather than a screenshot, so it cannot drift from what the app renders.",
+      "html": "<a class=\"ds-window\" href=\"app/\"><div class=\"ds-window-bar\"><i></i><i></i><i></i><span>brasstacks / the dashboard</span><span class=\"ds-window-hint\">Open it →</span></div><div class=\"ds-window-view\"></div></a>",
+      "css": ".ds-window { position: relative; display: block; height: 520px; border-radius: 18px 18px 0 0; overflow: hidden; border: 1px solid #E4DECD; border-bottom: 0; background: #fff; box-shadow: 0 22px 50px rgba(35,41,54,0.10); text-decoration: none; } .ds-window-bar { display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; background: #EFEADD; border-bottom: 1px solid #E4DECD; font-family: Inter, system-ui, sans-serif; } .ds-window-bar i { width: 10px; height: 10px; border-radius: 50%; background: #E4DECD; } .ds-window-bar span { margin-left: 10px; font-size: 12px; color: #6E6A5C; } .ds-window-hint { margin-left: auto; font-size: 13px; font-weight: 600; color: #8A6217; } .ds-window:hover .ds-window-hint { text-decoration: underline; text-underline-offset: 3px; }"
     }
   ],
   "narrative": {
@@ -433,6 +495,11 @@
         "name": "The Pill-Means-State Rule",
         "body": "A pill labels a condition. A rounded rectangle holds content or takes an action. Do not put a pill radius on a container.",
         "section": "shapes"
+      },
+      {
+        "name": "The Two Surfaces Rule",
+        "body": "The dashboard is Operate and runs the small dense ramp; the landing page is Persuade and runs the marketing ramp. Neither borrows the other's scale.",
+        "section": "typography"
       }
     ],
     "dos": [
@@ -441,7 +508,8 @@
       "Do use pills for state and soft rectangles for surfaces.",
       "Do keep raised surfaces flat with a 1px Line border; spend shadow only on the popover, the decision card, and the object layer.",
       "Do show retrieval similarity as a number (0.743) beside the row it belongs to.",
-      "Do put a visible 3px Brass focus ring on anything clickable, including custom controls drawn as circles on a curve."
+      "Do put a visible 3px Brass focus ring on anything clickable, including custom controls drawn as circles on a curve.",
+      "Do show the real product at the fold rather than describing it — a live frame, not a screenshot, so it cannot drift."
     ],
     "donts": [
       "Don't encode similarity, confidence, or strength as opacity, weight, or colour intensity. In this dataset two verified wins have weaker top evidence than the published miss; any intensity ramp would tell the owner something false.",
@@ -449,7 +517,8 @@
       "Don't draw a chart element the database cannot support. A panel with no data is deleted, not filled with a plausible shape.",
       "Don't let an interface action move a verified figure. Accepting a find moves the predicted line and nothing else.",
       "Don't put gold on anything that is not a coin.",
-      "Don't add a third elevation tier."
+      "Don't add a third elevation tier.",
+      "Don't build a marketing section out of same-size bordered cards. Rules and space carry structure; the receipt is the one framed element, because it is a receipt."
     ]
   }
 }

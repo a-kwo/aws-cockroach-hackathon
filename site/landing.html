@@ -246,11 +246,11 @@ footer a { color: var(--brass-deep); }
   <div class="wrap">
     <div class="hero">
       <div class="hero-l">
-        <p class="eyebrow t-label"><i></i><span id="eyebrow">—</span></p>
-        <h1 class="t-display" id="heroH">—</h1>
+        <p class="eyebrow t-label"><i></i><span id="eyebrow"></span></p>
+        <h1 class="t-display" id="heroH"></h1>
       </div>
       <div class="hero-r">
-        <p class="lede" id="heroLede">—</p>
+        <p class="lede" id="heroLede"></p>
       </div>
       <div class="hero-cta">
         <a class="cta" href="app/">Try the demo <em>— no signup</em></a>
@@ -261,11 +261,11 @@ footer a { color: var(--brass-deep); }
 
   <!-- Mercury pins its fine print directly under the hero. Ours is that the
        tenant is a fiction — better said at the fold than buried at the bottom. -->
-  <div class="fineprint"><div class="wrap" id="finePrint">—</div></div>
+  <div class="fineprint"><div class="wrap" id="finePrint"></div></div>
 
   <div class="wrap window-wrap">
     <a class="window" href="app/" aria-label="Open the live dashboard">
-      <div class="window-bar"><i></i><i></i><i></i><span>brasstacks — the dashboard</span>
+      <div class="window-bar"><i></i><i></i><i></i><span>brasstacks / the dashboard</span>
         <span class="window-hint">Open it →</span></div>
       <div class="window-view">
         <iframe src="app/" title="The Brass Tacks dashboard, live" loading="lazy" tabindex="-1" scrolling="no"></iframe>
@@ -331,7 +331,7 @@ footer a { color: var(--brass-deep); }
 
 <footer>
   <div class="wrap fr">
-    <span id="footStat">—</span>
+    <span id="footStat"></span>
     <a href="app/">Open the demo →</a>
     <a href="https://github.com/a-kwo/aws-cockroach-hackathon">Source on GitHub</a>
   </div>
@@ -360,12 +360,12 @@ if (!D.finds) {
 
   $('heroLede').textContent =
     'Brass Tacks works overnight for a small business: it reads the reviews, the rivals ' +
-    'and the local trends, proposes one move with a dollar figure attached, and then — ' +
-    'weeks later — checks whether that move actually paid.';
+    'and the local trends, proposes one move with a dollar figure attached. Weeks later it ' +
+    'checks whether that move actually paid.';
 
   $('finePrint').innerHTML =
     '<b>Rosa’s Trattoria is a fiction.</b> The corpus is hand-written so the demo is ' +
-    'reproducible and carries nobody’s real reviews — but every number on this page and ' +
+    'reproducible and carries nobody’s real reviews. Every number on this page and ' +
     'in the dashboard is queried out of a live CockroachDB cluster, not typed in.';
 
   /* --- the miss, at size rather than in a box --- */
@@ -397,13 +397,13 @@ if (!D.finds) {
     </div>
     <div class="step">
       <p class="step-n">02</p><h3>The Analyst searches its memory</h3>
-      <p>It asks ${D.queries.length} concrete questions — not one vague one — and runs each as a vector search across everything ever observed. Then it writes a prediction, with a date to check it.</p>
+      <p>It asks ${D.queries.length} concrete questions, not one vague one, and runs each as a vector search across everything ever observed. Then it writes a prediction, with a date to check it.</p>
       <div class="art"><b>${esc(top.emoji)} ${esc(top.title)}</b><br>predicts <b>+${esc(top.predictedDailyTxt)}/day</b>
         <span class="src">${top.evidenceCount} memories cited · closest match ${top.topSimilarity != null ? top.topSimilarity.toFixed(3) : '—'}</span></div>
     </div>
     <div class="step">
       <p class="step-n">03</p><h3>The Meter checks it, later</h3>
-      <p>Weeks on, a different run reads that stored prediction and compares it against what actually happened. This step is impossible without a memory layer — the run that made the call is long gone.</p>
+      <p>Weeks on, a different run reads that stored prediction and compares it against what actually happened. This step is impossible without a memory layer: the run that made the call is long gone.</p>
       <div class="art"><b>${esc(ver ? ver.emoji + ' ' + ver.title : '')}</b><br>
         predicted +${esc(ver ? ver.predictedDailyTxt : '')} · actual <b>+${esc(ver ? ver.actualDailyTxt : '')}</b>
         <span class="src">verified against the payment terminal</span></div>
@@ -422,7 +422,7 @@ if (!D.finds) {
       <ol>${D.queries.map(q => `<li>${esc(q)}</li>`).join('')}</ol>
     </div>
     <div class="r-ev">
-      <p class="r-cap">What came back — ${f.evidenceCount} rows, ranked${f.evidenceCount > 6 ? ' (top 6 shown)' : ''}</p>
+      <p class="r-cap">What came back: ${f.evidenceCount} rows, ranked${f.evidenceCount > 6 ? ' (top 6 shown)' : ''}</p>
       <ol>${f.evidence.slice(0, 6).map((e, i) => `
         <li><span class="r-n">${i + 1}</span>
           <div><p class="r-q">${esc(e.content)}</p><p class="r-s">${esc(e.source)} · ${esc(e.when)}</p></div>
@@ -430,7 +430,7 @@ if (!D.finds) {
       </ol>
     </div>
     <div class="r-foot">Similarity is the cosine distance the vector index returned, shown as a number and
-      never as a shade — in this dataset, two verified wins have weaker top evidence than the
+      never as a shade. In this dataset two verified wins have weaker top evidence than the
       published miss. Closeness is how it was found, not proof that it will work.</div>`;
 
   $('stats').innerHTML = `

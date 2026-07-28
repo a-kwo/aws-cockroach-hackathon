@@ -72,6 +72,18 @@ typography:
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "0.11em"
+  marketing-lead:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "clamp(24px, 3vw, 34px)"
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: "-0.015em"
+  marketing-stat:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "clamp(34px, 4.4vw, 52px)"
+    fontWeight: 600
+    lineHeight: 1.0
+    letterSpacing: "-0.025em"
   marketing-figure:
     fontFamily: "Fraunces, Georgia, serif"
     fontSize: "32px"
