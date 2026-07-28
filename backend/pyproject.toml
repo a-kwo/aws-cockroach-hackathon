@@ -5,6 +5,10 @@ description = "Agents that find money for small businesses, and prove whether it
 requires-python = ">=3.12"
 dependencies = [
     "psycopg[binary]>=3.2",
+    # Claude on Bedrock goes through the Anthropic SDK's Mantle client, not
+    # boto3 invoke_model. boto3 is still needed for Titan embeddings (an AWS
+    # model) and for S3.
+    "anthropic[bedrock]>=0.40",
     "boto3>=1.35",
 ]
 
