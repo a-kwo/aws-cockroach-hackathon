@@ -11,7 +11,10 @@
   --card:       #FFFFFF;
   --ink:        #232936;
   --ink-soft:   #4A5160;
-  --muted:      #8B8778;
+  /* Was #8B8778 — 3.19:1 on paper, failing AA everywhere it was used:
+     chart captions, ledger timestamps, evidence sources, the road hint.
+     #6E6A5C is 4.80:1 on paper and 5.41:1 on card. */
+  --muted:      #6E6A5C;
   --line:       #E4DECD;
 
   --brass:      #A8781F;
@@ -20,9 +23,14 @@
   --gold-2:     #D9A93F;
   --gold-3:     #A8781F;
 
-  --green:      #177A4C;
-  --green-soft: #E7F4EC;
-  --green-line: #BFE3CF;
+  /* --green was #177A4C, the pre-validation green. It shipped alongside the
+     validated #118066 for a while, so two different "verified" greens were on
+     screen at once — on the one distinction this product exists to make.
+     --green is now an alias of the validated value; the soft/line tints are
+     re-derived from it. There is exactly one verified green. */
+  --green:      #118066;
+  --green-soft: #E6F3EF;
+  --green-line: #B7DED2;
 
   --calm:       #3E5C76;
 }
@@ -69,6 +77,16 @@ header {
   position: relative;
   min-height: 0;
 }
+/* The Autopilot scene is a sibling of the views, not one of them: a .view
+   overlay covers it visually but never removed it from the page. On desktop
+   that left the hero figure, both jars, seven coins and the live "Do it now"
+   button in the accessibility tree and the tab order while the owner was
+   reading the Ledger — invisible controls that still did things. This rule
+   used to live inside the max-width:900px block, so only mobile was correct. */
+body:not([data-view="auto"]) #totalWrap,
+body:not([data-view="auto"]) #jars,
+body:not([data-view="auto"]) #floatCoin,
+body:not([data-view="auto"]) #miniCard { display: none; }
 
 /* the one number */
 #totalWrap {
@@ -120,7 +138,7 @@ header {
   width: 17px; height: 17px;
   background: var(--green);
   color: #fff;
-  font-size: 10px; font-weight: 700;
+  font-size: 11px; font-weight: 700;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
 }
@@ -157,7 +175,7 @@ header {
 .jar-lbl b { color: var(--calm); }
 #waitAmt.waiting { animation: waitPulse 2.2s ease-in-out infinite; }
 @keyframes waitPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
-.jcoin {
+.jcoin { font: inherit; border: 0; padding: 0; cursor: pointer;
   position: absolute;
   width: 72px; height: 72px;
   border-radius: 50%;
@@ -325,6 +343,21 @@ header {
   transition: opacity 700ms ease, transform 700ms ease;
 }
 #endLine.show { opacity: 1; transform: none; }
+/* The completion block used to render on top of the jars: "Go run your shop"
+   half behind a jar lid, and "One call missed. It stays on the ledger." — the
+   product's thesis — painted through both. It is the last thing the owner sees
+   every morning and the most likely shot to end the demo video.
+   Fix: when the queue empties, the jars recede and this takes the centre. */
+body.queue-done #jars { opacity: 0.14; transition: opacity 600ms ease; pointer-events: none; }
+/* #jars comes after #totalWrap in the document, so it painted over the closing
+   message even at 14%. Both are positioned; the message takes the higher layer. */
+body.queue-done #totalWrap { z-index: 9; }
+/* The transient lines have done their job once the queue is empty; clearing
+   them gives the closing message the room it needs in normal flow. Absolute
+   placement was tried and simply moved the collision onto the hero figure. */
+body.queue-done #sessLine,
+body.queue-done #meterHint { display: none; }
+body.queue-done #endLine { margin-top: 26px; }
 #endLine .el-big { font-family: 'Fraunces', serif; font-size: 25px; font-weight: 600; }
 #endLine .el-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .fin-pills { margin-top: 12px; display: flex; justify-content: center; }
@@ -347,7 +380,7 @@ header {
 #askDot:hover { transform: scale(1.07); }
 
 /* hero labels — every number says what it is */
-.hero-label {
+.hero-label { margin: 0;
   font-size: 12px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;
   color: var(--muted); margin-bottom: 10px;
 }
@@ -434,7 +467,7 @@ header {
 .kp-meter i { display: block; height: 100%; border-radius: 4px; background: var(--green); transition: width 700ms cubic-bezier(0.22,1,0.36,1); }
 .kp-pct { font-size: 11.5px; color: var(--muted); }
 .kp-pct b { color: var(--green); }
-.kg-t { font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 16px 0 4px; }
+.kg-t { font-size: 11.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 16px 0 4px; }
 .kitem { display: flex; align-items: baseline; gap: 9px; padding: 7px 0; border-top: 1px solid var(--line-soft, #F0EDE5); font-size: 13px; }
 .kitem .kd { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; align-self: center; }
 .kitem .kl { color: var(--muted); flex: 0 0 auto; }
@@ -448,7 +481,7 @@ header {
 .kp-sub2 { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
 /* tab badge */
-.tbadge { margin-left: 7px; background: #C05B4D; color: #fff; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+.tbadge { margin-left: 7px; background: #C05B4D; color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
 
 /* ---------- Manage view: wheel-first command layout ---------- */
 .mg-wrap {
@@ -458,7 +491,11 @@ header {
   padding: 18px 0 16px; min-height: 0;
 }
 .mg-head { display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
-.mg-head b.serif { font-size: 22px; font-weight: 600; }
+.mg-head b.serif, .mg-h1 { font-size: 22px; font-weight: 600; margin: 0; }
+/* Every view needs a heading, or the dashboard has no outline at all:
+   before this the document went straight to <h3>, inside modals. */
+.v-h1 { font-family: 'Fraunces', serif; font-size: 25px; font-weight: 700;
+        letter-spacing: -0.02em; margin: 0; }
 .mg-feed { margin-left: auto; font-size: 12.5px; color: var(--muted); cursor: pointer; transition: color 150ms; }
 .mg-feed:hover { color: var(--ink); }
 .mg-feed b { color: var(--brass-deep); }
@@ -472,7 +509,7 @@ header {
 
 /* the growth chart — taller every year, taller every chat */
 .mc-kick {
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--brass-deep); margin-bottom: 8px;
 }
 #planLine {
@@ -511,9 +548,7 @@ header {
      explicitly whenever another tab is selected. */
   .view { position: static; display: none; min-height: 78vh; }
   .view.on { display: flex; }
-  body:not([data-view="auto"]) #totalWrap,
-  body:not([data-view="auto"]) #jars,
-  body:not([data-view="auto"]) #miniCard { display: none; }
+  /* moved out of this media query — see the rule near #scene */
   .v-inner, .v-inner.wide, .mg-wrap { width: calc(100% - 28px); padding-top: 14px; }
 
   /* Manage: chat above, charts below. */
@@ -561,17 +596,39 @@ header {
    the single most important thing this product says. These score ΔE 10.0.
    Verdict is never carried by colour alone: every row is also labelled. */
 :root {
+  /* MARKS — bars, dots, fills. This exact set is the CVD-validated one:
+     worst adjacent pair ΔE 10.0 under deuteranopia, chroma and lightness band
+     both inside floor. Do not darken these for contrast: dropping verified to
+     #0F7259 to clear 4.5:1 as text takes chroma under the floor and collapses
+     CVD separation to ΔE 6.7. Verified with the palette validator. */
   --v-verified:  #118066;
   --v-miss:      #C0442A;
   --v-estimated: #2E5EA8;
   --v-pending:   #A8781F;
+
+  /* INK — the same verdicts when they are set as text on paper, where WCAG
+     wants 4.5:1 and the mark colours give 4.33 (verified) and 3.47 (pending).
+     Same relationship as --brass / --brass-deep. */
+  --v-verified-ink:  #0D6450;   /* 6.30:1 on paper */
+  --v-miss-ink:      #C0442A;   /* 4.54:1 — already clears */
+  --v-estimated-ink: #2E5EA8;   /* 5.68:1 — already clears */
+  --v-pending-ink:   #8A6217;   /* 4.85:1 on paper, 5.47:1 under white */
 }
 .lg-wrap { width: min(980px, 100%); margin: 0 auto; padding: 4px 0 40px; }
 .lg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 6px; }
-.lg-title { font-size: 25px; font-weight: 700; }
+.lg-title { margin: 0; font-size: 25px; font-weight: 700; }
 .lg-sub { font-size: 13.5px; color: var(--muted); margin-top: 5px; }
 .lg-score { font-family: 'Fraunces', serif; font-size: 15px; color: var(--ink-soft); text-align: right; white-space: nowrap; }
-.lg-score b { font-size: 30px; color: var(--v-verified); display: block; line-height: 1.05; }
+/* Inter, not Fraunces: a hit rate is not money, and the display face is
+   reserved for claims about the owner's money. Our own rule. */
+.lg-jump { display: block; margin-top: 4px; font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--v-miss); background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; }
+.lg-jump:hover { color: #9C3722; }
+@keyframes lgFlash { 0%,100% { background: transparent; } 30% { background: rgba(192,68,42,0.10); } }
+.lg-row.flash { animation: lgFlash 1.6s ease; }
+.lg-score b { font-family: 'Inter', sans-serif; font-size: 28px; letter-spacing: -0.02em;
+              color: var(--v-verified-ink); display: block; line-height: 1.05; }
 .lg-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0 10px; font-size: 12px; color: var(--muted); }
 .lg-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .lgk { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -585,11 +642,11 @@ header {
 .lg-name { font-weight: 650; font-size: 14.5px; flex: 1; min-width: 0; }
 .lg-when { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .lg-tag {
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
   padding: 3px 8px; border-radius: 999px; color: #fff; white-space: nowrap;
 }
 .lg-tag.v { background: var(--v-verified); } .lg-tag.m { background: var(--v-miss); }
-.lg-tag.e { background: var(--v-estimated); } .lg-tag.p { background: var(--v-pending); }
+.lg-tag.e { background: var(--v-estimated); } .lg-tag.p { background: var(--v-pending-ink); }   /* white on #A8781F is 3.91:1 */
 
 /* Predicted over actual, on one shared scale, so the gap is the thing you see
    rather than something you have to compute. */
@@ -625,7 +682,10 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .ev-n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
 .ev-q { font-size: 12.5px; line-height: 1.5; color: var(--ink); }
 .ev-src { font-size: 11px; color: var(--muted); margin-top: 3px; }
-.ev-sim { font-variant-numeric: tabular-nums; color: #9C9686; margin-left: 5px; }
+/* Was #9C9686 at 2.62:1 — the retrieval scores are the audit trail, and they
+   were the least readable text in the product. PRODUCT.md records that this
+   content was moved off opacity encoding *because* it rendered near 2:1. */
+.ev-sim { font-variant-numeric: tabular-nums; color: var(--muted); margin-left: 5px; }
 .rcpt-body { margin-top: 10px; font-size: 12.5px; color: var(--ink-soft); }
 .rcpt-cap { color: var(--muted); font-size: 11.5px; }
 .rcpt-qs { margin: 7px 0 9px 18px; padding: 0; }
@@ -634,7 +694,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .mv-list li { margin-bottom: 5px; line-height: 1.5; }
 .mv-one { margin-top: 5px; line-height: 1.5; }
 .pred-line { font-size: 12px; color: var(--muted); }
-.pred-line b { color: var(--v-verified); }
+.pred-line b { color: var(--v-verified-ink); }
 .sd-dot.miss { background: var(--v-miss); }
 
 /* The bars carried no reference before — they floated with no baseline and no
@@ -700,14 +760,14 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .ktile.filled { animation: tileFill 1.2s ease; border-color: #BFE3CF; }
 .ktile.filled b { color: var(--green); }
 .jflash { animation: tileFill 1.2s ease; border-radius: 12px; }
-.ax-ping { fill: none; stroke: #177A4C; stroke-width: 3; animation: axping 900ms ease-out 2; }
+.ax-ping { fill: none; stroke: var(--v-verified); stroke-width: 3; animation: axping 900ms ease-out 2; }
 @keyframes axping { from { r: 6; opacity: 1; } to { r: 26; opacity: 0; } }
 .rec-line span { position: absolute; right: 0; top: -17px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
 .gc-cap { margin-top: 14px; font-size: 11.5px; color: var(--muted); text-align: center; }
 
 /* drafted-for-you card (reputation) */
 .draft-card { width: 100%; background: #F6EFDF; border: 1.5px dashed #E3D2A8; border-radius: 12px; padding: 12px 16px; }
-.draft-card em { display: block; font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8A6217; margin-bottom: 6px; }
+.draft-card em { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8A6217; margin-bottom: 6px; }
 .draft-card p { font-size: 12.5px; color: var(--ink-soft); font-style: italic; line-height: 1.5; }
 .draft-card button { margin-top: 10px; background: #A8781F; color: #fff; border: none; border-radius: 9px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
 .draft-card button:hover { background: #8A6217; }
@@ -729,6 +789,10 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .vt-name { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vt.on .vt-name { color: var(--ink); }
 .vt-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+/* All four of these were permanently green and said nothing. A dot that is
+   always the same colour is not a status, and status by colour alone fails
+   regardless. The panel labels already carry their own figures. */
+.vt-dot { display: none; }
 .vt-dot.ok { background: var(--green); }
 .vt-dot.warn { background: #E5A93D; }
 .vt-dot.act { background: #C05B4D; animation: pulse 1.6s ease-in-out infinite; }
@@ -745,7 +809,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .vt:hover .vt-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 .vt-tip::before { content: ''; position: absolute; top: -5px; left: 50%; margin-left: -5px; border: 5px solid transparent; border-top: none; border-bottom: 5px solid var(--ink); }
 .vt-v { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: #fff; line-height: 1.2; }
-.vt-s { font-style: normal; font-size: 10.5px; color: rgba(255,255,255,0.78); }
+.vt-s { font-style: normal; font-size: 11.5px; color: rgba(255,255,255,0.78); }
 .vt-fly {
   position: absolute; z-index: 6; width: 11px; height: 11px; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #F2DC9C, #D2A64B 70%);
@@ -779,7 +843,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 /* your week — schedule chips + wrap-up modal */
 .td-when { font-style: normal; font-size: 9px; font-weight: 800; color: #8A6217; background: #F6EFDF; border: 1px solid #E3D2A8; border-radius: 999px; padding: 2px 7px; margin-left: 6px; white-space: nowrap; }
 .wk-row { display: flex; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--line-soft, #F0EDE5); font-size: 13.5px; }
-.wk-when { flex: 0 0 auto; font-size: 10.5px; font-weight: 800; color: #8A6217; background: #F6EFDF; border: 1px solid #E3D2A8; border-radius: 999px; padding: 4px 11px; white-space: nowrap; }
+.wk-when { flex: 0 0 auto; font-size: 11.5px; font-weight: 800; color: #8A6217; background: #F6EFDF; border: 1px solid #E3D2A8; border-radius: 999px; padding: 4px 11px; white-space: nowrap; }
 .wk-t { color: var(--ink-soft); }
 .wk-agent { margin-top: 14px; font-size: 12.5px; color: var(--muted); background: var(--paper); border-radius: 12px; padding: 12px 14px; }
 /* tab hit — a glow, never a size change */
@@ -827,7 +891,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .avg-line { position: absolute; left: 10px; right: 10px; border-top: 2px dashed #C9C2B0; z-index: 2; pointer-events: none; }
 .avg-chip { position: absolute; top: -4px; left: 8px; z-index: 4; font-size: 9.5px; font-weight: 700; color: var(--muted); background: rgba(251,250,246,0.94); border: 1px solid var(--line); padding: 2px 9px; border-radius: 999px; }
 .wb { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; z-index: 3; }
-.wb b { font-size: 10.5px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+.wb b { font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
 .wb i {
   width: 100%; border-radius: 10px 10px 5px 5px;
   background: linear-gradient(180deg, #A8DEC0, var(--green));
@@ -847,13 +911,13 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 /* reputation — leaderboard */
 #repC { width: 100%; display: flex; flex-direction: column; gap: 0; padding: 0 6px; }
 .lb-card { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 20px 12px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(35,41,54,0.05); }
-.lb-title { display: block; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.lb-title { display: block; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .lb-row { display: flex; align-items: center; gap: 11px; padding: 8px 6px; border-top: 1px solid var(--line-soft, #F0EDE5); font-size: 13px; border-radius: 10px; }
 .lb-row.me { background: var(--green-soft, #E7F4EC); border-top-color: transparent; }
 .lb-rank { width: 26px; flex: 0 0 auto; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
 .lb-name { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-row.me .lb-name { color: var(--green); }
-.lb-name small { font-weight: 500; font-size: 10.5px; color: var(--muted); }
+.lb-name small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
 .lb-star { flex: 0 0 auto; font-family: 'Fraunces', serif; font-size: 16px; font-weight: 700; width: 46px; text-align: right; }
 .lb-bar { flex: 0 0 110px; height: 8px; border-radius: 4px; background: var(--line-soft, #F0EDE5); overflow: hidden; }
 .lb-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #D8CFB4, #C2B78F); transition: width 1000ms cubic-bezier(0.22,1,0.36,1); }
@@ -870,7 +934,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 }
 .vs-card.you { border-top: 3px solid var(--green); }
 .vs-card.them { border-top: 3px solid #C05B4D; }
-.vs-name { font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+.vs-name { font-size: 11.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
 .vs-big { font-family: 'Fraunces', serif; font-size: 36px; font-weight: 700; line-height: 1; }
 .vs-big i { font-style: normal; font-size: 19px; }
 .vs-card.you .vs-big { color: var(--green); }
@@ -880,7 +944,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 .vs-depth i { display: block; height: 100%; width: 0; border-radius: 4px; transition: width 1000ms cubic-bezier(0.22,1,0.36,1); }
 .vs-card.you .vs-depth i { background: linear-gradient(90deg, #8FD4AF, var(--green)); }
 .vs-card.them .vs-depth i { background: linear-gradient(90deg, #EDB6AE, #C05B4D); }
-.vs-meta { font-size: 10.5px; color: var(--muted); text-align: center; }
+.vs-meta { font-size: 11.5px; color: var(--muted); text-align: center; }
 .vs-meta b { color: var(--ink); }
 .vs-mid {
   align-self: center; flex: 0 0 auto;
@@ -890,7 +954,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
   display: flex; align-items: center; justify-content: center;
 }
 .race { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 18px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(35,41,54,0.05); }
-.race em { display: block; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.race em { display: block; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .race-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; }
 .race-row span { width: 56px; font-weight: 700; color: var(--ink-soft); flex: 0 0 auto; }
 .race-track { flex: 1; height: 12px; border-radius: 6px; background: var(--line-soft, #F0EDE5); overflow: hidden; }
@@ -937,7 +1001,7 @@ details[open] > .ev-sum::after, details[open] > .rcpt-sum::after { content: ' �
 }
 .mc-head {
   flex: 0 0 auto;
-  font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
   color: var(--muted);
   display: flex; align-items: center; gap: 7px;
   padding-bottom: 10px; border-bottom: 1px solid var(--line-soft, #F0EDE5);
@@ -1017,9 +1081,12 @@ summary:focus-visible, [tabindex]:focus-visible {
    exactly this point and was cutting through the word. */
 .road-start { font-size: 17px; transform: translate(-50%, -86%); }
 .road-start b { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
-.road-start span { display: block; font-family: 'Fraunces', serif; font-size: 14px; font-weight: 700; color: var(--ink); }
+/* Today's figure is verified money, so it wears the verified colour. The goal
+   below is a target nobody has earned yet — it does not. This was the wrong
+   way round. */
+.road-start span { display: block; font-family: 'Fraunces', serif; font-size: 14px; font-weight: 700; color: var(--v-verified-ink); }
 .road-flag i { font-style: normal; font-size: 30px; display: block; filter: drop-shadow(0 4px 8px rgba(23,122,76,0.3)); }
-.road-flag b { display: block; font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: var(--green); }
+.road-flag b { display: block; font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: var(--ink); }
 .road-flag span { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
 .road-flag.party i { animation: flagParty 700ms cubic-bezier(0.34,1.56,0.64,1) 3; }
 @keyframes flagParty { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35) rotate(-8deg); } }
@@ -1032,7 +1099,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 }
 .pop-x { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border: none; background: var(--paper); color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 13px; z-index: 2; }
 .pop-x:hover { color: var(--ink); }
-.rd-title { font-size: 21px; font-weight: 600; flex: 0 0 auto; }
+.rd-title { margin: 0; font-size: 21px; font-weight: 600; flex: 0 0 auto; }
 .rd-title b { color: var(--brass-deep, #8A6217); }
 .goalbar-box {
   flex: 0 0 auto;
@@ -1047,7 +1114,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 
 /* goal setter — inside the 🎯 slice on Manage */
 .goal-set { background: #F6EFDF; border: 1.5px dashed #E3D2A8; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
-.goal-set em { display: block; font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8A6217; margin-bottom: 9px; }
+.goal-set em { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8A6217; margin-bottom: 9px; }
 .gs-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .gs-pre, .gs-suf { font-family: 'Fraunces', serif; font-weight: 700; font-size: 16px; }
 #goalAmt { width: 92px; font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: var(--ink); background: var(--card); border: 1px solid #E3D2A8; border-radius: 10px; padding: 6px 10px; outline: none; text-align: right; }
@@ -1084,7 +1151,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .live-line {
   margin-left: auto;
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
   color: #C05B4D;
 }
 .live-line i { width: 7px; height: 7px; border-radius: 50%; background: #C05B4D; animation: waitPulse 1.4s ease-in-out infinite; }
@@ -1148,7 +1215,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .blip.done-b::after {
   content: '✓'; position: absolute; right: -5px; bottom: -5px;
   width: 16px; height: 16px; border-radius: 50%;
-  background: var(--green); color: #fff; font-size: 10px; font-weight: 700;
+  background: var(--green); color: #fff; font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
 .blip.snoozed-b { opacity: 0.4; }
@@ -1159,13 +1226,19 @@ summary:focus-visible, [tabindex]:focus-visible {
   padding: 26px 28px;
   box-shadow: 0 6px 24px rgba(35,41,54,0.06);
 }
-.sig-tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; border-radius: 999px; padding: 4px 12px; margin-bottom: 14px; }
+.sig-tag { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; border-radius: 999px; padding: 4px 12px; margin-bottom: 14px; }
 .sig-tag.alert { color: #C05B4D; background: #FBEAEA; border: 1px solid #EFC9C6; }
 .sig-tag.opp { color: var(--brass-deep, #8A6217); background: #F6EFDF; border: 1px solid #E3D2A8; }
 .sig-tag.okk { color: var(--green); background: var(--green-soft); border: 1px solid var(--green-line); }
 .sig-title { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 600; line-height: 1.25; }
 .sig-body { font-size: 14px; color: var(--ink-soft); margin-top: 10px; }
-.sig-btns { display: flex; gap: 10px; margin-top: 20px; }
+/* Opening the run receipt used to push Do-it / Not-now out of the 400px
+   popover with no scroll affordance: the owner opened the evidence to build
+   confidence and lost the ability to act on it. The body scrolls now; the
+   buttons stay put. */
+.sig-btns { display: flex; gap: 10px; margin-top: 20px; position: sticky; bottom: -20px;
+  background: linear-gradient(to top, var(--card) 72%, transparent);
+  padding: 14px 0 4px; }
 .sig-act {
   flex: 0 0 auto;
   background: var(--brass); color: #fff; border: none; border-radius: 12px;
@@ -1283,7 +1356,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 #wheelLegend { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0 12px; }
 .lchip {
   display: flex; align-items: center; gap: 6px;
-  font-size: 10.5px; font-weight: 600; color: var(--ink-soft);
+  font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
   background: transparent; border: 1px solid transparent; border-radius: 8px;
   padding: 4px 7px; cursor: pointer; transition: all 150ms;
   font-family: 'Inter', sans-serif;
@@ -1347,7 +1420,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .rcard .rw b { color: var(--ink); }
 .rtag {
   margin-left: auto; flex: 0 0 auto;
-  font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
   border-radius: 999px; padding: 4px 11px; white-space: nowrap;
 }
 .rtag.ok  { color: var(--green); background: var(--green-soft); border: 1px solid var(--green-line); }
@@ -1436,7 +1509,7 @@ summary:focus-visible, [tabindex]:focus-visible {
 .rc-hit { margin-top: 12px; padding: 11px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; }
 .rc-hit b { color: var(--green); }
 .rc-pos { margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--green); display: flex; align-items: center; gap: 7px; }
-#meterHint { font-size: 11.5px; color: var(--brass-deep, #8A6217); font-weight: 600; cursor: pointer; margin-top: 7px; display: inline-block; }
+#meterHint { font: inherit; font-size: 11.5px; color: var(--brass-deep, #8A6217); font-weight: 600; cursor: pointer; margin-top: 7px; display: inline-block; background: none; border: 0; padding: 0; }
 #meterHint:hover { text-decoration: underline; }
 #totalNum { cursor: pointer; }
 
@@ -1454,13 +1527,13 @@ summary:focus-visible, [tabindex]:focus-visible {
 .todo-badge {
   position: absolute; top: -7px; right: -7px;
   background: #E5A93D; color: #fff;
-  font-size: 10px; font-weight: 700;
+  font-size: 11px; font-weight: 700;
   border-radius: 999px; padding: 1px 6px;
 }
 .td-head { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; }
 .td-sub { font-size: 11.5px; color: var(--muted); margin: 3px 0 8px; }
 .td-sub b { color: var(--green); }
-.td-sec { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
+.td-sec { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
 .td-row { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-top: 1px solid var(--line-soft, #F0EDE5); font-size: 12.5px; color: var(--ink); }
 .td-row.fresh { animation: rIn 400ms ease; }
 .td-chk {
@@ -1485,7 +1558,11 @@ summary:focus-visible, [tabindex]:focus-visible {
 .rules-panel { position: absolute; right: 0; top: 40px; z-index: 60; width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 20px 50px rgba(35,41,54,0.16); padding: 16px 18px; }
 .rules-panel h4 { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; margin-bottom: 2px; }
 .rules-panel .rp-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
+.rule-list { list-style: none; margin: 0; padding: 0; }
 .rule-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 9px 0; border-top: 1px solid var(--line-soft, #F0EDE5); }
+.rule-on { font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--v-verified-ink); background: var(--green-soft); border: 1px solid var(--green-line); border-radius: 999px; padding: 2px 9px; flex: 0 0 auto; }
+/* Visually hidden, still read aloud — for emoji-only controls. */
+.vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .rule-row span { flex: 1; }
 .tgl { width: 36px; height: 21px; border-radius: 999px; background: #D8D2C2; position: relative; cursor: pointer; transition: background 200ms; flex: 0 0 auto; }
 .tgl::after { content: ''; position: absolute; top: 2.5px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 200ms; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
@@ -1505,7 +1582,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   transition: all 200ms ease;
 }
 .ln .ln-t { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
-.ln .ln-s { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.ln .ln-s { font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .ln:hover { border-color: #C9C2B0; }
 .ln.on { background: var(--ink); border-color: var(--ink); }
 .ln.on .ln-t { color: #fff; }
@@ -1609,15 +1686,15 @@ summary:focus-visible, [tabindex]:focus-visible {
 <header>
   <div class="wordmark"><i></i>BRASS TACKS</div>
   <div class="who" id="whoName">—</div>
-  <nav id="loopnav">
+  <nav id="loopnav" aria-label="The nightly loop">
     <button class="ln on" data-v="chat"><span class="ln-t">🧭 Manage</span><span class="ln-s" id="lb2v">—</span></button>
-    <span class="ln-a">→</span>
+    <span class="ln-a" aria-hidden="true">→</span>
     <button class="ln" data-v="auto"><span class="ln-t">🤖 Autopilot</span><span class="ln-s" id="lb4v">—</span></button>
-    <span class="ln-a">→</span>
+    <span class="ln-a" aria-hidden="true">→</span>
     <button class="ln" data-v="radar"><span class="ln-t">📡 Radar</span><span class="ln-s" id="lb5v">—</span><span class="tbadge hidden" id="radarBadge">0</span></button>
-    <span class="ln-a">→</span>
+    <span class="ln-a" aria-hidden="true">→</span>
     <button class="ln" data-v="ledger"><span class="ln-t">⚖️ Ledger</span><span class="ln-s" id="lb6v">—</span></button>
-    <span class="ln-a loop" title="Every verdict teaches tomorrow's Analyst — the loop compounds">↻</span>
+    <span class="ln-a loop" aria-hidden="true" title="Every verdict teaches tomorrow's Analyst — the loop compounds">↻</span>
   </nav>
   <div class="streak" id="streakPill" title="Daily check-in streak">🔥 <span id="streakN">12</span> days</div>
   <div class="head-btns">
@@ -1629,17 +1706,19 @@ summary:focus-visible, [tabindex]:focus-visible {
 <div id="scene">
 
   <div id="totalWrap">
-    <div class="hero-label" id="hLabel">Autopilot</div>
+    <h1 class="hero-label" id="hLabel">Autopilot</h1>
     <div id="totalNum" class="serif">$2,539<span id="cents">.00</span></div>
     <div id="rateLine">right now: <b id="dayRate">+$118</b> a day, on autopilot</div>
-    <div id="sessLine">✨ <b id="sessAmt">+$0.00</b> earned while you've been on this screen</div>
+    <div id="sessLine">Checked against your sales by the Meter — not projected</div>
     <div id="planLine"></div>
-    <span id="meterHint">tap the number for receipts ›</span>
+    <button id="meterHint">See the receipts ›</button>
     <div id="endLine">
       <div class="el-big serif">Go run your shop ☕</div>
       <div class="el-sub" id="endSub">The fix is in your inbox · lunch waits in your Later jar</div>
       <div class="fin-pills">
-        <div class="fin-pill" id="fp3">👀 Tomorrow 7 AM — something's moving at Lucca's · <b id="cd">…</b></div>
+        <!-- Was: "something's moving at Lucca's" — an invented event at a named rival.
+     Radar genuinely does run at 7am; that part is true and is all we can say. -->
+<div class="fin-pill" id="fp3">🌔 Radar runs again at 7 AM · <b id="cd">…</b></div>
       </div>
     </div>
   </div>
@@ -1678,8 +1757,8 @@ summary:focus-visible, [tabindex]:focus-visible {
     <div class="mc-val" id="mcVal">+$23<span>/day</span></div>
     <div class="mc-month" id="mcMonth">≈ $700 a month, every month</div>
     <div class="mc-btns">
-      <button class="mc-later" id="mcLater">Later 🫙</button>
-      <button class="mc-yes" id="mcYes">Do it now</button>
+      <button class="mc-later" id="mcLater">Not now</button>
+      <button class="mc-yes" id="mcYes">Do it — draft it for me</button>
     </div>
   </div>
 
@@ -1729,21 +1808,28 @@ summary:focus-visible, [tabindex]:focus-visible {
   <div class="view on" id="viewChat">
     <div class="mg-wrap">
       <div class="mg-head" style="position:relative;">
-        <b class="serif">Business Command</b>
+        <h1 class="serif mg-h1">This morning</h1>
         <div class="ai-bar" id="aiBar">
           <span class="ai-tag"><i class="ai-dot"></i>🤖 Agent</span>
           <span class="ai-msg" id="vtRibbon">🔴 <b>4 areas red.</b> Tonight the comeback starts — answer me in chat 👇</span>
         </div>
-        <button class="rules-btn" id="todoBtn" title="To-dos — your part vs the agent's" style="position:relative;">✅<span class="todo-badge" id="todoBadge">2</span></button>
-        <button class="rules-btn" id="rulesBtn" title="Your rules — the leash you hold">🛡</button>
+        <button class="rules-btn" id="todoBtn" aria-expanded="false" aria-controls="todoPanel" title="To-dos — your part vs the agent's" style="position:relative;"><span aria-hidden="true">✅</span><span class="vh">To-dos</span><span class="todo-badge" id="todoBadge">2</span></button>
+        <button class="rules-btn" id="rulesBtn" aria-expanded="false" aria-controls="rulesPanel" title="Your rules — the leash you hold"><span aria-hidden="true">🛡</span><span class="vh">Your rules</span></button>
         <div class="rules-panel hidden" id="todoPanel"></div>
         <div class="rules-panel hidden" id="rulesPanel">
           <h4>Your rules — the leash you hold</h4>
           <div class="rp-sub">The autopilot obeys these on every run.</div>
-          <div class="rule-row"><span>Never change prices without asking</span><div class="tgl on"></div></div>
-          <div class="rule-row"><span>Draft everything — nothing sends without my OK</span><div class="tgl on"></div></div>
-          <div class="rule-row"><span>Ask before anything over the cap</span><span class="rule-cap">$50/mo</span></div>
-          <div class="rp-foot">Change a rule anytime — it applies to tonight's run 🤖</div>
+          <!-- These were <div class="tgl on"> styled as switches: tabindex -1, no role,
+               no aria-checked, nothing persisted. The one screen whose job is to make the
+               owner feel safe was the one screen that lied. They are now honest status
+               rows, and the "change a rule anytime" promise is gone until they can act. -->
+          <ul class="rule-list">
+            <li class="rule-row"><span>Never change prices without asking</span><span class="rule-on">On</span></li>
+            <li class="rule-row"><span>Draft everything — nothing sends without my OK</span><span class="rule-on">On</span></li>
+            <li class="rule-row"><span>Ask before anything over the cap</span><span class="rule-cap">$50/mo</span></li>
+          </ul>
+          <div class="rp-foot">These are stored as owner_rule rows and bind every run.
+            <b>Read-only in this demo.</b></div>
         </div>
       </div>
       <div class="mg-main">
@@ -1754,7 +1840,7 @@ summary:focus-visible, [tabindex]:focus-visible {
           <div class="ask-chip off" id="askChip">&nbsp;</div>
           <div class="dock-bar">
             <input id="cin" type="text" placeholder="Answer or ask anything…" autocomplete="off">
-            <button id="csend">➤</button>
+            <button id="csend" aria-label="Send message"><span aria-hidden="true">➤</span></button>
           </div>
         </div>
         <div class="mg-wheel">
@@ -1789,21 +1875,30 @@ summary:focus-visible, [tabindex]:focus-visible {
             </div>
             <div class="chart" id="chHealth">
               <svg id="spider" viewBox="0 0 340 340"></svg>
-              <div class="gc-cap">Your shape (green) vs. top restaurants near you (dashed) · tap an axis</div>
+              <!-- Was: "Your shape (green) vs. top restaurants near you (dashed)". There is
+                   no peer series — the only other polygons are gridlines. We hold no
+                   competitor data at all, so the caption relabelled its own grid as rivals. -->
+              <div class="gc-cap" id="memCap"></div>
             </div>
             <div class="chart" id="chMoney">
               <div class="kpi-grid">
-                <div class="ktile"><div class="kt-ic">🧾</div><div class="kt-body"><span>Avg check</span><b>$38</b></div><i class="kt-delta down">▼ 6%</i></div>
+                <!-- These four figures come from the owner, stored as business_fact rows.
+                     The values are real; the trend arrows beside them were not — there is
+                     no time series for any of them, so "▼ 6%", "▼ thin" and "high" were
+                     judgements with nothing behind them. Removed. -->
+                <div class="ktile"><div class="kt-ic">🧾</div><div class="kt-body"><span>Avg check</span><b>$38</b></div></div>
                 <div class="ktile pending"><div class="kt-ic">🍽️</div><div class="kt-body"><span>Covers / wk</span><b id="kCovers">? <i>ask in chat</i></b></div></div>
-                <div class="ktile"><div class="kt-ic">🥕</div><div class="kt-body"><span>Food margin</span><b>54%</b></div><i class="kt-delta down">▼ thin</i></div>
-                <div class="ktile"><div class="kt-ic">👥</div><div class="kt-body"><span>Labor</span><b>38%</b></div><i class="kt-delta down">high</i></div>
+                <div class="ktile"><div class="kt-ic">🥕</div><div class="kt-body"><span>Food margin</span><b>54%</b></div></div>
+                <div class="ktile"><div class="kt-ic">👥</div><div class="kt-body"><span>Labor</span><b>38%</b></div></div>
               </div>
               <div id="weekBars"></div>
               <div class="gc-cap" id="moneyCap"></div>
             </div>
             <div class="chart" id="chRep">
               <div id="repC"></div>
-              <div class="gc-cap">#4 of 4 on your street — every reply, review &amp; fix climbs this board</div>
+              <!-- Was: "#4 of 4 on your street". A competitive ranking stated as fact,
+                   with no source and nothing behind it. PRODUCT.md: no peer data. -->
+              <div class="gc-cap" id="repCap"></div>
             </div>
           </div>
         </div>
@@ -1819,7 +1914,7 @@ summary:focus-visible, [tabindex]:focus-visible {
   <div class="view" id="viewRadar">
     <div class="v-inner">
       <div class="rd-wrap">
-        <div class="rd-title serif">📡 The road to your goal <span class="rd-count2" id="rdWays">3 stops</span></div>
+        <h1 class="rd-title serif"><span aria-hidden="true">📡</span> The road to your goal <span class="rd-count2" id="rdWays">3 stops</span></h1>
         <div id="roadBox">
           <svg id="roadSvg" viewBox="0 0 920 400" preserveAspectRatio="none">
             <path id="roadBase" d="" />
@@ -1862,7 +1957,7 @@ summary:focus-visible, [tabindex]:focus-visible {
       <div class="lg-wrap">
         <div class="lg-head">
           <div>
-            <div class="lg-title serif">⚖️ Every call, and how it turned out</div>
+            <h1 class="lg-title serif"><span aria-hidden="true">⚖️</span> Every call, and how it turned out</h1>
             <div class="lg-sub" id="lgSub">—</div>
           </div>
           <div class="lg-score" id="lgScore"></div>
@@ -1917,8 +2012,16 @@ function evidenceHTML(f, opts) {
         </p>
       </div>
     </li>`).join('');
+  /* STRONG is the point where retrieval stops being a match and starts being
+     noise on this corpus. Claiming all nine when one clears 0.4 would inflate
+     the evidence base — the one place this product was over-claiming. */
+  const strong = f.evidence.filter(e => e.similarity >= 0.4).length;
+  const label = strong
+    ? `📎 ${strong} close match${strong === 1 ? '' : 'es'}` +
+      (f.evidenceCount > strong ? `, ${f.evidenceCount - strong} weaker` : '')
+    : `📎 ${f.evidenceCount} loose match${f.evidenceCount === 1 ? '' : 'es'}, none close`;
   return `<details class="ev"${open ? ' open' : ''}>
-    <summary class="ev-sum">📎 ${f.evidenceCount} ${f.evidenceCount === 1 ? 'memory' : 'memories'} behind this</summary>
+    <summary class="ev-sum">${label}</summary>
     <ol class="ev-list">${rows}</ol>
   </details>`;
 }
@@ -2048,11 +2151,16 @@ function completeTodo(id, byOwner) {
   if (byOwner) { grow26(150, '✅'); toast('✓ Done — your bar noticed 📈', 'check'); }
   else toast('🤖 Agent finished: ' + x.t, 'check');
 }
+function syncExpanded(btn, panel) {
+  btn.setAttribute('aria-expanded', String(!panel.classList.contains('hidden')));
+}
 document.getElementById('todoBtn').addEventListener('click', e => {
   e.stopPropagation();
   document.getElementById('rulesPanel').classList.add('hidden');
   document.getElementById('todoPanel').classList.toggle('hidden');
   renderTodos();
+  syncExpanded(document.getElementById('todoBtn'), document.getElementById('todoPanel'));
+  syncExpanded(document.getElementById('rulesBtn'), document.getElementById('rulesPanel'));
 });
 
 /* ---------- your rules ---------- */
@@ -2060,8 +2168,11 @@ document.getElementById('rulesBtn').addEventListener('click', e => {
   e.stopPropagation();
   document.getElementById('todoPanel').classList.add('hidden');
   document.getElementById('rulesPanel').classList.toggle('hidden');
+  syncExpanded(document.getElementById('rulesBtn'), document.getElementById('rulesPanel'));
+  syncExpanded(document.getElementById('todoBtn'), document.getElementById('todoPanel'));
 });
-document.querySelectorAll('.tgl').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+/* The .tgl switch handler is gone with the switches. It toggled a class and
+   nothing else, on a panel that promised the change applied to tonight's run. */
 
 /* ---------- finds: the coins, from the finds awaiting a decision ---------- */
 const asCoin = f => ({
@@ -2085,17 +2196,18 @@ function renderMoney() {
   const whole = Math.floor(lifetime);
   const cents = String(Math.floor((lifetime - whole) * 100)).padStart(2, '0');
   $('totalNum').innerHTML = '$' + whole.toLocaleString() + '<span id="cents">.' + cents + '</span>';
-  $('sessAmt').textContent = '+$' + sess.toFixed(2);
+  const sa = $('sessAmt'); if (sa) sa.textContent = '+$' + sess.toFixed(2);
 }
 function startTicker() {
   if (tickerOn) return;
+  /* A figure under a "VERIFIED BY THE METER" eyebrow that rises on a timer is
+     an extrapolation wearing the word verified — the one casino-shaped thing in
+     an otherwise sober product. It also made the headline's accessible name
+     change every second, so a screen reader never finished reading it.
+     It now holds still, and the ⏳ predicted line carries forward motion.
+     Honoured for everyone, not only prefers-reduced-motion. */
   tickerOn = true;
-  setInterval(() => {
-    const perSec = dayRate / 86400;
-    lifetime += perSec;
-    sess += perSec;
-    renderMoney();
-  }, 1000);
+  renderMoney();
 }
 /* Accepting a find must not move the verified figure. The money is not real
    until the Meter has checked it against sales, which is weeks away — the whole
@@ -2150,6 +2262,8 @@ const SPOTS = [
   { x: 34, y: 82, r: -12 }, { x: 112, y: 76, r: 10 }, { x: 74, y: 44, r: -5 },
   { x: 26, y: 34, r: 14 },  { x: 122, y: 30, r: -8 }, { x: 74, y: 4,  r: 6 },
 ];
+/* Six drawn positions; past that the coins stack on each other. */
+const JAR_CAP = 6;
 const jarCount = { now: 0, later: 0 };
 let waitingRate = 0;
 let pendingCoins = 0;
@@ -2190,8 +2304,18 @@ function updateWaitLbl() {
    already earning, so it must not re-play the arrival sound, re-sparkle, or
    bump the day rate — that figure is already the verified total. */
 function landCoin(kind, f, silent) {
+  if (jarCount[kind] >= JAR_CAP) {   // full — count it, don't draw it on top
+    jarCount[kind]++;
+    if (kind === 'later') { waitingRate += f.day; updateWaitLbl(); }
+    if (kind === 'now' && !silent) { pendingCoins++; bumpRate(f.day); }
+    $('jarNowCap').textContent = 'Earning now · ' + JAR_CAP + ' of ' + jarCount.now + ' shown';
+    return;
+  }
   const t = jarTarget(kind);
-  const jc = document.createElement('div');
+  // Was a <div> with a click handler: the only route to a find's evidence from
+  // this screen, and unreachable by keyboard.
+  const jc = document.createElement('button');
+  jc.type = 'button';
   jc.className = 'jcoin' + (kind === 'later' ? ' later' : '');
   jc.style.left = t.spot.x + 'px';
   jc.style.top = t.spot.y + 'px';
@@ -2293,6 +2417,7 @@ function onFindResolved() {
   else setTimeout(finale, 750);
 }
 function finale() {
+  document.body.classList.add('queue-done');
   $('endLine').classList.add('show');
   setTimeout(() => $('fp3').classList.add('show'), 700);
   updateCountdown();
@@ -2359,11 +2484,23 @@ const VERDICT = {
   miss:      { k: 'm', label: 'Missed' },
   estimated: { k: 'e', label: 'Estimated' },
 };
-function ledgerRow(f) {
+/* One scale across the whole ledger, not per row.
+   This was `Math.max(pred, act)` inside the row, so every Actual bar filled 100%
+   of its own track: a +$9/day win drew the same bar as a +$41/day win, and a $6
+   prediction drew longer than a $7 one. The within-row gap survived; every
+   comparison down the column was wrong — on the one screen whose whole job is
+   telling the truth about money. */
+function ledgerScale(finds) {
+  return Math.max(1, ...finds.map(f =>
+    Math.max(f.predictedDaily, f.actualDaily || 0))) / 100;
+}
+function ledgerRow(f, scale) {
   const v = VERDICT[f.verdict] || { k: 'p', label: 'Measuring' };
   const pred = Math.round(f.predictedDaily / 100);
   const act = f.actualDaily == null ? null : Math.round(f.actualDaily / 100);
-  const scale = Math.max(pred, act || 0) || 1;
+  // A 2% floor so a small-but-real number is still a visible mark rather than
+  // nothing; the figure on the right does the precision work.
+  const w = n => n <= 0 ? 0 : Math.max(2, n / scale * 100);
   // An estimate was modelled, not measured. Calling it "Actual" would launder a
   // projection into a result, which is the exact move this product exists to
   // refuse.
@@ -2373,9 +2510,9 @@ function ledgerRow(f) {
        <div class="lg-bt"></div>
        <span class="lg-bv" style="color:var(--muted)">not yet</span>`
     : `<span class="lg-bl">${actLabel}</span>
-       <div class="lg-bt act"><i class="${v.k}" style="width:${Math.max(act / scale * 100, act ? 2 : 0)}%"></i></div>
-       <span class="lg-bv" style="color:var(--v-${f.verdict || 'pending'})">+$${act}/day</span>`;
-  return `<div class="lg-row">
+       <div class="lg-bt act"><i class="${v.k}" style="width:${w(act)}%"></i></div>
+       <span class="lg-bv" style="color:var(--v-${f.verdict || 'pending'}-ink)">+$${act}/day</span>`;
+  return `<div class="lg-row${f.verdict === 'miss' ? ' is-miss' : ''}">
     <div class="lg-r1">
       <span class="lg-em">${esc(f.emoji)}</span>
       <span class="lg-name">${esc(f.title)}</span>
@@ -2384,7 +2521,7 @@ function ledgerRow(f) {
     </div>
     <div class="lg-bars">
       <span class="lg-bl">Predicted</span>
-      <div class="lg-bt"><i style="width:${pred / scale * 100}%"></i></div>
+      <div class="lg-bt"><i style="width:${w(pred)}%"></i></div>
       <span class="lg-bv">+$${pred}/day</span>
       ${actRow}
     </div>
@@ -2400,8 +2537,26 @@ function renderLedger() {
   $('lgSub').textContent =
     `${s.judged} call${s.judged === 1 ? '' : 's'} checked against real sales · ` +
     `${measuring.length} still measuring · every prediction was written down before the outcome was known.`;
-  $('lgScore').innerHTML = `<b>${s.hitRate}%</b>${s.verified} of ${s.judged} paid`;
-  $('lgRows').innerHTML = judged.concat(measuring).map(ledgerRow).join('');
+  /* The header used to read "86% · 6 of 7 paid" and stop there, leaving the miss
+     1,300px down a 2,100px page. If publishing failures is the thing a rival
+     cannot copy, the miss should not be the hardest row to reach. */
+  const missed = judged.filter(f => f.verdict === 'miss');
+  $('lgScore').innerHTML =
+    `<b>${s.verified} paid</b>` +
+    (missed.length
+      ? `<button class="lg-jump" id="lgJump">${missed.length} missed — read ${missed.length === 1 ? 'it' : 'them'} →</button>`
+      : `${s.judged} checked`);
+  const rows = judged.concat(measuring);
+  const scale = ledgerScale(rows);
+  $('lgRows').innerHTML = rows.map(f => ledgerRow(f, scale)).join('');
+  const jump = document.getElementById('lgJump');
+  if (jump) jump.addEventListener('click', () => {
+    const row = document.querySelector('.lg-row.is-miss');
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('flash');
+    setTimeout(() => row.classList.remove('flash'), 1600);
+  });
   $('lgFoot').innerHTML =
     `The miss stays on this page. An agent that only publishes its wins has no record — ` +
     `it has marketing. Each verdict was produced by reading a prediction out of CockroachDB ` +
@@ -2448,7 +2603,7 @@ function chartHTML(c) {
       <div class="bar2"><span class="bl2">${c.b.l}</span><div class="bt2"><i style="width:${c.b.v / mx * 100}%"></i></div><b>${c.b.v}</b></div>
     </div>`;
   }
-  const color = c.good === false ? '#C05B4D' : '#177A4C';
+  const color = c.good === false ? 'var(--v-miss)' : 'var(--v-verified)';
   return `<div class="sig-chart">${sparkSVG(c.pts, c.proj, color)}<span class="chart-stat ${c.good === false ? 'r' : 'g'}">${c.stat}</span></div>`;
 }
 
@@ -2469,7 +2624,9 @@ const SIGNALS = ROAD_OPEN.map((f, i) => ({
   title: f.title, find: f,
   chart: { type: 'evidence' },
   goal: 'Worth <b>+' + f.predictedMonthlyTxt + '/mo</b> toward your goal',
-  why: f.evidenceCount + ' things your agent remembers', conf: f.confidence,
+  why: (f.evidence.filter(e => e.similarity >= 0.4).length || 'no') +
+       ' close match' + (f.evidence.filter(e => e.similarity >= 0.4).length === 1 ? '' : 'es') +
+       ' out of ' + f.evidenceCount + ' memories read', conf: f.confidence,
   val: Math.round(f.predictedDaily * 30 / 100),
   plan: f.emoji + ' ' + f.shortTitle,
   act: 'Do it — draft it for me', wip: f.shortTitle + ' — drafted for your approval',
@@ -3119,9 +3276,20 @@ function chatSend() {
     const short = v.length > 30 ? v.slice(0, 28) + '…' : v;
     setTimeout(() => {
       if (key === 'covers') {
+        /* This used to read `parseInt(v.replace(/\D/g,'')) || 60`. Typing anything
+           without a digit — "banana", "not sure", "ask my chef" — silently became 60,
+           was multiplied to 360 a week, written to the tile, and confirmed with a tick.
+           A fabricated figure about the owner's own business, presented as saved.
+           The agent now says it did not understand, and the tile stays empty. */
+        const digits = v.replace(/[^\d]/g, '');
+        const nCov = digits ? parseInt(digits, 10) : null;
+        if (nCov === null || nCov <= 0) {
+          pendingKey = 'covers';   // still owed — ask again rather than invent
+          cmsg('a', "I didn't catch a number there — how many covers on a typical Tuesday? " +
+                    "A rough count is fine, but I won't guess one for you.");
+          return;
+        }
         addToSeg('str', { t: '<b>Tue dinner covers:</b> ' + short, s: 'ok' });
-        setMapPct(81);
-        const nCov = parseInt(v.replace(/\D/g, ''), 10) || 60;
         const kc = document.getElementById('kCovers');
         if (kc) {
           kc.innerHTML = '≈' + (nCov * 6).toLocaleString() + '<i>/week</i>';
@@ -3130,20 +3298,24 @@ function chatSend() {
         }
         $('inputsWanted').textContent = '✋ 2 inputs wanted';
         loopPulse([0, 1, 2]);
-        setVital('money', { dot: 'warn', s: nCov + ' covers · Tue −38%' });
-        ribbon('💰 <b>red → amber:</b> money mapped · the bleed is Tuesday — ask me why');
-        cmsg('a', '<span class="noted">✓</span> 💰 Money tab updated.');
+        // Was: `${nCov} covers · Tue −38%` plus a ribbon asserting "the bleed is
+        // Tuesday". We hold no nightly revenue, so there is no bleed to name.
+        setVital('money', { s: nCov + ' covers on a Tuesday · you told me' });
+        cmsg('a', '<span class="noted">✓</span> Got it — about <b>' + nCov +
+                  '</b> on a Tuesday, so roughly <b>' + (nCov * 6).toLocaleString() +
+                  '</b> a week. Stored, and I\'ll use it tonight.');
         setTimeout(() => { pendingKey = 'resv'; cmsg('a', "Do you take reservations?"); }, 1200);
       } else if (key === 'resv') {
         addToSeg('weak', { t: '<b>Reservations:</b> ' + short, s: 'warn' });
-        setMapPct(90);
-        HEALTH[4].v = HEALTH[4].pend;
-        if (curChart === 'health') { renderSpider(); pulseAxis(4); }
+        /* `HEALTH[4].v = HEALTH[4].pend` survived from the invented six-dimension
+           health model. HEALTH is now derived from real observation counts and has
+           no `pend`, so this set the axis to undefined and drew NaN coordinates.
+           Nothing to update here: an answer about reservations does not change how
+           many things the agent has stored. */
         $('inputsWanted').textContent = '✋ 1 input wanted — the big one';
         loopPulse([0, 1, 2]);
-        setVital('health', { v: healthScore(), dot: 'ok', s: D.kinds.length + ' kinds of signal stored' });
-        ribbon('🕸 <b>red → amber:</b> web complete · weakest link is Visibility — ask for the fix');
-        cmsg('a', '<span class="noted">✓</span> 🕸 Health web complete — Ops 62/100.');
+        cmsg('a', '<span class="noted">✓</span> Noted — that changes how I read the ' +
+                  'Saturday wait reviews. Stored.');
         setTimeout(() => { pendingKey = 'goal'; cmsg('a', "Big one 🎯 <b>What number are you chasing?</b><br><i>e.g. “an extra $8,000 a month by fall”</i>"); }, 1400);
       } else if (key === 'goal') {
         const g = parseGoal(v);
@@ -3156,7 +3328,9 @@ function chatSend() {
           iw.textContent = '✓ All caught up';
           iw.classList.add('done');
           loopPulse([0, 1, 2, 4]);
-          ribbon('🎯 +$' + Math.round(g.amt / 1000) + 'k/mo means: plug 💰 Tue + climb ⭐ the board — <b>all four pull together now</b>');
+          // Was: "plug 💰 Tue + climb ⭐ the board" — a Tuesday deficit and a
+          // leaderboard, neither of which we hold data for.
+          ribbon('🎯 Goal locked at +$' + g.amt.toLocaleString() + '/mo. Radar hunts against it from tonight.');
           askRefresh();
           cmsg('a', '🎯 <b>Locked: +$' + g.amt.toLocaleString() + '/mo ' + g.when + '.</b> Radar\'s hunting.<br>Now pitch me an idea 💡 <i>“what about wine tastings?”</i>');
         }
@@ -3400,13 +3574,27 @@ function boot() {
   renderMoney();
 
   // Jars, pre-filled: what is already earning, and what is parked.
-  pick(D.earning).slice(0, 6).forEach(f => landCoin('now', asCoin(f), true));
-  pick(D.saved).forEach(f => landCoin('later', asCoin(f), true));
-  $('jarNowCap').textContent = D.earning.length > 6
-    ? 'Earning now · showing 6 of ' + D.earning.length : 'Earning now';
+  /* SPOTS has six resting positions and landCoin cycles them modulo six, so a
+     seventh coin lands exactly on the first. Six verified plus five acceptances
+     is eleven. Cap the drawn coins and say so rather than stacking them. */
+  const shown = pick(D.earning).slice(0, JAR_CAP);
+  shown.forEach(f => landCoin('now', asCoin(f), true));
+  pick(D.saved).slice(0, JAR_CAP).forEach(f => landCoin('later', asCoin(f), true));
+  $('jarNowCap').textContent = D.earning.length > JAR_CAP
+    ? `Earning now · ${shown.length} of ${D.earning.length} shown` : 'Earning now';
 
   renderLedger();
   renderMoneyCap();
+
+  // Captions describe what is on the chart, and nothing else.
+  $('memCap').textContent =
+    `${D.corpus.observations} things stored, by kind · tap an axis. No peer data — ` +
+    `we hold none, so none is drawn.`;
+  const revTotal = D.ratings.reduce((a, r) => a + r.reviews, 0);
+  const revAvg = D.ratings.reduce((a, r) => a + r.avg * r.reviews, 0) / (revTotal || 1);
+  $('repCap').textContent =
+    `${revAvg.toFixed(2)}★ across ${revTotal} reviews the Analyst has read in full — ` +
+    `it weighs the old ones too. Your own reviews only; no ranking against anyone else.`;
 
   // The receipts modal was four hardcoded rows. Same data as the ledger now.
   const RC = { verified: 'v', miss: 'm', estimated: 'e' };

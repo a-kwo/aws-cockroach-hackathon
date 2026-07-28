@@ -14,7 +14,8 @@
   --card:       #FFFFFF;
   --ink:        #232936;
   --ink-soft:   #4A5160;
-  --muted:      #8B8778;
+  /* 3.19:1 on paper — failed AA everywhere it was used. 4.80:1 now. */
+  --muted:      #6E6A5C;
   --line:       #E4DECD;
   --brass:      #A8781F;
   --brass-deep: #8A6217;
@@ -90,7 +91,11 @@ h1 .num { color: var(--verified); }
 .miss-card {
   margin-top: 46px; background: var(--card); border: 1px solid var(--line);
   border-radius: 18px; padding: 24px 26px;
-  border-left: 4px solid var(--miss);
+  /* A thick coloured stripe down one side of a card used to sit here. It is the
+     most recognisable tell of a generated UI, and it was the only instance in
+     the project. The card is still unmistakably the miss: the PUBLISHED MISS
+     label and the $0.00 figure both carry the verdict colour, which is
+     secondary encoding rather than decoration. */
   box-shadow: 0 2px 18px rgba(35,41,54,0.05);
   max-width: 640px;
 }
