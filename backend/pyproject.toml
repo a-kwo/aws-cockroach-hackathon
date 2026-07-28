@@ -25,13 +25,5 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["src"]
-markers = [
-    # Integration tests hit a real CockroachDB cluster. They are NEVER part of
-    # the unit suite — a contributor with no cloud account runs `pytest -m "not
-    # integration"` and gets a green board.
-    "integration: requires a live CockroachDB cluster (deselect with -m 'not integration')",
-]
-addopts = "-m 'not integration'"
+# pytest config deliberately lives in the repo-root pytest.ini, not here, so
+# that `pytest` works from either the root or this directory. See pytest.ini.
