@@ -47,8 +47,14 @@ shot for the demo video.
 - **CockroachDB is the memory layer.** Do not introduce a second store for vectors,
   sessions, or state. Specifically: **do not use Bedrock Knowledge Bases** — it would
   put a competing vector store next to Cockroach and undercut the entire entry.
-- **AWS does inference. CockroachDB is the brain.** Keep this boundary clean; both
-  required disclosure sections depend on it.
+- **AWS powers retrieval and the runtime. CockroachDB is the brain.** Bedrock's Titan
+  model generates every embedding the vector index holds, so AWS is load-bearing for
+  memory retrieval specifically. Keep that boundary clean; both required disclosure
+  sections depend on it.
+- **Reasoning runs on the Anthropic API, not Bedrock** — forced, not preferred. AWS
+  could not grant this account access to any current Claude model (see Model access
+  below). All model calls go through a provider interface so this is a config change
+  if Bedrock access ever lands.
 - **≥2 CockroachDB tools, meaningfully used at runtime.** The judging question is
   literally *"What did the agent actually do with the tool?"* — dev-time-only usage is
   a weak answer.
@@ -65,13 +71,33 @@ shot for the demo video.
 | Cloud Managed MCP Server | The **Ask** agent answers owner questions by querying the live cluster read-only over MCP |
 | ccloud CLI | Setup automation — provision cluster, configure networking, schedule backups |
 
-| AWS service | Role |
-|---|---|
-| Bedrock | Claude for reasoning, Titan for embeddings |
-| Lambda | One function per agent |
-| EventBridge Scheduler | The nightly loop |
-| S3 | Maker artifacts (menus, draft replies) |
-| API Gateway | Frontend API |
+| AWS service | Role | Why it is load-bearing |
+|---|---|---|
+| Bedrock | Titan Text Embeddings V2 | Generates every vector in the index. No embeddings → no retrieval → no memory. |
+| Lambda | One function per agent | The whole agent runtime |
+| EventBridge Scheduler | The nightly 6 AM wake | What makes the loop autonomous rather than a button |
+| S3 | Maker artifacts | The done-for-you deliverables |
+| API Gateway | Frontend → backend | How the demo URL reaches the agents |
+
+### Model access — the constraint that shaped this
+
+As of 2026-07-28, AWS account `881550374737` cannot invoke **any** current Anthropic
+model on Bedrock. Verified directly, not assumed:
+
+- `agreementAvailability: NOT_AVAILABLE` for every current Claude model in us-east-1,
+  us-east-2, and us-west-2, while `regionAvailability`, `entitlementAvailability`, and
+  `authorizationStatus` are all green. Only the agreement is missing.
+- The error directs to AWS Sales rather than offering a use-case form, which means the
+  account cannot self-accept the agreement.
+- A support grant did arrive, but for `claude-3-haiku-20240307` and
+  `claude-3-sonnet-20240229` — both **retired**, both returning
+  `ResourceNotFoundException` on invoke. Agreement records outlived the models.
+- 27 non-Anthropic Bedrock models invoke fine, so neither Bedrock, the credentials,
+  nor the region is at fault.
+
+Consequence: Claude runs via the Anthropic API; Bedrock keeps embeddings. Disclose this
+plainly in the README — nothing in the rules requires the LLM to run on AWS, and a
+judge finding it unstated is worse than reading it up front.
 
 ---
 
