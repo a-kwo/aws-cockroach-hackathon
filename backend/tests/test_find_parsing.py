@@ -157,6 +157,54 @@ class TestEvidence:
         assert find.evidence_observation_ids == ("obs-2", "obs-1")
 
 
+class TestEscapeSequenceRepair:
+    """Models sometimes double-escape their own JSON.
+
+    Observed in production: a find whose move field contained the literal seven
+    characters ``\\u2014`` rather than an em dash. json.loads had already run —
+    the model wrote a doubled backslash, so the escape survived decoding and went
+    straight into the database, then rendered as garbage on screen.
+
+    This is the trust boundary, so the repair happens here rather than in the UI:
+    every consumer of a find would otherwise need the same workaround.
+    """
+
+    def test_literal_em_dash_escape_is_decoded(self):
+        find = parse_find(
+            payload(move=r"Draft the card \u2014 nothing sends without your OK"),
+            today=TODAY, known_observation_ids=KNOWN_IDS)
+        assert find.move == "Draft the card — nothing sends without your OK"
+
+    def test_literal_en_dash_escape_is_decoded(self):
+        find = parse_find(
+            payload(rationale=r"Recovering 4\u20136 covers per Saturday"),
+            today=TODAY, known_observation_ids=KNOWN_IDS)
+        assert find.rationale == "Recovering 4–6 covers per Saturday"
+
+    def test_several_escapes_in_one_field(self):
+        find = parse_find(
+            payload(move=r"$150\u2013$230 extra \u2014 about $25\u2013$38 a day"),
+            today=TODAY, known_observation_ids=KNOWN_IDS)
+        assert find.move == "$150–$230 extra — about $25–$38 a day"
+
+    def test_ordinary_text_is_untouched(self):
+        find = parse_find(payload(title="Tiramisu → $9"), today=TODAY,
+                          known_observation_ids=KNOWN_IDS)
+        assert find.title == "Tiramisu → $9"
+
+    def test_a_backslash_that_is_not_an_escape_survives(self):
+        # Repairing must not corrupt legitimate text that happens to contain a
+        # backslash.
+        find = parse_find(payload(move=r"Put the file in C:\users\rosa"),
+                          today=TODAY, known_observation_ids=KNOWN_IDS)
+        assert find.move == r"Put the file in C:\users\rosa"
+
+    def test_a_malformed_escape_is_left_alone(self):
+        find = parse_find(payload(move=r"Discount \u20 percent"), today=TODAY,
+                          known_observation_ids=KNOWN_IDS)
+        assert find.move == r"Discount \u20 percent"
+
+
 class TestRequiredText:
     @pytest.mark.parametrize("field", ["title", "rationale", "move"])
     def test_missing_field_is_rejected(self, field):

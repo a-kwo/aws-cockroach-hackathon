@@ -11,10 +11,16 @@ the verify window is deterministic under test.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
+
+#: A literal \uXXXX that survived JSON decoding, because the model wrote a
+#: doubled backslash. Only well-formed four-hex-digit sequences match, so a
+#: legitimate backslash in ordinary text is left alone.
+_STRAY_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
 #: Ceiling on a single find's predicted daily value. A neighbourhood business
 #: earning +$5,000/day from one menu change means the model confused units or
@@ -48,13 +54,26 @@ class ParsedFind:
     evidence_observation_ids: tuple[str, ...]
 
 
+def repair_escapes(text: str) -> str:
+    """Decode ``\\uXXXX`` sequences the model left as literal characters.
+
+    Models occasionally double-escape their own JSON, so ``json.loads`` yields
+    the seven characters ``\\u2014`` rather than an em dash. Observed in
+    production, where it reached the database and rendered as garbage on screen.
+
+    Repairing here means every consumer of a find gets clean text, rather than
+    each one reimplementing the same workaround.
+    """
+    return _STRAY_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
+
+
 def _require_text(payload: Mapping[str, Any], field: str) -> str:
     value = payload.get(field)
     if not isinstance(value, str) or not value.strip():
         raise InvalidFindError(
             f"{field} must be a non-empty string, got {value!r}"
         )
-    return value.strip()
+    return repair_escapes(value.strip())
 
 
 def _require_cents(payload: Mapping[str, Any]) -> int:
