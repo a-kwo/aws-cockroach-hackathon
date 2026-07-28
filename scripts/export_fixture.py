@@ -103,6 +103,35 @@ def main() -> int:
                 FROM observation WHERE business_id = %s
             """, (settings.business_id,))
 
+            # --- chart aggregates, computed in SQL so the UI never derives
+            # --- money and cannot drift from the stored cent values.
+
+            monthly = rows(cur, """
+                SELECT date_trunc('month', measured_at)::DATE AS month,
+                       coalesce(sum(actual_daily_cents)
+                                FILTER (WHERE verdict = 'verified'), 0) AS verified_daily_cents,
+                       count(*) FILTER (WHERE verdict = 'verified') AS verified,
+                       count(*) FILTER (WHERE verdict = 'miss')     AS miss
+                FROM ledger_entry
+                WHERE business_id = %s
+                GROUP BY 1 ORDER BY 1
+            """, (settings.business_id,))
+
+            kinds = rows(cur, """
+                SELECT kind, count(*) AS count
+                FROM observation WHERE business_id = %s
+                GROUP BY 1 ORDER BY 2 DESC
+            """, (settings.business_id,))
+
+            ratings = rows(cur, """
+                SELECT date_trunc('week', observed_at)::DATE AS week,
+                       round(avg(rating)::NUMERIC, 2) AS avg_rating,
+                       count(*) AS reviews
+                FROM observation
+                WHERE business_id = %s AND rating IS NOT NULL
+                GROUP BY 1 ORDER BY 1
+            """, (settings.business_id,))
+
     by_find: dict[str, list[dict]] = {}
     for row in evidence:
         by_find.setdefault(row.pop("find_id"), []).append(row)
@@ -122,6 +151,9 @@ def main() -> int:
         "corpus": corpus,
         "finds": finds,
         "runs": runs,
+        "monthly": monthly,
+        "kinds": kinds,
+        "ratings": ratings,
     }
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)

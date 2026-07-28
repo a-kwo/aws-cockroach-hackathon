@@ -85,10 +85,32 @@ export interface AgentRun {
   note: string | null;
 }
 
+/** One month of the ledger. Aggregated in SQL so the UI never derives money. */
+export interface MonthlyLedger {
+  month: string;
+  verified_daily_cents: number;
+  verified: number;
+  miss: number;
+}
+
+export interface KindCount {
+  kind: string;
+  count: number;
+}
+
+export interface RatingWeek {
+  week: string;
+  avg_rating: number;
+  reviews: number;
+}
+
 export interface DemoData {
   business: Business;
   summary: Summary;
   corpus: Corpus;
   finds: Find[];
   runs: AgentRun[];
+  monthly: MonthlyLedger[];
+  kinds: KindCount[];
+  ratings: RatingWeek[];
 }

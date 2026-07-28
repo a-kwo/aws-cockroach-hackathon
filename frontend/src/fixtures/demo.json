@@ -1558,5 +1558,88 @@
       "finished_at": "2026-07-28T08:05:15.226526+00:00",
       "note": "50 observed; 0 new; 50 already known"
     }
+  ],
+  "monthly": [
+    {
+      "month": "2026-06-01",
+      "verified_daily_cents": 6600.0,
+      "verified": 2,
+      "miss": 0
+    },
+    {
+      "month": "2026-07-01",
+      "verified_daily_cents": 6050.0,
+      "verified": 4,
+      "miss": 1
+    }
+  ],
+  "kinds": [
+    {
+      "kind": "review",
+      "count": 79
+    },
+    {
+      "kind": "trend",
+      "count": 25
+    },
+    {
+      "kind": "rival_price",
+      "count": 8
+    },
+    {
+      "kind": "rival_menu",
+      "count": 8
+    },
+    {
+      "kind": "social",
+      "count": 7
+    }
+  ],
+  "ratings": [
+    {
+      "week": "2026-06-01",
+      "avg_rating": 4.14,
+      "reviews": 7
+    },
+    {
+      "week": "2026-06-08",
+      "avg_rating": 3.5,
+      "reviews": 10
+    },
+    {
+      "week": "2026-06-15",
+      "avg_rating": 3.8,
+      "reviews": 10
+    },
+    {
+      "week": "2026-06-22",
+      "avg_rating": 3.82,
+      "reviews": 11
+    },
+    {
+      "week": "2026-06-29",
+      "avg_rating": 3.33,
+      "reviews": 6
+    },
+    {
+      "week": "2026-07-06",
+      "avg_rating": 4.3,
+      "reviews": 10
+    },
+    {
+      "week": "2026-07-13",
+      "avg_rating": 3.75,
+      "reviews": 8
+    },
+    {
+      "week": "2026-07-20",
+      "avg_rating": 4.29,
+      "reviews": 7
+    },
+    {
+      "week": "2026-07-27",
+      "avg_rating": 5.0,
+      "reviews": 1
+    }
   ]
 }

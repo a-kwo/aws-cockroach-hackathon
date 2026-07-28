@@ -25,16 +25,27 @@
   --brass-deep: #8a6217;
   --brass-wash: #f7efdc;
 
-  /* Verdicts. Green and red are load-bearing here: they are the difference
-   * between a win and a published miss, so they must never be decorative. */
-  --verified: #177a4c;
-  --verified-wash: #e7f4ec;
-  --verified-line: #bfe3cf;
-  --miss: #b0452f;
+  /* Verdicts. These are the load-bearing colors: the difference between a win
+   * and a published miss.
+   *
+   * Validated with the dataviz palette checker, not chosen by eye. The original
+   * pairing (#177A4C green / #B0452F red) scored ΔE 6.0 under deuteranopia —
+   * the classic red/green confusion, affecting roughly 8% of men, on the single
+   * most important distinction in the product. Re-stepping to a teal-leaning
+   * green and a warmer red raises that to ΔE 10.0 and clears every check:
+   * lightness band, chroma floor, CVD separation, normal-vision floor, contrast.
+   *
+   * Verdicts are additionally always labelled in text ("VERIFIED" / "MISS"), so
+   * identity never rests on color alone. */
+  --verified: #118066;
+  --verified-wash: #e6f3ef;
+  --verified-line: #b9ddd2;
+  --miss: #c0442a;
   --miss-wash: #fbeae6;
-  --miss-line: #edc9bf;
-  --pending: #3e5c76;
-  --pending-wash: #eaf0f5;
+  --miss-line: #eec8bf;
+  --pending: #2e5ea8;
+  --pending-wash: #e8eefa;
+  --pending-line: #c3d3ef;
 
   /* Type */
   --display: "Fraunces", Georgia, serif;
