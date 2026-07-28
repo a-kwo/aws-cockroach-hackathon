@@ -7,7 +7,7 @@
         "rule": "overused-font",
         "value": "inter",
         "createdAt": "2026-07-28T23:38:02.513Z",
-        "reason": "User chose 'swap the display face only' — Inter is kept deliberately for interface work; only the serif carries identity, and it moved to Newsreader."
+        "reason": "User chose 'swap the display face only' \u2014 Inter is kept deliberately for interface work; only the serif carries identity, and it moved to Newsreader."
       }
     ]
   }
