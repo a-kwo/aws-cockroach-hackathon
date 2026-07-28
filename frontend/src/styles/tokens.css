@@ -1,0 +1,109 @@
+/* Design tokens.
+ *
+ * Palette and display face carry over from the existing product identity
+ * (Product Demo/brasstacks-jar-demo.html) so this reads as the same product.
+ * The one addition is a monospace face, which exists to make the ledger read as
+ * receipt tape — a restaurant owner's native document, and the literal form of
+ * this product's promise.
+ */
+
+:root {
+  /* Surfaces */
+  --paper: #f5f1e8;
+  --card: #ffffff;
+  --tape: #fbf8f0; /* receipt roll, a shade lighter than paper */
+  --line: #e4decd;
+  --line-soft: #efe9da;
+
+  /* Ink */
+  --ink: #232936;
+  --ink-soft: #4a5160;
+  --muted: #8b8778;
+
+  /* Brass — the accent, used for money and for the agent's voice */
+  --brass: #a8781f;
+  --brass-deep: #8a6217;
+  --brass-wash: #f7efdc;
+
+  /* Verdicts. Green and red are load-bearing here: they are the difference
+   * between a win and a published miss, so they must never be decorative. */
+  --verified: #177a4c;
+  --verified-wash: #e7f4ec;
+  --verified-line: #bfe3cf;
+  --miss: #b0452f;
+  --miss-wash: #fbeae6;
+  --miss-line: #edc9bf;
+  --pending: #3e5c76;
+  --pending-wash: #eaf0f5;
+
+  /* Type */
+  --display: "Fraunces", Georgia, serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Spacing scale */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+  --s8: 4rem;
+
+  --radius: 14px;
+  --radius-sm: 8px;
+
+  --shadow-card: 0 1px 2px rgba(35, 41, 54, 0.05),
+    0 8px 24px rgba(35, 41, 54, 0.06);
+  --shadow-lift: 0 2px 4px rgba(35, 41, 54, 0.07),
+    0 16px 40px rgba(35, 41, 54, 0.1);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible keyboard focus everywhere. An owner tapping through this on a phone
+ * with a bluetooth keyboard, or anyone using a screen reader, needs to know
+ * where they are. */
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

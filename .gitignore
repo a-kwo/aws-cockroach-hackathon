@@ -57,3 +57,8 @@ $RECYCLE.BIN/
 *.log
 tmp/
 .DS_Store
+
+# --- Frontend ---
+node_modules/
+dist/
+.vite/
