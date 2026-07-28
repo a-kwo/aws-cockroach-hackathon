@@ -9,173 +9,219 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ---------------------------------------------------------------------------
+   Reworked against website-screenshots/. Three things the fourteen shipped
+   sites do that this page did not:
+
+   1. The product appears immediately, cropped by the fold, inviting scroll
+      (Attio, Framer, Linear). This page described a product you could not see:
+      four consecutive bordered cards *about* the dashboard.
+   2. Almost no boxes. Anthropic, Vercel, Cohere and Attio carry a whole hero
+      with zero borders. Structure comes from rules, space and type size.
+   3. Fine print sits at the fold, not the footer — Mercury pins its "not an
+      FDIC-insured bank" bar directly under the hero and reads as confident.
+
+   The type scale collapsed from eight sizes to four. The concept work in
+   15-20 was deliberately not followed: dark surfaces, neon accents and glass
+   are what win applause on Dribbble, and none of those twenty concepts
+   shipped. The fourteen that did ship look like this.
+--------------------------------------------------------------------------- */
 :root {
   --paper:      #F5F1E8;
   --card:       #FFFFFF;
   --ink:        #232936;
   --ink-soft:   #4A5160;
-  /* 3.19:1 on paper — failed AA everywhere it was used. 4.80:1 now. */
   --muted:      #6E6A5C;
   --line:       #E4DECD;
+  --line-soft:  #EFEADD;
   --brass:      #A8781F;
   --brass-deep: #8A6217;
+  --brass-line: #E3D2A8;
+  --paper-on-ink: #FBF9F4;
+  --ink-hover:  #333B4D;
 
-  /* CVD-validated verdict set — ΔE 10.0 under deuteranopia. The pair this
-     replaced scored 6.0, on the one distinction the whole product rests on. */
-  --verified:  #118066;
-  --miss:      #C0442A;
-  --estimated: #2E5EA8;
-  --pending:   #A8781F;
+  /* CVD-validated verdict set — deltaE 10.0 under deuteranopia. Marks only;
+     the -ink variants are the same verdicts set as text on paper. */
+  --verified:      #118066;
+  --verified-ink:  #0D6450;
+  --miss:          #C0442A;
+  --estimated:     #2E5EA8;
+  --pending:       #A8781F;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
   background: var(--paper);
-  background-image:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255,255,255,0.9), transparent 60%),
-    radial-gradient(circle at 1px 1px, rgba(160,150,120,0.13) 1px, transparent 0);
-  background-size: auto, 22px 22px;
   color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
-  line-height: 1.6;
+  font-size: 17px; line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 .serif { font-family: 'Fraunces', Georgia, serif; }
-.wrap { width: min(1080px, 100% - 44px); margin: 0 auto; }
+.wrap { width: min(1120px, 100% - 48px); margin: 0 auto; }
 a { color: inherit; }
 
+/* ---------- four type sizes, and that is the whole scale ---------- */
+.t-display { font-family: 'Fraunces', Georgia, serif; font-weight: 700;
+  font-size: clamp(42px, 7vw, 86px); line-height: 1.0; letter-spacing: -0.03em; }
+.t-head { font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+  font-size: clamp(28px, 3.8vw, 44px); line-height: 1.1; letter-spacing: -0.02em; }
+.t-label { font-size: 12px; font-weight: 600; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--muted); }
+
 /* ---------- chrome ---------- */
-header {
-  position: sticky; top: 0; z-index: 20;
-  background: rgba(245,241,232,0.86); backdrop-filter: blur(10px);
-  border-bottom: 1px solid transparent; transition: border-color 200ms;
-}
+header { position: sticky; top: 0; z-index: 20; background: rgba(245,241,232,0.9);
+  backdrop-filter: blur(10px); border-bottom: 1px solid transparent; transition: border-color 200ms; }
 header.stuck { border-bottom-color: var(--line); }
-.hrow { display: flex; align-items: center; gap: 14px; padding: 15px 0; }
+.hrow { display: flex; align-items: center; gap: 14px; padding: 16px 0; }
 .wordmark { font-family: 'Fraunces', serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-.wordmark i { display: inline-block; width: 8px; height: 8px; background: var(--brass); border-radius: 50%; margin-right: 8px; vertical-align: 8%; }
+.wordmark i { display: inline-block; width: 8px; height: 8px; background: var(--brass);
+  border-radius: 50%; margin-right: 8px; vertical-align: 8%; }
 .hspace { margin-left: auto; }
 
-.cta {
-  display: inline-flex; align-items: center; gap: 9px;
-  background: var(--ink); color: #FBF9F4; text-decoration: none;
-  font-weight: 600; font-size: 15px; padding: 13px 24px; border-radius: 13px;
-  transition: transform 160ms cubic-bezier(0.34,1.4,0.64,1), box-shadow 160ms;
-  box-shadow: 0 4px 14px rgba(35,41,54,0.16);
-}
-.cta:hover { transform: translateY(-2px); box-shadow: 0 9px 24px rgba(35,41,54,0.22); }
+.cta { display: inline-flex; align-items: center; gap: 9px; min-height: 44px;
+  background: var(--ink); color: var(--paper-on-ink); text-decoration: none;
+  font-weight: 600; font-size: 17px; padding: 12px 26px; border-radius: 12px;
+  transition: background 160ms; }
+.cta:hover { background: var(--ink-hover); }
 .cta:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
-.cta.small { font-size: 13.5px; padding: 9px 17px; border-radius: 11px; }
-.cta em { font-style: normal; opacity: 0.6; font-weight: 500; }
+.cta.small { font-size: 13px; padding: 9px 18px; min-height: 40px; }
+.cta em { font-style: normal; opacity: 0.62; font-weight: 500; }
 
-/* ---------- hero ----------
-   The record is the hero. Not a value proposition, not a product shot: the
-   thing this product can say that a chatbot structurally cannot. */
-.hero { padding: 62px 0 30px; }
-.eyebrow {
-  font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--muted); display: flex; align-items: center; gap: 9px; margin-bottom: 22px;
-}
-.eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--verified); box-shadow: 0 0 0 4px rgba(17,128,102,0.16); }
-h1 {
-  font-family: 'Fraunces', serif; font-weight: 700;
-  font-size: clamp(38px, 6.4vw, 74px); line-height: 1.03; letter-spacing: -0.025em;
-  max-width: 15ch;
-}
-h1 .num { color: var(--verified); }
-.lede { margin-top: 22px; font-size: clamp(16px, 1.9vw, 19.5px); color: var(--ink-soft); max-width: 56ch; }
-.hero-cta { margin-top: 30px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.no-signup { font-size: 13.5px; color: var(--muted); }
+/* ---------- hero: asymmetric, no boxes at all ---------- */
+.hero { padding: clamp(46px, 8vw, 96px) 0 34px;
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 20px 56px; align-items: end; }
+.hero-l { grid-column: 1; }
+.hero-r { grid-column: 2; padding-bottom: 6px; }
+.eyebrow { display: flex; align-items: center; gap: 9px; margin-bottom: 24px; }
+.eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--verified);
+  box-shadow: 0 0 0 4px rgba(17,128,102,0.16); flex: 0 0 auto; }
+h1 { font: inherit; }
+.t-display .num { color: var(--verified-ink); }
+.lede { color: var(--ink-soft); }
+.hero-cta { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px;
+  flex-wrap: wrap; margin-top: 10px; }
+.no-signup { font-size: 13px; color: var(--muted); }
 
-/* ---------- the miss, stated up front ---------- */
-.miss-card {
-  margin-top: 46px; background: var(--card); border: 1px solid var(--line);
-  border-radius: 18px; padding: 24px 26px;
-  /* A thick coloured stripe down one side of a card used to sit here. It is the
-     most recognisable tell of a generated UI, and it was the only instance in
-     the project. The card is still unmistakably the miss: the PUBLISHED MISS
-     label and the $0.00 figure both carry the verdict colour, which is
-     secondary encoding rather than decoration. */
-  box-shadow: 0 2px 18px rgba(35,41,54,0.05);
-  max-width: 640px;
-}
-.miss-k { font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--miss); }
-.miss-t { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; margin: 9px 0 4px; }
-.miss-n { font-size: 14.5px; color: var(--ink-soft); }
-.miss-b { display: flex; gap: 26px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
-.miss-b div { font-size: 12.5px; color: var(--muted); }
-.miss-b b { display: block; font-family: 'Fraunces', serif; font-size: 22px; color: var(--ink); font-weight: 600; }
-.miss-b .z { color: var(--miss); }
+/* ---------- Mercury's move: fine print at the fold, not the footer ------- */
+.fineprint { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  padding: 13px 0; font-size: 13px; color: var(--muted); }
+.fineprint b { color: var(--ink-soft); font-weight: 600; }
 
-/* ---------- sections ---------- */
-section { padding: 74px 0; border-top: 1px solid var(--line); }
-.sec-k { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brass-deep); }
-h2 { font-family: 'Fraunces', serif; font-size: clamp(27px, 3.6vw, 40px); font-weight: 600; letter-spacing: -0.02em; margin: 12px 0 14px; line-height: 1.14; }
-.sec-l { font-size: 16.5px; color: var(--ink-soft); max-width: 62ch; }
+/* ---------- the product, cropped by the fold (Attio) --------------------
+   A live iframe of the real dashboard rather than a screenshot: it cannot
+   drift from what the app renders, which is the same promise this product
+   makes about its own numbers. Non-interactive; the frame is one link. */
+.window-wrap { margin-top: 40px; }
+.window { position: relative; display: block; height: clamp(300px, 46vw, 520px);
+  border-radius: 18px 18px 0 0; overflow: hidden;
+  border: 1px solid var(--line); border-bottom: 0; background: var(--card);
+  box-shadow: 0 22px 50px rgba(35,41,54,0.10); text-decoration: none; }
+.window-bar { display: flex; align-items: center; gap: 7px; height: 34px;
+  padding: 0 14px; background: var(--line-soft); border-bottom: 1px solid var(--line); }
+.window-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.window-bar span { margin-left: 10px; font-size: 12px; color: var(--muted); }
+.window-view { position: absolute; inset: 34px 0 0 0; overflow: hidden; }
+.window-view iframe { width: 1440px; height: 940px; border: 0;
+  transform: scale(0.78); transform-origin: top left; pointer-events: none; }
+.window-hint { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--brass-deep); }
+.window:hover .window-hint { text-decoration: underline; text-underline-offset: 3px; }
+.window:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
 
-/* ---------- the loop ---------- */
-.loop { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 40px; }
-.step { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
-.step-n { font-family: 'Fraunces', serif; font-size: 13px; color: var(--brass); font-weight: 700; }
-.step h3 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin: 5px 0 8px; }
-.step p { font-size: 14px; color: var(--ink-soft); }
-.step .art {
-  margin-top: 15px; background: #FBFAF6; border: 1px solid var(--line);
-  border-radius: 11px; padding: 12px 13px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5;
-}
-.step .art .src { display: block; margin-top: 7px; font-size: 11px; color: var(--muted); }
+/* ---------- sections: rules and space, not cards ---------- */
+section { padding: clamp(56px, 8vw, 96px) 0 0; }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 56px; align-items: end; padding-bottom: 30px; }
+.sec-head .t-label { grid-column: 1; margin-bottom: 10px; }
+.sec-head h2 { grid-column: 1; }
+.sec-head .sec-l { grid-column: 2; padding-bottom: 4px; color: var(--ink-soft); }
+
+/* the loop — three columns divided by rules, no borders around anything */
+.loop { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+.step { padding: 26px 32px 30px 0; border-right: 1px solid var(--line); }
+.step:last-child { border-right: 0; padding-right: 0; }
+.step:not(:first-child) { padding-left: 32px; }
+.step-n { font-family: 'Fraunces', serif; font-size: 13px; font-weight: 700; color: var(--brass); }
+.step h3 { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; margin: 6px 0 10px; }
+.step p { font-size: 15px; color: var(--ink-soft); }
+.step .art { margin-top: 18px; padding-left: 15px; border-left: 2px solid var(--brass-line);
+  font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
 .step .art b { color: var(--ink); }
+.step .art .src { display: block; margin-top: 8px; font-size: 13px; color: var(--muted); }
 
-/* ---------- the receipt ---------- */
-.receipt { margin-top: 38px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
-.r-head { padding: 22px 26px; border-bottom: 1px solid var(--line); display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.r-em { font-size: 26px; }
-.r-t { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; }
-.r-m { font-size: 14px; color: var(--ink-soft); margin-top: 4px; }
+/* the miss — the strongest thing on the page, so it gets size, not a border */
+.miss { border-top: 1px solid var(--line); padding-top: 30px;
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr); gap: 24px 56px; }
+.miss-t { font-family: 'Fraunces', serif; font-size: clamp(24px, 3vw, 34px);
+  font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; }
+.miss-n { color: var(--ink-soft); margin-top: 12px; max-width: 54ch; }
+.miss-fig { display: flex; gap: 40px; align-self: start; }
+.miss-fig div { font-size: 13px; color: var(--muted); }
+.miss-fig b { display: block; font-family: 'Fraunces', serif; font-weight: 600;
+  font-size: 32px; color: var(--ink); line-height: 1.1; letter-spacing: -0.02em; }
+.miss-fig .z { color: var(--miss); }
+
+/* the receipt — the one framed element on the page, because it is a receipt */
+.receipt { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--card); }
+.r-head { padding: 24px 28px; border-bottom: 1px solid var(--line);
+  display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.r-em { font-size: 21px; }
+.r-t { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; }
+.r-m { font-size: 15px; color: var(--ink-soft); margin-top: 5px; }
 .r-p { margin-left: auto; text-align: right; white-space: nowrap; }
-.r-p b { display: block; font-family: 'Fraunces', serif; font-size: 26px; color: var(--verified); }
-.r-p span { font-size: 12px; color: var(--muted); }
-.r-qs { padding: 20px 26px; border-bottom: 1px solid var(--line); background: #FBFAF6; }
-.r-cap { font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-.r-qs ol { margin: 0 0 0 19px; font-size: 13.5px; color: var(--ink-soft); }
-.r-qs li { margin-bottom: 5px; }
-.r-ev { padding: 20px 26px; }
+.r-p b { display: block; font-family: 'Fraunces', serif; font-size: 32px; color: var(--verified-ink); }
+.r-p span { font-size: 13px; color: var(--muted); }
+.r-qs { padding: 22px 28px; border-bottom: 1px solid var(--line); background: #FBFAF6; }
+.r-cap { font-size: 12px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px; }
+.r-qs ol { margin: 0 0 0 20px; font-size: 15px; color: var(--ink-soft); }
+.r-qs li { margin-bottom: 6px; }
+.r-ev { padding: 22px 28px; }
 .r-ev ol { list-style: none; }
-.r-ev li { display: grid; grid-template-columns: 22px 1fr auto; gap: 11px; padding: 11px 0; border-top: 1px solid var(--line); align-items: start; }
+.r-ev li { display: grid; grid-template-columns: 22px 1fr auto; gap: 12px;
+  padding: 12px 0; border-top: 1px solid var(--line-soft); align-items: start; }
 .r-ev li:first-child { border-top: none; }
-.r-n { font-size: 11.5px; color: var(--muted); padding-top: 2px; }
-.r-q { font-size: 13.5px; line-height: 1.5; }
-.r-s { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
-.r-sim { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
-.r-foot { padding: 16px 26px; background: #FBFAF6; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-soft); }
+.r-n, .r-sim { font-size: 13px; color: var(--muted); padding-top: 2px; }
+.r-sim { font-variant-numeric: tabular-nums; }
+.r-q { font-size: 15px; line-height: 1.5; }
+.r-s { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.r-foot { padding: 18px 28px; background: #FBFAF6; border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--ink-soft); }
 
-/* ---------- stats ---------- */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 36px; }
-.stat { background: var(--card); border: 1px solid var(--line); border-radius: 15px; padding: 20px; }
-.stat b { display: block; font-family: 'Fraunces', serif; font-size: 33px; font-weight: 600; line-height: 1.1; }
-.stat span { font-size: 13px; color: var(--muted); }
-.stat.v b { color: var(--verified); } .stat.m b { color: var(--miss); }
+/* the record — figures on a rule, no cards */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+.stat { padding: 26px 24px 4px 0; border-right: 1px solid var(--line); }
+.stat:last-child { border-right: 0; }
+.stat:not(:first-child) { padding-left: 24px; }
+.stat b { display: block; font-family: 'Fraunces', serif; font-size: clamp(34px, 4.4vw, 52px);
+  font-weight: 600; line-height: 1; letter-spacing: -0.025em; }
+.stat span { display: block; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.stat.v b { color: var(--verified-ink); } .stat.m b { color: var(--miss); }
 
-/* ---------- honest ---------- */
-.honest { display: grid; grid-template-columns: 1.1fr 1fr; gap: 34px; align-items: start; }
-.honest ul { list-style: none; margin-top: 12px; }
-.honest li { padding: 13px 0; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--ink-soft); }
+/* straight answers */
+.honest { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 24px 56px; }
+.honest ul { list-style: none; }
+.honest li { padding: 16px 0; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 15px; }
+.honest li:last-child { border-bottom: 1px solid var(--line); }
 .honest li b { color: var(--ink); }
 
-footer { padding: 46px 0 60px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-footer .fr { display: flex; gap: 26px; flex-wrap: wrap; align-items: center; }
+footer { margin-top: clamp(56px, 8vw, 96px); padding: 30px 0 60px;
+  border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+footer .fr { display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
 footer a { color: var(--brass-deep); }
 
-@media (max-width: 880px) {
-  .loop, .stats { grid-template-columns: 1fr 1fr; }
-  .honest { grid-template-columns: 1fr; }
-}
-@media (max-width: 620px) {
+@media (max-width: 900px) {
+  .hero, .sec-head, .miss, .honest { grid-template-columns: 1fr; }
+  .hero-l, .hero-r, .sec-head .t-label, .sec-head h2, .sec-head .sec-l { grid-column: 1; }
   .loop, .stats { grid-template-columns: 1fr; }
-  section { padding: 52px 0; }
-  .hero { padding: 40px 0 20px; }
+  .step, .stat { border-right: 0; border-bottom: 1px solid var(--line); padding: 24px 0; }
+  .step:not(:first-child), .stat:not(:first-child) { padding-left: 0; }
+  .step:last-child, .stat:last-child { border-bottom: 0; }
+  .miss-fig { gap: 28px; }
   .r-head, .r-qs, .r-ev, .r-foot { padding-left: 18px; padding-right: 18px; }
   .r-p { margin-left: 0; text-align: left; }
+  .window-view iframe { transform: scale(0.42); }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
@@ -195,57 +241,92 @@ footer a { color: var(--brass-deep); }
   </div>
 </header>
 
-<main class="wrap">
+<main>
 
-  <div class="hero">
-    <p class="eyebrow"><i></i><span id="eyebrow">—</span></p>
-    <h1 id="heroH">—</h1>
-    <p class="lede" id="heroLede">—</p>
-    <div class="hero-cta">
-      <a class="cta" href="app/">Try the demo <em>— no signup</em></a>
-      <span class="no-signup">Live data from the cluster. Nothing you click is saved.</span>
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-l">
+        <p class="eyebrow t-label"><i></i><span id="eyebrow">—</span></p>
+        <h1 class="t-display" id="heroH">—</h1>
+      </div>
+      <div class="hero-r">
+        <p class="lede" id="heroLede">—</p>
+      </div>
+      <div class="hero-cta">
+        <a class="cta" href="app/">Try the demo <em>— no signup</em></a>
+        <span class="no-signup">Live data from the cluster. Nothing you click is saved.</span>
+      </div>
     </div>
-
-    <div class="miss-card" id="missCard"></div>
   </div>
 
-  <section>
-    <p class="sec-k">The loop, every night</p>
-    <h2>Three agents, one job: find money, then prove it.</h2>
-    <p class="sec-l">Each of these is a real row in CockroachDB, taken from the demo tenant as it stands right now.</p>
-    <div class="loop" id="loop"></div>
-  </section>
+  <!-- Mercury pins its fine print directly under the hero. Ours is that the
+       tenant is a fiction — better said at the fold than buried at the bottom. -->
+  <div class="fineprint"><div class="wrap" id="finePrint">—</div></div>
 
-  <section>
-    <p class="sec-k">The receipt</p>
-    <h2>Every recommendation shows its working.</h2>
-    <p class="sec-l">This is one find, opened all the way up: the questions the agent asked its own memory, the rows the vector search returned, and how close each one was. Nothing here is written by hand.</p>
-    <div class="receipt" id="receipt"></div>
-  </section>
-
-  <section>
-    <p class="sec-k">The record</p>
-    <h2>Kept in the open, misses included.</h2>
-    <p class="sec-l">A stateless advisor can give advice forever and never be wrong, because nothing it said was written down. These were written down first.</p>
-    <div class="stats" id="stats"></div>
-  </section>
-
-  <section>
-    <div class="honest">
-      <div>
-        <p class="sec-k">Straight answers</p>
-        <h2>What this is, and what it isn't.</h2>
-        <p class="sec-l">Built for the AWS + CockroachDB hackathon. Worth being plain about the edges.</p>
+  <div class="wrap window-wrap">
+    <a class="window" href="app/" aria-label="Open the live dashboard">
+      <div class="window-bar"><i></i><i></i><i></i><span>brasstacks — the dashboard</span>
+        <span class="window-hint">Open it →</span></div>
+      <div class="window-view">
+        <iframe src="app/" title="The Brass Tacks dashboard, live" loading="lazy" tabindex="-1" scrolling="no"></iframe>
       </div>
-      <ul>
-        <li><b>Rosa's Trattoria is not a real restaurant.</b> The corpus is hand-written so the demo is reproducible and carries nobody's real reviews.</li>
-        <li><b>The numbers are real anyway.</b> Every figure on this page and in the demo is queried out of a live CockroachDB cluster, not typed into the markup.</li>
-        <li><b>Reasoning runs on the Anthropic API, not Bedrock.</b> AWS could not grant this account any current Claude model. Embeddings still run on Bedrock Titan, so retrieval is AWS end to end.</li>
-        <li><b>No account, and nothing to save.</b> The demo is read-only: your clicks live in the browser and vanish on refresh.</li>
-      </ul>
-    </div>
-  </section>
+    </a>
+  </div>
 
+  <div class="wrap">
+
+    <section>
+      <div class="sec-head">
+        <p class="t-label">The one that didn't pay</p>
+        <h2 class="t-head">We publish the misses.</h2>
+        <p class="sec-l">A stateless advisor can give advice forever and never be wrong, because nothing it said was ever written down. This was written down first, then checked.</p>
+      </div>
+      <div class="miss" id="missBlock"></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <p class="t-label">The loop, every night</p>
+        <h2 class="t-head">Three agents, one job: find money, then prove it.</h2>
+        <p class="sec-l">Each artifact below is a real row in CockroachDB, taken from the demo tenant as it stands right now.</p>
+      </div>
+      <div class="loop" id="loop"></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <p class="t-label">The receipt</p>
+        <h2 class="t-head">Every recommendation shows its working.</h2>
+        <p class="sec-l">One find, opened all the way up: the questions the agent asked its own memory, the rows the vector search returned, and how close each one was.</p>
+      </div>
+      <div class="receipt" id="receipt"></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <p class="t-label">The record</p>
+        <h2 class="t-head">Kept in the open.</h2>
+        <p class="sec-l">Every figure here is queried out of the cluster when this page is built. None of it is typed into the markup.</p>
+      </div>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section>
+      <div class="honest">
+        <div>
+          <p class="t-label">Straight answers</p>
+          <h2 class="t-head" style="margin-top:10px">What this is, and what it isn't.</h2>
+        </div>
+        <ul>
+          <li><b>Rosa's Trattoria is not a real restaurant.</b> The corpus is hand-written so the demo is reproducible and carries nobody's real reviews.</li>
+          <li><b>The numbers are real anyway.</b> Every figure on this page and in the demo is queried out of a live CockroachDB cluster.</li>
+          <li><b>Reasoning runs on the Anthropic API, not Bedrock.</b> AWS could not grant this account any current Claude model. Embeddings still run on Bedrock Titan, so retrieval is AWS end to end.</li>
+          <li><b>No account, and nothing to save.</b> The demo is read-only: your clicks live in the browser and vanish on refresh.</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
 </main>
 
 <footer>
@@ -275,45 +356,50 @@ if (!D.finds) {
   $('eyebrow').textContent =
     `${s.verified} of ${s.judged} calls verified · ${D.corpus.observations} observations in memory`;
 
-  $('heroH').innerHTML =
-    `<span class="num">${s.verified} of our last ${s.judged}</span> calls paid.`;
+  $('heroH').innerHTML = `<span class="num">${s.verified} of our last ${s.judged}</span> calls paid.`;
 
   $('heroLede').textContent =
-    'Brass Tacks works overnight for a small business: it reads the reviews, the rivals and the local ' +
-    'trends, proposes one move with a dollar figure attached, and then — weeks later — checks whether ' +
-    'that move actually paid. Here is the one that did not.';
+    'Brass Tacks works overnight for a small business: it reads the reviews, the rivals ' +
+    'and the local trends, proposes one move with a dollar figure attached, and then — ' +
+    'weeks later — checks whether that move actually paid.';
 
+  $('finePrint').innerHTML =
+    '<b>Rosa’s Trattoria is a fiction.</b> The corpus is hand-written so the demo is ' +
+    'reproducible and carries nobody’s real reviews — but every number on this page and ' +
+    'in the dashboard is queried out of a live CockroachDB cluster, not typed in.';
+
+  /* --- the miss, at size rather than in a box --- */
   if (miss) {
-    $('missCard').innerHTML = `
-      <p class="miss-k">Published miss</p>
-      <p class="miss-t">${esc(miss.emoji)} ${esc(miss.title)}</p>
-      <p class="miss-n">${esc(miss.note || '')}</p>
-      <div class="miss-b">
-        <div>Predicted<b>+${esc(miss.predictedDailyTxt)}/day</b></div>
-        <div>Actual<b class="z">${esc(miss.actualDailyTxt)}/day</b></div>
-        <div>Evidence behind it<b>${miss.evidenceCount} memories</b></div>
+    $('missBlock').innerHTML = `
+      <div>
+        <p class="miss-t">${esc(miss.emoji)} ${esc(miss.title)}</p>
+        <p class="miss-n">${esc(miss.note || '')}</p>
+      </div>
+      <div class="miss-fig">
+        <div>Predicted<b>+${esc(miss.predictedDailyTxt)}</b></div>
+        <div>Actual<b class="z">${esc(miss.actualDailyTxt)}</b></div>
+        <div>Evidence<b>${miss.evidenceCount}</b></div>
       </div>`;
   } else {
-    $('missCard').style.display = 'none';
+    $('missBlock').closest('section').style.display = 'none';
   }
 
   /* --- the loop, each step showing a real row --- */
   const top = pick(D.proposed)[0] || D.finds[0];
-  // A different row from the one step 02 cites, so the two cards do not echo.
   const anyObs = top.evidence.find(e => e.kind === 'review') || top.evidence[0];
   const ver = D.finds.find(f => f.verdict === 'verified');
   $('loop').innerHTML = `
     <div class="step">
       <p class="step-n">01</p><h3>Radar observes</h3>
       <p>Reviews, rival menus and local trends, embedded on Bedrock and written to CockroachDB. Content hashing means the same review seen twice is one row, not two.</p>
-      <div class="art">“${esc(anyObs.content.slice(0, 150))}${anyObs.content.length > 150 ? '…' : ''}”
+      <div class="art">“${esc(anyObs.content.slice(0, 140))}${anyObs.content.length > 140 ? '…' : ''}”
         <span class="src">${esc(anyObs.source)} · ${esc(anyObs.when)} · 1 of ${D.corpus.observations} stored</span></div>
     </div>
     <div class="step">
       <p class="step-n">02</p><h3>The Analyst searches its memory</h3>
       <p>It asks ${D.queries.length} concrete questions — not one vague one — and runs each as a vector search across everything ever observed. Then it writes a prediction, with a date to check it.</p>
       <div class="art"><b>${esc(top.emoji)} ${esc(top.title)}</b><br>predicts <b>+${esc(top.predictedDailyTxt)}/day</b>
-        <span class="src">${top.evidenceCount} memories cited · top match ${top.topSimilarity != null ? top.topSimilarity.toFixed(3) : '—'}</span></div>
+        <span class="src">${top.evidenceCount} memories cited · closest match ${top.topSimilarity != null ? top.topSimilarity.toFixed(3) : '—'}</span></div>
     </div>
     <div class="step">
       <p class="step-n">03</p><h3>The Meter checks it, later</h3>
@@ -324,7 +410,7 @@ if (!D.finds) {
     </div>`;
 
   /* --- the full receipt for one find --- */
-  const f = pick(D.proposed)[0] || D.finds[0];
+  const f = top;
   $('receipt').innerHTML = `
     <div class="r-head">
       <span class="r-em">${esc(f.emoji)}</span>
@@ -344,7 +430,7 @@ if (!D.finds) {
       </ol>
     </div>
     <div class="r-foot">Similarity is the cosine distance the vector index returned, shown as a number and
-      never as a shade — in this very dataset, two verified wins have weaker top evidence than the
+      never as a shade — in this dataset, two verified wins have weaker top evidence than the
       published miss. Closeness is how it was found, not proof that it will work.</div>`;
 
   $('stats').innerHTML = `

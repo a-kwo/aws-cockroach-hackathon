@@ -3,6 +3,8 @@ name: Brass Tacks
 description: An agent with a track record — found money, on autopilot.
 colors:
   paper: "#F5F1E8"
+  paper-on-ink: "#FBF9F4"
+  ink-hover: "#333B4D"
   card: "#FFFFFF"
   ink: "#232936"
   ink-soft: "#4A5160"
@@ -47,6 +49,50 @@ typography:
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "0.08em"
+  marketing-display:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "clamp(42px, 7vw, 86px)"
+    fontWeight: 700
+    lineHeight: 1.0
+    letterSpacing: "-0.03em"
+  marketing-head:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "clamp(28px, 3.8vw, 44px)"
+    fontWeight: 600
+    lineHeight: 1.1
+    letterSpacing: "-0.02em"
+  marketing-body:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "17px"
+    fontWeight: 400
+    lineHeight: 1.6
+  marketing-label:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 600
+    lineHeight: 1.3
+    letterSpacing: "0.11em"
+  marketing-figure:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "32px"
+    fontWeight: 600
+    lineHeight: 1.1
+    letterSpacing: "-0.02em"
+  marketing-title:
+    fontFamily: "Fraunces, Georgia, serif"
+    fontSize: "21px"
+    fontWeight: 600
+    lineHeight: 1.25
+  marketing-sub:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: 1.55
+  marketing-fine:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.5
 rounded:
   xs: "4px"
   sm: "8px"
@@ -236,6 +282,20 @@ so its arrival reads as significance rather than styling.
   Reading columns cap around 62–68ch.
 - **Label** (Inter 700, 10.5–12px, 0.04–0.1em, uppercase): verdict tags, eyebrows,
   section kickers, jar captions.
+
+### Two surfaces, two scales
+
+The dashboard is **Operate** — the visitor is completing a task at 7am, so type is
+small, dense and quiet, and the ramp above governs it. The landing page is
+**Persuade**, where the job is a decision, and it runs a separate marketing ramp:
+display `clamp(42px, 7vw, 86px)`, head `clamp(28px, 3.8vw, 44px)`, body 17px, label
+12px, with 13/15/21/32px as the only supporting steps.
+
+That page carries the larger scale because the reference set is unanimous about it:
+of the fourteen shipped sites captured in `website-screenshots/`, every one leads with
+an oversized headline, one line of subcopy and a single button. **Paper on Ink**
+(`#FBF9F4`) is the off-white used for text sitting on the ink-filled primary button —
+pure white on ink reads colder than this world wants.
 
 ### Named Rules
 
