@@ -364,6 +364,87 @@ class TestDueFinds:
         assert due.predicted_daily_cents == 4200
 
 
+class TestRecentFinds:
+    """The Analyst needs to see what it already proposed.
+
+    Without this it re-proposes the same move every night — it remembers the
+    business's observations but not its own recommendations, which is a strange
+    gap in a product built on memory.
+    """
+
+    def _find(self, repo, business, title, *, status="proposed"):
+        obs_id = repo.insert_observation(
+            business, content=f"obs for {title}", kind="review",
+            embedding=DESSERT, observed_at=_dt(TODAY))
+        return repo.insert_find_with_evidence(
+            business, title=title, rationale="r", move="m", emoji="x",
+            predicted_daily_cents=1000, confidence=0.7,
+            verify_after=TODAY + timedelta(days=14), status=status,
+            evidence=[EvidenceRef(obs_id, 0.9)])
+
+    def test_returns_recent_finds_newest_first(self, repo, business):
+        self._find(repo, business, "older")
+        self._find(repo, business, "newer")
+        titles = [f.title for f in repo.recent_finds(business, limit=5)]
+        assert titles == ["newer", "older"]
+
+    def test_respects_the_limit(self, repo, business):
+        for i in range(4):
+            self._find(repo, business, f"find {i}")
+        assert len(repo.recent_finds(business, limit=2)) == 2
+
+    def test_includes_the_status_so_rejections_are_visible(self, repo, business):
+        # A rejected find matters most: proposing it again would be the worst
+        # possible repeat.
+        self._find(repo, business, "rejected idea", status="rejected")
+        [found] = repo.recent_finds(business, limit=5)
+        assert found.status == "rejected"
+
+    def test_scoped_to_the_business(self, repo, business):
+        other = repo.create_business(name="Lucca's", category="restaurant")
+        self._find(repo, other, "their idea")
+        assert repo.recent_finds(business, limit=5) == []
+
+
+class TestDecidingOnAFind:
+    """The owner holds the leash. A find is a proposal until they act on it, and
+    only an acted-on find is ever judged."""
+
+    def _proposed(self, repo, business):
+        obs_id = repo.insert_observation(
+            business, content="tiramisu praise", kind="review",
+            embedding=DESSERT, observed_at=_dt(TODAY))
+        return repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=2300, confidence=0.8,
+            verify_after=TODAY - timedelta(days=1), status="proposed",
+            evidence=[EvidenceRef(obs_id, 0.9)])
+
+    def test_a_proposed_find_is_never_judged(self, repo, business):
+        self._proposed(repo, business)
+        assert repo.due_finds(business, today=TODAY) == []
+
+    def test_accepting_makes_it_judgeable(self, repo, business):
+        find_id = self._proposed(repo, business)
+        repo.set_find_status(find_id, status="accepted")
+        assert [f.find_id for f in repo.due_finds(business, today=TODAY)] == [find_id]
+
+    def test_deferring_to_the_later_jar_keeps_it_unjudged(self, repo, business):
+        # "Save it for later" is not "do it", so there is no outcome to measure.
+        find_id = self._proposed(repo, business)
+        repo.set_find_status(find_id, status="later")
+        assert repo.due_finds(business, today=TODAY) == []
+
+    def test_rejecting_keeps_it_unjudged(self, repo, business):
+        find_id = self._proposed(repo, business)
+        repo.set_find_status(find_id, status="rejected")
+        assert repo.due_finds(business, today=TODAY) == []
+
+    def test_unknown_find_is_an_error(self, repo, business):
+        with pytest.raises(RepositoryError):
+            repo.set_find_status(str(uuid.uuid4()), status="accepted")
+
+
 class TestProfile:
     """Business facts and owner rules — what only the owner knows, and the
     constraints the autopilot obeys. Both feed the Analyst's prompt."""

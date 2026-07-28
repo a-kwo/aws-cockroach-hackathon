@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS business (
   region       STRING,
   goal_monthly_cents BIGINT,                 -- the locked goal, e.g. +$8,000/mo
   goal_note    STRING,                       -- 'by fall'
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
 -- "The leash you hold" — constraints the autopilot obeys on every run.
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS owner_rule (
   rule         STRING NOT NULL,
   enabled      BOOL NOT NULL DEFAULT true,
   cap_cents    BIGINT,                       -- optional spend cap for this rule
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   INDEX (business_id, enabled)
 );
 
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS business_fact (
   fact          STRING NOT NULL,
   source        fact_source NOT NULL,
   confidence    FLOAT NOT NULL DEFAULT 1.0,
-  learned_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  learned_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   superseded_by UUID REFERENCES business_fact(id),
   embedding     VECTOR(1024),
 
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS agent_run (
   business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
   agent         agent_kind NOT NULL,
   status        run_status NOT NULL DEFAULT 'running',
-  started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  started_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   finished_at   TIMESTAMPTZ,
   model_id      STRING,                      -- e.g. the Bedrock model used
   input_tokens  INT,
@@ -132,8 +132,8 @@ CREATE TABLE IF NOT EXISTS observation (
   source_url    STRING,
   subject       STRING,                      -- which rival / which dish
   rating        FLOAT,                       -- for reviews, if present
-  observed_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  ingested_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  observed_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  ingested_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
   -- Radar runs nightly and WILL re-see the same content. Dedup is part of the
   -- design, not an optimization.
@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS find (
 
   status                find_status NOT NULL DEFAULT 'proposed',
   decided_at            TIMESTAMPTZ,
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
   INDEX (business_id, status, verify_after),
   INDEX (business_id, created_at DESC)
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS artifact (
   s3_bucket    STRING,
   s3_key       STRING,
   preview      STRING,                       -- inline preview for the UI
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
   INDEX (find_id)
 );
@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
   predicted_daily_cents BIGINT NOT NULL,
   actual_daily_cents    BIGINT NOT NULL DEFAULT 0,
 
-  measured_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  measured_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   period_start          DATE NOT NULL,
   period_end            DATE NOT NULL,
   method                STRING NOT NULL,     -- how we measured it

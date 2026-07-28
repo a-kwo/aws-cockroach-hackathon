@@ -75,6 +75,18 @@ class DueFind:
 
 
 @dataclass(frozen=True)
+class FindSummary:
+    """A find as the Analyst needs to see it — enough to avoid repeating itself."""
+
+    find_id: str
+    title: str
+    move: str
+    status: str
+    predicted_daily_cents: int
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class RunRecord:
     run_id: str
     agent: str
@@ -156,9 +168,14 @@ class Repository(Protocol):
         created_at: datetime | None = ..., decided_at: datetime | None = ...,
     ) -> str: ...
 
+    def set_find_status(self, find_id: str, *, status: str,
+                        decided_at: datetime | None = ...) -> None: ...
+
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]: ...
 
     def count_finds(self, business_id: str) -> int: ...
+
+    def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]: ...
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]: ...
 
@@ -444,6 +461,13 @@ class InMemoryRepository:
         )
         return find_id
 
+    def set_find_status(self, find_id: str, *, status: str,
+                        decided_at: datetime | None = None) -> None:
+        found = self._finds.get(find_id)
+        if found is None:
+            raise RepositoryError(f"unknown find {find_id}")
+        found.status = status
+
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         found = self._finds.get(find_id)
         if found is None:
@@ -457,6 +481,17 @@ class InMemoryRepository:
 
     def count_finds(self, business_id: str) -> int:
         return sum(1 for f in self._finds.values() if f.business_id == business_id)
+
+    def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
+        mine = [f for f in self._finds.values() if f.business_id == business_id]
+        mine.sort(key=lambda f: f.created_at, reverse=True)
+        return [
+            FindSummary(find_id=f.find_id, title=f.title, move=f.move,
+                        status=f.status,
+                        predicted_daily_cents=f.predicted_daily_cents,
+                        created_at=f.created_at)
+            for f in mine[:limit]
+        ]
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]:
         judged = {entry.find_id for entry in self._ledger}

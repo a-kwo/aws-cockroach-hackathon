@@ -21,6 +21,7 @@ from brasstacks.repository import (
     JUDGEABLE_STATUSES,
     DueFind,
     EvidenceRef,
+    FindSummary,
     LedgerSummary,
     OwnerRule,
     RepositoryError,
@@ -176,7 +177,7 @@ class PostgresRepository:
             cur.execute(
                 """
                 UPDATE agent_run
-                SET status = %s, finished_at = now(), error = %s, note = %s
+                SET status = %s, finished_at = clock_timestamp(), error = %s, note = %s
                 WHERE id = %s
                 """,
                 (status, error, note, run_id),
@@ -315,7 +316,7 @@ class PostgresRepository:
                             status, created_at, decided_at
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                coalesce(%s, now()), %s)
+                                coalesce(%s, clock_timestamp()), %s)
                         RETURNING id
                         """,
                         (business_id, run_id, emoji, title, rationale, move,
@@ -337,6 +338,25 @@ class PostgresRepository:
             raise RepositoryError(f"could not store find with evidence: {e}") from e
 
         return find_id
+
+    def set_find_status(self, find_id: str, *, status: str,
+                        decided_at: datetime | None = None) -> None:
+        """Record the owner's decision on a find.
+
+        Only 'accepted' and 'live' are judgeable, so this is the gate between a
+        proposal and something the Meter will hold us to.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE find
+                SET status = %s, decided_at = coalesce(%s, clock_timestamp())
+                WHERE id = %s
+                """,
+                (status, decided_at, find_id),
+            )
+            if cur.rowcount == 0:
+                raise RepositoryError(f"unknown find {find_id}")
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         with self._conn.cursor() as cur:
@@ -361,6 +381,25 @@ class PostgresRepository:
             cur.execute("SELECT count(*) FROM find WHERE business_id = %s",
                         (business_id,))
             return int(cur.fetchone()[0])
+
+    def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
+        """What the Analyst has already proposed, so it does not repeat itself."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, move, status, predicted_daily_cents, created_at
+                FROM find
+                WHERE business_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (business_id, limit),
+            )
+            return [
+                FindSummary(find_id=str(r[0]), title=r[1], move=r[2], status=str(r[3]),
+                            predicted_daily_cents=int(r[4]), created_at=r[5])
+                for r in cur.fetchall()
+            ]
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]:
         """The Meter's inbox: acted-on finds whose window has elapsed, unjudged.
@@ -409,7 +448,7 @@ class PostgresRepository:
                             predicted_daily_cents, actual_daily_cents,
                             measured_at, period_start, period_end, method, note
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, coalesce(%s, now()),
+                        VALUES (%s, %s, %s, %s, %s, %s, coalesce(%s, clock_timestamp()),
                                 %s, %s, %s, %s)
                         RETURNING id
                         """,
