@@ -63,5 +63,6 @@ node_modules/
 dist/
 .vite/
 
-# Built artifact — regenerate with scripts/build_web.py
-web/index.html
+# Built artifact — regenerate with scripts/build_web.py.
+# The source lives in site/ and is tracked; web/ is output only.
+web/

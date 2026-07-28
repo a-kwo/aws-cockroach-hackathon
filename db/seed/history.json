@@ -199,6 +199,77 @@
       "status": "later",
       "evidence": ["rev-park-01", "rev-park-03", "rev-park-05", "rev-park-07", "trend-19"],
       "ledger": null
+    },
+
+    {
+      "id": "find-mains",
+      "emoji": "💵",
+      "title": "Raise pasta mains by $2",
+      "rationale": "Seven separate reviews describe the prices as low — two of them unprompted, one saying outright that the bill comes in lower than expected. Osteria Bianca runs $24 to $32 against Rosa's $18 to $24, and Trattoria Nona raised its mains two dollars across the board this month with no visible complaint. Average dessert prices in the area are already up eight percent since spring. At roughly 38 pasta covers a night a two dollar rise carries almost entirely to margin. Owner rule requires approval before any price change, so this stays a proposal.",
+      "move": "Raise pasta mains by $2.00 across the board and reprint the dinner menu.",
+      "predicted_daily_cents": 6200,
+      "confidence": 0.79,
+      "created_days_ago": 2,
+      "verify_window_days": 21,
+      "status": "proposed",
+      "evidence": ["rev-price-02", "rev-price-04", "rev-price-07", "rev-price-01", "rev-price-03", "rev-price-06", "riv-bianca-02", "riv-nona-05", "riv-market-04"],
+      "ledger": null
+    },
+    {
+      "id": "find-secondserver",
+      "emoji": "🧑‍🍳",
+      "title": "Second server on Friday and Saturday peak",
+      "rationale": "Six reviews describe one server covering the entire floor, and the complaints are about pace rather than warmth — the same reviews praise the staff. Local diners increasingly abandon a restaurant over wait time. Saturday runs 110 covers against a kitchen that pushes fifteen per fifteen minutes, so the constraint is front of house, not the line. A second server for the 6pm to 9pm block costs roughly $51 a day averaged across the week; the prediction is net of that.",
+      "move": "Add a second floor server for the 6pm to 9pm block on Friday and Saturday.",
+      "predicted_daily_cents": 2400,
+      "confidence": 0.62,
+      "created_days_ago": 2,
+      "verify_window_days": 21,
+      "status": "proposed",
+      "evidence": ["rev-serv-06", "rev-serv-04", "rev-serv-01", "rev-serv-08", "rev-serv-02", "trend-18"],
+      "ledger": null
+    },
+    {
+      "id": "find-reservations",
+      "emoji": "📅",
+      "title": "Take reservations Thursday to Saturday",
+      "rationale": "Seven of eleven comparable restaurants nearby advertise either reservations or a text waitlist, and Osteria Bianca posts a two week booking window. This is distinct from the waitlist already running: the waitlist manages people who have already arrived, while reservations capture the diner who will not risk the trip. One reviewer drove over to check whether the patio was open, found it closed, and left. Limiting it to the three busiest nights keeps the floor flexible on the weak midweek nights.",
+      "move": "Open a reservation book for Thursday, Friday and Saturday, holding four tables back for walk-ins.",
+      "predicted_daily_cents": 2900,
+      "confidence": 0.71,
+      "created_days_ago": 1,
+      "verify_window_days": 21,
+      "status": "proposed",
+      "evidence": ["riv-market-03", "riv-bianca-03", "riv-nona-04", "rev-phone-04", "trend-06"],
+      "ledger": null
+    },
+    {
+      "id": "find-wholecake",
+      "emoji": "🎂",
+      "title": "Whole tiramisu to order, 48 hours ahead",
+      "rationale": "A customer tried to order a whole tiramisu for a birthday, could not reach anyone, and gave up — that is a named lost sale, not an inference. Fourteen reviews single the dessert out as the best in the city, and local search for tiramisu peaks in the evening. Food cost is $2.10 a portion, so a whole cake sold at $48 carries an unusually high margin and uses prep and skill that already exist. Small, but it costs nothing to try.",
+      "move": "Offer whole tiramisu at $48 with 48 hours notice, taken by text, and add a line to the dessert card.",
+      "predicted_daily_cents": 1400,
+      "confidence": 0.58,
+      "created_days_ago": 1,
+      "verify_window_days": 21,
+      "status": "proposed",
+      "evidence": ["rev-phone-05", "rev-tira-01", "rev-tira-06", "trend-08", "riv-market-04"],
+      "ledger": null
+    },
+    {
+      "id": "find-reviewvolume",
+      "emoji": "⭐",
+      "title": "Ask regulars for reviews at the check",
+      "rationale": "Osteria Bianca sits at 4.1 stars against Rosa's 4.2 but on roughly triple the review count, which means it outranks Rosa's in local results despite being rated lower. Fifteen reviews describe an unusually warm room and staff who remember people, so the goodwill exists and is simply not being converted into review volume. This is the cheapest find on the board: a printed card at the check and nothing else.",
+      "move": "Print a card for the check asking happy regulars to leave a review, and hand it out Thursday through Sunday.",
+      "predicted_daily_cents": 1800,
+      "confidence": 0.55,
+      "created_days_ago": 1,
+      "verify_window_days": 21,
+      "status": "proposed",
+      "evidence": ["riv-bianca-04", "rev-good-03", "rev-serv-05", "rev-serv-07", "rev-good-11"],
+      "ledger": null
     }
   ]
 }

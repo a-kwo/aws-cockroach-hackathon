@@ -172,8 +172,46 @@ Relevant because every find carries an emoji.
 ## Provenance / disclosure
 
 `Product Demo/` contains a pitch deck and a clickable front-end mock built before this
-project began, for a different competition (since abandoned). They are **design
-reference only** — no backend was ever built, and no code from them ships in the
-product. This must be disclosed in the README.
+project began, for a different competition (since abandoned). No backend was ever
+built for them.
+
+**The mock is the ancestor of the shipped frontend, and the README must say so.**
+After three redesigns were tried and rejected, `Product Demo/brasstacks-jar-demo.html`
+was copied to `site/app.html` and rebuilt from there: its data comes from CockroachDB,
+its invented panels were replaced, and a Ledger screen was added — but its layout, CSS
+and interaction model are descended from that file. An earlier version of this note
+claimed no code from `Product Demo/` ships. That is no longer true, and the honest
+statement is the one above.
+
+`Product Demo/` itself is now frozen: it is the historical artifact, never a build
+input. The build reads `site/`.
+
+The mock was **generated with AI, then refined by hand**. Disclose that too.
 
 All Gemini / XPRIZE branding from those files must stay out of the submission.
+
+## Frontend layout
+
+```
+site/landing.html     public page  ->  web/index.html
+site/app.html         dashboard    ->  web/app/index.html
+scripts/build_web.py  splices live cluster data into both
+frontend/             the abandoned React build; unused, kept for its prose parser
+```
+
+`web/` is generated and gitignored. Never edit it — edit `site/` and rebuild.
+
+### The honesty rules the UI must keep
+
+These are enforced by `backend/tests/test_site_build.py`, because each one was
+violated by the mock and each is a claim about the owner's money:
+
+- The growth chart draws **real months solid** and **at most one dashed projection**,
+  and that projection must name the pending finds it depends on.
+- Only `verdict = 'verified'` money reaches the headline daily figure.
+- A row with no measured outcome says so; an `estimated` row is labelled
+  **Modelled**, never *Actual*.
+- Nothing the owner does in the UI may increase the verified record. Accepting a
+  find moves the forecast only.
+- Similarity is shown as a number, never as opacity or colour intensity.
+- Nothing appears on the Radar road or in a chart that is not a row in CockroachDB.

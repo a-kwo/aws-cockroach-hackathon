@@ -1,5 +1,27 @@
 # UI improvement plan
 
+> **Status: executed 2026-07-28.** Everything in P0, P1, P2 and L1 below is built and
+> verified in a browser. What changed beyond the plan, because it was found while
+> building:
+>
+> - The mock's **Health**, **Money** and **Reputation** panels were fabricated —
+>   invented health scores against invented peers, a week of invented nightly revenue,
+>   a rival leaderboard with invented star counts, and a drafted reply to a customer who
+>   does not exist. Replaced with observation counts by kind, the real predicted-vs-actual
+>   ledger, and the weekly review average computed in SQL.
+> - **Answering a chat question grew the money bar by $500.** The record now only moves
+>   when the Meter verifies something.
+> - **Accepting a find bumped the verified daily rate.** It now moves a separate
+>   *predicted* line, and the coin is dashed until verified.
+> - Two invented signals were pushed onto the road on a timer (a rival's brunch launch,
+>   a fresh five-star review). Removed.
+> - The find queue was hardcoded for exactly two finds and stopped after the second.
+> - `Product Demo/` is now frozen; the shipped source is `site/`, and `CLAUDE.md`'s
+>   provenance note has been corrected — it used to claim no code from the mock ships.
+>
+> 29 new tests in `backend/tests/test_site_build.py` cover the money formatting, the
+> agent-prose splitting, and the honesty invariants. Suite: **194 passing.**
+
 Written 2026-07-28. Feature freeze is **Aug 14**, so everything here is sized to fit
 before it. This is a plan to improve the mock we adopted — not another redesign.
 Three redesigns were already rejected; the mock won because it reads as a conversation
