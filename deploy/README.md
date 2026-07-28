@@ -16,31 +16,40 @@ problem that no amount of later tidying undoes.
 ```bash
 aws iam create-user --user-name brasstacks-deploy
 aws iam attach-user-policy --user-name brasstacks-deploy \
-  --policy-arn arn:aws:iam::aws:policy/PowerUserAccess   # narrow this before submission
+  --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 aws iam create-access-key --user-name brasstacks-deploy
-aws configure --profile brasstacks
 ```
 
-## 2. Put the secrets in Parameter Store
+Put the resulting key in `~/.aws/credentials` under `[default]`, **replacing** the
+root credentials rather than sitting beside them as a named profile. Nothing then
+needs a `--profile` flag it can silently forget, and the root key stops being
+present on the machine at all.
 
-Four values, all SecureString. They live here rather than in Lambda environment
-variables, where they would be readable from the console.
+Not in `.env`: that file lives inside a repository which is going public, and
+"gitignored" is one mistake away from "committed". `~/.aws/` is outside the repo,
+which makes it structurally safe rather than conventionally safe. The deploy
+tooling reads `~/.aws/` regardless and never looks at `.env`.
 
-```bash
-put() { aws ssm put-parameter --profile brasstacks --type SecureString \
-          --overwrite --name "/brasstacks/$1" --value "$2"; }
+**Overwriting the local file does not revoke the root key** — it still exists in
+AWS and still works. Once the new key is confirmed working, delete the root
+access key in the console. AWS's own guidance is that root should hold none.
 
-put COCKROACH_DATABASE_URL 'postgresql://…?sslmode=verify-full'
-put ANTHROPIC_API_KEY      'sk-ant-…'
-put COCKROACH_MCP_TOKEN    '…'          # see step 3
-put BRASSTACKS_BUSINESS_ID '…'          # printed by scripts/seed.py
-```
+`AdministratorAccess` rather than `PowerUserAccess`: SAM creates an execution
+role per function, and PowerUser excludes IAM entirely, so the deploy fails at
+role creation. A hand-scoped policy is the right long-term answer and a poor use
+of a three-week runway.
 
-## 3. Create the MCP service account
+This is not least privilege and is not pretending to be. What it buys is real
+anyway: an IAM access key can be deleted and reissued in seconds, whereas root
+cannot be meaningfully restricted, holds billing and account-closure powers no
+policy limits, and — with this repository going public — is the credential you
+least want to discover in a commit.
+
+## 2. Create the MCP service account
 
 In the **CockroachDB Cloud Console**: create a service account, scope its Cloud
-RBAC to this cluster only, and generate the MCP config snippet. Copy the API key
-into `COCKROACH_MCP_TOKEN` above.
+RBAC to this cluster only, and generate the MCP config snippet. Keep the API key
+for step 3.
 
 Read-only is the server's default and we never grant write consent — an agent
 that can answer questions about the ledger must not be able to edit it.
@@ -51,10 +60,25 @@ that can answer questions about the ledger must not be able to edit it.
 > connector expects; if the Console shows something different, that is the place
 > the two have to be reconciled.
 
+## 3. Put the secrets in Parameter Store
+
+Four values, all SecureString. They live here rather than in Lambda environment
+variables, where they would be readable from the console.
+
+```bash
+put() { aws ssm put-parameter --type SecureString \
+          --overwrite --name "/brasstacks/$1" --value "$2"; }
+
+put COCKROACH_DATABASE_URL 'postgresql://…?sslmode=verify-full'
+put ANTHROPIC_API_KEY      'sk-ant-…'
+put COCKROACH_MCP_TOKEN    '…'          # from step 2
+put BRASSTACKS_BUSINESS_ID '…'          # printed by scripts/seed.py
+```
+
 ## 4. Create the artifact bucket
 
 ```bash
-aws s3 mb s3://brasstacks-artifacts-<suffix> --profile brasstacks
+aws s3 mb s3://brasstacks-artifacts-<suffix>
 ```
 
 ## 5. Deploy
@@ -64,7 +88,7 @@ repo root so the image can carry both `backend/src` and the seed corpus.
 
 ```bash
 sam build --template deploy/template.yaml
-sam deploy --guided --profile brasstacks
+sam deploy --guided
 ```
 
 `--guided` will ask for `ArtifactBucket`; the rest have defaults. It prints the
@@ -74,7 +98,7 @@ Ask endpoint URL on completion.
 
 ```bash
 # A night, on demand, rather than waiting until 6 AM.
-aws lambda invoke --profile brasstacks \
+aws lambda invoke \
   --function-name <NightFunctionName from the stack outputs> /dev/stdout
 
 # One owner question, end to end.
