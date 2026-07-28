@@ -1,0 +1,84 @@
+{
+  "_comment": [
+    "Seeded demo tenant. This is fictional data for a reproducible demo — the",
+    "business, its reviews, and its competitors do not exist. Source names are",
+    "deliberately generic ('review_site', 'local_forum') rather than naming real",
+    "platforms: we do not scrape them, and the hackathon rules bar third-party",
+    "marks from the demo video."
+  ],
+  "business": {
+    "name": "Rosa's Trattoria",
+    "category": "restaurant",
+    "city": "Columbus",
+    "region": "OH",
+    "goal_monthly_cents": 800000,
+    "goal_note": "by fall"
+  },
+  "facts": [
+    {
+      "fact": "Tiramisu is made in house from my grandmother's recipe. Food cost is about $2.10 per portion.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "Tiramisu is currently priced at $7.00 on the dessert menu.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "We serve roughly 62 dinner covers on a weekday and 110 on Saturday.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "We are not open for lunch. Dinner service only, 5pm to 10pm, closed Mondays.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "Average check is $38. Food margin runs 54 percent and labor is 38 percent of revenue.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "Break-even is about $2,050 on a normal night.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "We have 14 tables inside and a 20-seat patio that we only use in warm weather.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "We do not take reservations. Saturday is the only night with a real wait.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "The kitchen can push about 15 covers per 15 minutes at peak before tickets back up.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "Tuesday through Thursday are consistently our weakest nights.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "There is a county courthouse two blocks north and a new office building going up on the same street.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "I am the only one who answers the phone, and I cannot get to it during service.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "We take payments through a Square terminal, so daily item-level sales are available.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "Nearest direct competitors are Lucca's one block east and Osteria Bianca three blocks south.",
+      "source": "owner_chat"
+    },
+    {
+      "fact": "I have owned the restaurant for eight years. Revenue has been flat for the last two.",
+      "source": "owner_chat"
+    }
+  ],
+  "rules": [
+    { "rule": "Never change prices without asking me first", "enabled": true },
+    { "rule": "Draft everything — nothing sends without my OK", "enabled": true },
+    { "rule": "Ask before committing any spend over the monthly cap", "enabled": true, "cap_cents": 5000 }
+  ]
+}

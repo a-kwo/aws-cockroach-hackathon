@@ -1,0 +1,204 @@
+{
+  "_comment": [
+    "Backdated finds and verdicts for the demo tenant.",
+    "",
+    "Why this file exists: verify windows are ~14 days. Seeding only 'today'",
+    "would leave the ledger with nothing but pending predictions — no verified",
+    "wins, no misses, no hit rate — and the ledger is the most important screen",
+    "in the product. This gives it a real track record on first run.",
+    "",
+    "Every find cites observations from observations.json by id, so the evidence",
+    "trail is genuine: each recommendation is traceable to the retrieved rows",
+    "that support it.",
+    "",
+    "The espresso find is deliberately a MISS built on thin evidence. That is the",
+    "honest shape of the product — the agent reasoned from a weak signal, was",
+    "wrong, and the ledger says so permanently.",
+    "",
+    "created_days_ago is relative to the seed run; verify_window_days is added to",
+    "the creation date. A find whose window has not elapsed stays unjudged and",
+    "becomes the Meter's next job."
+  ],
+  "finds": [
+    {
+      "id": "find-tiramisu",
+      "emoji": "🍰",
+      "title": "Tiramisu → $9",
+      "rationale": "Fourteen separate reviews single out the tiramisu as the best in the city, several explicitly calling it underpriced. The eleven-restaurant survey puts the local average at $10.60 with the nearest rival at $11; Rosa's sits at $7.00 against a $2.10 food cost. Raising to $9 stays below every comparable and leaves the value perception intact.",
+      "move": "Reprice tiramisu from $7.00 to $9.00 and reprint the dessert card.",
+      "predicted_daily_cents": 2300,
+      "confidence": 0.88,
+      "created_days_ago": 48,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["rev-tira-01", "rev-tira-04", "rev-tira-06", "rev-tira-11", "rev-tira-13", "riv-market-01", "riv-lucca-03", "rev-price-05", "riv-nona-01"],
+      "ledger": {
+        "verdict": "verified",
+        "actual_daily_cents": 2500,
+        "method": "item-level dessert sales from the payment terminal, 14 days before vs after",
+        "note": "233 tiramisu sold in the period at the new price with no measurable drop in dessert attach rate."
+      }
+    },
+    {
+      "id": "find-waitlist",
+      "emoji": "💬",
+      "title": "Text-ahead waitlist for Saturdays",
+      "rationale": "Twelve reviews describe abandoning or nearly abandoning a Saturday visit, and several name the absence of a waitlist specifically. Two of the three nearest rivals now advertise text-ahead or reservations. At 110 Saturday covers and a $38 average check, recovering even a handful of walkaways per night pays for itself immediately.",
+      "move": "Stand up a text-when-ready waitlist for Saturday service and put a sign on the door.",
+      "predicted_daily_cents": 3800,
+      "confidence": 0.84,
+      "created_days_ago": 42,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["rev-wait-02", "rev-wait-04", "rev-wait-05", "rev-wait-09", "rev-wait-12", "riv-nona-04", "riv-lucca-04", "riv-market-03", "trend-18"],
+      "ledger": {
+        "verdict": "verified",
+        "actual_daily_cents": 4100,
+        "method": "counted seated parties originating from the waitlist, valued at average check",
+        "note": "41 parties seated from the waitlist over two weeks that would previously have been standing at the door."
+      }
+    },
+    {
+      "id": "find-espresso",
+      "emoji": "☕",
+      "title": "Espresso upsell after dessert",
+      "rationale": "Dessert-only and late-evening visits are a growing share of local independent traffic, and the wine list already reads well. Prompting an espresso alongside dessert is a zero-cost add with a high margin.",
+      "move": "Have servers offer espresso with every dessert order.",
+      "predicted_daily_cents": 1200,
+      "confidence": 0.55,
+      "created_days_ago": 38,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["trend-20", "rev-good-10"],
+      "ledger": {
+        "verdict": "miss",
+        "actual_daily_cents": 0,
+        "method": "item-level espresso sales from the payment terminal, 14 days before vs after",
+        "note": "No measurable lift. Espresso interest locally is flat and the evidence for this was thin — two weakly related observations. Pulled after four days."
+      }
+    },
+    {
+      "id": "find-phone",
+      "emoji": "📵",
+      "title": "Voicemail with text callback",
+      "rationale": "Six reviews describe being unable to reach anyone by phone, including one lost large-party booking and one lost whole-cake order. The owner has said they cannot answer during service. A voicemail greeting that invites a text, answered between seatings, converts those calls instead of losing them.",
+      "move": "Record a voicemail greeting directing callers to text, and check it twice per service.",
+      "predicted_daily_cents": 900,
+      "confidence": 0.72,
+      "created_days_ago": 33,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["rev-phone-01", "rev-phone-02", "rev-phone-03", "rev-phone-05", "rev-phone-06"],
+      "ledger": {
+        "verdict": "verified",
+        "actual_daily_cents": 1100,
+        "method": "bookings and large orders attributed to returned calls, valued at recorded ticket totals",
+        "note": "Recovered two large-party bookings and four cake orders in the period."
+      }
+    },
+    {
+      "id": "find-patio",
+      "emoji": "🌤",
+      "title": "Open the patio every warm night",
+      "rationale": "Six reviews mention the patio, three of them describing it closed on a night that would have suited it. Local search interest in patio dining is up thirty four percent and the forecast holds twenty two consecutive evenings above sixty five degrees. Twenty additional seats at 54 percent food margin, with no new labour if set up before service.",
+      "move": "Set the patio before service on any evening forecast above sixty five degrees.",
+      "predicted_daily_cents": 1600,
+      "confidence": 0.79,
+      "created_days_ago": 27,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["rev-patio-02", "rev-patio-04", "rev-patio-05", "rev-patio-06", "trend-01", "trend-07", "trend-13"],
+      "ledger": {
+        "verdict": "verified",
+        "actual_daily_cents": 1900,
+        "method": "covers seated on the patio, valued at average check less food cost",
+        "note": "Patio ran eleven of fourteen nights and averaged fourteen extra covers on those nights."
+      }
+    },
+    {
+      "id": "find-replies",
+      "emoji": "⭐",
+      "title": "Reply to every recent low review",
+      "rationale": "The one and two star reviews cluster almost entirely on Saturday waits and unanswered phone calls — both now addressed. Replying to each one publicly, naming the fix, converts the strongest objection a prospective diner will read into evidence that the place listens.",
+      "move": "Draft a reply to each one and two star review from the last ninety days for the owner to approve.",
+      "predicted_daily_cents": 700,
+      "confidence": 0.68,
+      "created_days_ago": 22,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["rev-wait-02", "rev-wait-05", "rev-wait-09", "rev-phone-01", "rev-serv-04"],
+      "ledger": {
+        "verdict": "verified",
+        "actual_daily_cents": 850,
+        "method": "new-diner covers modelled against the rating change over the period",
+        "note": "Rating moved from 4.2 to 4.3 over two weeks with nineteen replies posted."
+      }
+    },
+    {
+      "id": "find-prixfixe",
+      "emoji": "🍽",
+      "title": "Tuesday–Thursday three-course set menu",
+      "rationale": "The owner reports Tuesday through Thursday as consistently weakest, with four of eleven nearby restaurants now running midweek promotions and one direct rival at a $45 prix fixe. A set menu at a lower price point fills seats that are otherwise empty, at controlled food cost.",
+      "move": "Design a three-course midweek set menu and price it against the rival's $45.",
+      "predicted_daily_cents": 2000,
+      "confidence": 0.7,
+      "created_days_ago": 18,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["riv-bianca-05", "trend-14", "trend-12", "riv-nona-02", "rev-good-15"],
+      "ledger": {
+        "verdict": "verified",
+        "actual_daily_cents": 2200,
+        "method": "midweek covers and set-menu attach rate from the payment terminal",
+        "note": "Midweek covers up nine per night on average across the period."
+      }
+    },
+    {
+      "id": "find-latedessert",
+      "emoji": "🌙",
+      "title": "Late dessert window, 9pm to 10pm",
+      "rationale": "Dessert and late-evening visits are a growing share of local traffic, and weekend demand peaks sharply at 7pm to 8:30pm — leaving the last hour underused with the kitchen already staffed. A dessert-and-drink-only window monetises seats that would otherwise turn over empty.",
+      "move": "Advertise a dessert-and-drinks-only window for the last hour of service.",
+      "predicted_daily_cents": 610,
+      "confidence": 0.6,
+      "created_days_ago": 16,
+      "verify_window_days": 14,
+      "status": "live",
+      "evidence": ["trend-20", "trend-11", "trend-08", "rev-tira-14"],
+      "ledger": {
+        "verdict": "estimated",
+        "actual_daily_cents": 610,
+        "method": "modelled from dessert attach rate; item-level verification pending at month end",
+        "note": "Not yet verifiable — the measurement window closes at month end. Shown as an estimate rather than counted as a win."
+      }
+    },
+    {
+      "id": "find-lunch",
+      "emoji": "🍝",
+      "title": "Lunch service, Tuesday to Thursday",
+      "rationale": "Ten separate observations show unmet midday demand around the courthouse, including a forum thread where nine people gave up and ate at their desks. Nine of eleven nearby Italian restaurants already serve lunch; Rosa's is one of the two that do not. A nine-storey office confirmed for September occupancy adds roughly four hundred daytime workers within two blocks. This is the largest single opportunity in the corpus.",
+      "move": "Build a limited lunch menu from existing prep and open Tuesday to Thursday, 11am to 2pm, before the office opens in September.",
+      "predicted_daily_cents": 9700,
+      "confidence": 0.81,
+      "created_days_ago": 5,
+      "verify_window_days": 21,
+      "status": "live",
+      "evidence": ["rev-lunch-01", "rev-lunch-04", "rev-lunch-05", "rev-lunch-07", "rev-lunch-09", "trend-02", "trend-04", "trend-09", "trend-15", "riv-market-02", "riv-lucca-02"],
+      "ledger": null
+    },
+    {
+      "id": "find-parking",
+      "emoji": "🅿️",
+      "title": "Validated parking at the nearby garage",
+      "rationale": "Eight reviews mention parking difficulty, consistently paired with praise for the food — diners are arriving despite it rather than being turned away by it. No new public capacity is planned. A validation deal would improve the experience but the evidence does not support a large revenue effect, and the cost sits against the owner's monthly cap.",
+      "move": "Approach the garage two doors down about a validation rate for diners.",
+      "predicted_daily_cents": 400,
+      "confidence": 0.45,
+      "created_days_ago": 3,
+      "verify_window_days": 21,
+      "status": "later",
+      "evidence": ["rev-park-01", "rev-park-03", "rev-park-05", "rev-park-07", "trend-19"],
+      "ledger": null
+    }
+  ]
+}

@@ -22,6 +22,7 @@ from brasstacks.repository import (
     DueFind,
     EvidenceRef,
     LedgerSummary,
+    OwnerRule,
     RepositoryError,
     Retrieved,
     RunRecord,
@@ -82,11 +83,37 @@ class PostgresRepository:
                 "goal_monthly_cents", "goal_note")
         return {k: (str(v) if k == "id" else v) for k, v in zip(keys, row)}
 
+    # -- profile ---------------------------------------------------------
+    def insert_business_fact(self, business_id: str, *, fact: str, source: str,
+                             embedding: Sequence[float],
+                             confidence: float = 1.0) -> str:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO business_fact
+                    (business_id, fact, source, confidence, embedding)
+                VALUES (%s, %s, %s, %s, %s::VECTOR)
+                RETURNING id
+                """,
+                (business_id, fact, source, confidence, _vector_literal(embedding)),
+            )
+            return str(cur.fetchone()[0])
+
+    def supersede_business_fact(self, fact_id: str, *, superseded_by: str) -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "UPDATE business_fact SET superseded_by = %s WHERE id = %s",
+                (superseded_by, fact_id),
+            )
+            if cur.rowcount == 0:
+                raise RepositoryError(f"unknown fact {fact_id}")
+
     def get_business_facts(self, business_id: str) -> list[str]:
         """Current profile facts — what only the owner knows.
 
-        Superseded facts are excluded: memory keeps the history, but the Analyst
-        should reason over what is true now.
+        Superseded facts are excluded: memory keeps the history, since a former
+        price is part of the record, but the Analyst must reason over what is
+        true now.
         """
         with self._conn.cursor() as cur:
             cur.execute(
@@ -98,6 +125,36 @@ class PostgresRepository:
                 (business_id,),
             )
             return [r[0] for r in cur.fetchall()]
+
+    def insert_owner_rule(self, business_id: str, *, rule: str, enabled: bool = True,
+                          cap_cents: int | None = None) -> str:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO owner_rule (business_id, rule, enabled, cap_cents)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (business_id, rule, enabled, cap_cents),
+            )
+            return str(cur.fetchone()[0])
+
+    def get_owner_rules(self, business_id: str) -> list[OwnerRule]:
+        """Enabled rules only — a rule the owner switched off must not constrain
+        tonight's run."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, rule, cap_cents FROM owner_rule
+                WHERE business_id = %s AND enabled = true
+                ORDER BY created_at
+                """,
+                (business_id,),
+            )
+            return [
+                OwnerRule(rule_id=str(r[0]), rule=r[1], cap_cents=r[2])
+                for r in cur.fetchall()
+            ]
 
     # -- runs ------------------------------------------------------------
     def start_run(self, business_id: str, *, agent: str,
@@ -151,12 +208,13 @@ class PostgresRepository:
                            source_name: str | None = None,
                            source_url: str | None = None,
                            subject: str | None = None, rating: float | None = None,
-                           run_id: str | None = None) -> bool:
-        """Store an observation, returning whether it was new.
+                           run_id: str | None = None) -> str | None:
+        """Store an observation. Returns its id, or None if it was a duplicate.
 
         A duplicate is normal operation — Radar re-reads the same review nightly —
         so the unique index absorbs it via ON CONFLICT rather than raising and
-        aborting a run.
+        aborting a run. Returning the id rather than a bool lets a caller wire
+        the stored row straight into find_evidence without a second lookup.
         """
         with self._conn.cursor() as cur:
             cur.execute(
@@ -173,7 +231,8 @@ class PostgresRepository:
                  subject, rating, observed_at, content_hash(content),
                  _vector_literal(embedding)),
             )
-            return cur.fetchone() is not None
+            row = cur.fetchone()
+            return str(row[0]) if row is not None else None
 
     def count_observations(self, business_id: str) -> int:
         with self._conn.cursor() as cur:
@@ -227,6 +286,7 @@ class PostgresRepository:
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
         status: str = "proposed", run_id: str | None = None,
+        created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
         """Write a find and its evidence atomically.
 
@@ -245,17 +305,22 @@ class PostgresRepository:
         try:
             with self._conn.transaction():
                 with self._conn.cursor() as cur:
+                    # created_at/decided_at are overridable so seeded history
+                    # reads as history. coalesce keeps the live path on now().
                     cur.execute(
                         """
                         INSERT INTO find (
                             business_id, run_id, emoji, title, rationale, move,
-                            predicted_daily_cents, confidence, verify_after, status
+                            predicted_daily_cents, confidence, verify_after,
+                            status, created_at, decided_at
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                coalesce(%s, now()), %s)
                         RETURNING id
                         """,
                         (business_id, run_id, emoji, title, rationale, move,
-                         predicted_daily_cents, confidence, verify_after, status),
+                         predicted_daily_cents, confidence, verify_after, status,
+                         created_at, decided_at),
                     )
                     find_id = str(cur.fetchone()[0])
 
@@ -332,6 +397,7 @@ class PostgresRepository:
         predicted_daily_cents: int, actual_daily_cents: int,
         period_start: date, period_end: date, method: str,
         note: str | None = None, run_id: str | None = None,
+        measured_at: datetime | None = None,
     ) -> str:
         try:
             with self._conn.transaction():
@@ -343,11 +409,12 @@ class PostgresRepository:
                             predicted_daily_cents, actual_daily_cents,
                             measured_at, period_start, period_end, method, note
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, now(), %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, coalesce(%s, now()),
+                                %s, %s, %s, %s)
                         RETURNING id
                         """,
                         (business_id, find_id, run_id, verdict,
-                         predicted_daily_cents, actual_daily_cents,
+                         predicted_daily_cents, actual_daily_cents, measured_at,
                          period_start, period_end, method, note),
                     )
                     return str(cur.fetchone()[0])

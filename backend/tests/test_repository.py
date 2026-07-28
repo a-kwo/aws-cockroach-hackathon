@@ -118,20 +118,33 @@ class TestAgentRuns:
 # ---------------------------------------------------------------------------
 
 class TestObservations:
-    def test_inserting_returns_whether_it_was_new(self, repo, business):
-        assert repo.insert_observation(
+    def test_inserting_returns_the_new_observation_id(self, repo, business):
+        # The id (rather than a bare bool) is what lets a caller wire the stored
+        # row into find_evidence without a second lookup. Truthiness still reads
+        # as "was new".
+        observation_id = repo.insert_observation(
             business, content="Best tiramisu in the city", kind="review",
             embedding=DESSERT, observed_at=_dt(TODAY),
-        ) is True
+        )
+        assert observation_id
 
     def test_identical_content_is_not_stored_twice(self, repo, business):
         # Radar re-reads the same review every night. Night forty must not be
         # row forty.
         args = dict(content="Best tiramisu in the city", kind="review",
                     embedding=DESSERT, observed_at=_dt(TODAY))
-        assert repo.insert_observation(business, **args) is True
-        assert repo.insert_observation(business, **args) is False
+        assert repo.insert_observation(business, **args) is not None
+        assert repo.insert_observation(business, **args) is None
         assert repo.count_observations(business) == 1
+
+    def test_whitespace_and_case_do_not_defeat_dedup(self, repo, business):
+        # A review re-scraped with different spacing is the same review.
+        first = dict(content="Best tiramisu in the city", kind="review",
+                     embedding=DESSERT, observed_at=_dt(TODAY))
+        again = dict(content="  best   TIRAMISU in the city ", kind="review",
+                     embedding=DESSERT, observed_at=_dt(TODAY))
+        assert repo.insert_observation(business, **first) is not None
+        assert repo.insert_observation(business, **again) is None
 
     def test_duplicate_is_not_an_error(self, repo, business):
         # Re-seeing content is normal operation, not a failure. Raising here
@@ -147,8 +160,8 @@ class TestObservations:
         other = repo.create_business(name="Lucca's", category="restaurant")
         args = dict(content="Great pasta", kind="review", embedding=DESSERT,
                     observed_at=_dt(TODAY))
-        assert repo.insert_observation(business, **args) is True
-        assert repo.insert_observation(other, **args) is True
+        assert repo.insert_observation(business, **args) is not None
+        assert repo.insert_observation(other, **args) is not None
 
     def test_different_content_is_stored_separately(self, repo, business):
         repo.insert_observation(business, content="a", kind="review",
@@ -349,6 +362,98 @@ class TestDueFinds:
         self._find(repo, business, verify_after=TODAY, cents=4200)
         [due] = repo.due_finds(business, today=TODAY)
         assert due.predicted_daily_cents == 4200
+
+
+class TestProfile:
+    """Business facts and owner rules — what only the owner knows, and the
+    constraints the autopilot obeys. Both feed the Analyst's prompt."""
+
+    def test_facts_round_trip(self, repo, business):
+        repo.insert_business_fact(business, fact="Tiramisu costs $2.10 to make",
+                                 source="owner_chat", embedding=DESSERT)
+        assert repo.get_business_facts(business) == ["Tiramisu costs $2.10 to make"]
+
+    def test_superseded_facts_are_excluded(self, repo, business):
+        # Memory keeps the history — prices change and the old value is part of
+        # the record — but the Analyst must reason over what is true now.
+        old = repo.insert_business_fact(business, fact="Tiramisu is $7",
+                                       source="owner_chat", embedding=DESSERT)
+        new = repo.insert_business_fact(business, fact="Tiramisu is $9",
+                                       source="owner_chat", embedding=DESSERT)
+        repo.supersede_business_fact(old, superseded_by=new)
+
+        facts = repo.get_business_facts(business)
+        assert facts == ["Tiramisu is $9"]
+
+    def test_facts_are_scoped_to_the_business(self, repo, business):
+        other = repo.create_business(name="Lucca's", category="restaurant")
+        repo.insert_business_fact(other, fact="secret sauce recipe",
+                                 source="owner_chat", embedding=DESSERT)
+        assert repo.get_business_facts(business) == []
+
+    def test_rules_round_trip_with_their_cap(self, repo, business):
+        repo.insert_owner_rule(business, rule="Never change prices without asking",
+                               enabled=True)
+        repo.insert_owner_rule(business, rule="Ask before spending over the cap",
+                               enabled=True, cap_cents=5000)
+        rules = repo.get_owner_rules(business)
+        assert len(rules) == 2
+        assert any(r.cap_cents == 5000 for r in rules)
+
+    def test_disabled_rules_are_excluded(self, repo, business):
+        # A rule the owner switched off must not constrain tonight's run.
+        repo.insert_owner_rule(business, rule="on", enabled=True)
+        repo.insert_owner_rule(business, rule="off", enabled=False)
+        assert [r.rule for r in repo.get_owner_rules(business)] == ["on"]
+
+
+class TestBackdating:
+    """Seeded history needs explicit timestamps.
+
+    Without these the demo ledger reads as though every find and verdict
+    happened the moment the seeder ran, which is both untrue and visibly wrong
+    on screen — a track record that all occurred in one second is not a track
+    record.
+    """
+
+    def _obs(self, repo, business):
+        return repo.insert_observation(
+            business, content=f"o {uuid.uuid4().hex[:8]}", kind="review",
+            embedding=DESSERT, observed_at=_dt(date(2026, 6, 2)))
+
+    def test_a_find_can_be_created_in_the_past(self, repo, business):
+        obs_id = self._obs(repo, business)
+        past = datetime(2026, 6, 10, 2, 15, tzinfo=timezone.utc)
+        find_id = repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=2300, confidence=0.8,
+            verify_after=date(2026, 6, 24), status="live",
+            created_at=past, decided_at=past,
+            evidence=[EvidenceRef(obs_id, 0.94)],
+        )
+        [due] = repo.due_finds(business, today=TODAY)
+        assert due.find_id == find_id
+        assert due.created_at.date() == date(2026, 6, 10)
+
+    def test_a_verdict_can_be_measured_in_the_past(self, repo, business):
+        obs_id = self._obs(repo, business)
+        find_id = repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=2300, confidence=0.8,
+            verify_after=date(2026, 6, 24), status="live",
+            created_at=datetime(2026, 6, 10, tzinfo=timezone.utc),
+            evidence=[EvidenceRef(obs_id, 0.94)],
+        )
+        repo.insert_ledger_entry(
+            business, find_id=find_id, verdict="verified",
+            predicted_daily_cents=2300, actual_daily_cents=2500,
+            period_start=date(2026, 6, 10), period_end=date(2026, 6, 24),
+            method="seeded", measured_at=datetime(2026, 6, 24, tzinfo=timezone.utc),
+        )
+        summary = repo.ledger_summary(business)
+        assert summary.verified_count == 1
+        # And it must no longer appear as due, exactly as a live verdict would.
+        assert repo.due_finds(business, today=TODAY) == []
 
 
 # ---------------------------------------------------------------------------

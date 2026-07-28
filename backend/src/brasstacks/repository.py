@@ -86,6 +86,15 @@ class RunRecord:
 
 
 @dataclass(frozen=True)
+class OwnerRule:
+    """A constraint the autopilot obeys on every run — "the leash you hold"."""
+
+    rule_id: str
+    rule: str
+    cap_cents: int | None = None
+
+
+@dataclass(frozen=True)
 class LedgerSummary:
     verified_count: int
     estimated_count: int
@@ -107,6 +116,19 @@ class Repository(Protocol):
     def create_business(self, *, name: str, category: str, city: str | None = ...,
                         goal_monthly_cents: int | None = ...) -> str: ...
 
+    def insert_business_fact(self, business_id: str, *, fact: str, source: str,
+                             embedding: Sequence[float],
+                             confidence: float = ...) -> str: ...
+
+    def supersede_business_fact(self, fact_id: str, *, superseded_by: str) -> None: ...
+
+    def get_business_facts(self, business_id: str) -> list[str]: ...
+
+    def insert_owner_rule(self, business_id: str, *, rule: str, enabled: bool = ...,
+                          cap_cents: int | None = ...) -> str: ...
+
+    def get_owner_rules(self, business_id: str) -> list[OwnerRule]: ...
+
     def start_run(self, business_id: str, *, agent: str,
                   model_id: str | None = ...) -> str: ...
 
@@ -119,7 +141,7 @@ class Repository(Protocol):
                            embedding: Sequence[float], observed_at: datetime,
                            source_name: str | None = ..., source_url: str | None = ...,
                            subject: str | None = ..., rating: float | None = ...,
-                           run_id: str | None = ...) -> bool: ...
+                           run_id: str | None = ...) -> str | None: ...
 
     def count_observations(self, business_id: str) -> int: ...
 
@@ -131,6 +153,7 @@ class Repository(Protocol):
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
         status: str = ..., run_id: str | None = ...,
+        created_at: datetime | None = ..., decided_at: datetime | None = ...,
     ) -> str: ...
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]: ...
@@ -144,6 +167,7 @@ class Repository(Protocol):
         predicted_daily_cents: int, actual_daily_cents: int,
         period_start: date, period_end: date, method: str,
         note: str | None = ..., run_id: str | None = ...,
+        measured_at: datetime | None = ...,
     ) -> str: ...
 
     def ledger_summary(self, business_id: str) -> LedgerSummary: ...
@@ -248,6 +272,8 @@ class InMemoryRepository:
 
     def __init__(self) -> None:
         self._businesses: dict[str, dict[str, Any]] = {}
+        self._facts: dict[str, dict[str, Any]] = {}
+        self._rules: dict[str, dict[str, Any]] = {}
         self._runs: dict[str, RunRecord] = {}
         self._observations: list[_Observation] = []
         self._finds: dict[str, _Find] = {}
@@ -272,6 +298,48 @@ class InMemoryRepository:
             "goal_monthly_cents": goal_monthly_cents,
         }
         return business_id
+
+    # -- profile ---------------------------------------------------------
+    def insert_business_fact(self, business_id: str, *, fact: str, source: str,
+                             embedding: Sequence[float],
+                             confidence: float = 1.0) -> str:
+        fact_id = str(uuid.uuid4())
+        self._facts[fact_id] = {
+            "business_id": business_id, "fact": fact, "source": source,
+            "confidence": confidence, "embedding": list(embedding),
+            "superseded_by": None, "learned_at": self._now(),
+        }
+        return fact_id
+
+    def supersede_business_fact(self, fact_id: str, *, superseded_by: str) -> None:
+        existing = self._facts.get(fact_id)
+        if existing is None:
+            raise RepositoryError(f"unknown fact {fact_id}")
+        existing["superseded_by"] = superseded_by
+
+    def get_business_facts(self, business_id: str) -> list[str]:
+        current = [
+            f for f in self._facts.values()
+            if f["business_id"] == business_id and f["superseded_by"] is None
+        ]
+        current.sort(key=lambda f: f["learned_at"], reverse=True)
+        return [f["fact"] for f in current]
+
+    def insert_owner_rule(self, business_id: str, *, rule: str, enabled: bool = True,
+                          cap_cents: int | None = None) -> str:
+        rule_id = str(uuid.uuid4())
+        self._rules[rule_id] = {
+            "business_id": business_id, "rule": rule, "enabled": enabled,
+            "cap_cents": cap_cents,
+        }
+        return rule_id
+
+    def get_owner_rules(self, business_id: str) -> list[OwnerRule]:
+        return [
+            OwnerRule(rule_id=rule_id, rule=r["rule"], cap_cents=r["cap_cents"])
+            for rule_id, r in self._rules.items()
+            if r["business_id"] == business_id and r["enabled"]
+        ]
 
     # -- runs ------------------------------------------------------------
     def start_run(self, business_id: str, *, agent: str,
@@ -303,19 +371,20 @@ class InMemoryRepository:
                            source_name: str | None = None,
                            source_url: str | None = None,
                            subject: str | None = None, rating: float | None = None,
-                           run_id: str | None = None) -> bool:
+                           run_id: str | None = None) -> str | None:
         digest = content_hash(content)
         # Dedup is scoped per business: two restaurants can share a phrase.
         for existing in self._observations:
             if existing.business_id == business_id and existing.content_hash == digest:
-                return False
+                return None
+        observation_id = str(uuid.uuid4())
         self._observations.append(_Observation(
-            observation_id=str(uuid.uuid4()), business_id=business_id,
+            observation_id=observation_id, business_id=business_id,
             content=content, kind=kind, embedding=list(embedding),
             observed_at=observed_at, content_hash=digest, source_name=source_name,
             source_url=source_url, subject=subject, rating=rating, run_id=run_id,
         ))
-        return True
+        return observation_id
 
     def count_observations(self, business_id: str) -> int:
         return sum(1 for o in self._observations if o.business_id == business_id)
@@ -342,6 +411,7 @@ class InMemoryRepository:
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
         status: str = "proposed", run_id: str | None = None,
+        created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
         if not evidence:
             raise RepositoryError(
@@ -363,7 +433,8 @@ class InMemoryRepository:
             find_id=find_id, business_id=business_id, title=title,
             rationale=rationale, move=move, emoji=emoji,
             predicted_daily_cents=predicted_daily_cents, confidence=confidence,
-            verify_after=verify_after, status=status, created_at=self._now(),
+            verify_after=verify_after, status=status,
+            created_at=created_at if created_at is not None else self._now(),
             run_id=run_id,
             evidence=[
                 StoredEvidence(observation_id=ref.observation_id,
@@ -410,6 +481,7 @@ class InMemoryRepository:
         predicted_daily_cents: int, actual_daily_cents: int,
         period_start: date, period_end: date, method: str,
         note: str | None = None, run_id: str | None = None,
+        measured_at: datetime | None = None,
     ) -> str:
         for entry in self._ledger:
             if (entry.find_id == find_id and entry.period_start == period_start

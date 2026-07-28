@@ -132,6 +132,30 @@ Write the test first. Watch it fail. Write the minimum code to pass it. Refactor
   matching outcome, a miss, a partial period, a duplicate observation.
 - Money is stored and computed as **integer cents**, never floats. Test this.
 
+### Retrieval: the Analyst must ask concrete questions
+
+Measured against the seeded corpus on 2026-07-28. Titan embeddings respond far
+better to concrete, hypothesis-shaped queries than to abstract strategic ones:
+
+| Query | Top similarity | Retrieved the right cluster? |
+|---|---|---|
+| "Is there unmet demand we are not serving?" | 0.238 | No |
+| "Should this restaurant open for lunch? Is there midday demand nearby?" | **0.583** | Yes |
+| "What operational problem is costing us money?" | 0.206 | No |
+| "Customers complain about waiting a long time for a table on Saturday" | **0.560** | Yes |
+
+A 2.5x difference, and the abstract queries surfaced the *wrong* observations
+entirely. So the Analyst must **not** issue one open-ended "what should we do?"
+query. It should run several concrete hypothesis queries per night — pricing,
+waits, hours, competitors, reputation — and reason over the union. Treat that as
+an architectural requirement, not a prompt-tuning detail.
+
+### Windows console encoding
+
+Emoji in CLI output crashes on Windows (`cp1252` cannot encode them). Any script
+that prints a find title must set `PYTHONIOENCODING=utf-8` or reconfigure stdout.
+Relevant because every find carries an emoji.
+
 ### Other standing rules
 
 - **Never commit secrets.** Connection strings and AWS keys go in `.env`, which is
