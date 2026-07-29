@@ -604,6 +604,108 @@ class TestLedger:
             )
 
 
+class TestPurgeObservations:
+    """Licensed content has to be able to leave again.
+
+    Yelp forbids retaining its content beyond 24 hours, which the rest of this
+    schema is built to do exactly the opposite of. The purge is scoped to one
+    source precisely so a licence term can never reach the corpus we own.
+    """
+
+    def _observe(self, repo, business, *, content, source_name, days_ago):
+        return repo.insert_observation(
+            business, content=content, kind="review", embedding=DESSERT,
+            source_name=source_name,
+            observed_at=_dt(TODAY - timedelta(days=days_ago)))
+
+    def test_deletes_only_the_named_source_past_the_cutoff(self, repo, business):
+        self._observe(repo, business, content="stale yelp", source_name="yelp", days_ago=3)
+        self._observe(repo, business, content="fresh yelp", source_name="yelp", days_ago=0)
+        self._observe(repo, business, content="our corpus", source_name="corpus", days_ago=400)
+
+        removed = repo.purge_observations(
+            business, source_name="yelp", older_than=_dt(TODAY - timedelta(days=1)))
+
+        assert removed == 1
+        assert repo.count_observations(business) == 2
+
+    def test_returns_zero_when_nothing_qualifies(self, repo, business):
+        self._observe(repo, business, content="fresh yelp", source_name="yelp", days_ago=0)
+        assert repo.purge_observations(
+            business, source_name="yelp",
+            older_than=_dt(TODAY - timedelta(days=1))) == 0
+
+    def test_does_not_reach_another_business(self, repo, business):
+        other = repo.create_business(name=f"Other {uuid.uuid4().hex[:6]}",
+                                     category="restaurant")
+        self._observe(repo, other, content="their yelp", source_name="yelp", days_ago=9)
+
+        assert repo.purge_observations(
+            business, source_name="yelp",
+            older_than=_dt(TODAY)) == 0
+        assert repo.count_observations(other) == 1
+
+
+class TestRecentFindsPriority:
+    """What is running must never fall out of the Analyst's view.
+
+    Found in production: after three weeks the window held twelve unacted-on
+    proposals and hid every find that had actually been accepted — including six
+    verified winners and the published miss. The Analyst promptly re-proposed a
+    waitlist and a Tue–Thu set menu, both of which were already live and
+    verified, because it could no longer see them.
+
+    Recency is the wrong sort key. A proposal nobody acted on is weaker evidence
+    of "already covered" than a move that has been earning for six weeks.
+    """
+
+    def _find(self, repo, business, *, title, status, day):
+        observation_id = repo.insert_observation(
+            business, content=f"note for {title}", kind="review",
+            embedding=DESSERT, observed_at=_dt(TODAY - timedelta(days=60)))
+        return repo.insert_find_with_evidence(
+            business, title=title, rationale="r", move="m", emoji="x",
+            predicted_daily_cents=1000, confidence=0.5,
+            verify_after=TODAY + timedelta(days=14), status=status,
+            created_at=_dt(TODAY - timedelta(days=day)),
+            evidence=[EvidenceRef(observation_id, 0.4)])
+
+    def test_live_finds_outrank_newer_proposals(self, repo, business):
+        self._find(repo, business, title="old winner", status="live", day=60)
+        for n in range(5):
+            self._find(repo, business, title=f"new proposal {n}",
+                       status="proposed", day=n)
+
+        titles = [f.title for f in repo.recent_finds(business, limit=3)]
+
+        assert "old winner" in titles, (
+            "a live find six weeks old was crowded out by fresh proposals — "
+            "this is exactly how the Analyst re-proposed its own verified moves"
+        )
+
+    def test_accepted_also_outranks_proposals(self, repo, business):
+        self._find(repo, business, title="being drafted", status="accepted", day=90)
+        for n in range(5):
+            self._find(repo, business, title=f"noise {n}", status="proposed", day=n)
+
+        assert "being drafted" in [
+            f.title for f in repo.recent_finds(business, limit=3)]
+
+    def test_newest_first_within_each_group(self, repo, business):
+        self._find(repo, business, title="older live", status="live", day=30)
+        self._find(repo, business, title="newer live", status="live", day=2)
+
+        titles = [f.title for f in repo.recent_finds(business, limit=5)]
+        assert titles.index("newer live") < titles.index("older live")
+
+    def test_proposals_still_appear_when_there_is_room(self, repo, business):
+        self._find(repo, business, title="running", status="live", day=40)
+        self._find(repo, business, title="fresh idea", status="proposed", day=1)
+
+        assert {"running", "fresh idea"} <= {
+            f.title for f in repo.recent_finds(business, limit=10)}
+
+
 # ---------------------------------------------------------------------------
 # Artifacts — the done-for-you deliverable, and where it lives
 # ---------------------------------------------------------------------------

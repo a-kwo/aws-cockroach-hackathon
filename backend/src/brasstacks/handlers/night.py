@@ -16,6 +16,7 @@ from datetime import date, datetime, time, timezone
 from typing import Any
 
 from brasstacks.artifacts import build_artifact_store
+from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
 from brasstacks.night import CORPUS_PATH, run_night
 from brasstacks.outcomes import NoOutcomeSource
@@ -67,6 +68,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             embedder=build_embedder(settings),
             reasoner=build_reasoner(settings),
             store=build_artifact_store(settings),
+            scout=build_competitor_scout(settings),
             outcomes=NoOutcomeSource(),
             business_id=settings.business_id,
             today=today,

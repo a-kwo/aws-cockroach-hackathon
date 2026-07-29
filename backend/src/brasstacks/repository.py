@@ -177,6 +177,9 @@ class Repository(Protocol):
 
     def count_observations(self, business_id: str) -> int: ...
 
+    def purge_observations(self, business_id: str, *, source_name: str,
+                           older_than: datetime) -> int: ...
+
     def search_observations(self, business_id: str, query_embedding: Sequence[float],
                             *, limit: int) -> list[Retrieved]: ...
 
@@ -443,6 +446,24 @@ class InMemoryRepository:
         ))
         return observation_id
 
+    def purge_observations(self, business_id: str, *, source_name: str,
+                           older_than: datetime) -> int:
+        """Delete this source's observations older than the cutoff.
+
+        Exists because some sources are licensed rather than owned — Yelp
+        forbids retaining its content beyond 24 hours. Scoped to one source so
+        a licence term can never reach the corpus we do own.
+        """
+        doomed = [
+            o for o in self._observations
+            if o.business_id == business_id
+            and o.source_name == source_name
+            and o.observed_at < older_than
+        ]
+        for observation in doomed:
+            self._observations.remove(observation)
+        return len(doomed)
+
     def count_observations(self, business_id: str) -> int:
         return sum(1 for o in self._observations if o.business_id == business_id)
 
@@ -524,7 +545,11 @@ class InMemoryRepository:
 
     def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
         mine = [f for f in self._finds.values() if f.business_id == business_id]
-        mine.sort(key=lambda f: f.created_at, reverse=True)
+        # In-play first, then by recency. A move that has been running for six
+        # weeks is far stronger evidence of "already covered" than a proposal
+        # nobody acted on yesterday — and sorting on recency alone silently
+        # hides the winners once proposals accumulate.
+        mine.sort(key=lambda f: (f.status not in JUDGEABLE_STATUSES, -f.created_at.timestamp()))
         return [
             FindSummary(find_id=f.find_id, title=f.title, move=f.move,
                         status=f.status,

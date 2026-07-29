@@ -23,8 +23,15 @@ from typing import Any, Protocol, runtime_checkable
 
 DEFAULT_MAX_TOKENS = 4096
 
-#: Ask answers are prose, not documents. Small enough to keep the endpoint cheap.
-DEFAULT_ASK_MAX_TOKENS = 2048
+#: Ask answers are prose, not documents — she is reading between other jobs, and
+#: generation time is the dominant cost once the queries are cheap. Measured: at
+#: 2048 the open-ended questions ("what's not working?") ran past API Gateway's
+#: 30s ceiling on output alone, with only one or two tool calls.
+DEFAULT_ASK_MAX_TOKENS = 900
+
+#: Reading a couple of rows and summarising them is not deep reasoning. Full
+#: effort spends thinking tokens — and seconds — that the answer does not need.
+DEFAULT_ASK_EFFORT = "low"
 
 #: The MCP connector is a first-party Anthropic API feature and is NOT available
 #: on Bedrock. Being forced off Bedrock for reasoning is what makes the Ask
@@ -433,12 +440,14 @@ class McpAsker:
         mcp_url: str = DEFAULT_MCP_URL,
         mcp_token: str,
         server_name: str = DEFAULT_MCP_SERVER_NAME,
+        effort: str | None = DEFAULT_ASK_EFFORT,
     ) -> None:
         self._client = client
         self._model_id = model_id
         self._mcp_url = mcp_url
         self._mcp_token = mcp_token
         self._server_name = server_name
+        self._effort = effort
 
     def ask(
         self,
@@ -447,12 +456,17 @@ class McpAsker:
         question: str,
         max_tokens: int = DEFAULT_ASK_MAX_TOKENS,
     ) -> Answer:
+        extra: dict[str, Any] = {}
+        if self._effort is not None:
+            extra["output_config"] = {"effort": self._effort}
+
         try:
             message = self._client.beta.messages.create(
                 model=self._model_id,
                 max_tokens=max_tokens,
                 betas=[MCP_BETA_FLAG],
                 system=system,
+                **extra,
                 mcp_servers=[{
                     "type": "url",
                     "name": self._server_name,

@@ -21,17 +21,24 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from brasstacks.agents.analyst import AnalystResult, run_analyst
 from brasstacks.agents.maker import MakerResult, next_undrafted_find, run_maker
 from brasstacks.agents.meter import MeterResult, run_meter
 from brasstacks.agents.radar import RadarResult, run_radar
 from brasstacks.artifacts import ArtifactStore, build_artifact_store
+from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
 from brasstacks.outcomes import NoOutcomeSource, OutcomeSource
 from brasstacks.providers import Embedder, Reasoner, build_embedder, build_reasoner
 from brasstacks.repository import Repository
-from brasstacks.signals import CorpusSignalSource, SignalSource, TavilySignalSource
+from brasstacks.signals import (
+    CorpusSignalSource,
+    SignalSource,
+    TavilySignalSource,
+    YelpSignalSource,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -63,6 +70,7 @@ def run_night(
     today: date,
     sources: list[SignalSource],
     store: ArtifactStore | None = None,
+    scout: Any | None = None,
     accept_proposals: bool = False,
     model_id: str | None = None,
 ) -> NightResult:
@@ -88,7 +96,7 @@ def run_night(
 
     analyst = run_analyst(
         repo=repo, embedder=embedder, reasoner=reasoner, business_id=business_id,
-        today=today, model_id=model_id,
+        today=today, model_id=model_id, scout=scout,
     )
 
     # Standing in for the owner tapping "do it now". Only ever used by the local
@@ -115,7 +123,7 @@ def run_night(
 
 
 def _build_sources(settings: Settings, anchor: datetime, *,
-                   include_web: bool) -> list[SignalSource]:
+                   include_web: bool, include_yelp: bool = False) -> list[SignalSource]:
     """The committed corpus, plus live web search only when explicitly asked for.
 
     The corpus is the primary source, not a fallback: scraping review platforms
@@ -137,6 +145,13 @@ def _build_sources(settings: Settings, anchor: datetime, *,
         if not settings.search_api_key:
             raise SystemExit("--web needs SEARCH_API_KEY set in .env")
         sources.append(TavilySignalSource(api_key=settings.search_api_key))
+    if include_yelp:
+        if not settings.yelp_api_key:
+            raise SystemExit("--yelp needs YELP_API_KEY set in .env")
+        # Off by default for two independent reasons: the demo tenant is
+        # fictional and has no Yelp presence, and Yelp's terms cap retention at
+        # 24 hours, so anything it contributes is deleted again the next night.
+        sources.append(YelpSignalSource(api_key=settings.yelp_api_key))
     return sources
 
 
@@ -156,6 +171,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="first night's date, YYYY-MM-DD (default today)")
     parser.add_argument("--accept-proposals", action="store_true",
                         help="accept each proposed find, as the owner would")
+    parser.add_argument("--yelp", action="store_true",
+                        help="also pull Yelp reviews (off by default; the demo "
+                             "tenant is fictional, and Yelp caps retention at 24h)")
     parser.add_argument("--web", action="store_true",
                         help="also pull live web signals (noisy for the fictional "
                              "demo tenant; see _build_sources)")
@@ -175,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
     store = build_artifact_store(settings)
+    scout = build_competitor_scout(settings)
     outcomes = NoOutcomeSource()
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
@@ -191,8 +210,10 @@ def main(argv: list[str] | None = None) -> int:
                 outcomes=outcomes,
                 business_id=settings.business_id,
                 today=tonight,
-                sources=_build_sources(settings, anchor, include_web=args.web),
+                sources=_build_sources(settings, anchor, include_web=args.web,
+                                       include_yelp=args.yelp),
                 store=store,
+                scout=scout,
                 accept_proposals=args.accept_proposals,
                 model_id=settings.reasoning_model_id,
             )
