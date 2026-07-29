@@ -348,7 +348,7 @@ there is no parameter to tamper with.
 - No deployed endpoint calls Bedrock or the Anthropic API on request. Model spend is
   driven by the schedule, on our cadence, not by traffic.
 - API Gateway throttling and a short cache TTL on every read route.
-- `frontend/src/fixtures/demo.json` is committed to the repo — `export_fixture.py` must
+- `db/fixtures/demo.json` is committed to the repo — `export_fixture.py` must
   never export anything that is not already public. That rule outlives this decision.
 - Seed and demo data carry no real names, emails, or third-party trademarks.
 

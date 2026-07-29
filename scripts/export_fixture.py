@@ -1,4 +1,4 @@
-"""Export the live demo tenant to a JSON fixture for the frontend.
+"""Export the live demo tenant to a JSON fixture the site build reads.
 
 The frontend is being built before the API exists. Rather than invent mock data —
 which would let the UI drift from what the backend can actually produce — this
@@ -22,7 +22,7 @@ from uuid import UUID
 import psycopg
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUT_PATH = REPO_ROOT / "frontend" / "src" / "fixtures" / "demo.json"
+OUT_PATH = REPO_ROOT / "db" / "fixtures" / "demo.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from brasstacks.config import Settings  # noqa: E402

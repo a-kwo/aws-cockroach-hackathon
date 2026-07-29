@@ -31,7 +31,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SITE = REPO / "site"
-FIXTURE = REPO / "frontend" / "src" / "fixtures" / "demo.json"
+FIXTURE = REPO / "db" / "fixtures" / "demo.json"
 OUT_DIR = REPO / "web"
 
 #: A month of a per-day rate. The product speaks in "a month, every month", and
@@ -319,7 +319,7 @@ def render(template: Path, model: dict) -> str:
 def build() -> None:
     if not FIXTURE.exists():
         raise SystemExit(
-            "frontend/src/fixtures/demo.json missing — run scripts/export_fixture.py")
+            "db/fixtures/demo.json missing — run scripts/export_fixture.py")
 
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
     model = build_model(data)

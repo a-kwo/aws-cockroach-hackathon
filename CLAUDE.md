@@ -205,8 +205,15 @@ All Gemini / XPRIZE branding from those files must stay out of the submission.
 site/landing.html     public page  ->  web/index.html
 site/app.html         dashboard    ->  web/app/index.html
 scripts/build_web.py  splices live cluster data into both
-frontend/             the abandoned React build; unused, kept for its prose parser
+db/fixtures/demo.json the committed export the build reads
 ```
+
+`frontend/` (the abandoned React rebuild, "The Night Desk") has been **deleted**. It was
+the third rejected redesign, it still ran with `npm run dev`, and it was the only
+frontend a fresh clone could start — so anyone opening the repo saw the scratched design
+and assumed it was the product. Its one salvageable piece, the four-shape prose parser,
+is already reimplemented as `bullets()` in `scripts/build_web.py`. It remains in git
+history if it is ever wanted.
 
 `web/` is generated and gitignored. Never edit it — edit `site/` and rebuild.
 
