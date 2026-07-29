@@ -244,6 +244,29 @@ class PostgresRepository:
             )
             return int(cur.fetchone()[0])
 
+    def purge_observations(self, business_id: str, *, source_name: str,
+                           older_than: datetime) -> int:
+        """Delete this source's observations older than the cutoff.
+
+        Exists because some sources are licensed rather than owned — Yelp
+        forbids retaining its content beyond 24 hours. Scoped to one source so
+        a licence term can never reach the corpus we do own.
+
+        `find_evidence` cascades on delete, so a find that cited a since-expired
+        Yelp review loses that row. That is the correct trade: the alternative
+        is retaining content we are not licensed to keep in order to preserve a
+        footnote.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM observation
+                WHERE business_id = %s AND source_name = %s AND observed_at < %s
+                """,
+                (business_id, source_name, older_than),
+            )
+            return cur.rowcount
+
     def search_observations(self, business_id: str, query_embedding: Sequence[float],
                             *, limit: int) -> list[Retrieved]:
         """Semantic retrieval over everything ever observed for this business.

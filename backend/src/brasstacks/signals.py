@@ -38,6 +38,12 @@ class SignalSource(Protocol):
     #: Used in the run's audit note, so a failure names the source that failed.
     name: str
 
+    #: How long observations from this source may legally be retained, or None
+    #: for "indefinitely". A source that carries a licence restriction declares
+    #: it here rather than expecting Radar to know about it, so compliance
+    #: travels with the source that is bound by it.
+    retention_hours: int | None
+
     def fetch(self, *, business_name: str, city: str | None,
               limit: int) -> Sequence[RawSignal]: ...
 
@@ -51,6 +57,8 @@ class CorpusSignalSource:
     """
 
     name = "corpus"
+    #: Ours, and meant to accumulate forever. That is the whole point of it.
+    retention_hours = None
 
     def __init__(self, path: Path, *, anchor: datetime | None = None) -> None:
         self._path = path
@@ -82,6 +90,7 @@ class TavilySignalSource:
     """
 
     name = "web"
+    retention_hours = None
 
     def __init__(self, *, api_key: str, client: Any | None = None,
                  queries: Sequence[str] | None = None) -> None:
@@ -130,3 +139,115 @@ class TavilySignalSource:
                 ))
 
         return signals[:limit]
+
+
+YELP_API_ROOT = "https://api.yelp.com/v3"
+
+#: Yelp's API Terms of Use: "You may not cache, record, pre-fetch, or otherwise
+#: store any portion of Yelp Content for a period longer than twenty-four (24)
+#: hours from receipt." Business *ids* may be stored indefinitely; review text
+#: may not. This number is a licence term, not a tuning knob.
+YELP_RETENTION_HOURS = 24
+
+
+class YelpSignalSource:
+    """Reviews from the Yelp Fusion API.
+
+    Two limits shape what this can be, and neither is a bug to work around:
+
+    **Three reviews, truncated to 160 characters.** Yelp returns excerpts, not
+    reviews, and chooses which three by its own ranking. This is a trickle of
+    recent sentiment, not a corpus.
+
+    **Twenty-four hour retention.** Yelp content may not be stored longer than
+    that, which is in direct tension with a product built on permanent memory.
+    The tension is resolved by declaring ``retention_hours`` and letting Radar
+    purge — so Yelp informs the night it is seen and then goes, while the
+    committed corpus accumulates as before.
+
+    Because of both, this is opt-in and off by default. It is also useless for
+    the demo tenant, which is fictional and therefore has no Yelp presence —
+    ``fetch`` returning nothing is the expected path there, not a failure.
+    """
+
+    name = "yelp"
+    retention_hours = YELP_RETENTION_HOURS
+
+    def __init__(self, *, api_key: str, client: Any | None = None,
+                 now: Any | None = None) -> None:
+        self._api_key = api_key
+        self._client = client
+        self._now = now or (lambda: datetime.now(timezone.utc))
+
+    @property
+    def _headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self._api_key}"}
+
+    def _http(self) -> Any:
+        if self._client is not None:
+            return self._client
+        import httpx  # lazy, so the unit suite never needs it
+
+        return httpx.Client(timeout=20.0)
+
+    def _find_business_id(self, client: Any, business_name: str,
+                          city: str | None) -> str | None:
+        """The first search hit, or None.
+
+        Only the first: Yelp returns neighbouring businesses too, and pulling
+        reviews for the restaurant next door would poison the memory layer with
+        someone else's customers — worse than having no reviews at all.
+        """
+        response = client.get(
+            f"{YELP_API_ROOT}/businesses/search",
+            headers=self._headers,
+            params={"term": business_name, "location": city or "", "limit": 1},
+        )
+        response.raise_for_status()
+        businesses = response.json().get("businesses") or []
+        return businesses[0].get("id") if businesses else None
+
+    def fetch(self, *, business_name: str, city: str | None,
+              limit: int) -> list[RawSignal]:
+        client = self._http()
+
+        business_id = self._find_business_id(client, business_name, city)
+        if business_id is None:
+            return []
+
+        response = client.get(
+            f"{YELP_API_ROOT}/businesses/{business_id}/reviews",
+            headers=self._headers,
+            params={"limit": min(limit, 3), "sort_by": "newest"},
+        )
+        response.raise_for_status()
+
+        signals: list[RawSignal] = []
+        for review in response.json().get("reviews") or []:
+            content = (review.get("text") or "").strip()
+            if not content:
+                continue
+            signals.append(RawSignal(
+                content=content,
+                kind="review",
+                source_name=self.name,
+                source_url=review.get("url"),
+                rating=float(review["rating"]) if review.get("rating") is not None else None,
+                observed_at=_yelp_time(review.get("time_created")) or self._now(),
+            ))
+        return signals[:limit]
+
+
+def _yelp_time(raw: str | None) -> datetime | None:
+    """Parse Yelp's `time_created`, which carries no timezone.
+
+    Treated as UTC. That is approximate — Yelp reports in the business's local
+    time — but nothing downstream depends on sub-day precision, and inventing a
+    timezone we do not know would be a worse kind of wrong.
+    """
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None

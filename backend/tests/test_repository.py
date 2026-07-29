@@ -604,6 +604,48 @@ class TestLedger:
             )
 
 
+class TestPurgeObservations:
+    """Licensed content has to be able to leave again.
+
+    Yelp forbids retaining its content beyond 24 hours, which the rest of this
+    schema is built to do exactly the opposite of. The purge is scoped to one
+    source precisely so a licence term can never reach the corpus we own.
+    """
+
+    def _observe(self, repo, business, *, content, source_name, days_ago):
+        return repo.insert_observation(
+            business, content=content, kind="review", embedding=DESSERT,
+            source_name=source_name,
+            observed_at=_dt(TODAY - timedelta(days=days_ago)))
+
+    def test_deletes_only_the_named_source_past_the_cutoff(self, repo, business):
+        self._observe(repo, business, content="stale yelp", source_name="yelp", days_ago=3)
+        self._observe(repo, business, content="fresh yelp", source_name="yelp", days_ago=0)
+        self._observe(repo, business, content="our corpus", source_name="corpus", days_ago=400)
+
+        removed = repo.purge_observations(
+            business, source_name="yelp", older_than=_dt(TODAY - timedelta(days=1)))
+
+        assert removed == 1
+        assert repo.count_observations(business) == 2
+
+    def test_returns_zero_when_nothing_qualifies(self, repo, business):
+        self._observe(repo, business, content="fresh yelp", source_name="yelp", days_ago=0)
+        assert repo.purge_observations(
+            business, source_name="yelp",
+            older_than=_dt(TODAY - timedelta(days=1))) == 0
+
+    def test_does_not_reach_another_business(self, repo, business):
+        other = repo.create_business(name=f"Other {uuid.uuid4().hex[:6]}",
+                                     category="restaurant")
+        self._observe(repo, other, content="their yelp", source_name="yelp", days_ago=9)
+
+        assert repo.purge_observations(
+            business, source_name="yelp",
+            older_than=_dt(TODAY)) == 0
+        assert repo.count_observations(other) == 1
+
+
 class TestRecentFindsPriority:
     """What is running must never fall out of the Analyst's view.
 

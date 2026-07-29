@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from brasstacks.providers import Embedder, EmbeddingError
 from brasstacks.repository import Repository, content_hash
@@ -29,12 +29,17 @@ class RadarResult:
     stored: int
     duplicates: int
     failed_sources: tuple[str, ...]
+    #: Rows deleted to honour a source's retention licence. Surfaced in the note
+    #: so the audit trail shows compliance happening rather than implying it.
+    expired: int = 0
 
     @property
     def note(self) -> str:
         parts = [f"{self.observed} observed", f"{self.stored} new"]
         if self.duplicates:
             parts.append(f"{self.duplicates} already known")
+        if self.expired:
+            parts.append(f"{self.expired} expired past their retention window")
         if self.failed_sources:
             parts.append(f"sources failed: {', '.join(self.failed_sources)}")
         return "; ".join(parts)
@@ -53,6 +58,31 @@ def _collect(sources: Sequence[SignalSource], *, business_name: str,
             # (HTTP, JSON, rate limit) and none of them should end the night.
             failed.append(getattr(source, "name", type(source).__name__))
     return signals, failed
+
+
+def _enforce_retention(repo: Repository, business_id: str,
+                       sources: Sequence[SignalSource],
+                       now: datetime) -> int:
+    """Delete anything a source is no longer licensed to hold.
+
+    Runs every night, for every source that declares a window — not only when
+    that source returned something. Yelp being unreachable, or the business
+    having no Yelp presence, does not extend the licence on rows already stored.
+
+    Only sources actually configured for this run are purged: deleting Yelp rows
+    on a night nobody asked for Yelp would be a surprising side effect.
+    """
+    expired = 0
+    for source in sources:
+        hours = getattr(source, "retention_hours", None)
+        if not hours:
+            continue
+        expired += repo.purge_observations(
+            business_id,
+            source_name=getattr(source, "name", ""),
+            older_than=now - timedelta(hours=hours),
+        )
+    return expired
 
 
 def _usable(signals: Sequence[RawSignal]) -> list[RawSignal]:
@@ -118,6 +148,7 @@ def run_radar(
         raise
 
     duplicates = len(signals) - stored
+    expired = _enforce_retention(repo, business_id, sources, observed_at_default)
 
     # A night where every source failed observed nothing, which is a real
     # failure. A night where one of several failed is a normal partial night —
@@ -129,6 +160,7 @@ def run_radar(
         stored=stored,
         duplicates=duplicates,
         failed_sources=tuple(failed),
+        expired=expired,
     )
     repo.finish_run(
         run_id,

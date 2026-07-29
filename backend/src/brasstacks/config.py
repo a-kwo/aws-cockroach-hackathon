@@ -70,6 +70,10 @@ class Settings:
     # --- Optional ---
     business_id: str | None = None
     search_api_key: str | None = field(default=None, repr=False)
+    #: Yelp Fusion. Opt-in: the demo tenant is fictional and has no Yelp
+    #: presence, and Yelp content may not be retained beyond 24 hours — see
+    #: YelpSignalSource.
+    yelp_api_key: str | None = field(default=None, repr=False)
 
     # --- Ask agent, over the CockroachDB managed MCP server ---
     # Optional at this level on purpose: Radar, Analyst and Meter have no
@@ -111,6 +115,7 @@ class Settings:
             f"cockroach={self.safe_cockroach_url!r}, "
             f"anthropic_api_key={'set' if self.anthropic_api_key else 'unset'}, "
             f"search_api_key={'set' if self.search_api_key else 'unset'}, "
+            f"yelp_api_key={'set' if self.yelp_api_key else 'unset'}, "
             f"mcp_url={self.cockroach_mcp_url!r}, "
             f"mcp_token={'set' if self.cockroach_mcp_token else 'unset'})"
         )
@@ -176,6 +181,7 @@ class Settings:
             bedrock_model_id=bedrock_model,
             business_id=_clean(env.get("BRASSTACKS_BUSINESS_ID")),
             search_api_key=_clean(env.get("SEARCH_API_KEY")),
+            yelp_api_key=_clean(env.get("YELP_API_KEY")),
             cockroach_mcp_url=(
                 _clean(env.get("COCKROACH_MCP_URL")) or DEFAULT_MCP_URL
             ),

@@ -177,6 +177,9 @@ class Repository(Protocol):
 
     def count_observations(self, business_id: str) -> int: ...
 
+    def purge_observations(self, business_id: str, *, source_name: str,
+                           older_than: datetime) -> int: ...
+
     def search_observations(self, business_id: str, query_embedding: Sequence[float],
                             *, limit: int) -> list[Retrieved]: ...
 
@@ -442,6 +445,24 @@ class InMemoryRepository:
             source_url=source_url, subject=subject, rating=rating, run_id=run_id,
         ))
         return observation_id
+
+    def purge_observations(self, business_id: str, *, source_name: str,
+                           older_than: datetime) -> int:
+        """Delete this source's observations older than the cutoff.
+
+        Exists because some sources are licensed rather than owned — Yelp
+        forbids retaining its content beyond 24 hours. Scoped to one source so
+        a licence term can never reach the corpus we do own.
+        """
+        doomed = [
+            o for o in self._observations
+            if o.business_id == business_id
+            and o.source_name == source_name
+            and o.observed_at < older_than
+        ]
+        for observation in doomed:
+            self._observations.remove(observation)
+        return len(doomed)
 
     def count_observations(self, business_id: str) -> int:
         return sum(1 for o in self._observations if o.business_id == business_id)
