@@ -45,9 +45,14 @@ web/                 build output (gitignored — never edit, always regenerate)
 backend/src/brasstacks/
   agents/radar.py    observe -> embed -> dedup -> store
   agents/analyst.py  retrieve -> reason -> a validated find with its evidence
+  agents/maker.py    draft the deliverable the find promised, to S3
   agents/meter.py    read prior predictions -> judge -> the ledger
+  agents/ask.py      answer the owner by querying the cluster over MCP
+  handlers/          the Lambda entry points
   repository_pg.py   every SQL statement in the project
   meter.py           verdict logic; finds.py validates model output
+
+deploy/              the SAM template, Dockerfile and deploy runbook
 
 db/schema.sql        9 tables; db/seed/ the reproducible demo corpus
 db/fixtures/         the exported demo tenant the site build reads
@@ -73,7 +78,7 @@ python scripts/build_web.py                # rebuild the site
 ## Tests
 
 ```bash
-pytest                  # 194 unit tests, offline, no credentials needed
+pytest                  # 257 unit tests, offline, no credentials needed
 pytest -m integration   # 46 more, against a live cluster
 ```
 
@@ -98,7 +103,7 @@ into the view model.
 | Tool | What the agent actually does with it |
 |---|---|
 | Distributed Vector Indexing | Radar embeds every observation; the Analyst runs six semantic searches over the whole corpus before proposing anything. `VECTOR(1024)` with a `business_id` prefix. |
-| Cloud Managed MCP Server | *Planned, not yet built.* The Ask agent will answer owner questions by querying the cluster read-only over MCP. |
+| Cloud Managed MCP Server | The **Ask** agent answers owner questions by running SQL against the live cluster read-only over the managed MCP server. Read-only is enforced twice (no write consent, scoped Cloud RBAC), every turn writes an `agent_run` row carrying the executed SQL, and the prompt forbids answering from the model's own knowledge — an answer that touched no tools is recorded as such. |
 | ccloud CLI | Cluster provisioning, SQL user creation, network config. |
 
 **AWS**
@@ -106,7 +111,12 @@ into the view model.
 | Service | Role |
 |---|---|
 | Bedrock | Titan Text Embeddings V2 generates every vector in the index. No embeddings, no retrieval, no memory. |
-| Lambda / EventBridge / S3 / API Gateway | *Planned.* The nightly schedule and agent runtime. |
+| Lambda | Two container-image functions: `night` runs the whole loop, `ask` serves the Ask agent. |
+| EventBridge Scheduler | Fires `night` on a cron. This is what makes the loop autonomous rather than a button. |
+| S3 | The Maker's artifacts — the drafted deliverables an owner approves. |
+| API Gateway | An HTTP endpoint in front of `ask`. |
+
+Deployed with AWS SAM — see `deploy/` for the template and the runbook.
 
 **Reasoning runs on the Anthropic API, not Bedrock.** This is forced, not preferred.
 AWS could not grant this account any current Claude model: `agreementAvailability` is
