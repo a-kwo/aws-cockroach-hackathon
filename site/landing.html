@@ -203,42 +203,289 @@ header {
 .story-visual[data-state="prove"] .node-b,
 .story-visual[data-state="prove"] .node-c { transform: translate(0,0) scale(.7); opacity: 0; }
 
-.move-card { width: min(430px, calc(100% - 56px)); padding: 32px; border-radius: 28px; background: rgba(255,255,255,.91); border: 1px solid #fff; box-shadow: 0 26px 66px rgba(30,34,42,.12); }
-.move-kicker { display: flex; align-items: center; gap: 9px; margin-bottom: 20px; color: var(--soft); font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
-.move-why { margin-top: 18px; display: flex; align-items: center; gap: 10px; color: var(--soft); font-size: 12px; }
-.move-why svg { width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: var(--gold); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.move-kicker i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 6px var(--green-soft); }
-.move-card h4 { margin: 0; font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: clamp(30px, 4vw, 46px); font-weight: 500; line-height: 1.03; letter-spacing: -.045em; }
-.move-card p { margin: 14px 0 0; color: var(--soft); font-size: 14px; line-height: 1.55; }
-.move-signals { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 24px; }
-.move-signal { padding: 12px 8px; border-radius: 14px; text-align: center; background: #f5f5f7; }
-.move-signal b { display: block; color: var(--green); font-size: 23px; line-height: 1; }
-.move-signal.down b { color: var(--gold); }
-.move-signal span { display: block; margin-top: 6px; color: var(--soft); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.move-card {
+  width: min(430px, calc(100% - 56px));
+  padding: 34px;
+  border-radius: 30px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid #fff;
+  box-shadow: 0 28px 70px rgba(30,34,42,.12);
+}
 
-.proof-scene { width: min(440px, calc(100% - 56px)); }
-.proof-head { margin-bottom: 18px; text-align: center; color: var(--soft); font-size: 10px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
-.proof-main { padding: 30px; border-radius: 30px; color: #fff; background: var(--night); box-shadow: 0 28px 70px rgba(18,21,27,.22); }
-.proof-status { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-.proof-check { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--green); box-shadow: 0 0 0 8px rgba(35,138,85,.16); }
-.proof-check svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.proof-status-copy { flex: 1; }
-.proof-status-copy b { display: block; font-size: 14px; font-weight: 680; }
-.proof-status-copy span { display: block; margin-top: 3px; color: rgba(255,255,255,.52); font-size: 11px; }
-.proof-title { margin: 28px 0 0; font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 27px; font-weight: 500; line-height: 1.08; }
-.proof-bars { margin-top: 26px; display: grid; gap: 13px; }
-.proof-bar { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 11px; }
-.proof-bar > span { color: rgba(255,255,255,.52); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.proof-track { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.10); }
-.proof-fill { height: 100%; width: 68%; border-radius: inherit; background: rgba(255,255,255,.35); transform-origin: left; animation: fillIn 1.1s var(--ease) both; }
-.proof-bar.actual .proof-fill { width: 84%; background: linear-gradient(90deg, #4bb878, #7bd29d); }
-.proof-bar b { min-width: 76px; text-align: right; font-size: 14px; }
-.proof-bar.actual b { color: #8cdfaa; }
-@keyframes fillIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.proof-rule { height: 1px; margin: 24px 0 17px; background: rgba(255,255,255,.11); }
-.proof-miss { display: flex; align-items: center; justify-content: space-between; gap: 18px; color: rgba(255,255,255,.58); font-size: 11px; }
-.proof-miss i { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--red); font-style: normal; }
-.proof-miss b { color: #fff; font-weight: 650; }
+.move-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.move-kicker i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 6px var(--green-soft);
+}
+
+.move-card h4 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(31px, 4vw, 46px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+
+.move-reason {
+  margin-top: 28px;
+  padding: 16px 0;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 14px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.move-reason-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.move-reason-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.move-reason span,
+.move-impact span {
+  display: block;
+  color: var(--soft);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.move-reason p {
+  margin: 5px 0 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.4;
+}
+
+.move-impact {
+  margin-top: 20px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.move-impact b {
+  display: block;
+  margin-top: 5px;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.move-impact-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  background: var(--green-soft);
+  font-size: 29px;
+  font-weight: 620;
+}
+
+.proof-scene {
+  width: min(430px, calc(100% - 56px));
+}
+
+.proof-main {
+  padding: 32px;
+  border-radius: 30px;
+  color: #fff;
+  background: var(--night);
+  box-shadow: 0 28px 70px rgba(18,21,27,.22);
+}
+
+.proof-status {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+}
+
+.proof-check {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--green);
+  box-shadow: 0 0 0 9px rgba(35,138,85,.16);
+}
+
+.proof-check svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.proof-status-copy {
+  flex: 1;
+}
+
+.proof-status-copy b {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.proof-status-copy span {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255,255,255,.54);
+  font-size: 11px;
+}
+
+.proof-title {
+  margin: 30px 0 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.08;
+}
+
+.proof-result {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(82,190,124,.10);
+  border: 1px solid rgba(118,210,154,.12);
+}
+
+.proof-result-arrow {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: #8cdfaa;
+  background: rgba(82,190,124,.14);
+  font-size: 30px;
+  font-weight: 650;
+}
+
+.proof-result b {
+  display: block;
+  color: #8cdfaa;
+  font-size: 29px;
+  line-height: 1;
+  letter-spacing: -.035em;
+}
+
+.proof-result span {
+  display: block;
+  margin-top: 6px;
+  color: rgba(255,255,255,.58);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.proof-expected {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(255,255,255,.52);
+  font-size: 11px;
+}
+
+.proof-expected b {
+  color: rgba(255,255,255,.82);
+  font-size: 12px;
+}
+
+.proof-rule {
+  height: 1px;
+  margin: 24px 0 17px;
+  background: rgba(255,255,255,.11);
+}
+
+.proof-miss {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.proof-miss div {
+  min-width: 0;
+}
+
+.proof-miss span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255,255,255,.42);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.proof-miss b {
+  display: block;
+  overflow: hidden;
+  color: rgba(255,255,255,.75);
+  font-size: 11px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-miss em {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #ff9b8f;
+  background: rgba(210,73,54,.12);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
 
 .story-bridge {
   position: relative;
@@ -581,14 +828,14 @@ body[data-chapter="final"] .ambient::after { opacity: .12; }
 
           <article class="story-step" data-state="decide">
             <div class="story-time">By morning</div>
-            <h3>The noise becomes one move.</h3>
-            <p id="storyLead">Stay open one hour later on Fridays.</p>
+            <h3>Know what to do next.</h3>
+            <p>One move. One reason.</p>
           </article>
 
           <article class="story-step" data-state="prove">
             <div class="story-time">After you act</div>
-            <h3>Then we come back with the truth.</h3>
-            <p>What worked. What didn’t.</p>
+            <h3>Did it work?</h3>
+            <p>We check the real result.</p>
           </article>
         </div>
 
@@ -607,33 +854,57 @@ body[data-chapter="final"] .ambient::after { opacity: .12; }
 
             <div class="visual-layer layer-decide">
               <article class="move-card">
-                <div class="move-kicker"><i></i><span>Your move for today</span></div>
-                <h4 id="leadTitle">Stay open one hour later on Fridays.</h4>
-                <p id="leadNote">More customers are nearby after 7 PM, while three close competitors are already closed.</p>
-                <div class="move-why"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/></svg><span>One move. Not another list.</span></div>
-                <div class="move-signals">
-                  <div class="move-signal"><b>↑</b><span>Demand</span></div>
-                  <div class="move-signal down"><b>↓</b><span>Competition</span></div>
-                  <div class="move-signal"><b>↑</b><span>Opportunity</span></div>
+                <div class="move-kicker"><i></i><span>Do this today</span></div>
+                <h4 id="leadTitle">Run a Tuesday–Thursday set menu.</h4>
+
+                <div class="move-reason">
+                  <div class="move-reason-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                  </div>
+                  <div>
+                    <span>Why now</span>
+                    <p id="leadReason">Midweek demand is there, but tables are still open.</p>
+                  </div>
+                </div>
+
+                <div class="move-impact">
+                  <div>
+                    <span>Possible extra revenue</span>
+                    <b id="leadExpected">+$18/day</b>
+                  </div>
+                  <div class="move-impact-icon" aria-hidden="true">↗</div>
                 </div>
               </article>
             </div>
 
             <div class="visual-layer layer-prove">
               <div class="proof-scene">
-                <div class="proof-head">14 days later · checked</div>
                 <article class="proof-main">
                   <div class="proof-status">
                     <div class="proof-check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12 3.2 3.2L17.5 7.5"/></svg></div>
-                    <div class="proof-status-copy"><b>It worked.</b><span>Compared with the two weeks before.</span></div>
+                    <div class="proof-status-copy"><b>Worked</b><span>Measured after 14 days</span></div>
                   </div>
+
                   <div class="proof-title" id="proofTitle">Tuesday–Thursday set menu</div>
-                  <div class="proof-bars">
-                    <div class="proof-bar"><span>Expected</span><div class="proof-track"><div class="proof-fill"></div></div><b id="proofExpected">+$18/day</b></div>
-                    <div class="proof-bar actual"><span>Actual</span><div class="proof-track"><div class="proof-fill"></div></div><b id="proofValue">+$22/day</b></div>
+
+                  <div class="proof-result">
+                    <div class="proof-result-arrow" aria-hidden="true">↑</div>
+                    <div>
+                      <b id="proofValue">+$22/day</b>
+                      <span>actual extra revenue</span>
+                    </div>
                   </div>
+
+                  <div class="proof-expected">
+                    <span>We expected</span>
+                    <b id="proofExpected">+$18/day</b>
+                  </div>
+
                   <div class="proof-rule"></div>
-                  <div class="proof-miss"><span><b id="missTitle">Espresso upsell</b> · no lift</span><i>×</i></div>
+                  <div class="proof-miss">
+                    <div><span>Also tested</span><b id="missTitle">Espresso upsell</b></div>
+                    <em>No change</em>
+                  </div>
                 </article>
               </div>
             </div>
@@ -731,8 +1002,8 @@ const visualTime = document.getElementById('visualTime');
 const progressDots = [...document.querySelectorAll('.visual-progress i')];
 const timeByState = {
   watch: '11:03 PM · listening',
-  decide: '6:02 AM · ready',
-  prove: '14 days later · checked'
+  decide: '6:02 AM · one move ready',
+  prove: '14 days later · result checked'
 };
 const stateIndex = { watch: 0, decide: 1, prove: 2 };
 
@@ -764,27 +1035,50 @@ const chapterObserver = new IntersectionObserver(entries => {
 
 document.querySelectorAll('[data-chapter]').forEach(section => chapterObserver.observe(section));
 
+function dailyValue(value){
+  const raw = String(value || '$0').trim();
+  const signed = raw !== '$0' && !raw.startsWith('+') ? '+' + raw : raw;
+  return signed.includes('/day') ? signed : signed + '/day';
+}
+
+function firstSentence(value, limit = 112){
+  const clean = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return 'A clear pattern appeared in your business data.';
+  const sentence = clean.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || clean;
+  if (sentence.length <= limit) return sentence;
+  return sentence.slice(0, limit).replace(/\s+\S*$/, '').replace(/[,:;—-]+$/, '') + '…';
+}
+
 if (D.finds?.length) {
-  const lead = D.finds.find(f => f.status === 'proposed') || D.finds[0];
-  if (lead) {
-    document.getElementById('leadTitle').textContent = lead.title || 'A new opportunity is ready.';
-    document.getElementById('leadNote').textContent = lead.note || lead.rationale || 'Supported by evidence from your market.';
-    document.getElementById('storyLead').textContent = lead.title || 'A new opportunity is ready.';
-    if (lead.predictedDailyTxt) {
-      const rawExpected = lead.predictedDailyTxt;
-      document.getElementById('proofExpected').textContent = (rawExpected.startsWith('+') ? rawExpected : '+' + rawExpected) + (rawExpected.includes('/day') ? '' : '/day');
+  const verified = D.finds.find(f => f.verdict === 'verified');
+  const proposed = D.finds.find(f => f.status === 'proposed');
+  const storyFind = verified || proposed || D.finds[0];
+  const miss = D.finds.find(f => f.verdict === 'miss' && f.id !== storyFind?.id);
+
+  if (storyFind) {
+    const title = storyFind.shortTitle || storyFind.title || 'A clear next move';
+    const expected = dailyValue(storyFind.predictedDailyTxt || '$18');
+
+    document.getElementById('leadTitle').textContent = title;
+    document.getElementById('leadReason').textContent = firstSentence(
+      storyFind.rationale || storyFind.note || storyFind.move
+    );
+    document.getElementById('leadExpected').textContent = expected;
+
+    document.getElementById('proofTitle').textContent =
+      `${storyFind.emoji || ''} ${title}`.trim();
+    document.getElementById('proofExpected').textContent = expected;
+
+    if (storyFind.actualDailyTxt) {
+      document.getElementById('proofValue').textContent =
+        dailyValue(storyFind.actualDailyTxt);
     }
   }
 
-  const verified = D.finds.find(f => f.verdict === 'verified');
-  const miss = D.finds.find(f => f.verdict === 'miss');
-  if (verified) {
-    const raw = verified.actualDailyTxt || '$0';
-    const actual = raw !== '$0' && !raw.startsWith('+') ? '+' + raw : raw;
-    document.getElementById('proofValue').textContent = actual + (actual.includes('/day') ? '' : '/day');
-    document.getElementById('proofTitle').textContent = `${verified.emoji || ''} ${verified.title || 'Verified result'}`.trim();
+  if (miss) {
+    document.getElementById('missTitle').textContent =
+      `${miss.emoji || ''} ${miss.shortTitle || miss.title || 'Another idea'}`.trim();
   }
-  if (miss) document.getElementById('missTitle').textContent = `${miss.emoji || ''} ${miss.title || 'Published miss'}`.trim();
 }
 
 const categoryButtons = [...document.querySelectorAll('.category')];
