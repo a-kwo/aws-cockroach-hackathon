@@ -42,9 +42,12 @@ ANALYST_QUERIES = (
 
 DEFAULT_PER_QUERY_LIMIT = 6
 
-#: How many prior finds to show the Analyst so it does not repeat itself. Enough
-#: to cover a few weeks of nightly runs without crowding out the observations.
-RECENT_FINDS_SHOWN = 12
+#: How many prior finds to show the Analyst so it does not repeat itself.
+#: `recent_finds` sorts in-play moves ahead of proposals, so this needs to be
+#: large enough to hold everything running *plus* a useful tail of recent
+#: proposals. At 12 the accepted moves filled the window on their own and fresh
+#: proposals stopped being visible; the repeats then came from the other side.
+RECENT_FINDS_SHOWN = 20
 
 FIND_SCHEMA = {
     "type": "object",

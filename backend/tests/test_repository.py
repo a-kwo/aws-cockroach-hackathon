@@ -604,6 +604,66 @@ class TestLedger:
             )
 
 
+class TestRecentFindsPriority:
+    """What is running must never fall out of the Analyst's view.
+
+    Found in production: after three weeks the window held twelve unacted-on
+    proposals and hid every find that had actually been accepted — including six
+    verified winners and the published miss. The Analyst promptly re-proposed a
+    waitlist and a Tue–Thu set menu, both of which were already live and
+    verified, because it could no longer see them.
+
+    Recency is the wrong sort key. A proposal nobody acted on is weaker evidence
+    of "already covered" than a move that has been earning for six weeks.
+    """
+
+    def _find(self, repo, business, *, title, status, day):
+        observation_id = repo.insert_observation(
+            business, content=f"note for {title}", kind="review",
+            embedding=DESSERT, observed_at=_dt(TODAY - timedelta(days=60)))
+        return repo.insert_find_with_evidence(
+            business, title=title, rationale="r", move="m", emoji="x",
+            predicted_daily_cents=1000, confidence=0.5,
+            verify_after=TODAY + timedelta(days=14), status=status,
+            created_at=_dt(TODAY - timedelta(days=day)),
+            evidence=[EvidenceRef(observation_id, 0.4)])
+
+    def test_live_finds_outrank_newer_proposals(self, repo, business):
+        self._find(repo, business, title="old winner", status="live", day=60)
+        for n in range(5):
+            self._find(repo, business, title=f"new proposal {n}",
+                       status="proposed", day=n)
+
+        titles = [f.title for f in repo.recent_finds(business, limit=3)]
+
+        assert "old winner" in titles, (
+            "a live find six weeks old was crowded out by fresh proposals — "
+            "this is exactly how the Analyst re-proposed its own verified moves"
+        )
+
+    def test_accepted_also_outranks_proposals(self, repo, business):
+        self._find(repo, business, title="being drafted", status="accepted", day=90)
+        for n in range(5):
+            self._find(repo, business, title=f"noise {n}", status="proposed", day=n)
+
+        assert "being drafted" in [
+            f.title for f in repo.recent_finds(business, limit=3)]
+
+    def test_newest_first_within_each_group(self, repo, business):
+        self._find(repo, business, title="older live", status="live", day=30)
+        self._find(repo, business, title="newer live", status="live", day=2)
+
+        titles = [f.title for f in repo.recent_finds(business, limit=5)]
+        assert titles.index("newer live") < titles.index("older live")
+
+    def test_proposals_still_appear_when_there_is_room(self, repo, business):
+        self._find(repo, business, title="running", status="live", day=40)
+        self._find(repo, business, title="fresh idea", status="proposed", day=1)
+
+        assert {"running", "fresh idea"} <= {
+            f.title for f in repo.recent_finds(business, limit=10)}
+
+
 # ---------------------------------------------------------------------------
 # Artifacts — the done-for-you deliverable, and where it lives
 # ---------------------------------------------------------------------------

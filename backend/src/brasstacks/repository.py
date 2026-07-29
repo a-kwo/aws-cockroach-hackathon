@@ -524,7 +524,11 @@ class InMemoryRepository:
 
     def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
         mine = [f for f in self._finds.values() if f.business_id == business_id]
-        mine.sort(key=lambda f: f.created_at, reverse=True)
+        # In-play first, then by recency. A move that has been running for six
+        # weeks is far stronger evidence of "already covered" than a proposal
+        # nobody acted on yesterday — and sorting on recency alone silently
+        # hides the winners once proposals accumulate.
+        mine.sort(key=lambda f: (f.status not in JUDGEABLE_STATUSES, -f.created_at.timestamp()))
         return [
             FindSummary(find_id=f.find_id, title=f.title, move=f.move,
                         status=f.status,

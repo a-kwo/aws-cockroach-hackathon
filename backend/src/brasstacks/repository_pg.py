@@ -384,17 +384,23 @@ class PostgresRepository:
             return int(cur.fetchone()[0])
 
     def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
-        """What the Analyst has already proposed, so it does not repeat itself."""
+        """What the Analyst has already proposed, so it does not repeat itself.
+
+        In-play finds sort first regardless of age. Ordering on recency alone
+        let twelve unacted-on proposals hide every accepted move, and the
+        Analyst re-proposed two of its own verified winners because it could no
+        longer see them.
+        """
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT id, title, move, status, predicted_daily_cents, created_at
                 FROM find
                 WHERE business_id = %s
-                ORDER BY created_at DESC
+                ORDER BY (status = ANY(%s)) DESC, created_at DESC
                 LIMIT %s
                 """,
-                (business_id, limit),
+                (business_id, list(JUDGEABLE_STATUSES), limit),
             )
             return [
                 FindSummary(find_id=str(r[0]), title=r[1], move=r[2], status=str(r[3]),
