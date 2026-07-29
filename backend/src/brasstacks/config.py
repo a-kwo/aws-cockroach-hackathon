@@ -46,6 +46,18 @@ def _clean(value: str | None) -> str | None:
     return stripped or None
 
 
+def _as_float(value: str | None, name: str) -> float | None:
+    """Optional coordinate. Fails naming the variable rather than silently
+    scouting competitors around latitude zero."""
+    cleaned = _clean(value)
+    if cleaned is None:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        raise ConfigError(f"{name} must be a decimal number, got {cleaned!r}") from None
+
+
 def _mask_url_password(url: str) -> str:
     return re.sub(r"://([^:/@]+):[^@]*@", r"://\1:***@", url)
 
@@ -74,6 +86,18 @@ class Settings:
     #: presence, and Yelp content may not be retained beyond 24 hours — see
     #: YelpSignalSource.
     yelp_api_key: str | None = field(default=None, repr=False)
+
+    # --- Live competitor scouting, via Google Places Nearby Search ---
+    # Not stored: Google's terms permit keeping place_id and nothing else, so
+    # this is fetched at reasoning time and handed to the Analyst in its
+    # prompt. See brasstacks.competitors.
+    google_maps_api_key: str | None = field(default=None, repr=False)
+    places_latitude: float | None = None
+    places_longitude: float | None = None
+    places_radius_m: int = 1500
+    #: Nearby Search returns the owner's own restaurant too; naming it here
+    #: keeps her own ratings from being fed back as a rival's.
+    places_exclude_name: str | None = None
 
     # --- Ask agent, over the CockroachDB managed MCP server ---
     # Optional at this level on purpose: Radar, Analyst and Meter have no
@@ -182,6 +206,11 @@ class Settings:
             business_id=_clean(env.get("BRASSTACKS_BUSINESS_ID")),
             search_api_key=_clean(env.get("SEARCH_API_KEY")),
             yelp_api_key=_clean(env.get("YELP_API_KEY")),
+            google_maps_api_key=_clean(env.get("GOOGLE_MAPS_API_KEY")),
+            places_latitude=_as_float(env.get("PLACES_LATITUDE"), "PLACES_LATITUDE"),
+            places_longitude=_as_float(env.get("PLACES_LONGITUDE"), "PLACES_LONGITUDE"),
+            places_radius_m=int(_clean(env.get("PLACES_RADIUS_M")) or 1500),
+            places_exclude_name=_clean(env.get("PLACES_EXCLUDE_NAME")),
             cockroach_mcp_url=(
                 _clean(env.get("COCKROACH_MCP_URL")) or DEFAULT_MCP_URL
             ),

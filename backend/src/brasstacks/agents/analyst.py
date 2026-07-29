@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
+from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
 from brasstacks.providers import Embedder, ProviderError, Reasoner
 from brasstacks.repository import EvidenceRef, Repository, Retrieved
@@ -129,7 +130,8 @@ def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
 
 def build_prompt(*, business: dict | None, facts: Sequence[str],
                  rules: Sequence, retrieved: Sequence[Retrieved],
-                 today: date, recent_finds: Sequence = ()) -> str:
+                 today: date, recent_finds: Sequence = (),
+                 competitors: Sequence = ()) -> str:
     name = (business or {}).get("name", "this business")
     city = (business or {}).get("city")
     goal = (business or {}).get("goal_monthly_cents")
@@ -160,6 +162,18 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
                 f"(+{found.predicted_daily_cents}c/day)"
             )
 
+    # Live, and deliberately not part of memory: Google's terms forbid storing
+    # Places content, so this is a snapshot of tonight rather than something the
+    # Analyst can cite. Kept clearly separate from the retrieved observations
+    # below, which are citable.
+    if competitors:
+        lines.append("")
+        lines.append(describe_competitors(list(competitors)))
+        lines.append(
+            "These are context only — you cannot cite them as evidence, "
+            "because they are not stored observations."
+        )
+
     lines.append(
         f"\nObservations retrieved from memory ({len(retrieved)}), most relevant "
         "first. Cite by id:"
@@ -186,10 +200,20 @@ def run_analyst(
     queries: Sequence[str] = ANALYST_QUERIES,
     per_query_limit: int = DEFAULT_PER_QUERY_LIMIT,
     model_id: str | None = None,
+    scout: CompetitorScout | None = None,
 ) -> AnalystResult:
     run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
 
     retrieved = _retrieve(repo, embedder, business_id, queries, per_query_limit)
+
+    # Best-effort, like every outside-world call in this system. Losing tonight's
+    # competitor snapshot costs the Analyst context; it must not cost the night.
+    competitors: list = []
+    if scout is not None:
+        try:
+            competitors = list(scout.scan(on=today))
+        except Exception:
+            competitors = []
 
     if not retrieved:
         # Nothing to reason over. Calling the model anyway would be inviting it
@@ -206,6 +230,7 @@ def run_analyst(
         retrieved=retrieved,
         today=today,
         recent_finds=repo.recent_finds(business_id, limit=RECENT_FINDS_SHOWN),
+        competitors=competitors,
     )
 
     similarity_by_id = {r.observation_id: r.similarity for r in retrieved}

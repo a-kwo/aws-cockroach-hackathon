@@ -21,12 +21,14 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from brasstacks.agents.analyst import AnalystResult, run_analyst
 from brasstacks.agents.maker import MakerResult, next_undrafted_find, run_maker
 from brasstacks.agents.meter import MeterResult, run_meter
 from brasstacks.agents.radar import RadarResult, run_radar
 from brasstacks.artifacts import ArtifactStore, build_artifact_store
+from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
 from brasstacks.outcomes import NoOutcomeSource, OutcomeSource
 from brasstacks.providers import Embedder, Reasoner, build_embedder, build_reasoner
@@ -68,6 +70,7 @@ def run_night(
     today: date,
     sources: list[SignalSource],
     store: ArtifactStore | None = None,
+    scout: Any | None = None,
     accept_proposals: bool = False,
     model_id: str | None = None,
 ) -> NightResult:
@@ -93,7 +96,7 @@ def run_night(
 
     analyst = run_analyst(
         repo=repo, embedder=embedder, reasoner=reasoner, business_id=business_id,
-        today=today, model_id=model_id,
+        today=today, model_id=model_id, scout=scout,
     )
 
     # Standing in for the owner tapping "do it now". Only ever used by the local
@@ -190,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
     store = build_artifact_store(settings)
+    scout = build_competitor_scout(settings)
     outcomes = NoOutcomeSource()
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
@@ -209,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
                 sources=_build_sources(settings, anchor, include_web=args.web,
                                        include_yelp=args.yelp),
                 store=store,
+                scout=scout,
                 accept_proposals=args.accept_proposals,
                 model_id=settings.reasoning_model_id,
             )
