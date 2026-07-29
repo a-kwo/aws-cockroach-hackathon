@@ -80,6 +80,18 @@ def main() -> int:
                 ORDER BY fe.find_id, fe.rank
             """, (settings.business_id,))
 
+            # The Maker's deliverables. `preview` is the opening of the draft
+            # itself, never a summary, so the UI can show her what she is about
+            # to approve rather than a description of it.
+            artifacts = rows(cur, """
+                SELECT a.id, a.find_id, a.kind, a.title, a.preview,
+                       a.s3_bucket, a.s3_key, a.created_at
+                FROM artifact a
+                JOIN find f ON f.id = a.find_id
+                WHERE f.business_id = %s
+                ORDER BY a.created_at DESC
+            """, (settings.business_id,))
+
             [summary] = rows(cur, """
                 SELECT
                     count(*) FILTER (WHERE verdict = 'verified')  AS verified,
@@ -137,6 +149,14 @@ def main() -> int:
         by_find.setdefault(row.pop("find_id"), []).append(row)
     for find in finds:
         find["evidence"] = by_find.get(find["id"], [])
+
+    # Artifacts hang off their find the same way evidence does: the deliverable
+    # belongs to the promise that produced it.
+    drafts: dict[str, list[dict]] = {}
+    for row in artifacts:
+        drafts.setdefault(row.pop("find_id"), []).append(row)
+    for find in finds:
+        find["artifacts"] = drafts.get(find["id"], [])
 
     judged = summary["verified"] + summary["miss"]
     summary["hit_rate"] = (summary["verified"] / judged) if judged else None

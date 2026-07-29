@@ -87,6 +87,26 @@ class FindSummary:
 
 
 @dataclass(frozen=True)
+class StoredArtifact:
+    """A done-for-you deliverable produced against one find.
+
+    ``s3_bucket``/``s3_key`` are nullable on purpose: a draft that exists and is
+    readable in ``preview`` but failed to upload is a legitimate state, and
+    losing the row because S3 was briefly unavailable would be worse than
+    recording it without a location.
+    """
+
+    artifact_id: str
+    find_id: str
+    kind: str
+    title: str
+    created_at: datetime
+    preview: str | None = None
+    s3_bucket: str | None = None
+    s3_key: str | None = None
+
+
+@dataclass(frozen=True)
 class RunRecord:
     run_id: str
     agent: str
@@ -179,6 +199,12 @@ class Repository(Protocol):
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]: ...
 
+    def insert_artifact(self, *, find_id: str, kind: str, title: str,
+                        preview: str | None = ..., s3_bucket: str | None = ...,
+                        s3_key: str | None = ..., run_id: str | None = ...) -> str: ...
+
+    def get_artifacts(self, find_id: str) -> list[StoredArtifact]: ...
+
     def insert_ledger_entry(
         self, business_id: str, *, find_id: str, verdict: str,
         predicted_daily_cents: int, actual_daily_cents: int,
@@ -265,6 +291,19 @@ class _Find:
 
 
 @dataclass
+class _Artifact:
+    artifact_id: str
+    find_id: str
+    kind: str
+    title: str
+    created_at: datetime
+    preview: str | None = None
+    s3_bucket: str | None = None
+    s3_key: str | None = None
+    run_id: str | None = None
+
+
+@dataclass
 class _LedgerEntry:
     entry_id: str
     business_id: str
@@ -294,6 +333,7 @@ class InMemoryRepository:
         self._runs: dict[str, RunRecord] = {}
         self._observations: list[_Observation] = []
         self._finds: dict[str, _Find] = {}
+        self._artifacts: list[_Artifact] = []
         self._ledger: list[_LedgerEntry] = []
         self._clock = 0
 
@@ -508,6 +548,39 @@ class InMemoryRepository:
                     predicted_daily_cents=f.predicted_daily_cents,
                     verify_after=f.verify_after, created_at=f.created_at)
             for f in due
+        ]
+
+    # -- artifacts -------------------------------------------------------
+    def insert_artifact(self, *, find_id: str, kind: str, title: str,
+                        preview: str | None = None,
+                        s3_bucket: str | None = None,
+                        s3_key: str | None = None,
+                        run_id: str | None = None) -> str:
+        # Mirrors the REFERENCES find(id) constraint. The fake enforcing it too
+        # is what stops agent tests passing against a permissive fiction.
+        if find_id not in self._finds:
+            raise RepositoryError(
+                f"no find {find_id} — an artifact is the deliverable for a "
+                "specific promise, so it cannot outlive the find that made it"
+            )
+
+        artifact_id = str(uuid.uuid4())
+        self._artifacts.append(_Artifact(
+            artifact_id=artifact_id, find_id=find_id, kind=kind, title=title,
+            created_at=self._now(), preview=preview, s3_bucket=s3_bucket,
+            s3_key=s3_key, run_id=run_id,
+        ))
+        return artifact_id
+
+    def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
+        mine = [a for a in self._artifacts if a.find_id == find_id]
+        mine.sort(key=lambda a: a.created_at, reverse=True)
+        return [
+            StoredArtifact(
+                artifact_id=a.artifact_id, find_id=a.find_id, kind=a.kind,
+                title=a.title, created_at=a.created_at, preview=a.preview,
+                s3_bucket=a.s3_bucket, s3_key=a.s3_key)
+            for a in mine
         ]
 
     # -- ledger ----------------------------------------------------------

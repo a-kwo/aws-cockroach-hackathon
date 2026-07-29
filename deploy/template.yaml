@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  Brass Tacks — a team of agents that grows a small business overnight and is
+  then held to account for it.
+
+  Two functions, not four. run_night() already sequences Radar → Analyst →
+  Maker → Meter and is covered by the offline test suite; splitting that across
+  three Lambdas would move the ordering into infrastructure, where it is less
+  tested, and buy cross-invoke IAM and three new failure modes for nothing.
+
+  Deploy from the repository root:
+    sam build --template deploy/template.yaml
+    sam deploy --guided
+
+Parameters:
+  SsmPrefix:
+    Type: String
+    Default: /brasstacks
+    Description: >
+      SSM Parameter Store path holding COCKROACH_DATABASE_URL,
+      ANTHROPIC_API_KEY, COCKROACH_MCP_TOKEN and BRASSTACKS_BUSINESS_ID as
+      SecureString. Secrets live here rather than in Lambda environment
+      variables, where they would be readable from the console.
+
+  ArtifactBucket:
+    Type: String
+    Description: S3 bucket for the Maker's drafts.
+
+  ScheduleExpression:
+    Type: String
+    Default: cron(0 6 * * ? *)
+    Description: >
+      The 6 AM Radar. This is what makes the loop autonomous rather than a
+      button, which is the claim the whole product rests on.
+
+  ScheduleTimezone:
+    Type: String
+    Default: America/New_York
+    Description: The owner's timezone — 6 AM should mean her morning.
+
+Globals:
+  Function:
+    MemorySize: 1024
+    Environment:
+      Variables:
+        BRASSTACKS_SSM_PREFIX: !Ref SsmPrefix
+        # AWS_REGION is set by the Lambda runtime itself and is reserved, so
+        # config.py's required("AWS_REGION") is already satisfied here.
+        S3_ARTIFACT_BUCKET: !Ref ArtifactBucket
+        BEDROCK_EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
+        EMBEDDING_DIMENSIONS: "1024"
+        # Reasoning runs on the Anthropic API, not Bedrock: AWS cannot grant
+        # this account any current Claude model. Disclosed in the README.
+        MODEL_PROVIDER: anthropic
+        ANTHROPIC_MODEL_ID: claude-opus-5
+
+Resources:
+  # --------------------------------------------------------------------
+  # The nightly loop
+  # --------------------------------------------------------------------
+  NightFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: night
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.night.handler"]
+      # A night is single-digit minutes; the headroom is for a cold corpus,
+      # where Radar embeds every observation rather than a night's delta.
+      Timeout: 900
+      Policies:
+        - Statement:
+            - Sid: TitanEmbeddings
+              Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+            - Sid: MakerArtifacts
+              Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                # Both forms are required. GetParametersByPath authorises
+                # against the path resource itself, while GetParameter
+                # authorises against each parameter beneath it. Granting only
+                # the `/*` form denies the path call — which is what happened
+                # on the first deploy.
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Nightly:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref ScheduleExpression
+            ScheduleExpressionTimezone: !Ref ScheduleTimezone
+            # One night is worth more than a retried night: a duplicate run
+            # would re-embed and re-reason for no new information.
+            RetryPolicy:
+              MaximumRetryAttempts: 2
+
+  # --------------------------------------------------------------------
+  # Owner Q&A over the CockroachDB managed MCP server
+  # --------------------------------------------------------------------
+  AskFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: ask
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.ask.handler"]
+      # The MCP tool calls execute server-side between Anthropic and
+      # CockroachDB Cloud, so a turn can run several queries before answering.
+      Timeout: 120
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                # Both forms are required. GetParametersByPath authorises
+                # against the path resource itself, while GetParameter
+                # authorises against each parameter beneath it. Granting only
+                # the `/*` form denies the path call — which is what happened
+                # on the first deploy.
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Ask:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /ask
+            Method: POST
+
+  AskApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: v1
+      # A public URL proxying a paid model is a bill waiting to happen. This is
+      # deliberately low: it is a demo endpoint, not a product surface.
+      # (HttpApi uses DefaultRouteSettings; `Throttle` is the REST-API-only
+      # property on AWS::Serverless::Api and is silently wrong here.)
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 5
+        ThrottlingRateLimit: 2
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowHeaders: ["Content-Type"]
+        AllowMethods: ["POST", "OPTIONS"]
+
+Outputs:
+  AskEndpoint:
+    # Quoted: the JSON braces contain a colon, which bare YAML reads as a
+    # key/value split and rejects.
+    Description: 'POST a JSON body {"question": "..."} here. Splice into the built site.'
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/ask
+
+  NightFunctionName:
+    Description: Invoke manually to prove a night end to end before waiting for 6 AM.
+    Value: !Ref NightFunction

@@ -27,6 +27,7 @@ from brasstacks.repository import (
     RepositoryError,
     Retrieved,
     RunRecord,
+    StoredArtifact,
     StoredEvidence,
     compute_hit_rate,
     content_hash,
@@ -427,6 +428,49 @@ class PostgresRepository:
                 DueFind(find_id=str(r[0]), title=r[1],
                         predicted_daily_cents=int(r[2]), verify_after=r[3],
                         created_at=r[4])
+                for r in cur.fetchall()
+            ]
+
+    # -- artifacts -------------------------------------------------------
+    def insert_artifact(self, *, find_id: str, kind: str, title: str,
+                        preview: str | None = None,
+                        s3_bucket: str | None = None,
+                        s3_key: str | None = None,
+                        run_id: str | None = None) -> str:
+        try:
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO artifact
+                        (find_id, run_id, kind, title, s3_bucket, s3_key, preview)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (find_id, run_id, kind, title, s3_bucket, s3_key, preview),
+                )
+                return str(cur.fetchone()[0])
+        except psycopg.Error as e:
+            # Almost always the find_id foreign key: an artifact is the
+            # deliverable for a specific promise and cannot outlive it.
+            raise RepositoryError(f"could not store artifact: {e}") from e
+
+    def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, find_id, kind, title, created_at, preview,
+                       s3_bucket, s3_key
+                FROM artifact
+                WHERE find_id = %s
+                ORDER BY created_at DESC
+                """,
+                (find_id,),
+            )
+            return [
+                StoredArtifact(
+                    artifact_id=str(r[0]), find_id=str(r[1]), kind=r[2],
+                    title=r[3], created_at=r[4], preview=r[5],
+                    s3_bucket=r[6], s3_key=r[7])
                 for r in cur.fetchall()
             ]
 

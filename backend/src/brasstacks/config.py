@@ -27,6 +27,10 @@ SCHEMA_EMBEDDING_DIMENSIONS = 1024
 
 VALID_PROVIDERS = ("anthropic", "bedrock")
 
+#: CockroachDB Cloud's managed MCP endpoint. Kept here rather than imported from
+#: providers so that config has no dependency on the provider layer.
+DEFAULT_MCP_URL = "https://cockroachlabs.cloud/mcp"
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -67,6 +71,17 @@ class Settings:
     business_id: str | None = None
     search_api_key: str | None = field(default=None, repr=False)
 
+    # --- Ask agent, over the CockroachDB managed MCP server ---
+    # Optional at this level on purpose: Radar, Analyst and Meter have no
+    # business failing to boot because owner Q&A is unconfigured. build_asker()
+    # raises, naming the variable, only when the Ask path is actually used.
+    cockroach_mcp_url: str = DEFAULT_MCP_URL
+    cockroach_mcp_token: str | None = field(default=None, repr=False)
+    # Not a secret — an identifier. Supplying it lets the Ask agent skip the
+    # cluster-discovery round trips it would otherwise repeat every question.
+    cockroach_cluster_id: str | None = None
+    cockroach_database: str = "defaultdb"
+
     @property
     def reasoning_model_id(self) -> str:
         """The model id for whichever provider is configured.
@@ -95,7 +110,9 @@ class Settings:
             f"bucket={self.s3_artifact_bucket!r}, "
             f"cockroach={self.safe_cockroach_url!r}, "
             f"anthropic_api_key={'set' if self.anthropic_api_key else 'unset'}, "
-            f"search_api_key={'set' if self.search_api_key else 'unset'})"
+            f"search_api_key={'set' if self.search_api_key else 'unset'}, "
+            f"mcp_url={self.cockroach_mcp_url!r}, "
+            f"mcp_token={'set' if self.cockroach_mcp_token else 'unset'})"
         )
 
     @classmethod
@@ -159,6 +176,14 @@ class Settings:
             bedrock_model_id=bedrock_model,
             business_id=_clean(env.get("BRASSTACKS_BUSINESS_ID")),
             search_api_key=_clean(env.get("SEARCH_API_KEY")),
+            cockroach_mcp_url=(
+                _clean(env.get("COCKROACH_MCP_URL")) or DEFAULT_MCP_URL
+            ),
+            cockroach_mcp_token=_clean(env.get("COCKROACH_MCP_TOKEN")),
+            cockroach_cluster_id=_clean(env.get("COCKROACH_CLUSTER_ID")),
+            cockroach_database=(
+                _clean(env.get("COCKROACH_DATABASE")) or "defaultdb"
+            ),
         )
 
     @classmethod

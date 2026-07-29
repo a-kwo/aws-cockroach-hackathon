@@ -16,14 +16,17 @@ demo run needs to move the calendar the way real time would.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from brasstacks.agents.analyst import AnalystResult, run_analyst
+from brasstacks.agents.maker import MakerResult, next_undrafted_find, run_maker
 from brasstacks.agents.meter import MeterResult, run_meter
 from brasstacks.agents.radar import RadarResult, run_radar
+from brasstacks.artifacts import ArtifactStore, build_artifact_store
 from brasstacks.config import Settings
 from brasstacks.outcomes import NoOutcomeSource, OutcomeSource
 from brasstacks.providers import Embedder, Reasoner, build_embedder, build_reasoner
@@ -31,7 +34,14 @@ from brasstacks.repository import Repository
 from brasstacks.signals import CorpusSignalSource, SignalSource, TavilySignalSource
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CORPUS_PATH = REPO_ROOT / "db" / "seed" / "observations.json"
+
+#: Overridable because the packaged Lambda does not have the repository's
+#: directory shape, and deriving this from `parents[3]` would silently resolve
+#: to the wrong place inside the image.
+CORPUS_PATH = Path(
+    os.environ.get("BRASSTACKS_CORPUS_PATH")
+    or REPO_ROOT / "db" / "seed" / "observations.json"
+)
 
 
 @dataclass(frozen=True)
@@ -40,6 +50,7 @@ class NightResult:
     radar: RadarResult
     analyst: AnalystResult
     meter: MeterResult
+    maker: MakerResult | None = None
 
 
 def run_night(
@@ -51,14 +62,20 @@ def run_night(
     business_id: str,
     today: date,
     sources: list[SignalSource],
+    store: ArtifactStore | None = None,
     accept_proposals: bool = False,
     model_id: str | None = None,
 ) -> NightResult:
-    """Run the three agents in order.
+    """Run the agents in order: observe, reason, do, measure.
 
-    Order matters: Radar's observations are what the Analyst retrieves over, and
-    the Meter judges finds from *earlier* nights, so it runs last and its work is
-    independent of tonight's find.
+    Order matters. Radar's observations are what the Analyst retrieves over. The
+    Maker only ever drafts for finds the owner already accepted, so it runs
+    after her decision rather than in anticipation of it. The Meter judges finds
+    from *earlier* nights, so it runs last and its work is independent of
+    tonight's find.
+
+    `store` is optional so the loop still runs where S3 is not configured; the
+    Maker is skipped rather than failing the night.
     """
     business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
     now = datetime.combine(today, time(hour=2), tzinfo=timezone.utc)
@@ -80,10 +97,21 @@ def run_night(
     if accept_proposals and analyst.find_id:
         repo.set_find_status(analyst.find_id, status="accepted", decided_at=now)
 
+    # Drafts what she has already said yes to — including, when the harness is
+    # standing in for her above, tonight's find.
+    maker = None
+    if store is not None:
+        maker = run_maker(
+            repo=repo, reasoner=reasoner, store=store,
+            business_id=business_id, model_id=model_id,
+            find=next_undrafted_find(repo, business_id),
+        )
+
     meter = run_meter(repo=repo, outcomes=outcomes, business_id=business_id,
                       today=today)
 
-    return NightResult(on=today, radar=radar, analyst=analyst, meter=meter)
+    return NightResult(on=today, radar=radar, analyst=analyst, meter=meter,
+                       maker=maker)
 
 
 def _build_sources(settings: Settings, anchor: datetime, *,
@@ -146,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     start = date.fromisoformat(args.start) if args.start else date.today()
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
+    store = build_artifact_store(settings)
     outcomes = NoOutcomeSource()
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
@@ -163,6 +192,7 @@ def main(argv: list[str] | None = None) -> int:
                 business_id=settings.business_id,
                 today=tonight,
                 sources=_build_sources(settings, anchor, include_web=args.web),
+                store=store,
                 accept_proposals=args.accept_proposals,
                 model_id=settings.reasoning_model_id,
             )
@@ -177,6 +207,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  analyst FAILED — {result.analyst.error}")
             else:
                 print(f"  analyst no find ({result.analyst.retrieved} retrieved)")
+            if result.maker:
+                print(f"  maker   {result.maker.note}")
             print(f"  meter   {result.meter.note}")
 
         summary = repo.ledger_summary(settings.business_id)
