@@ -409,6 +409,23 @@ class TestAskSystemPrompt:
 
         assert "list_clusters" in prompt
 
+    def test_supplies_the_schema_so_it_need_not_introspect(self):
+        # Measured: 6 of 10 realistic questions blew through API Gateway's 30s
+        # ceiling, with the Lambda still running at 74s. Two of those round
+        # trips per question were get_table_schema rediscovering columns that
+        # never change.
+        prompt = ask_system_prompt(cluster_id=self.CLUSTER)
+
+        assert "get_table_schema" in prompt          # told not to call it
+        assert "predicted_daily_cents" in prompt     # ...because it has them
+        assert "ledger_entry(" in prompt
+        assert "verified|estimated|miss" in prompt
+
+    def test_warns_about_the_time_budget(self):
+        # The ceiling is a hard external constraint, not a preference, so the
+        # model is told the number rather than just "be quick".
+        assert "30 second" in ASK_SYSTEM_PROMPT
+
     def test_keeps_the_honesty_rules(self):
         # The cluster hint must not displace the constraints that make the
         # answers trustworthy.

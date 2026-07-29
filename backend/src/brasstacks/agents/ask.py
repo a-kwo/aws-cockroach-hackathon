@@ -55,9 +55,37 @@ present an estimate as earned.
 - If a query returns nothing, say "I don't know" or say that there is no data \
 for it. Do not fill the gap with a plausible number. An invented figure about \
 her revenue is the worst thing you can produce.
-- Answer in plain language, name amounts and dates, and keep it short. She is \
-reading this between other jobs.
-- Never modify anything. You have read access only, and that is deliberate."""
+- Answer in plain language, name amounts and dates, and keep it SHORT — a few \
+sentences, or a short list. She is reading this between other jobs, standing up. \
+Even for a broad question, give her the two or three things that matter, not an \
+essay. Long answers are also slow, and the request is cut off after 30 seconds.
+- Never modify anything. You have read access only, and that is deliberate.
+- Be economical with queries. Every tool call is a slow round trip, and the \
+request is cut off after 30 seconds. Plan the whole answer first, then write ONE \
+query that gets everything you need — joins and aggregates in a single \
+statement, not a series of exploratory ones. Two queries is a reasonable \
+maximum; more than three means you are exploring rather than answering."""
+
+
+#: Column lists for the tables the Ask agent actually queries. Supplied up front
+#: because otherwise the model spends two or more `get_table_schema` round trips
+#: rediscovering them on every question — measured at ~5s each against a 30s
+#: ceiling. Kept deliberately partial: these are the columns worth querying, not
+#: a mirror of db/schema.sql, and the agent can still introspect anything else.
+SCHEMA_HINT = """
+business(id, name, category, city, goal_monthly_cents)
+observation(id, business_id, kind, content, source_name, subject, rating,
+            observed_at)   -- kind: review|rival_price|rival_menu|trend|social
+find(id, business_id, title, rationale, move, emoji, predicted_daily_cents,
+     confidence, verify_after, status, created_at)
+     -- status: proposed|accepted|later|rejected|live|retired
+find_evidence(find_id, observation_id, similarity, rank)
+ledger_entry(id, business_id, find_id, verdict, predicted_daily_cents,
+             actual_daily_cents, measured_at, period_start, period_end, method)
+             -- verdict: verified|estimated|miss
+artifact(id, find_id, kind, title, preview, s3_bucket, s3_key, created_at)
+agent_run(id, business_id, agent, status, started_at, finished_at, note)
+"""
 
 
 DEFAULT_DATABASE = "defaultdb"
@@ -80,13 +108,17 @@ def ask_system_prompt(*, cluster_id: str | None,
 
     return ASK_SYSTEM_PROMPT + f"""
 
-You already know where the data is. Do NOT call list_clusters — it is a wasted \
-round trip and the answer is here:
+You already know where the data is, and what shape it is. Do NOT call \
+list_clusters, list_tables, or get_table_schema — every one is a wasted round \
+trip against a 30-second budget.
+
 - cluster_id: {cluster_id}
 - database: {database}
 
+Schema (the columns worth querying):
+{SCHEMA_HINT}
 Pass that cluster_id to every tool that takes one; they fail without it. Go \
-straight to the query you need."""
+straight to select_query."""
 
 
 @dataclass(frozen=True)
