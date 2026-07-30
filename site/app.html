@@ -1182,6 +1182,298 @@
       .growth-counts { display: grid; grid-template-columns: repeat(3, 1fr); }
       .growth-count { min-width: 0; }
     }
+  
+
+    /* REFINED DETAILS DRAWER — clear status, calm hierarchy */
+    .drawer-scrim {
+      background: rgba(5, 9, 15, .60);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .drawer {
+      width: min(500px, calc(100% - 20px));
+      top: 10px;
+      right: 10px;
+      bottom: 10px;
+      border: 1px solid rgba(255,255,255,.70);
+      border-radius: 28px;
+      background: #fbfaf7;
+      box-shadow: -34px 0 100px rgba(0,0,0,.42), 0 18px 46px rgba(10,16,26,.18);
+    }
+
+    .drawer::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: 4;
+      height: 4px;
+      background: var(--brand);
+      opacity: 0;
+      transition: background .2s ease, opacity .2s ease;
+    }
+
+    .drawer[data-status="approved"]::before { background: var(--approve); opacity: 1; }
+    .drawer[data-status="rejected"]::before { background: var(--reject); opacity: 1; }
+    .drawer[data-status="pending"]::before { background: var(--brand); opacity: 1; }
+
+    .drawer-header {
+      min-height: 84px;
+      padding: 17px 18px;
+      gap: 13px;
+      border-bottom: 1px solid #e9e8e3;
+      background: rgba(251,250,247,.96);
+    }
+
+    .drawer-avatar {
+      width: 44px;
+      height: 44px;
+      flex-basis: 44px;
+      border: 1px solid #dedff6;
+      border-radius: 14px;
+      background: #f0f0ff;
+      color: var(--brand);
+      box-shadow: 0 5px 14px rgba(54,62,91,.06);
+    }
+
+    .drawer-avatar svg { width: 20px; height: 20px; }
+
+    .drawer-title strong {
+      color: #151821;
+      font-size: 15px;
+      font-weight: 760;
+      letter-spacing: -.018em;
+    }
+
+    .drawer-title span {
+      margin-top: 5px;
+      color: #7c8490;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .drawer-header .icon-button {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 12px;
+      background: #f1f1ed;
+      color: #7b838e;
+      box-shadow: none;
+    }
+
+    .drawer-header .icon-button:hover {
+      background: #e9e9e4;
+      color: #262b33;
+    }
+
+    .drawer-body {
+      padding: 18px 22px 26px;
+      background: #fbfaf7;
+    }
+
+    .decision-state {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-height: 72px;
+      margin-bottom: 22px;
+      padding: 14px 16px;
+      border: 1px solid #e1e4e7;
+      border-radius: 17px;
+      background: #f5f6f7;
+    }
+
+    .decision-state-icon {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #ffffff;
+      color: var(--brand);
+      box-shadow: 0 5px 14px rgba(24,34,48,.08);
+    }
+
+    .decision-state-icon svg { width: 19px; height: 19px; stroke-width: 2.2; }
+
+    .decision-state strong {
+      display: block;
+      color: #1b2028;
+      font-size: 17px;
+      line-height: 1.1;
+      font-weight: 790;
+      letter-spacing: -.02em;
+    }
+
+    .decision-state span:last-child {
+      display: block;
+      margin-top: 5px;
+      color: #727b87;
+      font-size: 10px;
+      line-height: 1.35;
+      font-weight: 620;
+    }
+
+    .decision-state.approved {
+      border-color: #bfe9da;
+      background: linear-gradient(135deg, #e8f8f1 0%, #f2fbf7 100%);
+      box-shadow: 0 12px 28px rgba(15,155,114,.08);
+    }
+
+    .decision-state.approved .decision-state-icon {
+      background: var(--approve);
+      color: #ffffff;
+      box-shadow: 0 7px 18px rgba(15,155,114,.20);
+    }
+
+    .decision-state.approved strong { color: #08775a; }
+    .decision-state.approved span:last-child { color: #4e786a; }
+
+    .decision-state.rejected {
+      border-color: #f1cdd2;
+      background: linear-gradient(135deg, #fff0f2 0%, #fff7f7 100%);
+    }
+
+    .decision-state.rejected .decision-state-icon {
+      background: var(--reject);
+      color: #ffffff;
+    }
+
+    .decision-state.rejected strong { color: #a53f4d; }
+    .decision-state.rejected span:last-child { color: #94646a; }
+
+    .detail-stack {
+      overflow: hidden;
+      border: 1px solid #e6e7e3;
+      border-radius: 18px;
+      background: #ffffff;
+    }
+
+    .detail-section {
+      padding: 18px 18px 19px;
+    }
+
+    .detail-section + .detail-section {
+      border-top: 1px solid #ecece8;
+    }
+
+    .detail-section-label {
+      color: #8a929d;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .095em;
+      text-transform: uppercase;
+    }
+
+    .detail-section h3 {
+      margin: 9px 0 8px;
+      color: #27303d;
+      font-size: 14px;
+      line-height: 1.48;
+      font-weight: 720;
+      letter-spacing: -.012em;
+    }
+
+    .detail-section p {
+      margin: 0;
+      color: #818b98;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .detail-impact {
+      min-height: 78px;
+      margin-top: 12px;
+      padding: 15px 17px;
+      border: 1px solid #cbece0;
+      border-radius: 17px;
+      background: #ebf8f3;
+    }
+
+    .detail-impact-copy { min-width: 0; }
+
+    .detail-impact span {
+      display: block;
+      color: #527a6c;
+      font-size: 10px;
+      line-height: 1.2;
+      font-weight: 750;
+    }
+
+    .detail-impact small {
+      display: block;
+      margin-top: 5px;
+      color: #7f9b91;
+      font-size: 9px;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+
+    .detail-impact strong {
+      flex: 0 0 auto;
+      color: #0aa879;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 820;
+      letter-spacing: -.045em;
+    }
+
+    .drawer-actions {
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .drawer-actions .decision-button {
+      min-height: 48px;
+      border-radius: 14px;
+    }
+
+    .drawer-composer {
+      grid-template-columns: minmax(0, 1fr) 46px;
+      gap: 9px;
+      padding: 13px 14px;
+      border-top: 1px solid #e7e8e4;
+      background: #f3f3ef;
+    }
+
+    .drawer-composer input {
+      height: 46px;
+      padding: 0 14px;
+      border-color: #dfe1dd;
+      border-radius: 14px;
+      background: #ffffff;
+      font-size: 11px;
+      box-shadow: 0 2px 6px rgba(24,34,48,.03);
+    }
+
+    .send-button {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--brand);
+      box-shadow: 0 8px 18px rgba(85,103,232,.20);
+    }
+
+    @media (max-width: 640px) {
+      .drawer {
+        width: calc(100% - 8px);
+        top: 4px;
+        right: 4px;
+        bottom: 4px;
+        border-radius: 22px;
+      }
+      .drawer-header { min-height: 74px; padding: 13px 14px; }
+      .drawer-avatar { width: 40px; height: 40px; flex-basis: 40px; }
+      .drawer-body { padding: 14px 15px 22px; }
+      .decision-state { min-height: 66px; margin-bottom: 15px; padding: 12px 13px; }
+      .decision-state strong { font-size: 16px; }
+      .detail-section { padding: 15px; }
+      .detail-impact { min-height: 70px; padding: 13px 15px; }
+      .detail-impact strong { font-size: 25px; }
+    }
+
   </style>
 
   <style id="decision-lens-theme">
@@ -2555,7 +2847,6 @@
       detailDrawer.classList.add("open");
       drawerScrim.classList.add("open");
       detailDrawer.setAttribute("aria-hidden", "false");
-      document.getElementById("drawerInput").focus({ preventScroll: true });
     }
 
     function renderDrawer(postId) {
@@ -2563,28 +2854,63 @@
       if (!post) return;
       const decision = getDecision(postId);
       const status = decision?.status || "pending";
-      const statusLabel = status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Needs decision";
 
+      const statusContent = status === "approved"
+        ? {
+            title: "Approved",
+            note: "Added to Growth for ongoing tracking.",
+            icon: icons.approved,
+            className: "approved"
+          }
+        : status === "rejected"
+          ? {
+              title: "Rejected",
+              note: "No changes were made to the business.",
+              icon: icons.rejected,
+              className: "rejected"
+            }
+          : {
+              title: "Needs your decision",
+              note: "Approve or reject this recommendation.",
+              icon: icons.action,
+              className: "pending"
+            };
+
+      detailDrawer.dataset.status = statusContent.className;
       drawerAvatar.innerHTML = icons[post.featureKey];
       drawerTitle.textContent = post.title;
-      drawerSubtitle.textContent = `${post.feature} · ${statusLabel}`;
+      drawerSubtitle.textContent = `${post.feature} · ${post.sourceTime}`;
       drawerBody.innerHTML = `
-        <span class="detail-status ${status === "approved" ? "approved" : status === "rejected" ? "rejected" : ""}">${statusLabel}</span>
-        <p class="detail-intro">The signal, recommendation, and expected value behind this post.</p>
-        <section class="detail-card">
-          <div class="detail-card-label">Signal</div>
-          <h3>${post.signal}</h3>
-          <p>Found ${post.sourceTime} through ${post.feature.toLowerCase()} monitoring.</p>
+        <section class="decision-state ${statusContent.className}" aria-label="${statusContent.title}">
+          <span class="decision-state-icon" aria-hidden="true">${statusContent.icon}</span>
+          <div>
+            <strong>${statusContent.title}</strong>
+            <span>${statusContent.note}</span>
+          </div>
         </section>
-        <section class="detail-card">
-          <div class="detail-card-label">Recommendation</div>
-          <h3>${post.recommendation}</h3>
-          <p>${status === "pending" ? "No changes happen until you approve." : status === "approved" ? "This idea is now in Where it came from." : "This recommendation was not started."}</p>
-        </section>
+
+        <div class="detail-stack">
+          <section class="detail-section">
+            <div class="detail-section-label">Signal</div>
+            <h3>${post.signal}</h3>
+            <p>Found ${post.sourceTime} through ${post.feature.toLowerCase()} monitoring.</p>
+          </section>
+
+          <section class="detail-section">
+            <div class="detail-section-label">Recommendation</div>
+            <h3>${post.recommendation}</h3>
+            <p>${status === "pending" ? "No changes happen until you approve." : status === "approved" ? "This idea is now in Where it came from." : "This recommendation was not started."}</p>
+          </section>
+        </div>
+
         <div class="detail-impact">
-          <span>Monthly potential</span>
+          <div class="detail-impact-copy">
+            <span>Monthly potential</span>
+            <small>${status === "approved" ? "Approved opportunity" : status === "rejected" ? "Not pursued" : "Estimated opportunity"}</small>
+          </div>
           <strong>${formatMoney(post.amount)}</strong>
         </div>
+
         ${status === "pending" ? `
           <div class="drawer-actions">
             <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">${icons.rejected}<span>Reject</span></button>
