@@ -2684,6 +2684,1147 @@
     }
   </style>
 
+
+  <style id="social-owner-refinement">
+    /* Clean social feed — scoped to the owner-facing For You screen. */
+    body.autopilot-mode {
+      background: #080b10;
+      color-scheme: dark;
+    }
+    body.autopilot-mode::before {
+      background:
+        radial-gradient(760px 520px at 50% 42%, rgba(107,111,255,.10), transparent 70%),
+        radial-gradient(620px 420px at 80% 82%, rgba(32,184,135,.055), transparent 72%);
+      background-size: auto;
+    }
+    body.autopilot-mode .topbar {
+      border-bottom-color: rgba(255,255,255,.075);
+      background: rgba(8,11,16,.82);
+    }
+    body.autopilot-mode .brand-copy strong { color:#f4f6f8; }
+    body.autopilot-mode .brand-copy span { color:#798391; }
+    body.autopilot-mode .view-switcher {
+      padding:4px;
+      border-color:rgba(255,255,255,.09);
+      border-radius:999px;
+      background:rgba(255,255,255,.045);
+      box-shadow:none;
+    }
+    body.autopilot-mode .view-tab {
+      min-width:96px;
+      border-radius:999px;
+      color:#8993a0;
+      font-size:12px;
+    }
+    body.autopilot-mode .view-tab:hover { color:#f4f6f8; }
+    body.autopilot-mode .view-tab.active {
+      background:#f8f8f5;
+      color:#12161d;
+      box-shadow:0 5px 18px rgba(0,0,0,.24);
+    }
+    body.autopilot-mode .queue-pill,
+    body.autopilot-mode .restart-button {
+      border-color:rgba(255,255,255,.09);
+      border-radius:999px;
+      background:rgba(255,255,255,.045);
+      color:#9ca6b3;
+    }
+
+    body.autopilot-mode .view-inner { width:min(760px, calc(100% - 30px)); }
+    body.autopilot-mode .autopilot-inner { padding:14px 0 10px; }
+    body.autopilot-mode .deck { width:min(700px, 100%); gap:10px; position:relative; }
+    body.autopilot-mode .feed-stage {
+      height:min(680px, calc(100dvh - 126px));
+      min-height:550px;
+      touch-action:none;
+      perspective:1600px;
+    }
+    body.autopilot-mode .feed-card {
+      inset:0 0 12px;
+      grid-template-columns:1fr;
+      grid-template-rows:minmax(0,1fr);
+      border:0;
+      border-radius:32px;
+      background:#fbfaf7;
+      box-shadow:0 32px 100px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.72);
+    }
+    body.autopilot-mode .feed-card:not(.is-current) { box-shadow:0 10px 28px rgba(0,0,0,.18); }
+    body.autopilot-mode .feed-card::after { left:0; height:4px; }
+    body.autopilot-mode .feed-card.is-next { opacity:.68; transform:translate3d(0,-5px,-42px) scale(.982); }
+    body.autopilot-mode .feed-card.is-back { opacity:.28; transform:translate3d(0,-10px,-76px) scale(.962); }
+
+    body.autopilot-mode .post-surface {
+      grid-template-rows:72px minmax(0,1fr) 112px;
+      background:#fbfaf7;
+    }
+    body.autopilot-mode .post-header {
+      justify-content:flex-end;
+      padding:0 28px;
+      border:0;
+      background:transparent;
+    }
+    body.autopilot-mode .post-tools { margin-left:auto; gap:10px; }
+    body.autopilot-mode .highlight-chip {
+      height:40px;
+      padding:0 16px;
+      border:1px solid rgba(var(--accent-rgb),.14);
+      border-radius:999px;
+      background:rgba(var(--accent-rgb),.075);
+      color:var(--accent);
+      font-size:12px;
+    }
+    body.autopilot-mode .highlight-chip span { color:#8b929d; font-size:8px; }
+    body.autopilot-mode .details-button {
+      width:40px;
+      height:40px;
+      padding:0;
+      display:grid;
+      place-items:center;
+      border:1px solid #e0e2dd;
+      border-radius:50%;
+      background:transparent;
+      color:#8a939e;
+    }
+
+    body.autopilot-mode .post-body { align-items:flex-start; padding:52px 50px 30px; }
+    body.autopilot-mode .post-copy { max-width:none; }
+    body.autopilot-mode .post-copy h2 {
+      max-width:600px;
+      color:#121821;
+      font-size:clamp(46px,6vw,66px);
+      line-height:.95;
+      letter-spacing:-.06em;
+      font-weight:735;
+    }
+    body.autopilot-mode .signal-text {
+      max-width:590px;
+      margin-top:20px;
+      color:#5d6877;
+      font-size:18px;
+      line-height:1.48;
+      font-weight:520;
+    }
+    body.autopilot-mode .recommendation {
+      max-width:620px;
+      margin-top:32px;
+      padding:20px 22px;
+      grid-template-columns:44px minmax(0,1fr);
+      gap:16px;
+      border:1px solid rgba(var(--accent-rgb),.14);
+      border-radius:22px;
+      background:rgba(var(--accent-rgb),.055);
+    }
+    body.autopilot-mode .recommendation-icon { width:42px; height:42px; border-radius:14px; }
+    body.autopilot-mode .recommendation-copy span { color:var(--accent); font-size:9px; }
+    body.autopilot-mode .recommendation-copy strong { color:#252d38; font-size:18px; line-height:1.42; }
+
+    body.autopilot-mode .post-footer {
+      min-height:112px;
+      padding:18px 24px 18px 34px;
+      border:0;
+      background:#eff1ed;
+    }
+    body.autopilot-mode .impact-summary { display:flex; align-items:center; gap:14px; }
+    body.autopilot-mode .impact-summary > strong { font-size:31px; }
+    body.autopilot-mode .decision-actions { margin-left:auto; gap:10px; }
+    body.autopilot-mode .decision-button {
+      min-width:118px;
+      height:58px;
+      border-radius:19px;
+      font-size:13px;
+    }
+    body.autopilot-mode .decision-button.approve { min-width:140px; }
+    body.autopilot-mode .decision-button.reject { background:#fff; }
+
+    body.autopilot-mode .feed-navigation {
+      position:absolute;
+      right:-52px;
+      top:50%;
+      z-index:8;
+      flex-direction:column;
+      transform:translateY(-50%);
+      gap:8px;
+      border:0;
+      background:transparent;
+      box-shadow:none;
+    }
+    body.autopilot-mode .feed-dots { flex-direction:column; gap:7px; }
+    body.autopilot-mode .feed-dot { width:6px; height:6px; background:rgba(255,255,255,.22); }
+    body.autopilot-mode .feed-dot.active { width:6px; height:25px; background:#8588ff; }
+    body.autopilot-mode .nav-arrow {
+      width:36px; height:36px;
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:50%;
+      background:rgba(255,255,255,.055);
+      color:#8d97a5;
+    }
+    body.autopilot-mode .nav-arrow svg { transform:rotate(90deg); }
+
+    @media (max-width: 760px) {
+      body.autopilot-mode .view-inner { width:calc(100% - 14px); }
+      body.autopilot-mode .feed-navigation { right:-2px; }
+    }
+    @media (max-width: 640px) {
+      body.autopilot-mode .app { grid-template-rows:58px minmax(0,1fr); min-height:620px; }
+      body.autopilot-mode .view-inner { width:100%; }
+      body.autopilot-mode .autopilot-inner { padding:0; }
+      body.autopilot-mode .deck { width:100%; }
+      body.autopilot-mode .feed-stage { height:calc(100dvh - 58px); min-height:540px; }
+      body.autopilot-mode .feed-card { inset:0; border-radius:0; }
+      body.autopilot-mode .post-surface { grid-template-rows:64px minmax(0,1fr) 154px; }
+      body.autopilot-mode .post-header { padding:0 16px; }
+      body.autopilot-mode .highlight-chip { height:34px; padding:0 12px; }
+      body.autopilot-mode .details-button { width:34px; height:34px; }
+      body.autopilot-mode .post-body { padding:42px 23px 24px; }
+      body.autopilot-mode .post-copy h2 { font-size:clamp(39px,12vw,54px); }
+      body.autopilot-mode .signal-text { margin-top:16px; font-size:16px; }
+      body.autopilot-mode .recommendation { margin-top:24px; padding:16px; border-radius:18px; }
+      body.autopilot-mode .recommendation-copy strong { font-size:15px; }
+      body.autopilot-mode .post-footer { display:grid; grid-template-columns:1fr; gap:13px; padding:14px 16px 18px; }
+      body.autopilot-mode .impact-summary { justify-content:center; }
+      body.autopilot-mode .decision-actions { width:100%; margin:0; }
+      body.autopilot-mode .decision-button { flex:1; min-width:0; height:58px; }
+      body.autopilot-mode .decision-button.approve { min-width:0; }
+      body.autopilot-mode .feed-navigation { display:none; }
+    }
+  </style>
+
+
+  <style id="social-growth-refinement">
+    /* Growth is presented like a personal social profile and activity feed. */
+    body.growth-mode {
+      background:#080b10;
+      color-scheme:dark;
+    }
+    body.growth-mode::before {
+      background:
+        radial-gradient(760px 500px at 24% 8%, rgba(118,120,255,.12), transparent 70%),
+        radial-gradient(680px 460px at 86% 78%, rgba(32,184,135,.07), transparent 72%);
+      background-size:auto;
+    }
+    body.growth-mode .topbar {
+      border-bottom-color:rgba(255,255,255,.075);
+      background:rgba(8,11,16,.82);
+    }
+    body.growth-mode .brand-copy strong { color:#f4f6f8; }
+    body.growth-mode .brand-copy span { color:#798391; }
+    body.growth-mode .view-switcher {
+      padding:4px;
+      border-color:rgba(255,255,255,.09);
+      border-radius:999px;
+      background:rgba(255,255,255,.045);
+      box-shadow:none;
+    }
+    body.growth-mode .view-tab {
+      min-width:96px;
+      border-radius:999px;
+      color:#8993a0;
+      font-size:12px;
+    }
+    body.growth-mode .view-tab:hover { color:#f4f6f8; }
+    body.growth-mode .view-tab.active {
+      background:#f8f8f5;
+      color:#12161d;
+      box-shadow:0 5px 18px rgba(0,0,0,.24);
+    }
+    body.growth-mode .queue-pill,
+    body.growth-mode .restart-button {
+      border-color:rgba(255,255,255,.09);
+      border-radius:999px;
+      background:rgba(255,255,255,.045);
+      color:#9ca6b3;
+    }
+
+    body.growth-mode #view-growth { overflow-y:auto; }
+    body.growth-mode .growth-inner {
+      width:min(820px, calc(100% - 32px));
+      padding:28px 0 56px;
+    }
+    body.growth-mode .growth-header {
+      align-items:center;
+      margin-bottom:18px;
+      padding:0 4px;
+    }
+    body.growth-mode .growth-header h1 {
+      color:#f6f7f8;
+      font-size:clamp(34px,4vw,46px);
+      line-height:1;
+      font-weight:760;
+      letter-spacing:-.055em;
+    }
+    body.growth-mode .growth-header p {
+      max-width:500px;
+      margin-top:9px;
+      color:#8f99a6;
+      font-size:13px;
+      line-height:1.45;
+    }
+    body.growth-mode .growth-period {
+      min-height:38px;
+      padding:0 15px;
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:999px;
+      background:rgba(255,255,255,.055);
+      color:#b6bec8;
+      font-size:11px;
+    }
+
+    body.growth-mode .growth-panel {
+      grid-template-columns:minmax(250px,.82fr) minmax(0,1.45fr);
+      margin-bottom:16px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:30px;
+      background:#fbfaf7;
+      box-shadow:0 28px 80px rgba(0,0,0,.38);
+    }
+    body.growth-mode .growth-overview {
+      justify-content:space-between;
+      min-height:330px;
+      padding:30px;
+      border-right:1px solid #e8e9e4;
+      background:
+        radial-gradient(280px 220px at 18% 0%, rgba(32,184,135,.10), transparent 72%),
+        #fbfaf7;
+    }
+    body.growth-mode .growth-total span {
+      color:#7e8793;
+      font-size:10px;
+      letter-spacing:.10em;
+    }
+    body.growth-mode .growth-total strong {
+      margin-top:12px;
+      color:#18ad7d;
+      font-size:clamp(54px,7vw,78px);
+      line-height:.9;
+    }
+    body.growth-mode .growth-total::after {
+      content:"approved impact";
+      display:inline-flex;
+      align-items:center;
+      min-height:30px;
+      margin-top:18px;
+      padding:0 11px;
+      border-radius:999px;
+      background:#e8f7f1;
+      color:#0c8e68;
+      font-size:10px;
+      font-weight:760;
+    }
+    body.growth-mode .growth-counts {
+      gap:8px;
+    }
+    body.growth-mode .growth-count {
+      min-height:74px;
+      padding:13px 12px;
+      border:0;
+      border-radius:17px;
+      background:#eff0ec;
+    }
+    body.growth-mode .growth-count span { color:#858e99; font-size:9px; }
+    body.growth-mode .growth-count strong { margin-top:3px; font-size:22px; }
+
+    body.growth-mode .growth-chart {
+      padding:27px 28px 22px;
+      background:#fbfaf7;
+    }
+    body.growth-mode .growth-chart-head h2 {
+      font-size:16px;
+      letter-spacing:-.025em;
+    }
+    body.growth-mode .growth-chart-head p { font-size:10px; }
+    body.growth-mode .chart-legend {
+      gap:10px;
+      padding:7px 10px;
+      border-radius:999px;
+      background:#f0f1ed;
+    }
+    body.growth-mode .chart-plot { height:205px; }
+    body.growth-mode .chart-plot svg { height:205px; }
+
+    body.growth-mode .decision-lists {
+      grid-template-columns:1fr;
+      gap:14px;
+    }
+    body.growth-mode .list-panel {
+      min-height:0;
+      padding:0;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:28px;
+      background:#fbfaf7;
+      box-shadow:0 20px 58px rgba(0,0,0,.28);
+    }
+    body.growth-mode .list-panel-header {
+      align-items:center;
+      margin:0;
+      padding:20px 22px 14px;
+      border-bottom:1px solid #ecece7;
+    }
+    body.growth-mode .list-panel-title h2 {
+      font-size:18px;
+      letter-spacing:-.03em;
+    }
+    body.growth-mode .list-panel-title p { margin-top:4px; font-size:10px; }
+    body.growth-mode .list-count {
+      min-width:34px;
+      height:34px;
+      border-radius:50%;
+      background:#eff0ec;
+      font-size:11px;
+    }
+    body.growth-mode .decision-list {
+      gap:0;
+    }
+    body.growth-mode .decision-row {
+      min-height:86px;
+      grid-template-columns:48px minmax(0,1fr) auto;
+      gap:14px;
+      padding:15px 20px;
+      border:0;
+      border-bottom:1px solid #ecece7;
+      border-radius:0;
+      background:#fbfaf7;
+    }
+    body.growth-mode .decision-row:last-child { border-bottom:0; }
+    body.growth-mode .decision-row:hover {
+      background:#f4f5f1;
+      transform:none;
+    }
+    body.growth-mode .decision-row-icon {
+      width:48px;
+      height:48px;
+      border-radius:50%;
+      background:#eeefff;
+    }
+    body.growth-mode .decision-row-copy strong {
+      color:#1b222c;
+      font-size:14px;
+    }
+    body.growth-mode .decision-row-copy span {
+      margin-top:5px;
+      color:#75808d;
+      font-size:10px;
+    }
+    body.growth-mode .decision-row-value {
+      padding:8px 10px;
+      border-radius:999px;
+      background:#e8f7f1;
+      color:#0c986f;
+      font-size:10px;
+    }
+    body.growth-mode .decision-row-value.rejected {
+      background:#eff0ec;
+      color:#7d8791;
+    }
+    body.growth-mode .list-empty {
+      min-height:180px;
+      background:#fbfaf7;
+    }
+
+    /* Extra social polish for the For You screen. */
+    body.autopilot-mode .post-footer {
+      background:rgba(239,241,237,.96);
+      backdrop-filter:blur(18px);
+    }
+    body.autopilot-mode .decision-button {
+      box-shadow:0 8px 20px rgba(17,22,30,.08);
+    }
+    body.autopilot-mode .decision-button.approve {
+      box-shadow:0 14px 30px rgba(32,184,135,.25);
+    }
+    body.autopilot-mode .feed-card.is-current {
+      animation:social-card-in .38s var(--ease) both;
+    }
+    @keyframes social-card-in {
+      from { opacity:.4; transform:translateY(12px) scale(.985); }
+      to { opacity:1; transform:translateY(0) scale(1); }
+    }
+
+    @media (max-width: 760px) {
+      body.growth-mode .growth-inner { width:calc(100% - 18px); padding-top:18px; }
+      body.growth-mode .growth-panel { grid-template-columns:1fr; }
+      body.growth-mode .growth-overview {
+        min-height:0;
+        border-right:0;
+        border-bottom:1px solid #e8e9e4;
+      }
+    }
+    @media (max-width: 640px) {
+      body.growth-mode .growth-inner { width:100%; padding:14px 10px 34px; }
+      body.growth-mode .growth-header { padding:0 6px; }
+      body.growth-mode .growth-header h1 { font-size:32px; }
+      body.growth-mode .growth-header p { max-width:290px; font-size:11px; }
+      body.growth-mode .growth-period { min-height:34px; padding:0 11px; }
+      body.growth-mode .growth-panel,
+      body.growth-mode .list-panel { border-radius:23px; }
+      body.growth-mode .growth-overview { padding:24px 20px; }
+      body.growth-mode .growth-total strong { font-size:58px; }
+      body.growth-mode .growth-chart { padding:22px 18px 18px; }
+      body.growth-mode .growth-chart-head { align-items:center; }
+      body.growth-mode .chart-legend { display:none; }
+      body.growth-mode .decision-row {
+        grid-template-columns:44px minmax(0,1fr);
+        padding:14px 16px;
+      }
+      body.growth-mode .decision-row-icon { width:44px; height:44px; }
+      body.growth-mode .decision-row-value {
+        grid-column:2;
+        justify-self:start;
+        margin-top:2px;
+      }
+    }
+  </style>
+
+  <style id="growth-social-swipe-v4">
+    body.growth-mode .growth-carousel { margin-bottom:18px; }
+    body.growth-mode .growth-swipe {
+      overflow:hidden;
+      border-radius:30px;
+      touch-action:pan-y;
+      user-select:none;
+      box-shadow:0 26px 74px rgba(0,0,0,.34);
+    }
+    body.growth-mode .growth-swipe-track {
+      display:flex;
+      width:200%;
+      transform:translate3d(0,0,0);
+      transition:transform .52s cubic-bezier(.2,.82,.2,1);
+      will-change:transform;
+    }
+    body.growth-mode .growth-swipe-track.is-dragging { transition:none; }
+    body.growth-mode .growth-slide {
+      width:50%;
+      min-height:300px;
+      flex:0 0 50%;
+      position:relative;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.09);
+      background:#fbfaf7;
+    }
+
+    /* Slide one: one result, no dashboard furniture. */
+    body.growth-mode .growth-slide-summary {
+      display:grid;
+      place-items:center;
+      isolation:isolate;
+      background:
+        radial-gradient(460px 250px at 18% 12%,rgba(32,184,135,.18),transparent 70%),
+        radial-gradient(420px 250px at 88% 82%,rgba(118,120,255,.12),transparent 72%),
+        #fbfaf7;
+    }
+    body.growth-mode .growth-slide-summary::before,
+    body.growth-mode .growth-slide-summary::after {
+      content:"";
+      position:absolute;
+      z-index:-1;
+      border-radius:50%;
+      pointer-events:none;
+      filter:blur(2px);
+      opacity:.72;
+    }
+    body.growth-mode .growth-slide-summary::before {
+      width:210px;
+      height:210px;
+      left:8%;
+      top:50%;
+      border:1px solid rgba(32,184,135,.12);
+      transform:translateY(-50%);
+      animation:growth-orbit 8s ease-in-out infinite;
+    }
+    body.growth-mode .growth-slide-summary::after {
+      width:110px;
+      height:110px;
+      right:11%;
+      top:18%;
+      background:rgba(118,120,255,.07);
+      animation:growth-float 6s ease-in-out infinite;
+    }
+    body.growth-mode .growth-overview {
+      width:100%;
+      min-height:300px;
+      display:grid;
+      place-items:center;
+      padding:36px 28px;
+      border:0;
+      background:transparent;
+      text-align:center;
+    }
+    body.growth-mode .growth-total { display:grid; justify-items:center; }
+    body.growth-mode .growth-total span {
+      color:#7c8691;
+      font-size:11px;
+      font-weight:820;
+      letter-spacing:.11em;
+      text-transform:uppercase;
+    }
+    body.growth-mode .growth-total strong {
+      margin-top:10px;
+      font-size:clamp(74px,10vw,112px);
+      line-height:.9;
+      letter-spacing:-.075em;
+      background:linear-gradient(125deg,#0cae7d 12%,#20b887 52%,#6469ee 112%);
+      -webkit-background-clip:text;
+      background-clip:text;
+      color:transparent;
+      filter:drop-shadow(0 12px 24px rgba(32,184,135,.12));
+      animation:growth-number-in .7s .08s var(--ease) both;
+    }
+    body.growth-mode .growth-total p {
+      margin:18px 0 0;
+      color:#7b8591;
+      font-size:13px;
+      line-height:1.4;
+      font-weight:650;
+    }
+    body.growth-mode .growth-total::after { display:none; }
+    body.growth-mode .growth-counts,
+    body.growth-mode .growth-swipe-hint { display:none !important; }
+
+    /* Slide two: a consumer-style animated journey, not a chart. */
+    body.growth-mode .growth-slide-progress {
+      background:
+        radial-gradient(520px 260px at 88% 0%,rgba(118,120,255,.16),transparent 70%),
+        radial-gradient(420px 240px at 10% 100%,rgba(32,184,135,.10),transparent 74%),
+        #fbfaf7;
+    }
+    body.growth-mode .growth-chart {
+      height:100%;
+      min-height:300px;
+      padding:26px 30px 20px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      background:transparent;
+    }
+    body.growth-mode .growth-chart-head {
+      margin:0;
+      text-align:center;
+    }
+    body.growth-mode .growth-story-kicker {
+      display:block;
+      margin-bottom:6px;
+      color:#6669eb;
+      font-size:9px;
+      font-weight:850;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    body.growth-mode .growth-chart-head h2 {
+      margin:0;
+      font-size:26px;
+      line-height:1.04;
+      letter-spacing:-.045em;
+    }
+    body.growth-mode .growth-chart-head p {
+      margin:7px 0 0;
+      color:#858e99;
+      font-size:11px;
+      font-weight:620;
+    }
+    body.growth-mode .chart-legend { display:none; }
+    body.growth-mode .chart-plot {
+      height:220px;
+      margin-top:8px;
+    }
+    body.growth-mode .chart-plot svg {
+      display:block;
+      width:100%;
+      height:220px;
+      overflow:visible;
+    }
+    body.growth-mode .chart-note {
+      width:max-content;
+      max-width:100%;
+      margin:2px auto 0;
+      padding:8px 12px;
+      border:0;
+      border-radius:999px;
+      background:rgba(101,105,235,.08);
+      color:#6e7783;
+      font-size:9px;
+      line-height:1.25;
+      text-align:center;
+    }
+    body.growth-mode .chart-note b { color:#555be0; }
+    body.growth-mode .chart-note span { margin-left:4px; }
+
+    body.growth-mode .growth-swipe-nav {
+      display:flex;
+      justify-content:center;
+      gap:7px;
+      margin:12px 0 2px;
+    }
+    body.growth-mode .growth-swipe-dot {
+      width:7px;
+      height:7px;
+      padding:0;
+      border:0;
+      border-radius:999px;
+      background:rgba(255,255,255,.28);
+      cursor:pointer;
+      transition:width .25s var(--ease),background .25s var(--ease),transform .2s var(--ease);
+    }
+    body.growth-mode .growth-swipe-dot.active { width:26px;background:#8b8dff; }
+    body.growth-mode .growth-swipe-dot:hover { transform:scale(1.15); }
+
+    .journey-glow {
+      fill:none;
+      stroke:url(#journeyGradient);
+      stroke-width:22;
+      stroke-linecap:round;
+      opacity:.13;
+      filter:blur(6px);
+    }
+    .journey-line {
+      fill:none;
+      stroke:url(#journeyGradient);
+      stroke-width:10;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+      path-length:1;
+      stroke-dasharray:1;
+      stroke-dashoffset:1;
+      animation:journey-draw 1.15s .12s var(--ease) forwards;
+      filter:drop-shadow(0 9px 14px rgba(44,164,133,.16));
+    }
+    .journey-line.projected {
+      stroke:#7478f4;
+      stroke-width:7;
+      stroke-dasharray:13 12;
+      stroke-dashoffset:100;
+      animation:journey-projected 1s .78s var(--ease) forwards;
+      filter:none;
+    }
+    .journey-orb { opacity:.65; animation:journey-orb-float 7s ease-in-out infinite; }
+    .journey-ring,
+    .journey-core,
+    .journey-value-card,
+    .journey-value,
+    .journey-month,
+    .journey-preview {
+      transform-box:fill-box;
+      transform-origin:center;
+      opacity:0;
+      animation:journey-pop .48s var(--delay) var(--ease) forwards;
+    }
+    .journey-ring { fill:#fff;stroke:rgba(26,34,45,.08);stroke-width:1;filter:drop-shadow(0 10px 16px rgba(25,32,43,.14)); }
+    .journey-core { fill:url(#journeyDotGradient); }
+    .journey-core.projected { fill:#fbfaf7;stroke:#7478f4;stroke-width:4; }
+    .journey-value-card { fill:#fff;stroke:rgba(26,34,45,.07);stroke-width:1;filter:drop-shadow(0 7px 12px rgba(25,32,43,.10)); }
+    .journey-value { fill:#151b24;font-size:14px;font-weight:850;letter-spacing:-.025em; }
+    .journey-month { fill:#7f8995;font-size:10px;font-weight:760; }
+    .journey-preview { fill:#5d62e7;font-size:8px;font-weight:850;letter-spacing:.12em; }
+    .journey-runner { filter:drop-shadow(0 5px 8px rgba(105,110,242,.35)); }
+    .journey-runner-glow { fill:rgba(116,120,244,.18);animation:runner-pulse 1.2s ease-in-out infinite; }
+    .journey-runner-dot { fill:#fff;stroke:#7075f2;stroke-width:3; }
+
+    @keyframes growth-number-in {
+      from { opacity:0;transform:translateY(10px) scale(.92); }
+      to { opacity:1;transform:none; }
+    }
+    @keyframes growth-orbit {
+      0%,100% { transform:translateY(-50%) rotate(0deg) scale(1); }
+      50% { transform:translateY(-50%) rotate(10deg) scale(1.06); }
+    }
+    @keyframes growth-float {
+      0%,100% { transform:translate3d(0,0,0); }
+      50% { transform:translate3d(-12px,14px,0); }
+    }
+    @keyframes journey-draw { to { stroke-dashoffset:0; } }
+    @keyframes journey-projected { to { stroke-dashoffset:0; } }
+    @keyframes journey-pop {
+      0% { opacity:0;transform:scale(.72) translateY(4px); }
+      72% { opacity:1;transform:scale(1.08) translateY(0); }
+      100% { opacity:1;transform:scale(1); }
+    }
+    @keyframes journey-orb-float {
+      0%,100% { transform:translateY(0); }
+      50% { transform:translateY(-8px); }
+    }
+    @keyframes runner-pulse {
+      0%,100% { transform:scale(.75);opacity:.22; }
+      50% { transform:scale(1.2);opacity:.5; }
+    }
+
+    @media (max-width:640px) {
+      body.growth-mode .growth-swipe { border-radius:23px; }
+      body.growth-mode .growth-slide { min-height:290px; }
+      body.growth-mode .growth-overview { min-height:290px;padding:30px 18px; }
+      body.growth-mode .growth-total strong { font-size:76px; }
+      body.growth-mode .growth-total p { margin-top:14px;font-size:12px; }
+      body.growth-mode .growth-chart { min-height:290px;padding:22px 15px 16px; }
+      body.growth-mode .growth-chart-head h2 { font-size:23px; }
+      body.growth-mode .chart-plot { height:205px;margin-top:2px; }
+      body.growth-mode .chart-plot svg { height:205px; }
+      body.growth-mode .chart-note { margin-top:0;font-size:8.5px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .journey-line,.journey-line.projected,.journey-ring,.journey-core,.journey-value-card,
+      .journey-value,.journey-month,.journey-preview,body.growth-mode .growth-total strong,
+      body.growth-mode .growth-slide-summary::before,body.growth-mode .growth-slide-summary::after,
+      .journey-orb,.journey-runner-glow { animation:none !important;opacity:1;stroke-dashoffset:0; }
+      .journey-runner { display:none; }
+    }
+  </style>
+
+  <style id="growth-social-v5">
+    /* Growth is a narrow social feed, not a dashboard canvas. */
+    body.growth-mode .growth-inner {
+      width:min(760px,calc(100% - 34px));
+      padding-top:22px;
+    }
+    body.growth-mode .growth-header {
+      margin-bottom:14px;
+      padding:0 4px;
+    }
+    body.growth-mode .growth-header h1 { font-size:clamp(34px,5vw,48px); }
+    body.growth-mode .growth-header p { margin-top:5px;font-size:12px; }
+    body.growth-mode .growth-period { min-height:32px;padding:0 12px; }
+
+    body.growth-mode .growth-carousel {
+      width:min(680px,100%);
+      margin:0 auto 18px;
+    }
+    body.growth-mode .growth-swipe {
+      border-radius:26px;
+      box-shadow:0 18px 48px rgba(0,0,0,.28);
+    }
+    body.growth-mode .growth-slide,
+    body.growth-mode .growth-overview,
+    body.growth-mode .growth-chart {
+      min-height:218px;
+      height:218px;
+    }
+
+    /* Compact social result card. */
+    body.growth-mode .growth-slide-summary {
+      background:linear-gradient(145deg,#f5fffb 0%,#fbfaf7 58%,#f5f4ff 100%);
+    }
+    body.growth-mode .growth-slide-summary::before,
+    body.growth-mode .growth-slide-summary::after { display:none; }
+    body.growth-mode .growth-overview { padding:24px; }
+    body.growth-mode .growth-total {
+      width:100%;
+      display:grid;
+      grid-template-columns:58px minmax(0,1fr);
+      grid-template-rows:auto auto auto;
+      column-gap:18px;
+      justify-items:start;
+      align-items:center;
+      text-align:left;
+    }
+    body.growth-mode .growth-total::before {
+      content:"↗";
+      grid-column:1;
+      grid-row:1 / 4;
+      width:58px;
+      height:58px;
+      display:grid;
+      place-items:center;
+      border-radius:19px;
+      background:linear-gradient(145deg,#20bd8b,#6569ef);
+      color:#fff;
+      font-size:26px;
+      font-weight:800;
+      box-shadow:0 14px 30px rgba(41,178,139,.23);
+    }
+    body.growth-mode .growth-total span {
+      grid-column:2;
+      margin:0;
+      font-size:10px;
+      letter-spacing:.12em;
+    }
+    body.growth-mode .growth-total strong {
+      grid-column:2;
+      margin:3px 0 0;
+      font-size:clamp(58px,8vw,82px);
+      line-height:.9;
+    }
+    body.growth-mode .growth-total p {
+      grid-column:2;
+      margin:8px 0 0;
+      font-size:12px;
+    }
+
+    /* Progress becomes a playful story reel made of large social bubbles. */
+    body.growth-mode .growth-slide-progress {
+      background:linear-gradient(145deg,#fbfaf7 0%,#f8fbff 50%,#f4f2ff 100%);
+    }
+    body.growth-mode .growth-chart {
+      padding:18px 20px 12px;
+      justify-content:flex-start;
+    }
+    body.growth-mode .growth-chart-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      text-align:left;
+    }
+    body.growth-mode .growth-story-kicker { margin:0 0 3px;font-size:8px; }
+    body.growth-mode .growth-chart-head h2 { font-size:21px; }
+    body.growth-mode .growth-chart-head p { display:none; }
+    body.growth-mode .chart-plot,
+    body.growth-mode .chart-plot svg {
+      height:154px;
+      margin-top:0;
+    }
+    body.growth-mode .chart-note { display:none !important; }
+
+    .social-ribbon {
+      fill:none;
+      stroke:url(#socialRibbonGradient);
+      stroke-width:18;
+      stroke-linecap:round;
+      opacity:.16;
+      filter:blur(3px);
+    }
+    .social-ribbon-core {
+      fill:none;
+      stroke:url(#socialRibbonGradient);
+      stroke-width:7;
+      stroke-linecap:round;
+      path-length:1;
+      stroke-dasharray:1;
+      stroke-dashoffset:1;
+      animation:social-ribbon-draw 1s .08s var(--ease) forwards;
+    }
+    .social-bubble {
+      transform-box:fill-box;
+      transform-origin:center;
+      opacity:0;
+      animation:social-bubble-pop .52s var(--delay) var(--ease) forwards;
+      filter:drop-shadow(0 12px 18px rgba(26,34,45,.14));
+    }
+    .social-bubble-bg { fill:url(#socialBubbleGradient); }
+    .social-bubble-bg.projected { fill:#fff;stroke:#7678f4;stroke-width:4;stroke-dasharray:6 5; }
+    .social-bubble-amount { fill:#fff;font-size:16px;font-weight:850;letter-spacing:-.04em; }
+    .social-bubble-amount.projected { fill:#595ee2; }
+    .social-bubble-month { fill:rgba(255,255,255,.78);font-size:8px;font-weight:800;letter-spacing:.12em; }
+    .social-bubble-month.projected { fill:#747b89; }
+    .social-spark { filter:drop-shadow(0 5px 8px rgba(105,110,242,.3)); }
+    .social-spark-glow { fill:rgba(118,120,244,.20);animation:runner-pulse 1.2s ease-in-out infinite; }
+    .social-spark-dot { fill:#fff;stroke:#676bf0;stroke-width:3; }
+    @keyframes social-ribbon-draw { to { stroke-dashoffset:0; } }
+    @keyframes social-bubble-pop {
+      0% { opacity:0;transform:translateY(12px) scale(.76); }
+      70% { opacity:1;transform:translateY(-2px) scale(1.06); }
+      100% { opacity:1;transform:none; }
+    }
+
+    body.growth-mode .growth-swipe-nav { margin:9px 0 0; }
+    body.growth-mode .decision-lists {
+      width:min(680px,100%);
+      margin:0 auto;
+    }
+
+    @media (max-width:640px) {
+      body.growth-mode .growth-inner { width:calc(100% - 16px);padding-top:16px; }
+      body.growth-mode .growth-header { padding:0 4px; }
+      body.growth-mode .growth-header h1 { font-size:34px; }
+      body.growth-mode .growth-header p { font-size:11px;max-width:260px; }
+      body.growth-mode .growth-slide,
+      body.growth-mode .growth-overview,
+      body.growth-mode .growth-chart { min-height:205px;height:205px; }
+      body.growth-mode .growth-overview { padding:20px; }
+      body.growth-mode .growth-total { grid-template-columns:50px minmax(0,1fr);column-gap:14px; }
+      body.growth-mode .growth-total::before { width:50px;height:50px;border-radius:16px;font-size:23px; }
+      body.growth-mode .growth-total strong { font-size:56px; }
+      body.growth-mode .growth-total p { font-size:11px; }
+      body.growth-mode .growth-chart { padding:16px 12px 8px; }
+      body.growth-mode .chart-plot,
+      body.growth-mode .chart-plot svg { height:145px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .social-ribbon-core,.social-bubble { animation:none !important;opacity:1;stroke-dashoffset:0; }
+      .social-spark { display:none; }
+    }
+  </style>
+
+  <style id="growth-social-v6-polish">
+    /* Center the monthly result and use one calm social palette. */
+    body.growth-mode {
+      --growth-emerald:#19b985;
+      --growth-teal:#2aa9a1;
+      --growth-indigo:#6f72e8;
+      --growth-ink:#151b24;
+      --growth-muted:#7b8592;
+      --growth-card:#fbfaf7;
+    }
+
+    body.growth-mode .growth-slide-summary {
+      background:
+        radial-gradient(300px 180px at 50% 48%,rgba(25,185,133,.13),transparent 72%),
+        linear-gradient(145deg,#f7fffb 0%,#fbfaf7 58%,#f7f7ff 100%);
+    }
+
+    body.growth-mode .growth-overview {
+      display:grid;
+      place-items:center;
+      padding:22px 24px;
+      text-align:center;
+    }
+
+    body.growth-mode .growth-total {
+      width:auto;
+      max-width:100%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:0;
+      text-align:center;
+    }
+
+    body.growth-mode .growth-total::before { display:none; }
+
+    body.growth-mode .growth-total span,
+    body.growth-mode .growth-total strong,
+    body.growth-mode .growth-total p {
+      grid-column:auto;
+      grid-row:auto;
+      justify-self:auto;
+      text-align:center;
+    }
+
+    body.growth-mode .growth-total span {
+      color:#7b8592;
+      font-size:10px;
+      letter-spacing:.13em;
+    }
+
+    body.growth-mode .growth-total strong {
+      margin:9px 0 0;
+      font-size:clamp(62px,9vw,86px);
+      line-height:.88;
+      background:linear-gradient(110deg,var(--growth-emerald) 0%,var(--growth-teal) 58%,var(--growth-indigo) 112%);
+      -webkit-background-clip:text;
+      background-clip:text;
+      color:transparent;
+      filter:drop-shadow(0 10px 20px rgba(25,185,133,.10));
+    }
+
+    body.growth-mode .growth-total p {
+      margin:14px 0 0;
+      color:var(--growth-muted);
+      font-size:12px;
+      font-weight:650;
+    }
+
+    body.growth-mode .growth-period {
+      border-color:rgba(111,114,232,.18);
+      background:rgba(111,114,232,.08);
+      color:#aeb0ff;
+    }
+
+    body.growth-mode .growth-swipe-dot { background:rgba(111,114,232,.28); }
+    body.growth-mode .growth-swipe-dot.active {
+      background:linear-gradient(90deg,var(--growth-emerald),var(--growth-indigo));
+      box-shadow:0 0 0 4px rgba(111,114,232,.08);
+    }
+
+    body.growth-mode .growth-slide-progress {
+      background:
+        radial-gradient(300px 180px at 82% 12%,rgba(111,114,232,.12),transparent 72%),
+        radial-gradient(280px 170px at 12% 88%,rgba(25,185,133,.10),transparent 74%),
+        linear-gradient(145deg,#fbfaf7 0%,#f8fbfa 46%,#f7f7ff 100%);
+    }
+
+    body.growth-mode .growth-story-kicker { color:var(--growth-indigo); }
+    body.growth-mode .growth-chart-head h2 { color:var(--growth-ink); }
+
+    .social-bubble-bg { fill:url(#socialBubbleGradient); }
+    .social-bubble-bg.projected { stroke:var(--growth-indigo); }
+    .social-bubble-amount.projected { fill:#5f63df; }
+    .social-spark-dot { stroke:var(--growth-indigo); }
+
+    @media (max-width:640px) {
+      body.growth-mode .growth-overview { padding:18px 16px; }
+      body.growth-mode .growth-total strong { font-size:58px; }
+      body.growth-mode .growth-total p { margin-top:11px;font-size:11px; }
+    }
+  </style>
+
+
+  <style id="growth-social-v7-center-fix">
+    /* Hard reset of earlier Growth layout rules so the summary is centered
+       against the full swipe card, not merely inside a leftover grid column. */
+    body.growth-mode .growth-slide-summary {
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      padding:0 !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-overview {
+      position:absolute !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      min-height:0 !important;
+      margin:0 !important;
+      padding:20px !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      text-align:center !important;
+      border:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
+      transform:none !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-total {
+      width:100% !important;
+      max-width:none !important;
+      margin:0 auto !important;
+      padding:0 !important;
+      display:flex !important;
+      flex-direction:column !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:0 !important;
+      text-align:center !important;
+      transform:none !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-total::before,
+    body.growth-mode .growth-slide-summary .growth-total::after {
+      display:none !important;
+      content:none !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-total > * {
+      width:auto !important;
+      max-width:100% !important;
+      margin-left:auto !important;
+      margin-right:auto !important;
+      grid-column:auto !important;
+      grid-row:auto !important;
+      justify-self:center !important;
+      align-self:center !important;
+      text-align:center !important;
+      transform:none !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-total span {
+      margin-top:0 !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-total strong {
+      margin-top:10px !important;
+    }
+
+    body.growth-mode .growth-slide-summary .growth-total p {
+      margin-top:13px !important;
+    }
+
+    @media (max-width:640px) {
+      body.growth-mode .growth-slide-summary .growth-overview { padding:16px !important; }
+    }
+  </style>
 </head>
 <body>
   <main class="app" id="app">
@@ -2706,7 +3847,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path d="M5 5h14v14H5z" /><path d="M8 9h8M8 13h5M8 17h3" />
           </svg>
-          <span>Autopilot</span>
+          <span>For You</span>
         </button>
         <button class="view-tab" type="button" data-view="growth">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -2751,59 +3892,58 @@
         <div class="view-inner growth-inner">
           <header class="growth-header" data-enter>
             <div>
-              <h1 id="growthHeading">Growth</h1>
-              <p>Approved ideas appear here. Rejected ideas stay separate.</p>
+              <h1 id="growthHeading">Your growth</h1>
+              <p>A live feed of the moves you approved and what they are adding.</p>
             </div>
             <div class="growth-period">August 2026</div>
           </header>
 
-          <!-- Summary and chart share one panel: the forecast figure and the record
-               it is measured against belong in the same frame, and giving the plot a
-               column rather than the full width stops three points being stretched
-               across a thousand pixels. -->
-          <section class="growth-panel" aria-label="Growth summary" data-enter>
-            <div class="growth-overview">
-              <div class="growth-total">
-                <span>Approved monthly potential</span>
-                <strong id="approvedAmount">+$0</strong>
-              </div>
-              <div class="growth-counts">
-                <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
-                <div class="growth-count rejected"><span>Rejected</span><strong id="rejectedCount">0</strong></div>
-                <div class="growth-count"><span>Left</span><strong id="remainingCount">5</strong></div>
+          <section class="growth-carousel" aria-label="Growth highlights" data-enter>
+            <div class="growth-swipe" id="growthSwipe">
+              <div class="growth-swipe-track" id="growthSwipeTrack">
+                <article class="growth-slide growth-slide-summary" aria-label="This month">
+                  <div class="growth-overview">
+                    <div class="growth-total">
+                      <span>This month</span>
+                      <strong id="approvedAmount">+$0</strong>
+                      <p>Added by the moves you approved</p>
+                    </div>
+                    <div class="growth-counts" hidden aria-hidden="true">
+                      <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
+                      <div class="growth-count rejected"><span>Passed</span><strong id="rejectedCount">0</strong></div>
+                      <div class="growth-count"><span>Left</span><strong id="remainingCount">5</strong></div>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="growth-slide growth-slide-progress" aria-label="Your progress">
+                  <section class="growth-chart" id="growthChart" aria-labelledby="growthChartHeading" hidden>
+                    <header class="growth-chart-head">
+                      <div>
+                        <span class="growth-story-kicker">Your progress</span>
+                        <h2 id="growthChartHeading">Your momentum</h2>
+                        <p id="growthChartSub">Month by month</p>
+                      </div>
+                    </header>
+                    <div class="chart-plot" id="chartPlot"></div>
+                    <p class="chart-note" id="chartNote"></p>
+                    <div class="visually-hidden" id="chartTable"></div>
+                  </section>
+                </article>
               </div>
             </div>
-
-            <!--
-              The revenue chart. Every point is a row out of CockroachDB: months with
-              a measured outcome are drawn solid, and at most ONE month is projected —
-              drawn dashed, captioned with the pending find it rests on. A ramp of
-              invented future months is exactly what this must never become.
-            -->
-            <section class="growth-chart" id="growthChart" aria-labelledby="growthChartHeading" hidden>
-              <header class="growth-chart-head">
-                <div>
-                  <h2 id="growthChartHeading">Monthly revenue added</h2>
-                  <p id="growthChartSub">Measured against real sales</p>
-                </div>
-                <div class="chart-legend" role="list">
-                  <span role="listitem"><i class="key key-verified" aria-hidden="true"></i>Verified</span>
-                  <span role="listitem"><i class="key key-projected" aria-hidden="true"></i>Projected</span>
-                </div>
-              </header>
-
-              <div class="chart-plot" id="chartPlot"></div>
-              <p class="chart-note" id="chartNote"></p>
-              <div class="visually-hidden" id="chartTable"></div>
-            </section>
+            <nav class="growth-swipe-nav" aria-label="Growth cards">
+              <button class="growth-swipe-dot active" type="button" data-growth-slide="0" aria-label="Show this month"></button>
+              <button class="growth-swipe-dot" type="button" data-growth-slide="1" aria-label="Show your progress"></button>
+            </nav>
           </section>
 
           <section class="decision-lists" aria-label="Approved and rejected decisions" data-enter>
             <article class="list-panel approved-panel">
               <header class="list-panel-header">
                 <div class="list-panel-title">
-                  <h2>Where it came from</h2>
-                  <p>Approved recommendations</p>
+                  <h2>Your wins</h2>
+                  <p>Approved moves</p>
                 </div>
                 <span class="list-count" id="approvedListCount">0</span>
               </header>
@@ -2813,8 +3953,8 @@
             <article class="list-panel rejected-panel">
               <header class="list-panel-header">
                 <div class="list-panel-title">
-                  <h2>Rejected</h2>
-                  <p>Ideas you chose not to pursue</p>
+                  <h2>Passed</h2>
+                  <p>Ideas you skipped</p>
                 </div>
                 <span class="list-count" id="rejectedListCount">0</span>
               </header>
@@ -3160,6 +4300,8 @@
       // treatment has to be driven from a shared ancestor rather than scoped under
       // .view.console like the rest of the admin styling.
       document.body.classList.toggle("console-mode", viewName === "admin");
+      document.body.classList.toggle("autopilot-mode", viewName === "autopilot");
+      document.body.classList.toggle("growth-mode", viewName === "growth");
       closeDrawer();
       playViewEntrance(document.getElementById(`view-${viewName}`));
     }
@@ -3284,8 +4426,6 @@
     function renderFeedCard(post, index, count) {
       const offset = (index - currentIndex + count) % count;
       const positionClass = positionFor(offset, count);
-      const position = String(index + 1).padStart(2, "0");
-      const total = String(count).padStart(2, "0");
 
       return `
         <article
@@ -3298,27 +4438,12 @@
           <span class="swipe-cue swipe-cue-prev" aria-hidden="true">Back</span>
           <span class="swipe-cue swipe-cue-next" aria-hidden="true">Next</span>
 
-          <aside class="post-rail" aria-hidden="true">
-            <span class="post-rail-icon">${icons[post.featureKey]}</span>
-            <span class="post-rail-progress"><strong>${position}</strong><small>/ ${total}</small></span>
-            <span class="post-rail-time">${post.sourceTime}</span>
-          </aside>
-
           <section class="post-surface">
             <header class="post-header">
-              <div class="post-source">
-                <span class="post-source-dot" aria-hidden="true"></span>
-                <span class="post-source-copy">
-                  <strong>${post.feature}</strong>
-                  <span>Autopilot signal</span>
-                </span>
-              </div>
-
               <div class="post-tools">
                 <div class="highlight-chip"><strong>${post.highlightValue}</strong><span>${post.highlightLabel}</span></div>
-                <button class="details-button" type="button" data-open-post="${post.id}" aria-label="Why this? Open the evidence for ${post.title} and ask a question">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
-                  <b>Why this?</b>
+                <button class="details-button" type="button" data-open-post="${post.id}" aria-label="Open details for ${post.title}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
                 </button>
               </div>
             </header>
@@ -3348,10 +4473,10 @@
 
               <div class="decision-actions" aria-label="Respond to this recommendation">
                 <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">
-                  ${icons.rejected}<span>Reject</span>
+                  ${icons.rejected}<span>Pass</span>
                 </button>
                 <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}">
-                  ${icons.approved}<span>Approve</span>
+                  ${icons.approved}<span>Do it</span>
                 </button>
               </div>
             </footer>
@@ -3526,10 +4651,10 @@
       if (target instanceof HTMLElement && (target.isContentEditable ||
           /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
 
-      if (event.key === "ArrowLeft") {
+      if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
         event.preventDefault();
         goToPost(currentIndex - 1);
-      } else if (event.key === "ArrowRight") {
+      } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
         event.preventDefault();
         goToPost(currentIndex + 1);
       }
@@ -3545,7 +4670,7 @@
         const pending = getPendingPosts();
         if (currentIndex >= pending.length) currentIndex = Math.max(0, pending.length - 1);
         isAnimating = false;
-        showToast(status === "approved" ? "Approved. Added to Growth." : "Rejected. Kept in the rejected list.", status);
+        showToast(status === "approved" ? "Approved. Added to Growth." : "Passed. Saved in the rejected list.", status);
         renderApp();
       };
 
@@ -3625,14 +4750,14 @@
       const projected = months.find(m => m.projected);
 
       document.getElementById("growthChartSub").textContent = projected
-        ? `${verifiedMonths.length} months measured against real sales · 1 projected`
-        : `${verifiedMonths.length} months measured against real sales`;
+        ? `${verifiedMonths.length} complete · ${projected.label} is a preview`
+        : `${verifiedMonths.length} months complete`;
 
       drawRevenueChart(months);
 
       const note = document.getElementById("chartNote");
-      if (projected && projected.note) {
-        note.innerHTML = `<b>${escapeHtml(projected.label)} is a projection</b> — ${escapeHtml(projected.note)}. Nothing in it has been measured yet.`;
+      if (projected) {
+        note.innerHTML = `<b>${escapeHtml(projected.label)} is a preview</b><span>One move is still being measured.</span>`;
         note.hidden = false;
       } else {
         note.hidden = true;
@@ -3714,82 +4839,62 @@
       const width = Math.round(host.clientWidth);
       if (!months || months.length < 2 || width < 120) return;
 
-      const H = 196;
-      const padL = 54, padR = 26, padT = 34, padB = 46;
-      const plotTop = padT, plotBottom = H - padB;
-      const peak = Math.max(...months.map(m => m.cents), 1);
-      const peakTxt = months.find(m => m.cents === peak).txt;
+      const H = width < 520 ? 145 : 154;
+      const shown = months.slice(-3);
+      const n = shown.length;
+      const xs = n === 2
+        ? [width * .30, width * .70]
+        : [width * .20, width * .50, width * .80];
+      const ys = n === 2
+        ? [H * .60, H * .40]
+        : [H * .64, H * .42, H * .58];
+      const radii = n === 2 ? [38, 46] : [34, 42, 38];
+      const pts = shown.map((m, i) => ({ x: xs[i], y: ys[i], r: radii[i], m, i }));
 
-      // A little headroom under the top rule so the peak marker is not clipped.
-      const scale = c => plotBottom - (c / peak) * (plotBottom - plotTop) * 0.94;
-      // Inset the end points from the axis and the right edge, so the first marker
-      // is not welded to the gutter and the last value label cannot clip.
-      const innerL = padL + 18;
-      const innerR = width - padR - 18;
-      const step = (innerR - innerL) / Math.max(1, months.length - 1);
-      const pts = months.map((m, i) => ({ x: innerL + i * step, y: scale(m.cents), m, i }));
-      const t = monotoneTangents(pts);
-
-      const lastVerified = Math.max(0, months.filter(m => !m.projected).length - 1);
-      const hasProjection = lastVerified < months.length - 1;
-
-      const areaFor = (from, to, fill) => {
-        if (to <= from) return "";
-        return `<path d="${splinePath(pts, t, from, to)} L ${pts[to].x.toFixed(2)} ${plotBottom} `
-             + `L ${pts[from].x.toFixed(2)} ${plotBottom} Z" fill="url(#${fill})"/>`;
-      };
+      let path = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], b = pts[i + 1];
+        const mid = (a.x + b.x) / 2;
+        path += ` C ${mid.toFixed(1)} ${(a.y - 26).toFixed(1)}, ${mid.toFixed(1)} ${(b.y + 26).toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+      }
 
       host.innerHTML = `
         <svg width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img"
-             aria-label="Monthly revenue added, ${months.map(m => `${m.label} ${m.txt}${m.projected ? " projected" : ""}`).join(", ")}">
+             aria-label="Your growth story, ${shown.map(m => `${m.label} ${m.txt}${m.projected ? " preview" : ""}`).join(", ")}">
           <defs>
-            <linearGradient id="fillVerified" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#0f9c74" stop-opacity=".26"/>
-              <stop offset="100%" stop-color="#0f9c74" stop-opacity="0"/>
+            <linearGradient id="socialRibbonGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#1fb789"/>
+              <stop offset="55%" stop-color="#38b99a"/>
+              <stop offset="100%" stop-color="#7678f4"/>
             </linearGradient>
-            <linearGradient id="fillProjected" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#5567e8" stop-opacity=".15"/>
-              <stop offset="100%" stop-color="#5567e8" stop-opacity="0"/>
+            <linearGradient id="socialBubbleGradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#20bd8b"/>
+              <stop offset="100%" stop-color="#5d63ed"/>
             </linearGradient>
           </defs>
 
-          ${[0, 0.25, 0.5, 0.75].map(f =>
-            `<line class="chart-grid" x1="${padL}" x2="${width - 10}"
-                   y1="${(plotTop + f * (plotBottom - plotTop)).toFixed(1)}"
-                   y2="${(plotTop + f * (plotBottom - plotTop)).toFixed(1)}"/>`).join("")}
-          <line class="chart-baseline" x1="${padL}" x2="${width - 10}" y1="${plotBottom}" y2="${plotBottom}"/>
+          <path class="social-ribbon" d="${path}"/>
+          <path class="social-ribbon-core" pathLength="1" d="${path}"/>
 
-          <text class="chart-axis" x="${padL - 12}" y="${plotTop + 3}" text-anchor="end">${escapeHtml(peakTxt)}</text>
-          <text class="chart-axis" x="${padL - 12}" y="${plotBottom + 3}" text-anchor="end">$0</text>
-
-          ${areaFor(0, lastVerified, "fillVerified")}
-          ${hasProjection ? areaFor(lastVerified, months.length - 1, "fillProjected") : ""}
-
-          ${lastVerified > 0 ? `<path class="chart-line verified"
-                d="${splinePath(pts, t, 0, lastVerified)}"/>` : ""}
-          ${hasProjection ? `<path class="chart-line projected"
-                d="${splinePath(pts, t, lastVerified, months.length - 1)}"/>` : ""}
-
-          ${pts.map(p => {
-            const proj = !!p.m.projected;
+          ${pts.map((p, i) => {
+            const projected = !!p.m.projected;
+            const amount = escapeHtml(p.m.txt);
+            const month = escapeHtml(String(p.m.label).toUpperCase());
+            const delay = (.24 + i * .18).toFixed(2);
             return `
-              ${proj ? `<circle class="chart-dot-halo" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="9"
-                          stroke="rgba(85,103,232,.42)"/>` : ""}
-              <circle class="chart-dot ${proj ? "projected" : "verified"}"
-                      cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${proj ? 5.5 : 5}">
-                <title>${escapeHtml(p.m.label)} — ${escapeHtml(p.m.txt)}${proj ? " (projected, not measured)" : ""}</title>
-              </circle>
-              <text class="chart-value ${proj ? "projected" : "verified"}"
-                    x="${p.x.toFixed(2)}" y="${(p.y - 16).toFixed(2)}" text-anchor="middle">${escapeHtml(p.m.txt)}</text>
-              <text class="chart-month" x="${p.x.toFixed(2)}" y="${plotBottom + 22}" text-anchor="middle">${escapeHtml(p.m.label)}</text>
-              <text class="chart-sub" x="${p.x.toFixed(2)}" y="${plotBottom + 35}" text-anchor="middle">${
-                proj ? "projected"
-                     : `${p.m.verified} verified${p.m.miss ? ` · <tspan class="miss">${p.m.miss} missed</tspan>` : ""}`
-              }</text>`;
+              <g class="social-bubble" style="--delay:${delay}s" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})">
+                <circle class="social-bubble-bg ${projected ? "projected" : ""}" r="${p.r}"/>
+                <text class="social-bubble-amount ${projected ? "projected" : ""}" x="0" y="1" text-anchor="middle">${amount}</text>
+                <text class="social-bubble-month ${projected ? "projected" : ""}" x="0" y="17" text-anchor="middle">${projected ? "NEXT" : month}</text>
+              </g>`;
           }).join("")}
-        </svg>
-      `;
 
+          <g class="social-spark">
+            <circle class="social-spark-glow" r="12"/>
+            <circle class="social-spark-dot" r="4.5"/>
+            <animateMotion dur="4.2s" repeatCount="indefinite" path="${path}" calcMode="spline" keySplines=".42 0 .58 1"/>
+          </g>
+        </svg>`;
       lastDrawnWidth = width;
     }
 
@@ -4304,6 +5409,47 @@
       if (event.key === "Escape") closeDrawer();
     });
 
+    let growthSlideIndex = 0;
+    function setGrowthSlide(index, animate = true) {
+      const track = document.getElementById("growthSwipeTrack");
+      if (!track) return;
+      growthSlideIndex = Math.max(0, Math.min(1, index));
+      track.classList.toggle("is-dragging", !animate);
+      track.style.transform = `translate3d(${-growthSlideIndex * 50}%,0,0)`;
+      document.querySelectorAll("[data-growth-slide]").forEach(dot => dot.classList.toggle("active", Number(dot.dataset.growthSlide) === growthSlideIndex));
+      if (!animate) requestAnimationFrame(() => track.classList.remove("is-dragging"));
+    }
+    function bindGrowthSwipe() {
+      const swipe = document.getElementById("growthSwipe");
+      const track = document.getElementById("growthSwipeTrack");
+      if (!swipe || !track || swipe.dataset.bound) return;
+      swipe.dataset.bound = "1";
+      let startX=0,startY=0,deltaX=0,dragging=false,pid=null;
+      swipe.addEventListener("pointerdown", event => {
+        if (event.target.closest("button")) return;
+        startX=event.clientX;startY=event.clientY;deltaX=0;dragging=true;pid=event.pointerId;
+        swipe.setPointerCapture(pid);track.classList.add("is-dragging");
+      });
+      swipe.addEventListener("pointermove", event => {
+        if (!dragging || event.pointerId !== pid) return;
+        const dy=event.clientY-startY;deltaX=event.clientX-startX;
+        if (Math.abs(dy)>Math.abs(deltaX) && Math.abs(dy)>10) return;
+        const base=-growthSlideIndex*swipe.clientWidth;
+        const resistance=((growthSlideIndex===0&&deltaX>0)||(growthSlideIndex===1&&deltaX<0))?.28:1;
+        track.style.transform=`translate3d(${base+deltaX*resistance}px,0,0)`;
+      });
+      const finish=event=>{
+        if(!dragging || (event.pointerId!=null&&event.pointerId!==pid)) return;
+        dragging=false;track.classList.remove("is-dragging");
+        const threshold=Math.min(80,swipe.clientWidth*.16);
+        if(deltaX < -threshold) setGrowthSlide(1); else if(deltaX > threshold) setGrowthSlide(0); else setGrowthSlide(growthSlideIndex);
+        pid=null;
+      };
+      swipe.addEventListener("pointerup",finish);swipe.addEventListener("pointercancel",finish);
+      document.querySelectorAll("[data-growth-slide]").forEach(dot=>dot.addEventListener("click",()=>setGrowthSlide(Number(dot.dataset.growthSlide))));
+    }
+    document.body.classList.add("autopilot-mode");
+    bindGrowthSwipe();
     renderApp();
   </script>
 </body>
