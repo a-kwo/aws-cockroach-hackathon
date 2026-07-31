@@ -219,8 +219,9 @@ history if it is ever wanted.
 
 ### The honesty rules the UI must keep
 
-These are enforced by `backend/tests/test_site_build.py`, because each one was
-violated by the mock and each is a claim about the owner's money:
+These are enforced by `backend/tests/test_site_build.py`, `test_app_logic_js.py`
+and `test_app_template.py`, because each one was violated by the mock and each is a
+claim about the owner's money:
 
 - The growth chart draws **real months solid** and **at most one dashed projection**,
   and that projection must name the pending finds it depends on.
@@ -231,3 +232,17 @@ violated by the mock and each is a claim about the owner's money:
   find moves the forecast only.
 - Similarity is shown as a number, never as opacity or colour intensity.
 - Nothing appears on the Radar road or in a chart that is not a row in CockroachDB.
+- **CockroachDB is the record; localStorage is a demo overlay.** The deck shows only
+  finds the database still lists as `proposed`, and a local decision never overrides a
+  status the cluster already holds. `effectiveDecision()` is the one place that rule
+  lives.
+- **A run that called no model reports unknown, never zero.** `0 tokens` claims a
+  measurement nobody took; `None` says no model was called. Same rule as `run_seconds()`
+  returning `None` for a run still in flight. See `providers.recorded_tokens`.
+- **The console never claims liveness it does not have.** The page is a build-time
+  snapshot, so it carries an "as of" stamp taken from the *cluster's* clock and an
+  export receipt showing the SQL that ran — never a pulsing dot, and never the browser
+  clock, which is the same fiction in a different costume.
+- **A seeded find says it was seeded.** Every find in the demo corpus carries the
+  `run_id` of the Radar run `seed.py` built it with, so none of them was reasoned into
+  existence by retrieval. The lineage panel states that gap rather than filling it.

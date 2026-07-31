@@ -2387,9 +2387,6 @@
       letter-spacing: .18em;
     }
 
-    .con-live { display: inline-flex; align-items: center; gap: 6px; color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
-    .con-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--con-accent); box-shadow: 0 0 8px var(--con-accent); animation: con-pulse 2.2s ease-in-out infinite; }
-    @keyframes con-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
     .con-stamp { color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .08em; }
 
     .con-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
@@ -2521,7 +2518,7 @@
 
     /* Record log */
     .con-log { max-height: 210px; overflow-y: auto; font-family: var(--mono); }
-    .log-line { display: grid; grid-template-columns: 62px 74px 1fr auto; gap: 10px; padding: 5px 2px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 9px; line-height: 1.5; }
+    .log-line { display: grid; grid-template-columns: 62px 74px 1fr auto auto; gap: 10px; padding: 5px 2px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 9px; line-height: 1.5; }
     .log-when { color: #5d7285; }
     .log-tag { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
     .log-tag.radar { color: #219daa; }
@@ -6437,6 +6434,253 @@
       }
     }
   </style>
+
+  <!--
+    The last sheet, and it has to be last: twenty-four override sheets sit above
+    it, several of them using !important, so anything here that has to win must
+    come after them. Everything below serves the switch from five invented posts
+    to the finds CockroachDB actually holds.
+  -->
+  <style id="real-finds-v26">
+    /* One static accent for the whole deck.
+       Cards used to carry an inline --accent keyed to an invented category, and
+       the [data-feature] rules above still theme by that attribute. The card no
+       longer emits it, so those rules simply stop matching and this default
+       applies to every card equally. That is deliberate: the six validated kind
+       hues belong to the dark console surface, not to paper, and tinting a
+       recommendation by the kind of row behind it invites the eye to rank the
+       deck by something that carries no ranking. Colour carries no data here. */
+    .feed-card {
+      --accent: #55606f;
+      --accent-rgb: 85, 96, 111;
+    }
+
+    /* Agent-written titles run two to four times longer than the mock's
+       four-word labels, and .feed-card is overflow:hidden on a fixed grid — so
+       oversized type does not reflow, it clips silently. Two lines, then ellipsis. */
+    .post-copy h2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* The glyph slots held line art chosen from the invented category; they now
+       hold the find's own emoji column. */
+    .art-glyph-emoji { font-size: 30px; line-height: 1; }
+    .context-avatar-emoji,
+    .decision-row-emoji { display: grid; place-items: center; font-size: 17px; line-height: 1; }
+    #drawerAvatar { display: grid; place-items: center; font-size: 19px; line-height: 1; }
+
+    /* The quote is a stored observation, so it is set as one — attributed, and
+       visibly someone else's words rather than the agent's. */
+    blockquote.signal-text {
+      margin: 14px 0 0;
+      padding-left: 14px;
+      border-left: 2px solid rgba(var(--accent-rgb), .32);
+      font-style: normal;
+    }
+
+    blockquote.signal-text cite {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted, #737e8c);
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 680;
+    }
+
+    .signal-text.muted-note { color: var(--muted, #737e8c); font-style: italic; }
+
+    /* build_web.bullets() already splits the agent's paragraph into the concrete
+       actions it contains; the card shows the first two and hangs the whole thing
+       off the title attribute. One splitter, tested, in Python — never re-split
+       in JS. */
+    .move-steps {
+      margin: 0;
+      padding-left: 16px;
+      color: var(--ink-soft, #39424f);
+      font-size: clamp(13px, 1.2vw, 15px);
+      line-height: 1.42;
+      font-weight: 640;
+    }
+
+    .move-steps li + li { margin-top: 4px; }
+
+    /* ---- Growth: the record and the forecast, kept apart ------------------
+       The summary slide was built for exactly one hero figure at
+       clamp(74px,10vw,112px) inside a 300px slide. Two of those stacked simply
+       clip. So they are not two of those: the verified figure keeps the hero
+       treatment because it is the record, and the forecast sits under a hairline
+       in small, flat, un-gradiented type.
+
+       That is the honesty rule expressed as layout rather than as a caption. A
+       reader who takes in nothing but the typography still comes away knowing
+       which number was measured and which one is a guess. */
+    body.growth-mode .growth-overview {
+      align-content: center;
+      gap: 0;
+      padding: 24px 26px !important;
+    }
+
+    body.growth-mode .growth-total strong {
+      font-size: clamp(42px, 5.2vw, 66px) !important;
+    }
+
+    /* The caption rides on the label rather than under the figure: the slide is
+       218px and grid-compresses a taller stack, so four lines never breathe. */
+    body.growth-mode .growth-total span small {
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: none;
+      opacity: .8;
+    }
+
+    body.growth-mode .growth-total.forecast {
+      width: 100%;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(32,38,43,.10);
+    }
+
+    body.growth-mode .growth-total.forecast span { font-size: 10px; opacity: .85; }
+
+    body.growth-mode .growth-total.forecast strong {
+      margin-top: 6px !important;
+      font-size: clamp(20px, 2.1vw, 26px) !important;
+      /* No gradient, no drop shadow, no count-in animation: every one of those
+         is reserved for money that was actually measured. */
+      background: none !important;
+      -webkit-background-clip: border-box !important;
+      background-clip: border-box !important;
+      -webkit-text-fill-color: currentColor !important;
+      color: #7b8591 !important;
+      filter: none !important;
+      animation: none !important;
+    }
+
+
+    .decision-row-value.pending { color: var(--theme-competitors); }
+    .decision-row-value.verified { color: #0d6450; }
+    .decision-row-value.estimated { color: #2e5ea8; }
+    .decision-row-value.miss { color: #c0442a; }
+    .decision-row-value.saved,
+    .decision-row-value.rejected { color: var(--muted, #737e8c); }
+
+    /* ---- drawer: the retrieval trail ------------------------------------- */
+    .detail-evidence { margin: 0; padding: 0; list-style: none; }
+    .detail-evidence li + li { margin-top: 11px; }
+    .detail-evidence q { display: block; color: var(--ink-soft, #39424f); font-size: 13px; line-height: 1.45; }
+    .detail-evidence small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted, #737e8c);
+      font-size: 11px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .detail-link {
+      margin-top: 14px;
+      padding: 9px 14px;
+      border: 1px solid rgba(var(--drawer-accent-rgb, 47,116,104), .34);
+      border-radius: 11px;
+      background: rgba(var(--drawer-accent-rgb, 47,116,104), .08);
+      color: var(--drawer-accent, #2f7468);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 720;
+      cursor: pointer;
+    }
+
+    .detail-link:hover { background: rgba(var(--drawer-accent-rgb, 47,116,104), .16); }
+
+    .decision-state.judged,
+    .decision-state.saved { background: #f0efea; border-color: rgba(32,38,43,.10); }
+
+    /* ---- console ---------------------------------------------------------- */
+    .con-empty code { color: #9fb2c2; }
+
+    /* Pipeline node state, driven from agent_run rows */
+    .node-run { display: block; margin-top: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: .04em; color: #5d7285; }
+    .node-run b { color: #c0553f; }
+    .node-run.idle { color: #4d6275; font-style: italic; }
+    .node-error { display: block; margin-top: 4px; font-family: var(--mono); font-size: 8.5px; color: #c0553f; }
+    /* Outline plus the spelled word, never colour on its own. */
+    .node.failed { border-color: #c0553f; }
+    .node.idle { opacity: .62; border-style: dashed; }
+
+    /* Lineage rail — run → queries → retrieved → cited → prediction → verdict.
+       Grid rather than a wrapping flex row: with seven chips the last one was the
+       only item on its line and stretched full width, reading as a heading rather
+       than the last link in a chain. */
+    .con-lineage {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+      gap: 8px;
+      padding: 0 14px 12px;
+    }
+    .lin-chip {
+      display: grid;
+      gap: 3px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 9px;
+      background: rgba(255,255,255,.025);
+    }
+    .lin-label { font-family: var(--mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: #5d7285; }
+    .lin-value { font-family: var(--mono); font-size: 13px; font-weight: 700; color: #dff1f5; letter-spacing: -.01em; }
+    .lin-sub { font-size: 8.5px; font-weight: 620; color: #6f8598; line-height: 1.35; }
+    /* A gap the console states rather than hides: a seeded find has no Analyst
+       run behind it, and the dashed, muted chip is how it says so. */
+    .lin-chip.absent { border-style: dashed; }
+    .lin-chip.absent .lin-value { color: #5d7285; }
+    .lin-chip.verified .lin-value { color: #2f9a68; }
+    .lin-chip.miss .lin-value { color: #c0553f; }
+    .lin-chip.estimated .lin-value { color: #6c6ee6; }
+
+    /* Cost and duration tiles above the log */
+    .con-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0 14px 10px; }
+    .con-tile { display: grid; gap: 3px; padding: 9px 11px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: rgba(255,255,255,.025); }
+    .t-label { font-family: var(--mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: #5d7285; }
+    .t-value { font-family: var(--mono); font-size: 17px; font-weight: 700; color: #dff1f5; letter-spacing: -.02em; }
+    .t-sub { font-size: 8.5px; font-weight: 620; color: #6f8598; }
+
+    .log-cost { color: #5d7285; font-size: 8.5px; white-space: nowrap; }
+
+    /* A failed run used to render in the same neutral grey as a success, because
+       neither of these classes existed while `verified` and `miss` were coloured.
+       The one status an operator most needs to spot was the one with no colour.
+       The word is always spelled out beside it — colour never carries a verdict
+       alone. */
+    .log-tag.ask { color: #8d6bd8; }
+    .log-verdict.failed { color: #c0553f; }
+    .log-verdict.running { color: #5d7285; }
+
+    /* Export receipt */
+    .con-receipt { padding: 0; }
+    .con-receipt > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; cursor: pointer; list-style: none; }
+    .con-receipt > summary::-webkit-details-marker { display: none; }
+    .receipt-title { font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #dff1f5; }
+    .receipt-title::before { content: "▸ "; color: #5d7285; }
+    .con-receipt[open] .receipt-title::before { content: "▾ "; }
+    .receipt-meta { font-family: var(--mono); font-size: 9px; color: var(--con-muted); }
+    .receipt-head { display: flex; flex-wrap: wrap; gap: 16px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .receipt-head span { font-family: var(--mono); font-size: 9px; color: #9fb2c2; }
+    .receipt-head b { display: block; color: #5d7285; letter-spacing: .1em; text-transform: uppercase; font-size: 8px; margin-bottom: 3px; }
+    .receipt-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 9px; }
+    .receipt-table th { text-align: left; padding: 0 8px 6px 0; color: #5d7285; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 8px; }
+    .receipt-table td { padding: 6px 8px 6px 0; vertical-align: top; border-top: 1px solid rgba(255,255,255,.04); }
+    .receipt-table .q-name { color: #6c6ee6; font-weight: 700; white-space: nowrap; }
+    .receipt-table .q-rows, .receipt-table .q-ms { color: #dff1f5; white-space: nowrap; }
+    .receipt-table pre { margin: 0; max-height: 128px; overflow: auto; color: #9fb2c2; font-size: 8.5px; line-height: 1.5; white-space: pre; }
+    .receipt-note { margin: 10px 0 0; color: var(--con-muted); font-size: 8.5px; font-weight: 620; }
+
+    @media (max-width: 900px) {
+      .con-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .log-line { grid-template-columns: 1fr; gap: 2px; }
+    }
+  </style>
 </head>
 <body>
   <main class="app" id="app">
@@ -6450,7 +6694,11 @@
         </div>
         <div class="brand-copy">
           <strong>Brass Tacks</strong>
-          <span>Northstar Coffee</span>
+          <!-- The tenant name comes from the `business` row, like every other
+               figure on the page. It used to be a literal naming a different
+               business from the one the Growth chart and the admin console
+               were describing, in the same viewport. -->
+          <span id="brandBusiness"></span>
         </div>
       </div>
 
@@ -6480,7 +6728,7 @@
       <div class="topbar-actions">
         <div class="queue-pill" id="topStatus" aria-live="polite">
           <span class="queue-pill-dot" aria-hidden="true"></span>
-          <span id="topStatusText">5 left</span>
+          <span id="topStatusText">Loading</span>
         </div>
         <button class="restart-button" type="button" id="restartDemo" aria-label="Restart demo" title="Restart demo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -6506,23 +6754,39 @@
             <div>
               <h1 id="growthHeading">Your growth</h1>
             </div>
-            <div class="growth-period">August 2026</div>
+            <!-- The last month the ledger actually measured. The hardcoded
+                 "August 2026" happened to match one build and would have gone
+                 quietly stale on the next. -->
+            <div class="growth-period" id="growthPeriod"></div>
           </header>
 
           <section class="growth-carousel" aria-label="Growth highlights" data-enter>
             <div class="growth-swipe" id="growthSwipe">
               <div class="growth-swipe-track" id="growthSwipeTrack">
                 <article class="growth-slide growth-slide-summary" aria-label="This month">
+                  <!--
+                    Two figures, deliberately unequal. The first is the record:
+                    money the Meter measured against real sales, read straight off
+                    the build and never recomputed here. The second is what has
+                    been approved but not yet measured — the only figure on this
+                    page that depends on a choice made in the browser.
+
+                    Nothing the owner does can move the first number. That is the
+                    whole reason they are kept apart.
+                  -->
                   <div class="growth-overview">
                     <div class="growth-total">
-                      <span>This month</span>
-                      <strong id="approvedAmount">+$0</strong>
-                      <p>Added by the moves you approved</p>
+                      <span>Earning now, verified<small id="verifiedSub"></small></span>
+                      <strong id="verifiedAmount">—</strong>
+                    </div>
+                    <div class="growth-total forecast">
+                      <span>Forecast, not yet measured<small id="forecastSub"></small></span>
+                      <strong id="forecastAmount">—</strong>
                     </div>
                     <div class="growth-counts" hidden aria-hidden="true">
                       <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
                       <div class="growth-count rejected"><span>Passed</span><strong id="rejectedCount">0</strong></div>
-                      <div class="growth-count"><span>Left</span><strong id="remainingCount">5</strong></div>
+                      <div class="growth-count"><span>Left</span><strong id="remainingCount">0</strong></div>
                     </div>
                   </div>
                 </article>
@@ -6564,8 +6828,8 @@
             <article class="list-panel rejected-panel">
               <header class="list-panel-header">
                 <div class="list-panel-title">
-                  <h2>Passed</h2>
-                  <p>Ideas you skipped</p>
+                  <h2>Not doing yet</h2>
+                  <p>Passed, and saved for later</p>
                 </div>
                 <span class="list-count" id="rejectedListCount">0</span>
               </header>
@@ -6575,13 +6839,6 @@
         </div>
       </section>
 
-      <!--
-        Admin view — operator observability. Everything on this screen is a row the
-        cluster actually holds: agent_run rows, the corpus counts, and the evidence
-        the vector search returned for each find with its cosine similarity. The
-        console mock in `Product Demo/` was the visual reference for the shape; none
-        of its simulated job pipeline is reproduced here, because none of it is real.
-      -->
       <!--
         Admin view — the operator console. Deliberately a different visual world from
         Autopilot and Growth: those are the owner's screens, this is the machine room.
@@ -6594,7 +6851,13 @@
           <header class="con-bar" data-enter>
             <span class="con-tag">ADMIN</span>
             <h1 id="adminHeading">AUTONOMOUS OPERATIONS MATRIX</h1>
-            <span class="con-live"><i></i>CockroachDB</span>
+            <!-- There was a pulsing dot here, next to the word CockroachDB, over
+                 a page built once from a static export. Nothing connected it to a
+                 fetch or a heartbeat; it was an animation asserting liveness the
+                 page did not have. The stamp below says when the snapshot was
+                 taken, from the cluster's own clock, and the receipt panel at the
+                 foot of the grid shows the SQL that took it. Those are facts a
+                 static page can support. -->
             <span class="con-stamp" id="adminStamp"></span>
           </header>
 
@@ -6605,7 +6868,7 @@
             </section>
 
             <section class="con-panel col-6" aria-labelledby="pipeHeading" data-enter>
-              <div class="con-head"><h2 id="pipeHeading">Agent pipeline</h2><span>nightly loop</span></div>
+              <div class="con-head"><h2 id="pipeHeading">Agent pipeline</h2><span id="pipeMeta"></span></div>
               <div class="con-body pipe-stage" id="pipeStage">
                 <svg class="pipe-edges" id="pipeEdges" aria-hidden="true"></svg>
                 <div class="pipe-nodes" id="pipeNodes"></div>
@@ -6613,7 +6876,7 @@
             </section>
 
             <section class="con-panel col-3" aria-labelledby="readoutHeading" data-enter>
-              <div class="con-head"><h2 id="readoutHeading">System readouts</h2><span>live</span></div>
+              <div class="con-head"><h2 id="readoutHeading">System readouts</h2><span id="readoutMeta"></span></div>
               <div class="con-body con-readouts" id="readouts"></div>
             </section>
 
@@ -6627,12 +6890,17 @@
 
             <section class="con-panel col-6" aria-labelledby="retrievalHeading" data-enter>
               <div class="con-head">
-                <h2 id="retrievalHeading">Retrieval inspector</h2>
+                <h2 id="retrievalHeading">Lineage inspector</h2>
                 <label class="con-select">
                   <span class="visually-hidden">Choose a find to inspect</span>
                   <select id="retrievalPick"></select>
                 </label>
               </div>
+              <!-- The chain from a run to a verdict, on one rail: which run
+                   proposed this find, how many rows its vector search returned,
+                   how many of those it could defend, what it predicted, when it
+                   falls due, and what the Meter said. Every chip is a column. -->
+              <div class="con-lineage" id="lineageRail"></div>
               <div class="con-body retrieval-body">
                 <div class="retrieval-queries">
                   <div class="con-label">Hypothesis queries, every night</div>
@@ -6652,8 +6920,25 @@
 
             <section class="con-panel col-12" aria-labelledby="logHeading" data-enter>
               <div class="con-head"><h2 id="logHeading">Record log</h2><span id="runsSub"></span></div>
+              <!-- Cost and duration, from agent_run. A run that called no model
+                   says so; it never reports zero tokens, because zero would claim
+                   a measurement nobody took. -->
+              <div class="con-tiles" id="runTiles"></div>
               <div class="con-body con-log" id="recordLog"></div>
             </section>
+
+            <!--
+              The export receipt. Collapsed by default because it is evidence
+              rather than a dashboard, and open in one click because a claim
+              nobody can check is not evidence at all.
+            -->
+            <details class="con-panel col-12 con-receipt" id="receiptPanel" data-enter>
+              <summary>
+                <span class="receipt-title">Export receipt</span>
+                <span class="receipt-meta" id="receiptMeta"></span>
+              </summary>
+              <div class="con-body" id="receiptBody"></div>
+            </details>
           </div>
         </div>
       </section>
@@ -6686,32 +6971,38 @@
     </div>
   </main>
 
+  <!--
+    The unbuilt stand-in. scripts/build_web.py replaces this block wholesale with
+    the model it computes from CockroachDB, so what is committed here is the shape
+    of that model with nothing in it — every collection empty, every figure absent.
+    It invents no business, no find and no money.
+
+    That matters more than it looks: this file is what someone sees who opens
+    site/app.html directly, without running the build. The previous stand-in
+    described a coffee shop that does not exist, with five recommendations nobody
+    ever made, and it read as the product.
+  -->
   <script id="bt-data" type="application/json">
   {
-    "app": {
-      "name": "Brass Tacks",
-      "business": "Northstar Coffee",
-      "defaultView": "autopilot",
-      "defaultMonth": "August 2026"
-    },
-    "autopilot": {
-      "status": "monitoring",
-      "needsUserCount": 5,
-      "interaction": "swipe_to_browse",
-      "actions": ["approve", "reject"]
-    },
-    "posts": [
-      {"id":"afternoon-bundle","feature":"Competitors","title":"Afternoon bundle","amount":190,"status":"Needs decision"},
-      {"id":"saturday-service","feature":"Reviews","title":"Saturday service improvement","amount":280,"status":"Needs decision"},
-      {"id":"coffee-pastry-bundle","feature":"Reviews","title":"Coffee and pastry bundle","amount":230,"status":"Needs decision"},
-      {"id":"weekend-demand","feature":"Demand","title":"Weekend demand preparation","amount":360,"status":"Needs decision"},
-      {"id":"earlier-sunday-opening","feature":"Demand","title":"Earlier Sunday opening","amount":180,"status":"Needs decision"}
-    ],
-    "growth": {
-      "approved": [],
-      "rejected": [],
-      "approvedMonthlyPotential": 0
-    }
+    "business": {"name": "", "city": null, "goalMonthlyTxt": null, "goalNote": ""},
+    "summary": {},
+    "corpus": {},
+    "runs": [],
+    "runCount": 0,
+    "statusLine": "",
+    "artifacts": 0,
+    "finds": [],
+    "proposed": [],
+    "saved": [],
+    "measuring": [],
+    "earning": [],
+    "judged": [],
+    "months": [],
+    "kinds": [],
+    "ratings": [],
+    "queries": [],
+    "generated": null,
+    "receipt": null
   }
   </script>
 
@@ -6759,78 +7050,126 @@
       }
     })();
 
-    const posts = [
-      {
-        id: "afternoon-bundle",
-        feature: "Competitors",
-        featureKey: "competitors",
-        title: "Afternoon bundle",
-        signal: "Oak & Pine launched a $6.50 drink-and-snack combo from 2:00 to 4:00 PM near your store.",
-        recommendation: "Offer a $6.75 cold brew and snack pairing on weekdays from 2:00 to 4:00 PM.",
-        amount: 190,
-        sourceTime: "12 min ago",
-        highlightLabel: "Best time",
-        highlightValue: "2–4 PM",
-        accent: "#4f5f8f",
-        accentRgb: "79, 95, 143"
-      },
-      {
-        id: "saturday-service",
-        feature: "Reviews",
-        featureKey: "reviews",
-        title: "Saturday service improvement",
-        signal: "Nine Saturday reviews mentioned long waits between 8:00 and 11:00 AM.",
-        recommendation: "Add one barista for the peak and pre-stage the most ordered drinks.",
-        amount: 280,
-        sourceTime: "28 min ago",
-        highlightLabel: "Busy time",
-        highlightValue: "8–11 AM",
-        accent: "#8a5f72",
-        accentRgb: "138, 95, 114"
-      },
-      {
-        id: "coffee-pastry-bundle",
-        feature: "Reviews",
-        featureKey: "reviews",
-        title: "Coffee and pastry bundle",
-        signal: "Seven reviews and twelve counter comments asked for a simple morning bundle.",
-        recommendation: "Launch a $7 medium coffee and pastry bundle using products already on the menu.",
-        amount: 230,
-        sourceTime: "41 min ago",
-        highlightLabel: "Price",
-        highlightValue: "$7",
-        accent: "#8a5f72",
-        accentRgb: "138, 95, 114"
-      },
-      {
-        id: "weekend-demand",
-        feature: "Demand",
-        featureKey: "demand",
-        title: "Weekend demand preparation",
-        signal: "Market, weather, and prior sales patterns point to 18% more Saturday traffic.",
-        recommendation: "Increase pastry prep and schedule one employee to begin the morning shift earlier.",
-        amount: 360,
-        sourceTime: "1 hr ago",
-        highlightLabel: "More traffic",
-        highlightValue: "+18%",
-        accent: "#2f7468",
-        accentRgb: "47, 116, 104"
-      },
-      {
-        id: "earlier-sunday-opening",
-        feature: "Demand",
-        featureKey: "demand",
-        title: "Earlier Sunday opening",
-        signal: "Customers are arriving about 30 minutes before the store opens on Sundays.",
-        recommendation: "Open 30 minutes earlier on Sundays with one lean opening shift.",
-        amount: 180,
-        sourceTime: "2 hr ago",
-        highlightLabel: "Open earlier",
-        highlightValue: "30 min",
-        accent: "#2f7468",
-        accentRgb: "47, 116, 104"
-      }
-    ];
+    /* =====================================================================
+       Four pure functions, fenced deliberately. They take everything they need
+       as arguments and reach for nothing — no btData, no state, no DOM — which
+       is what lets backend/tests/test_app_logic_js.py lift this region out of
+       the file and run it under node.
+
+       That matters because the load-bearing honesty rule of this screen lives
+       in JavaScript and Python alone cannot guard it: *nothing the owner does
+       in the interface may raise the verified figure.* `growthTotals` cannot
+       reach `btData.summary` by accident if it can only see its arguments.
+
+       Nothing in this region may take a dependency on anything outside it.
+
+       The two sentinels below are line comments on purpose: the extractor
+       slices between them, so a marker inside a block comment would hand node
+       an unterminated one.
+       ===================================================================== */
+
+    // BT-PURE-START
+
+    /**
+     * Integer cents to the same string scripts/build_web.py's money() produces.
+     *
+     * Every other money figure on this page is a string the build already
+     * formatted, because the page is not allowed to do arithmetic on money. The
+     * forecast is the single exception the product cannot precompute: it
+     * depends on which finds the owner approves, which is a runtime choice. So
+     * it is summed in integer cents — never floats — and formatted here, once,
+     * by a function pinned against the Python by a test.
+     */
+    function centsToText(cents) {
+      const n = Math.round(cents);
+      const sign = n < 0 ? "-" : "";
+      const abs = Math.abs(n);
+      const dollars = Math.floor(abs / 100).toLocaleString("en-US");
+      return abs % 100 === 0
+        ? `${sign}$${dollars}`
+        : `${sign}$${dollars}.${String(abs % 100).padStart(2, "0")}`;
+    }
+
+    /**
+     * What has been decided about a find, database first.
+     *
+     * CockroachDB is the record; localStorage is a demo overlay. The overlay
+     * applies only to finds the database still lists as `proposed` — a find the
+     * cluster has already judged, accepted, retired or shelved carries that
+     * decision no matter what this browser has in local storage.
+     *
+     * Stale ids from an older demo are simply never consulted: the deck only
+     * asks about finds it can see, so an entry for an id the database does not
+     * hold is inert rather than wrong. That is why the storage key was not
+     * bumped — bumping it would have discarded hand-set demo state to solve a
+     * problem that does not exist.
+     */
+    function effectiveDecision(find, decisions) {
+      if (!find) return "pending";
+      if (find.verdict) return "judged";
+      if (find.status === "accepted" || find.status === "live") return "approved";
+      if (find.status === "rejected" || find.status === "retired") return "rejected";
+      if (find.status === "later") return "saved";
+      if (find.status !== "proposed") return "pending";
+      const local = decisions && decisions[find.id];
+      return local && local.status ? local.status : "pending";
+    }
+
+    /**
+     * The deck: open proposals, in the order the build put them in.
+     *
+     * Order comes from `data.proposed` and nothing else. The build sorts that
+     * bucket by predicted value — biggest opportunity first, deliberately not
+     * by retrieval similarity — so consuming it in order carries a tested
+     * backend invariant onto the screen with no sort here to get wrong.
+     *
+     * It must never depend on `decisions` for ordering: applyCardPositions
+     * slots cards by their `data-index` against the live nodes, so a reshuffle
+     * between a render and a class swap would point at the wrong card.
+     */
+    function deckFinds(data, decisions) {
+      const byId = new Map((data.finds || []).map(f => [f.id, f]));
+      return (data.proposed || [])
+        .map(id => byId.get(id))
+        .filter(Boolean)
+        .filter(f => effectiveDecision(f, decisions) === "pending");
+    }
+
+    /**
+     * The two Growth figures, and the lists behind them.
+     *
+     * `verifiedTxt` is passed through from the build untouched. It is not
+     * recomputed, not summed, and not a function of `decisions` — approving
+     * every find on the board returns exactly the string that approving none
+     * does. A test asserts precisely that.
+     *
+     * The forecast excludes anything already verified: that money is counted in
+     * the figure beside it, and adding it twice is the failure
+     * test_only_verified_money_counts_toward_the_daily_rate exists to prevent.
+     */
+    function growthTotals(data, decisions) {
+      const finds = data.finds || [];
+      const bucket = { approved: [], rejected: [], saved: [], judged: [], pending: [] };
+      for (const f of finds) bucket[effectiveDecision(f, decisions)].push(f);
+
+      // Approved-and-unmeasured only. A judged find has a verdict, so it is in
+      // `judged` rather than `approved` and cannot reach this sum.
+      const forecastCents = bucket.approved
+        .reduce((sum, f) => sum + (f.predictedMonthly || 0), 0);
+
+      return {
+        verifiedTxt: (data.summary || {}).monthlyNowTxt || "$0",
+        forecastCents,
+        forecastTxt: centsToText(forecastCents),
+        approved: bucket.approved,
+        judged: bucket.judged,
+        rejected: bucket.rejected,
+        saved: bucket.saved,
+        pending: bucket.pending,
+      };
+    }
+
+    // BT-PURE-END
 
     const STORAGE_KEY = "brass-tacks-decision-lens-v1";
 
@@ -6884,28 +7223,22 @@
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (error) {}
     }
 
-    function formatMoney(value) {
-      return `+$${value.toLocaleString("en-US")}`;
+    const findsById = new Map((btData.finds || []).map(f => [f.id, f]));
+
+    function findById(id) {
+      return findsById.get(id) || null;
     }
 
-    function getDecision(postId) {
-      return state.decisions[postId] || null;
+    function getDecision(findId) {
+      return effectiveDecision(findById(findId), state.decisions);
     }
 
     function getPendingPosts() {
-      return posts.filter(post => !getDecision(post.id));
+      return deckFinds(btData, state.decisions);
     }
 
-    function getApprovedPosts() {
-      return posts
-        .filter(post => getDecision(post.id)?.status === "approved")
-        .sort((a, b) => getDecision(b.id).at - getDecision(a.id).at);
-    }
-
-    function getRejectedPosts() {
-      return posts
-        .filter(post => getDecision(post.id)?.status === "rejected")
-        .sort((a, b) => getDecision(b.id).at - getDecision(a.id).at);
+    function totals() {
+      return growthTotals(btData, state.decisions);
     }
 
     function switchView(viewName) {
@@ -6958,11 +7291,26 @@
     viewTabs.forEach(tab => tab.addEventListener("click", () => switchView(tab.dataset.view)));
 
     function renderApp() {
+      renderIdentity();
       renderTopStatus();
       renderAutopilot();
       renderGrowth();
       renderAdmin();
       if (openPostId && detailDrawer.classList.contains("open")) renderDrawer(openPostId);
+    }
+
+    //: The tenant name and the reporting period, both from rows. The period is
+    //  the last month the ledger measured — a build-produced label, so it can
+    //  never drift the way the hardcoded "August 2026" it replaced would have.
+    function renderIdentity() {
+      const months = (btData.months || []).filter(m => !m.projected);
+      const last = months[months.length - 1];
+      document.getElementById("brandBusiness").textContent =
+        (btData.business || {}).name || "";
+      document.getElementById("growthPeriod").textContent = last
+        ? new Date(`${last.iso}T00:00:00Z`).toLocaleDateString(undefined, {
+            month: "long", year: "numeric", timeZone: "UTC" })
+        : "No measured months yet";
     }
 
     function renderTopStatus() {
@@ -7039,16 +7387,32 @@
       return "is-hidden";
     }
 
-    function renderFeedCard(post, index, count) {
+    //: Every string interpolated below is agent-written or owner-facing text out
+    //  of the cluster, so all of it goes through escapeHtml() via safe(). The fake
+    //  array this replaced was five hardcoded literals, where skipping the escape
+    //  was merely careless; with real `move` and stored review prose it would be a
+    //  hole.
+    //
+    //  No `data-feature` and no inline --accent. Those keyed the card's colour to
+    //  an invented category; the surviving CSS themes simply stop matching, which
+    //  is the intended outcome. Colour carries no data on this screen — the six
+    //  validated kind hues belong to the dark console, and tinting a
+    //  recommendation by the kind of row behind it invites ranking the deck by
+    //  something that carries no ranking.
+    function renderFeedCard(find, index, count) {
       const offset = (index - currentIndex + count) % count;
       const positionClass = positionFor(offset, count);
+
+      // The observation retrieval ranked first — the honest version of what the
+      // mock's invented "signal" line pretended to be.
+      const top = (find.evidence || [])[0];
+      const steps = (find.bullets || []).slice(0, 2);
+      const emoji = safe(find.emoji || "💡");
 
       return `
         <article
           class="feed-card ${positionClass}"
-          style="--accent:${post.accent};--accent-rgb:${post.accentRgb}"
-          data-post-id="${post.id}"
-          data-feature="${post.featureKey}"
+          data-post-id="${safe(find.id)}"
           data-index="${index}"
           aria-hidden="${index === currentIndex ? "false" : "true"}"
         >
@@ -7060,25 +7424,37 @@
               <div class="post-art" aria-hidden="true">
                 <span class="art-orb art-orb-main"></span>
                 <span class="art-orb art-orb-small"></span>
-                <span class="art-glyph">${icons[post.featureKey]}</span>
+                <span class="art-glyph art-glyph-emoji">${emoji}</span>
               </div>
               <div class="post-copy">
                 <div class="post-meta-row">
                   <div class="social-context">
-                    <span class="context-avatar" aria-hidden="true">${icons[post.featureKey]}</span>
-                    <span class="context-copy"><strong>${post.feature}</strong><small>${post.sourceTime}</small></span>
+                    <span class="context-avatar context-avatar-emoji" aria-hidden="true">${emoji}</span>
+                    <!-- The modal kind across everything this find cited, which is
+                         not necessarily the kind of the single quote below — that
+                         one carries its own attribution. "Most-cited" keeps the two
+                         from being read as the same claim. -->
+                    <span class="context-copy"><strong>${safe(find.topKindLabel || "Memory")}</strong><small>Most-cited source · ${find.evidenceCount ?? 0} rows</small></span>
                   </div>
-                  <button class="details-button top-details-button" type="button" data-open-post="${post.id}" aria-label="Open details for ${post.title}">
+                  <button class="details-button top-details-button" type="button" data-open-post="${safe(find.id)}" aria-label="Open details for ${safe(find.title)}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
                   </button>
                 </div>
-                <h2>${post.title}</h2>
-                <p class="signal-text">${post.signal}</p>
+                <h2>${safe(find.title)}</h2>
+                ${top ? `
+                  <blockquote class="signal-text">
+                    ${safe(clampText(top.content || "", 150))}
+                    <cite>${safe([top.source, top.when].filter(Boolean).join(" · "))}</cite>
+                  </blockquote>` : `
+                  <p class="signal-text muted-note">No stored observation is attached to this find.</p>`}
                 <div class="recommendation">
                   <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
                   <span class="recommendation-copy">
                     <span>Try this</span>
-                    <strong>${post.recommendation}</strong>
+                    ${steps.length
+                      ? `<ul class="move-steps" title="${safe(find.move || "")}">${
+                          steps.map(step => `<li>${safe(step)}</li>`).join("")}</ul>`
+                      : `<strong>${safe(find.move || "")}</strong>`}
                   </span>
                 </div>
               </div>
@@ -7086,18 +7462,18 @@
 
             <footer class="post-footer">
               <div class="impact-summary">
-                <strong>${formatMoney(post.amount)}</strong>
+                <strong>${safe(find.predictedMonthlyTxt || "—")}</strong>
                 <span>
-                  <b>Monthly potential</b>
-                  <small>Nothing changes until approved</small>
+                  <b>Predicted, per month</b>
+                  <small>Nothing is measured until the Meter checks it</small>
                 </span>
               </div>
 
               <div class="decision-actions" aria-label="Respond to this recommendation">
-                <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">
+                <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${safe(find.id)}">
                   ${icons.rejected}<span>Pass</span>
                 </button>
-                <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}">
+                <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${safe(find.id)}">
                   ${icons.approved}<span>Do it</span>
                 </button>
               </div>
@@ -7282,8 +7658,11 @@
       }
     });
 
-    function decide(postId, status, animate = true) {
-      if (isAnimating || getDecision(postId)) return;
+    function decide(findId, status, animate = true) {
+      // Anything else already carries a decision the cluster recorded, and the
+      // browser does not get to overwrite it.
+      if (isAnimating || getDecision(findId) !== "pending") return;
+      const postId = findId;
       const card = document.querySelector(`.feed-card[data-post-id="${postId}"]`);
 
       const commit = () => {
@@ -7312,25 +7691,42 @@
       decisionTimer = window.setTimeout(commit, 270);
     }
 
+    /**
+     * Two figures that must never be confused for one another.
+     *
+     * The verified figure is the string the build produced from the ledger. It is
+     * assigned, never computed, and it is the same string whether the owner has
+     * approved everything on the board or nothing at all — the interface cannot
+     * raise the record, only the Meter can.
+     */
     function renderGrowth() {
-      const approved = getApprovedPosts();
-      const rejected = getRejectedPosts();
-      const pending = getPendingPosts();
-      const approvedTotal = approved.reduce((sum, post) => sum + post.amount, 0);
+      const t = totals();
+      // Everything the owner said yes to, including the ones already judged: the
+      // record of a decision does not disappear once it has been measured.
+      const committed = t.approved.concat(t.judged);
+      const declined = t.rejected.concat(t.saved);
 
-      document.getElementById("approvedAmount").textContent = formatMoney(approvedTotal);
-      document.getElementById("approvedCount").textContent = approved.length;
-      document.getElementById("rejectedCount").textContent = rejected.length;
-      document.getElementById("remainingCount").textContent = pending.length;
-      document.getElementById("approvedListCount").textContent = approved.length;
-      document.getElementById("rejectedListCount").textContent = rejected.length;
+      document.getElementById("verifiedAmount").textContent = t.verifiedTxt;
+      document.getElementById("verifiedSub").textContent =
+        ` · ${(btData.summary || {}).verified ?? 0} measured against real sales`;
 
-      document.getElementById("approvedList").innerHTML = approved.length
-        ? approved.map(post => renderDecisionRow(post, "approved")).join("")
+      document.getElementById("forecastAmount").textContent = t.forecastTxt;
+      document.getElementById("forecastSub").textContent = t.approved.length
+        ? ` · ${t.approved.length} approved, waiting on the Meter`
+        : " · nothing approved and unmeasured";
+
+      document.getElementById("approvedCount").textContent = committed.length;
+      document.getElementById("rejectedCount").textContent = declined.length;
+      document.getElementById("remainingCount").textContent = t.pending.length;
+      document.getElementById("approvedListCount").textContent = committed.length;
+      document.getElementById("rejectedListCount").textContent = declined.length;
+
+      document.getElementById("approvedList").innerHTML = committed.length
+        ? committed.map(f => renderDecisionRow(f)).join("")
         : renderListEmpty("approved");
 
-      document.getElementById("rejectedList").innerHTML = rejected.length
-        ? rejected.map(post => renderDecisionRow(post, "rejected")).join("")
+      document.getElementById("rejectedList").innerHTML = declined.length
+        ? declined.map(f => renderDecisionRow(f)).join("")
         : renderListEmpty("rejected");
 
       renderRevenueChart();
@@ -7580,9 +7976,7 @@
       const finds = btData.finds || [];
       const kinds = btData.kinds || [];
 
-      document.getElementById("adminStamp").textContent =
-        btData.business?.name ? btData.business.name.toUpperCase() : "";
-
+      renderStamp();
       renderKindBars(kinds, corpus);
       renderPipeline(summary, corpus, finds);
       renderReadouts(summary, corpus, finds);
@@ -7590,6 +7984,25 @@
       renderRetrieval(finds);
       renderRatingSpark(btData.ratings || []);
       renderRecordLog(finds, btData.runs || []);
+      renderReceipt();
+    }
+
+    /**
+     * When this snapshot was taken, from the cluster that was snapshotted.
+     *
+     * Never the browser clock. A page-render time would be the same fake-live
+     * claim the pulsing dot was making, wearing a timestamp. If the export
+     * recorded no stamp, the panel says so and names the fix.
+     */
+    function renderStamp() {
+      const name = (btData.business || {}).name;
+      const stamp = btData.generated
+        ? `AS OF ${new Date(btData.generated).toLocaleString(undefined, {
+            day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+            timeZone: "UTC", hour12: false })} UTC`
+        : "NO EXPORT STAMP · RE-RUN SCRIPTS/EXPORT_FIXTURE.PY";
+      document.getElementById("adminStamp").textContent =
+        [name ? name.toUpperCase() : "", stamp].filter(Boolean).join(" · ");
     }
 
     // --- signal sources -------------------------------------------------------
@@ -7610,20 +8023,67 @@
 
     // --- agent pipeline -------------------------------------------------------
     function renderPipeline(summary, corpus, finds) {
+      // The Maker's count is the `artifact` table, not the Later jar. It used to
+      // read `saved.length`, which claimed a draft that had never been written.
+      const drafted = btData.artifacts ?? 0;
+      const runs = btData.runs || [];
+      const askRuns = runs.filter(r => r.agent === "ask").length;
       const stat = {
         radar: `<b>${corpus.observations ?? 0}</b> observations`,
         analyst: `<b>${finds.length}</b> finds · <b>${(btData.queries || []).length}</b> queries/night`,
-        maker: `<b>${(btData.saved || []).length}</b> drafted`,
+        maker: drafted ? `<b>${drafted}</b> drafted` : `none drafted yet`,
         meter: `<b>${summary.judged ?? 0}</b> judged · <b>${summary.miss ?? 0}</b> miss`,
-        ask: `on request · <b>0</b> scheduled`,
+        ask: askRuns
+          ? `on request · <b>${askRuns}</b> answered`
+          : `on request · no runs recorded`,
       };
 
-      document.getElementById("pipeNodes").innerHTML = AGENTS.map(a => `
-        <article class="node ${a.detached ? "detached" : ""}" data-node="${a.key}">
+      /* The node list is architecture and stays fixed: these five agents are the
+         loop whether or not any of them ran tonight. Deriving the nodes from
+         agent_run rows instead would make Ask disappear on a quiet night and
+         redraw the diagram every time the cluster changed.
+
+         What the rows drive is each node's *state*. A node that has never run
+         says so in place of a duration — visible, not omitted — and a node whose
+         last run failed carries the spelled word as well as the colour. */
+      const byAgent = new Map();
+      for (const r of runs) if (!byAgent.has(r.agent)) byAgent.set(r.agent, r);
+      const countByAgent = runs.reduce((acc, r) => {
+        acc[r.agent] = (acc[r.agent] || 0) + 1;
+        return acc;
+      }, {});
+
+      document.getElementById("pipeNodes").innerHTML = AGENTS.map(a => {
+        const last = byAgent.get(a.key);
+        const count = countByAgent[a.key] || 0;
+        const failed = last && last.status === "failed";
+        const state = !last ? "idle" : failed ? "failed" : "ran";
+
+        const line = !last
+          ? `<span class="node-run idle">no agent_run rows</span>`
+          : `<span class="node-run ${escapeHtml(state)}">
+               ${failed ? `<b>failed</b> · ` : ""}${count} run${count === 1 ? "" : "s"}
+               · last ${escapeHtml(shortDate(last.startedAt))}
+               ${last.seconds == null ? "" : `· ${last.seconds}s`}
+             </span>`;
+        const problem = failed && last.error
+          ? `<span class="node-error">${escapeHtml(clampText(last.error, 90))}</span>`
+          : "";
+
+        return `
+        <article class="node ${a.detached ? "detached" : ""} ${escapeHtml(state)}" data-node="${a.key}">
           <div class="node-name">${escapeHtml(a.name)}</div>
           <div class="node-role">${escapeHtml(a.role)}</div>
           <div class="node-stat">${stat[a.key]}</div>
-        </article>`).join("");
+          ${line}${problem}
+        </article>`;
+      }).join("");
+
+      const nights = countByAgent.analyst || 0;
+      const latest = byAgent.get("analyst");
+      document.getElementById("pipeMeta").textContent = nights
+        ? `${nights} night${nights === 1 ? "" : "s"} recorded · latest ${shortDate(latest.startedAt)}`
+        : "no nights recorded";
 
       drawPipelineEdges();
     }
@@ -7715,19 +8175,89 @@
         .map(f => ({ f, top: Math.max(...f.evidence.map(e => Number(e.similarity))) }))
         .sort((a, b) => b.top - a.top);
 
-      if (!pick.dataset.filled) {
+      /* Rebuilt only when the option set actually changes, rather than "once,
+         ever". renderAdmin runs inside renderApp, which fires on every approve,
+         reject and restart, so an unconditional rebuild would snap the
+         operator's selection back to the first option each time. The old guard
+         solved that by never repopulating at all — which also meant the select
+         could not be re-synced, and the deep link below has to be able to
+         select a find that is not currently showing.
+
+         onchange is bound outside the guard because it used to be bound inside
+         it, making a one-shot flag load-bearing for the panel's interactivity. */
+      const signature = ranked.map(({ f }) => f.id).join(",");
+      if (pick.dataset.signature !== signature) {
+        const keep = pick.value;
         pick.innerHTML = ranked.map(({ f, top }) =>
           `<option value="${escapeHtml(f.id)}">${escapeHtml(f.shortTitle || f.title)} · ${top.toFixed(3)}</option>`
         ).join("");
-        pick.dataset.filled = "1";
-        pick.onchange = () => renderEvidence(pick.value);
+        pick.dataset.signature = signature;
+        if (keep && ranked.some(({ f }) => f.id === keep)) pick.value = keep;
       }
+      pick.onchange = () => inspectFind(pick.value);
 
       document.getElementById("queryList").innerHTML =
         (btData.queries || []).map(q => `<li>${escapeHtml(q)}</li>`).join("")
         || `<li class="con-empty">No queries recorded.</li>`;
 
-      renderEvidence(pick.value || (ranked[0] && ranked[0].f.id));
+      inspectFind(pick.value || (ranked[0] && ranked[0].f.id));
+    }
+
+    /** Show one find's whole trail: the chip rail, then the rows it cited. */
+    function inspectFind(findId) {
+      renderLineage(findId);
+      renderEvidence(findId);
+    }
+
+    /**
+     * The chain from a run to a verdict, chip by chip.
+     *
+     * The gap is the point, not a hole to paper over. Every find in the seeded
+     * corpus carries the run_id of the *Radar* run that built it — scripts/seed.py
+     * threads one run through observations, finds and ledger rows alike — so
+     * none of them was produced by an Analyst reasoning over retrieval. Saying
+     * that plainly, beside finds that were, is a stronger claim than a uniform
+     * row of chips: it shows exactly which work the memory layer did and which
+     * it did not.
+     */
+    function renderLineage(findId) {
+      const rail = document.getElementById("lineageRail");
+      const find = (btData.finds || []).find(f => f.id === findId);
+      if (!find) { rail.innerHTML = ""; return; }
+
+      const cited = (find.evidence || []).length;
+      const run = (btData.runs || []).find(r => r.id === find.runId);
+      const retrieved = run && run.retrieved;
+
+      const chips = [
+        find.seeded
+          ? { label: "Run", value: "—", sub: "written by scripts/seed.py, before any Radar run", cls: "absent" }
+          : { label: "Run", value: find.runId,
+              sub: run ? `${run.agent} · ${shortDate(run.startedAt)}` : "analyst" },
+        { label: "Queries", value: (btData.queries || []).length, sub: "every night" },
+        // Only stated when the run recorded it. "0 retrieved" on a find whose
+        // run never searched would be an invention.
+        retrieved
+          ? { label: "Retrieved", value: retrieved, sub: `top sim ${find.topSimilarity ?? "—"}` }
+          : { label: "Retrieved", value: "—", sub: "not recorded for this run", cls: "absent" },
+        { label: "Cited", value: cited,
+          sub: retrieved ? `of ${retrieved} retrieved` : "observations" },
+        { label: "Predicted", value: find.predictedDailyTxt, sub: "per day" },
+        { label: "Verify after", value: shortDate(find.verifyAfter), sub: "window closes" },
+        find.verdict
+          // The verdict word always ships with the colour, never instead of it.
+          ? { label: "Verdict", value: find.verdict.toUpperCase(),
+              sub: find.actualDailyTxt ? `${find.actualDailyTxt}/day measured` : "",
+              cls: find.verdict }
+          : { label: "Verdict", value: "PENDING", sub: "not yet judged", cls: "absent" },
+      ];
+
+      rail.innerHTML = chips.map(c => `
+        <div class="lin-chip ${escapeHtml(c.cls || "")}">
+          <span class="lin-label">${escapeHtml(c.label)}</span>
+          <span class="lin-value">${escapeHtml(String(c.value ?? "—"))}</span>
+          <span class="lin-sub">${escapeHtml(c.sub || "")}</span>
+        </div>`).join("");
     }
 
     function renderEvidence(findId) {
@@ -7800,15 +8330,61 @@
         </div>`;
     }
 
+    /**
+     * What a run cost, in tokens — never in dollars.
+     *
+     * Prices are external facts with a date attached; the money in this schema
+     * is the owner's. And zero is never printed for an absence: a Radar run
+     * calls Bedrock for embeddings, which have no output side, and the Meter
+     * calls no model at all. Each says which.
+     */
+    function tokenNote(run) {
+      if (run.inputTokens == null && run.outputTokens == null) {
+        return run.agent === "meter" ? "no model call" : "tokens not recorded";
+      }
+      const inTok = (run.inputTokens ?? 0).toLocaleString();
+      if (!run.outputTokens) return `${inTok} in · embeddings only`;
+      return `${inTok} in · ${run.outputTokens.toLocaleString()} out`;
+    }
+
+    function renderRunTiles(runs) {
+      const nights = runs.filter(r => r.agent === "analyst");
+      const failures = runs.filter(r => r.status === "failed");
+      const metered = runs.filter(r => r.inputTokens != null);
+      const tokens = metered.reduce(
+        (n, r) => n + (r.inputTokens || 0) + (r.outputTokens || 0), 0);
+      const latest = runs.filter(r => r.seconds != null)[0];
+
+      const tiles = [
+        ["Nights", nights.length || "—",
+         nights.length ? `latest ${shortDate(nights[0].startedAt)}` : "no analyst runs"],
+        ["Latest run", latest ? `${latest.seconds}s` : "—",
+         latest ? escapeHtml(latest.agent) : "nothing finished"],
+        ["Tokens", metered.length ? tokens.toLocaleString() : "—",
+         metered.length ? `over ${metered.length} metered run${metered.length === 1 ? "" : "s"}`
+                        : "not recorded on any run"],
+        ["Failures", failures.length, failures.length ? "see the log" : "none recorded"],
+      ];
+
+      document.getElementById("runTiles").innerHTML = tiles.map(([l, v, s]) => `
+        <div class="con-tile">
+          <span class="t-label">${escapeHtml(l)}</span>
+          <span class="t-value">${escapeHtml(String(v))}</span>
+          <span class="t-sub">${s}</span>
+        </div>`).join("");
+    }
+
     // --- record log -----------------------------------------------------------
     function renderRecordLog(finds, runs) {
       const lines = [];
+      renderRunTiles(runs);
 
       runs.forEach(r => lines.push({
         when: shortDate(r.startedAt),
         sort: r.startedAt,
         tag: r.agent,
         msg: `${escapeHtml(r.note || "run")} <b>${r.seconds == null ? "running" : `${r.seconds}s`}</b>`,
+        cost: tokenNote(r),
         verdict: r.status,
       }));
 
@@ -7820,22 +8396,78 @@
         tag: "meter",
         msg: `<b>${escapeHtml(f.shortTitle || f.title)}</b> predicted ${escapeHtml(f.predictedDailyTxt || "—")}`
            + `${f.actualDailyTxt ? ` · actual ${escapeHtml(f.actualDailyTxt)}` : ""}`,
+        // A ledger row is the Meter's arithmetic, not a model call.
+        cost: "no model call",
         verdict: f.verdict,
       }));
 
       lines.sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
 
-      document.getElementById("runsSub").textContent = runs.length === 1
-        ? `${lines.length} records · 1 agent_run row`
-        : `${lines.length} records · ${runs.length} agent_run rows`;
+      // The exported run list is capped. Saying only what is on screen would
+      // read as the whole record once the cluster holds more than the cap.
+      const total = btData.runCount ?? runs.length;
+      const capped = total > runs.length ? ` of ${total}` : "";
+      document.getElementById("runsSub").textContent =
+        `${lines.length} records · ${runs.length}${capped} agent_run row${runs.length === 1 ? "" : "s"}`;
 
       document.getElementById("recordLog").innerHTML = lines.length ? lines.map(l => `
         <div class="log-line">
           <span class="log-when">${escapeHtml(l.when)}</span>
           <span class="log-tag ${escapeHtml(l.tag)}">${escapeHtml(l.tag)}</span>
           <span class="log-msg">${l.msg}</span>
+          <span class="log-cost">${escapeHtml(l.cost || "")}</span>
           <span class="log-verdict ${escapeHtml(l.verdict)}">${escapeHtml(l.verdict)}</span>
         </div>`).join("") : `<p class="con-empty">No records yet.</p>`;
+    }
+
+    /**
+     * The queries this snapshot was built from — name, SQL, rows, round trip.
+     *
+     * This is what replaced the pulsing dot. A judge cannot check an animation;
+     * they can read `version()` off a real cluster, see the parameterised SQL
+     * that ran, and count the rows it returned. When the receipt is missing the
+     * panel names the command that produces one rather than hiding itself.
+     */
+    function renderReceipt() {
+      const panel = document.getElementById("receiptPanel");
+      const receipt = btData.receipt;
+      const meta = document.getElementById("receiptMeta");
+      const body = document.getElementById("receiptBody");
+
+      if (!receipt || !(receipt.queries || []).length) {
+        meta.textContent = "not recorded";
+        body.innerHTML = `<p class="con-empty">This fixture carries no receipt. `
+          + `Re-run <code>scripts/export_fixture.py</code> to record one.</p>`;
+        return;
+      }
+
+      const total = receipt.queries.reduce((n, q) => n + (q.client_ms || 0), 0);
+      meta.textContent = `${receipt.queries.length} queries · ${total.toFixed(1)} ms`;
+
+      body.innerHTML = `
+        <div class="receipt-head">
+          ${[["Database", receipt.database], ["Cluster", receipt.clusterId],
+             ["Version", receipt.version]]
+            .map(([l, v]) => `<span><b>${escapeHtml(l)}</b>${
+              escapeHtml(v || "not readable by this role")}</span>`).join("")}
+        </div>
+        <table class="receipt-table">
+          <thead><tr><th>Query</th><th>Rows</th><th>Round trip</th><th>SQL</th></tr></thead>
+          <tbody>
+            ${receipt.queries.map(q => `
+              <tr>
+                <td class="q-name">${escapeHtml(q.name)}</td>
+                <td class="q-rows">${escapeHtml(String(q.rows ?? "—"))}</td>
+                <!-- Named for what it is: wall time from the exporting machine
+                     with the round trip included, not the cluster's own
+                     execution time. -->
+                <td class="q-ms">${escapeHtml(String(q.client_ms ?? "—"))} ms</td>
+                <td><pre>${escapeHtml(q.sql || "")}</pre></td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+        <p class="receipt-note">Round trip is wall time measured on the machine that
+          ran the export, network included — not the cluster's execution time.</p>`;
     }
 
     function shortDate(iso) {
@@ -7855,15 +8487,35 @@
       if (stage) new ResizeObserver(() => drawPipelineEdges()).observe(stage);
     }
 
-    function renderDecisionRow(post, status) {
+    //: The right-hand figure carries the row's own truth, and the verdict word
+    //  always ships with it. An estimate is labelled Modelled, never Actual — and
+    //  a miss keeps its number rather than being softened into a dash.
+    const ROW_STATE = {
+      approved: f => ({ text: `${f.predictedMonthlyTxt}/mo predicted`, cls: "pending" }),
+      judged: f => ({
+        text: f.verdict === "verified"
+          ? `Verified ${f.actualDailyTxt}/day`
+          : f.verdict === "miss"
+            ? `Miss ${f.actualDailyTxt ?? "$0"}/day`
+            : `Modelled ${f.actualDailyTxt ?? f.predictedDailyTxt}/day`,
+        cls: f.verdict,
+      }),
+      rejected: () => ({ text: "Not pursued", cls: "rejected" }),
+      saved: () => ({ text: "Saved for later", cls: "saved" }),
+      pending: () => ({ text: "Waiting on you", cls: "pending" }),
+    };
+
+    function renderDecisionRow(find) {
+      const { text, cls } = (ROW_STATE[effectiveDecision(find, state.decisions)]
+                             || ROW_STATE.pending)(find);
       return `
-        <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}.">
-          <span class="decision-row-icon" aria-hidden="true">${icons[post.featureKey]}</span>
+        <button class="decision-row" type="button" data-open-post="${safe(find.id)}" aria-label="${safe(find.title)}. ${safe(text)}.">
+          <span class="decision-row-icon decision-row-emoji" aria-hidden="true">${safe(find.emoji || "💡")}</span>
           <span class="decision-row-copy">
-            <strong>${post.title}</strong>
-            <span>${post.recommendation}</span>
+            <strong>${safe(find.title)}</strong>
+            <span>${safe(clampText(find.move || "", 110))}</span>
           </span>
-          <span class="decision-row-value ${status === "rejected" ? "rejected" : ""}">${status === "approved" ? `${formatMoney(post.amount)}/mo` : "Not pursued"}</span>
+          <span class="decision-row-value ${safe(cls)}">${safe(text)}</span>
         </button>
       `;
     }
@@ -7875,7 +8527,7 @@
           <div>
             <div class="list-empty-icon" aria-hidden="true">${approved ? icons.approved : icons.rejected}</div>
             <strong>${approved ? "Nothing approved yet" : "Nothing passed"}</strong>
-            <span>${approved ? "Approve a post in Autopilot and it will appear here." : "Passed ideas stay here for reference."}</span>
+            <span>${approved ? "Approve a find in For You and it will appear here." : "Passed and shelved finds stay here for reference."}</span>
           </div>
         </div>
       `;
@@ -7889,73 +8541,94 @@
       detailDrawer.setAttribute("aria-hidden", "false");
     }
 
-    function renderDrawer(postId) {
-      const post = posts.find(item => item.id === postId);
-      if (!post) return;
-      const decision = getDecision(postId);
-      const status = decision?.status || "pending";
+    const DRAWER_STATE = {
+      approved: { title: "Doing it", className: "approved",
+                  note: "Counted in the forecast until the Meter measures it." },
+      judged:   { title: "Judged", className: "judged",
+                  note: "The Meter has already reached a verdict on this one." },
+      rejected: { title: "Passed", className: "rejected",
+                  note: "You chose not to pursue this idea." },
+      saved:    { title: "Saved for later", className: "saved",
+                  note: "Shelved rather than turned down." },
+      pending:  { title: "Ready for you", className: "pending",
+                  note: "Do it or pass on this recommendation." },
+    };
 
-      const statusContent = status === "approved"
-        ? {
-            title: "Approved",
-            note: "Added to Growth for ongoing tracking.",
-            icon: icons.approved,
-            className: "approved"
-          }
-        : status === "rejected"
-          ? {
-              title: "Passed",
-              note: "You chose not to pursue this idea.",
-              icon: icons.rejected,
-              className: "rejected"
-            }
-          : {
-              title: "Ready for you",
-              note: "Do it or pass on this recommendation.",
-              icon: icons.action,
-              className: "pending"
-            };
+    function renderDrawer(findId) {
+      const find = findById(findId);
+      if (!find) return;
+      const status = effectiveDecision(find, state.decisions);
+      const meta = DRAWER_STATE[status] || DRAWER_STATE.pending;
+      const icon = status === "approved" ? icons.approved
+        : status === "rejected" ? icons.rejected : icons.action;
+      const evidence = find.evidence || [];
 
-      detailDrawer.dataset.status = statusContent.className;
-      detailDrawer.dataset.feature = post.featureKey;
-      drawerAvatar.innerHTML = icons[post.featureKey];
-      drawerTitle.textContent = post.title;
-      drawerSubtitle.textContent = `${post.feature} · ${post.sourceTime}`;
+      detailDrawer.dataset.status = meta.className;
+      // No data-feature: the drawer's accent no longer keys off an invented
+      // category, so the themed rules stop matching and the default applies.
+      delete detailDrawer.dataset.feature;
+      drawerAvatar.textContent = find.emoji || "💡";
+      drawerTitle.textContent = find.title;
+      // "Mostly X", not "X" — the quotes below can come from other kinds, and a
+      // bare label above them reads as a claim about each one.
+      drawerSubtitle.textContent =
+        [find.topKindLabel && `mostly ${find.topKindLabel.toLowerCase()}`,
+         find.foundAtTxt && `found ${find.foundAtTxt}`].filter(Boolean).join(" · ");
+
       drawerBody.innerHTML = `
-        <section class="decision-state ${statusContent.className}" aria-label="${statusContent.title}">
-          <span class="decision-state-icon" aria-hidden="true">${statusContent.icon}</span>
+        <section class="decision-state ${meta.className}" aria-label="${safe(meta.title)}">
+          <span class="decision-state-icon" aria-hidden="true">${icon}</span>
           <div>
-            <strong>${statusContent.title}</strong>
-            <span>${statusContent.note}</span>
+            <strong>${safe(meta.title)}</strong>
+            <span>${safe(meta.note)}</span>
           </div>
         </section>
 
         <div class="detail-stack">
           <section class="detail-section">
-            <div class="detail-section-label">Signal</div>
-            <h3>${post.signal}</h3>
-            <p>Found ${post.sourceTime} through ${post.feature.toLowerCase()} monitoring.</p>
+            <div class="detail-section-label">Try this</div>
+            <h3>${safe(find.move || "")}</h3>
+            <p>${safe(find.rationale || "")}</p>
           </section>
 
+          <!--
+            The retrieval trail, attached to the claim rather than filed behind a
+            tab. What is here is a summary; the deep link below opens the full
+            lineage — the run, the queries, every cited row and its similarity.
+          -->
           <section class="detail-section">
-            <div class="detail-section-label">Recommendation</div>
-            <h3>${post.recommendation}</h3>
-            <p>${status === "pending" ? "Nothing changes until you choose Do it." : status === "approved" ? "This idea is now in Where it came from." : "You passed on this recommendation."}</p>
+            <div class="detail-section-label">Where this came from</div>
+            ${evidence.length ? `
+              <ul class="detail-evidence">
+                ${evidence.slice(0, 3).map(e => `
+                  <li>
+                    <q>${safe(clampText(e.content || "", 140))}</q>
+                    <small>${safe([e.source, e.when].filter(Boolean).join(" · "))} · similarity ${Number(e.similarity).toFixed(3)}</small>
+                  </li>`).join("")}
+              </ul>
+              <p>${evidence.length} observation${evidence.length === 1 ? "" : "s"} cited out of everything stored.</p>
+            ` : `<p>No stored observation is attached to this find.</p>`}
+            <button class="detail-link" type="button" data-inspect-find="${safe(find.id)}">
+              See the full trail in Admin
+            </button>
           </section>
         </div>
 
         <div class="detail-impact">
           <div class="detail-impact-copy">
-            <span>Monthly potential</span>
-            <small>${status === "approved" ? "Approved opportunity" : status === "rejected" ? "Not pursued" : "Estimated opportunity"}</small>
+            <span>Predicted, per month</span>
+            <!-- Confidence lives here rather than on the card. On a card it reads
+                 as the probability the money lands, which is not what the model
+                 was asked and not what the number means. -->
+            <small>Agent confidence ${find.confidence ?? "—"}%</small>
           </div>
-          <strong>${formatMoney(post.amount)}</strong>
+          <strong>${safe(find.predictedMonthlyTxt || "—")}</strong>
         </div>
 
         ${status === "pending" ? `
           <div class="drawer-actions">
-            <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">${icons.rejected}<span>Pass</span></button>
-            <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}">${icons.approved}<span>Do it</span></button>
+            <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${safe(find.id)}">${icons.rejected}<span>Pass</span></button>
+            <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${safe(find.id)}">${icons.approved}<span>Do it</span></button>
           </div>
         ` : ""}
       `;
@@ -7983,6 +8656,14 @@
       input.value = "";
       drawerBody.scrollTop = drawerBody.scrollHeight;
     });
+
+    //: escapeHtml throws on a number or null — every existing call site guards
+    //  individually. The card, drawer and decision rows interpolate many more
+    //  fields than they used to, several of them nullable, so they go through
+    //  this instead of repeating `String(x || "")` thirty times.
+    function safe(value) {
+      return escapeHtml(value == null ? "" : String(value));
+    }
 
     function escapeHtml(value) {
       return value.replace(/[&<>'"]/g, character => ({
@@ -8018,7 +8699,13 @@
       closeDrawer();
       switchView("autopilot");
       renderApp();
-      showToast("Demo restarted. 5 posts are ready.", "approved");
+      // Only the browser-side overlay is cleared. Every status, verdict and
+      // ledger row stays exactly as CockroachDB recorded it — a demo reset is
+      // not allowed to look like it edited the record.
+      const waiting = getPendingPosts().length;
+      showToast(
+        `Demo reset. ${waiting} find${waiting === 1 ? "" : "s"} waiting; the database record is untouched.`,
+        "approved");
     }
 
     restartDemoButton.addEventListener("click", restartDemo);
@@ -8041,6 +8728,19 @@
       });
       document.querySelectorAll("[data-restart-demo]").forEach(button => {
         button.onclick = restartDemo;
+      });
+      /* The demo gesture, and the thing PRODUCT.md's third principle asks for:
+         the retrieval trail attached to the claim rather than filed behind a tab.
+         One click from a recommendation to the run that produced it, the queries
+         it issued, every row it cited and the verdict it earned. */
+      document.querySelectorAll("[data-inspect-find]").forEach(button => {
+        button.onclick = () => {
+          const id = button.dataset.inspectFind;
+          switchView("admin");
+          const pick = document.getElementById("retrievalPick");
+          if (pick && [...pick.options].some(o => o.value === id)) pick.value = id;
+          inspectFind(id);
+        };
       });
     }
 
