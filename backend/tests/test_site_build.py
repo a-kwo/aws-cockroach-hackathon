@@ -316,3 +316,166 @@ def test_admin_run_list_is_not_padded(data):
     inventing a busier night than the cluster actually recorded."""
     model = build_web.build_model(data)
     assert len(model["runs"]) == len(data["runs"])
+
+
+@pytest.mark.parametrize("note, expected", [
+    # The Analyst's success note, verbatim from analyst.py.
+    ("41 retrieved; proposed 'Lunch service' at +2300c/day, "
+     "verify after 2026-08-17", 41),
+    # Its failure note, which is worded differently and still carries the count.
+    ("6 observations retrieved", 6),
+    # The Radar seed run. No retrieval happened; the panel must not print 0.
+    ("seeded 127 observations", None),
+    ("memory is empty; no find proposed", None),
+    ("", None),
+    (None, None),
+])
+def test_run_retrieved_reads_the_count_out_of_the_run_note(note, expected):
+    """"41 retrieved → 5 cited" is the most persuasive pair of numbers on the
+    admin screen: the model saw 41 rows and could defend 5. The count is already
+    in the run note, so it needs no column and no migration — but a run that
+    retrieved nothing must report None, not 0, or a Radar row would claim it
+    searched memory and came back empty-handed."""
+    assert build_web.run_retrieved({"note": note}) == expected
+
+
+def test_runs_carry_their_cost_and_their_output(data):
+    data["runs"] = [{
+        "id": "1" * 36, "agent": "analyst", "status": "ok",
+        "started_at": "2026-07-30T02:00:00+00:00",
+        "finished_at": "2026-07-30T02:01:18+00:00",
+        "note": "41 retrieved; proposed 'x' at +2300c/day, verify after 2026-08-17",
+        "model_id": "claude-opus-5", "error": None,
+        "input_tokens": 8123, "output_tokens": 642,
+        "observations": 0, "finds": 1, "artifacts": 0, "ledger_entries": 0,
+    }]
+    [run] = build_web.build_model(data)["runs"]
+
+    assert run["modelId"] == "claude-opus-5"
+    assert (run["inputTokens"], run["outputTokens"]) == (8123, 642)
+    assert run["retrieved"] == 41
+    assert run["produced"] == {"observations": 0, "finds": 1,
+                               "artifacts": 0, "ledgerEntries": 0}
+
+
+def test_a_run_that_called_no_model_reports_unknown_not_zero(data):
+    """The Meter never calls a model. The view has to be able to print "no model
+    call" rather than "0 tokens", and that distinction only survives if None
+    survives the trip through the model."""
+    data["runs"] = [{
+        "id": "2" * 36, "agent": "meter", "status": "ok",
+        "started_at": "2026-07-30T02:02:00+00:00",
+        "finished_at": "2026-07-30T02:02:04+00:00",
+        "note": "nothing due", "model_id": None, "error": None,
+        "input_tokens": None, "output_tokens": None,
+    }]
+    [run] = build_web.build_model(data)["runs"]
+
+    assert run["inputTokens"] is None
+    assert run["outputTokens"] is None
+    assert run["modelId"] is None
+
+
+# ------------------------------------------------------------ find lineage
+
+
+def test_a_find_carries_the_run_that_produced_it(data):
+    data["finds"] = [find(run_id="7f3a91c2-0000-0000-0000-000000000000",
+                          run_agent="analyst", seeded=False)]
+    [found] = build_web.build_model(data)["finds"]
+
+    assert found["runId"] == "7f3a91c2"
+    assert found["seeded"] is False
+
+
+def test_a_seeded_find_says_so_rather_than_showing_a_blank(data):
+    """The console draws the gap deliberately: a seeded find has no Analyst run
+    behind it, and saying so beside finds that do is a stronger claim than a
+    uniform row of chips would be."""
+    data["finds"] = [find(run_id=None, run_agent=None, seeded=True)]
+    [found] = build_web.build_model(data)["finds"]
+
+    assert found["seeded"] is True
+    assert found["runId"] is None
+
+
+def test_a_find_reports_when_it_was_found_as_a_fixed_date(data):
+    """Never a relative time. The fixture is a frozen export, so "3 days ago"
+    would be true on the day of the build and quietly become fiction after it."""
+    [found] = build_web.build_model(data)["finds"]
+    assert found["foundAtTxt"] == "1 Jun"
+
+
+def test_a_find_is_labelled_by_the_kind_of_evidence_it_leaned_on(data):
+    """Replaces the mock's invented "feature" tag with something the rows can
+    support: the commonest kind among the observations actually cited."""
+    data["finds"] = [find(evidence=[
+        {"rank": 0, "similarity": 0.7, "observation_id": "o1", "content": "a",
+         "kind": "review", "source_name": None, "subject": None,
+         "observed_at": "2026-06-02T19:00:00+00:00"},
+        {"rank": 1, "similarity": 0.6, "observation_id": "o2", "content": "b",
+         "kind": "rival_price", "source_name": None, "subject": None,
+         "observed_at": "2026-06-02T19:00:00+00:00"},
+        {"rank": 2, "similarity": 0.5, "observation_id": "o3", "content": "c",
+         "kind": "review", "source_name": None, "subject": None,
+         "observed_at": "2026-06-02T19:00:00+00:00"},
+    ])]
+    [found] = build_web.build_model(data)["finds"]
+    assert found["topKindLabel"] == "Reviews"
+
+
+def test_a_find_with_no_evidence_claims_no_source(data):
+    data["finds"] = [find(evidence=[])]
+    [found] = build_web.build_model(data)["finds"]
+    assert found["topKindLabel"] is None
+
+
+# ---------------------------------------------------------- export receipt
+
+
+def test_the_receipt_reaches_the_page(data):
+    data["_generated"] = "2026-07-31T04:12:00+00:00"
+    data["_receipt"] = {
+        "database": "defaultdb", "version": "CockroachDB CCL v26.2.1",
+        "clusterId": "abc-123",
+        "queries": [{"name": "finds", "sql": "SELECT 1", "rows": 15,
+                     "client_ms": 42.5}],
+    }
+    model = build_web.build_model(data)
+
+    assert model["generated"] == "2026-07-31T04:12:00+00:00"
+    assert model["receipt"]["version"] == "CockroachDB CCL v26.2.1"
+    assert model["receipt"]["queries"][0]["rows"] == 15
+
+
+def test_a_fixture_with_no_receipt_still_builds(data):
+    """An older fixture, or one exported by a role that cannot read
+    crdb_internal. The page says the stamp is missing; it does not invent one
+    and it does not fail to build."""
+    model = build_web.build_model(data)
+    assert model["generated"] is None
+    assert model["receipt"] is None
+
+
+# ------------------------------------------------------ the Maker's drafts
+
+
+def test_a_shelved_find_is_not_a_drafted_artifact(data):
+    """The console rendered `saved.length` as "N drafted" — the Later jar, not
+    the artifact table. A find the owner shelved is not a deliverable that
+    exists, and the artifact table is empty."""
+    data["finds"] = [find(status="later", verdict=None, actual_daily_cents=None,
+                          measured_at=None)]
+    model = build_web.build_model(data)
+    assert len(model["saved"]) == 1
+    assert model["artifacts"] == 0
+
+
+def test_a_drafted_artifact_is_counted_on_the_find_that_earned_it(data):
+    data["finds"] = [find(artifacts=[
+        {"id": "a1", "kind": "review_reply", "title": "Reply to Dana",
+         "preview": "Thank you for…", "created_at": "2026-06-25T02:00:00+00:00"},
+    ])]
+    model = build_web.build_model(data)
+    assert model["artifacts"] == 1
+    assert model["finds"][0]["artifactCount"] == 1

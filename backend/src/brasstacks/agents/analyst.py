@@ -26,7 +26,13 @@ from datetime import date
 
 from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
-from brasstacks.providers import Embedder, ProviderError, Reasoner
+from brasstacks.providers import (
+    Embedder,
+    ProviderError,
+    Reasoner,
+    drain_usage,
+    recorded_tokens,
+)
 from brasstacks.repository import EvidenceRef, Repository, Retrieved
 
 #: Concrete hypotheses, one per line of business inquiry. Each is phrased the way
@@ -242,8 +248,13 @@ def run_analyst(
                           known_observation_ids=similarity_by_id.keys())
     except (ProviderError, InvalidFindError) as e:
         error = f"{type(e).__name__}: {e}"
+        # Drained even on the failure path: a refusal and a malformed answer
+        # both cost tokens, and a cost panel that only counts the good nights
+        # understates what the loop actually spends.
+        spent_in, spent_out = recorded_tokens(drain_usage(reasoner))
         repo.finish_run(run_id, status="failed", error=error,
-                        note=f"{len(retrieved)} observations retrieved")
+                        note=f"{len(retrieved)} observations retrieved",
+                        input_tokens=spent_in, output_tokens=spent_out)
         return AnalystResult(run_id=run_id, find_id=None, retrieved=len(retrieved),
                              queries=tuple(queries), error=error)
 
@@ -266,11 +277,13 @@ def run_analyst(
         ],
     )
 
+    spent_in, spent_out = recorded_tokens(drain_usage(reasoner))
     repo.finish_run(
         run_id, status="ok",
         note=(f"{len(retrieved)} retrieved; proposed {find.title!r} at "
               f"+{find.predicted_daily_cents}c/day, verify after "
               f"{find.verify_after.isoformat()}"),
+        input_tokens=spent_in, output_tokens=spent_out,
     )
     return AnalystResult(run_id=run_id, find_id=find_id,
                          retrieved=len(retrieved), queries=tuple(queries))

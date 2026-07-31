@@ -115,6 +115,13 @@ class RunRecord:
     finished_at: datetime | None = None
     error: str | None = None
     note: str | None = None
+    #: The model this run reasoned with, and what that reasoning cost. All three
+    #: are None when the agent made no model call — the Meter never does. None
+    #: rather than 0 on purpose: 0 claims a measured cost of nothing, and the
+    #: admin view has to be able to tell those two apart.
+    model_id: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -165,7 +172,9 @@ class Repository(Protocol):
                   model_id: str | None = ...) -> str: ...
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = ...,
-                   note: str | None = ...) -> None: ...
+                   note: str | None = ...,
+                   input_tokens: int | None = ...,
+                   output_tokens: int | None = ...) -> None: ...
 
     def recent_runs(self, business_id: str, *, limit: int) -> list[RunRecord]: ...
 
@@ -407,18 +416,22 @@ class InMemoryRepository:
         run_id = str(uuid.uuid4())
         self._runs[run_id] = RunRecord(
             run_id=run_id, agent=agent, status="running", started_at=self._now(),
+            model_id=model_id,
         )
         return run_id
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = None,
-                   note: str | None = None) -> None:
+                   note: str | None = None,
+                   input_tokens: int | None = None,
+                   output_tokens: int | None = None) -> None:
         existing = self._runs.get(run_id)
         if existing is None:
             raise RepositoryError(f"unknown run {run_id}")
         self._runs[run_id] = RunRecord(
             run_id=run_id, agent=existing.agent, status=status,
             started_at=existing.started_at, finished_at=self._now(),
-            error=error, note=note,
+            error=error, note=note, model_id=existing.model_id,
+            input_tokens=input_tokens, output_tokens=output_tokens,
         )
 
     def recent_runs(self, business_id: str, *, limit: int) -> list[RunRecord]:

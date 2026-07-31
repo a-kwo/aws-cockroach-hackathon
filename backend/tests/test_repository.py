@@ -112,6 +112,36 @@ class TestAgentRuns:
         runs = repo.recent_runs(business, limit=5)
         assert [r.agent for r in runs] == ["analyst", "radar"]
 
+    def test_a_run_records_the_model_that_ran_it(self, repo, business):
+        """`model_id` was accepted by both implementations and readable from
+        neither — the in-memory one dropped it, the Postgres one wrote it and
+        never selected it back. Token counts without the model that produced
+        them cannot be priced."""
+        run_id = repo.start_run(business, agent="analyst", model_id="claude-opus-5")
+        repo.finish_run(run_id, status="ok")
+
+        assert repo.recent_runs(business, limit=1)[0].model_id == "claude-opus-5"
+
+    def test_a_run_records_what_the_model_call_cost(self, repo, business):
+        run_id = repo.start_run(business, agent="analyst", model_id="claude-opus-5")
+        repo.finish_run(run_id, status="ok", input_tokens=8123, output_tokens=642)
+
+        run = repo.recent_runs(business, limit=1)[0]
+        assert (run.input_tokens, run.output_tokens) == (8123, 642)
+
+    def test_a_run_with_no_model_call_reports_unknown_tokens_not_zero(
+            self, repo, business):
+        """The Meter never calls a model. Zero would claim "we asked and it was
+        free"; None is the only honest answer, and it is what lets the admin
+        view print "no model call" instead of a measurement it does not have."""
+        run_id = repo.start_run(business, agent="meter")
+        repo.finish_run(run_id, status="ok", note="nothing due")
+
+        run = repo.recent_runs(business, limit=1)[0]
+        assert run.input_tokens is None
+        assert run.output_tokens is None
+        assert run.model_id is None
+
 
 # ---------------------------------------------------------------------------
 # Observations — dedup is structural, not best-effort
