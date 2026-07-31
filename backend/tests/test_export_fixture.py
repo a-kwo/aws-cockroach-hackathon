@@ -107,8 +107,8 @@ def script(**over):
             [("2026-06-01", 4.14, 7)],
         ),
         "cluster": (
-            ["database", "version", "cluster_id", "now"],
-            [("defaultdb", "CockroachDB CCL v26.2.1", "abc-123",
+            ["database", "version", "now"],
+            [("defaultdb", "CockroachDB CCL v26.2.1",
               "2026-07-31T04:12:00+00:00")],
         ),
     }
@@ -225,6 +225,29 @@ def test_a_cluster_that_will_not_describe_itself_still_exports():
 
 
 # ------------------------------------------------------------------ catalogue
+
+
+def test_the_export_never_reaches_into_crdb_internal():
+    """CockroachDB Cloud restricts `crdb_internal` and `system` to admin roles.
+
+    Measured against the live cluster: `crdb_internal.cluster_id()` raises
+    InsufficientPrivilege for the role this exporter connects as, and because it
+    shared a SELECT with `now()`, the failure took the whole "as of" stamp with
+    it — the console then reported having no export stamp at all. Nothing the
+    exporter runs may depend on an interface the deployment will not grant.
+    """
+    for name, sql in export_fixture.QUERIES.items():
+        assert "crdb_internal" not in sql, name
+        assert "system." not in sql, name
+
+
+def test_the_cluster_id_is_configured_rather_than_queried(cur):
+    """It is an identifier we already hold, not a fact to be discovered."""
+    payload = export_fixture.export(cur, BUSINESS, cluster_id="41b89d47")
+    assert payload["_receipt"]["clusterId"] == "41b89d47"
+
+    # Absent is absent — never an empty string dressed up as a value.
+    assert export_fixture.export(cur, BUSINESS)["_receipt"]["clusterId"] is None
 
 
 def test_every_export_query_is_named_and_scoped_to_one_business(cur):
