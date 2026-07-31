@@ -124,6 +124,21 @@ def month_label(value: str) -> str:
     return date.fromisoformat(value[:10]).strftime("%b")
 
 
+def run_seconds(row: dict) -> int | None:
+    """Wall-clock seconds an agent_run took, or None while it is still in flight.
+
+    None rather than 0 on purpose: the admin view renders a missing duration as
+    "running", and a zero would read as a night that finished instantly.
+    """
+    started, finished = row.get("started_at"), row.get("finished_at")
+    if not started or not finished:
+        return None
+    return round(
+        (datetime.fromisoformat(finished) - datetime.fromisoformat(started))
+        .total_seconds()
+    )
+
+
 def when(value: str | None) -> str:
     if not value:
         return ""
@@ -267,7 +282,21 @@ def build_model(data: dict) -> dict:
         "corpus": {
             "observations": corpus["observations"],
             "evidenceRows": sum(f["evidenceCount"] for f in finds),
+            "earliest": corpus.get("earliest"),
+            "latest": corpus.get("latest"),
         },
+        # agent_run rows, for the operator view. The seeded corpus carries only
+        # the run that built it — the admin screen says so rather than padding
+        # the list out to look busier than the cluster is.
+        "runs": [{
+            "id": r["id"][:8],
+            "agent": r["agent"],
+            "status": r["status"],
+            "startedAt": r["started_at"],
+            "finishedAt": r.get("finished_at"),
+            "seconds": run_seconds(r),
+            "note": r.get("note") or "",
+        } for r in data.get("runs", [])],
         "statusLine": status_line,
         "finds": finds,
         "proposed": [f["id"] for f in proposed],

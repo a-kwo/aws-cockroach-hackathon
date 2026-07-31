@@ -288,15 +288,25 @@
       transform-origin: center bottom;
       will-change: transform, opacity;
       cursor: grab;
-      transition: transform .30s var(--ease), opacity .24s var(--ease), box-shadow .24s var(--ease);
+      transition: transform .34s var(--ease), opacity .28s var(--ease), box-shadow .28s var(--ease);
     }
 
     .feed-card:active { cursor: grabbing; }
 
     .feed-card.is-current { z-index: 4; opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-    .feed-card.is-next { z-index: 3; opacity: .78; transform: translate3d(0, 10px, -30px) scale(.985); pointer-events: none; }
-    .feed-card.is-back { z-index: 2; opacity: .36; transform: translate3d(0, 19px, -58px) scale(.968); pointer-events: none; }
-    .feed-card.is-hidden { z-index: 1; opacity: 0; transform: translate3d(0, 26px, -80px) scale(.95); pointer-events: none; }
+    /* The stacked cards sit fully behind the top one. They used to be offset
+       downward, which left their bottom edge showing below the current card — and
+       because the strip that showed was the dark left rail, it read as a smudge
+       rather than a page edge. The offset is negative now so nothing peeks; depth
+       still comes through in the transition as a card scales up into place. */
+    .feed-card.is-next { z-index: 3; opacity: .78; transform: translate3d(0, -4px, -30px) scale(.985); pointer-events: none; }
+    .feed-card.is-back { z-index: 2; opacity: .36; transform: translate3d(0, -8px, -58px) scale(.968); pointer-events: none; }
+    .feed-card.is-hidden { z-index: 1; opacity: 0; transform: translate3d(0, -10px, -80px) scale(.95); pointer-events: none; }
+
+    /* Where a card waits when it is the one you would reach by going *back*. Parked
+       off to the left rather than behind the stack, so reversing slides in from the
+       left instead of fading up from the back — the direction you actually pressed. */
+    .feed-card.is-prev { z-index: 1; opacity: 0; transform: translate3d(-14%, -6px, 30px) scale(1.015); pointer-events: none; }
 
     .post-header {
       display: flex;
@@ -389,21 +399,27 @@
     .post-index strong { color: var(--ink-soft); }
 
     .details-button {
-      width: 32px;
-      height: 32px;
-      display: grid;
-      place-items: center;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #ffffff;
-      color: var(--muted);
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 13px 0 10px;
+      border: 1px solid rgba(var(--accent-rgb), .30);
+      border-radius: 999px;
+      background: rgba(var(--accent-rgb), .10);
+      color: var(--accent);
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 780;
+      white-space: nowrap;
       cursor: pointer;
-      transition: color .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease), transform .18s var(--ease);
+      transition: color .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
     }
 
-    .details-button svg { width: 15px; height: 15px; }
-    .details-button:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-soft); }
-    .details-button:active { transform: scale(.96); }
+    .details-button svg { width: 16px; height: 16px; flex: 0 0 auto; }
+    .details-button:hover { background: rgba(var(--accent-rgb), .19); border-color: rgba(var(--accent-rgb), .48); box-shadow: 0 3px 12px rgba(var(--accent-rgb), .20); }
+    .details-button:active { transform: scale(.97); }
+    .details-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     .post-body {
       min-height: 0;
@@ -1136,8 +1152,8 @@
       .deck { gap: 10px; }
       .feed-stage { height: calc(100dvh - 122px); min-height: 510px; }
       .feed-card { inset: 0 0 10px; grid-template-rows: 62px minmax(0, 1fr) auto; border-radius: 20px; }
-      .feed-card.is-next { transform: translate3d(0, 7px, -24px) scale(.989); }
-      .feed-card.is-back { transform: translate3d(0, 13px, -45px) scale(.977); }
+      .feed-card.is-next { transform: translate3d(0, -3px, -24px) scale(.989); }
+      .feed-card.is-back { transform: translate3d(0, -6px, -45px) scale(.977); }
       .post-header { padding: 0 14px; gap: 8px; }
       .post-avatar { width: 34px; height: 34px; flex-basis: 34px; }
       .post-source-copy strong { font-size: 11px; }
@@ -1145,7 +1161,8 @@
       .highlight-chip { height: 28px; padding: 0 9px; }
       .highlight-chip span { display: none; }
       .post-index { min-width: 31px; }
-      .details-button { width: 30px; height: 30px; }
+      .details-button { width: 36px; height: 36px; padding: 0; justify-content: center; }
+      .details-button b { display: none; }
       .post-body { align-items: flex-start; padding: 32px 20px 22px; }
       .post-copy h2 { font-size: clamp(34px, 10.5vw, 43px); }
       .signal-text { margin-top: 14px; font-size: 14px; line-height: 1.5; }
@@ -1478,14 +1495,23 @@
 
   <style id="decision-lens-theme">
     :root {
-      color-scheme: dark;
-      --app-bg: #0a0d12;
-      --app-bg-2: #0f141b;
-      --app-panel: #151b24;
-      --app-panel-2: #1b222d;
-      --app-line: rgba(255,255,255,.085);
-      --app-text: #f5f7f8;
-      --app-muted: #8d98a8;
+      /* The shell is the landing page's paper, not a night desk: same #f5f5f7
+         field, same ink, same hairline. The two owner screens should feel like a
+         continuation of the marketing page, and the Admin console — which keeps
+         its own dark vars scoped under .view.console — now carries the contrast
+         on its own, which is the one place a machine-room look is wanted. */
+      color-scheme: light;
+      /* Warm paper, not white. The shell used to sit at #f5f5f7 against #faf9f6
+         panels — 1.034 luminance separation, which is to say none, so the Growth
+         cards had nothing to sit on. This is 1.128 against the same panels and
+         warm enough to read as paper rather than a lighter shade of screen. */
+      --app-bg: #f1ebdf;
+      --app-bg-2: #ebe4d4;
+      --app-panel: #ffffff;
+      --app-panel-2: #f9f7f3;
+      --app-line: rgba(52,44,28,.13);
+      --app-text: #101114;
+      --app-muted: #64656b;
       --surface: #faf9f6;
       --surface-soft: #f0f1ed;
       --surface-tint: #f5f5f1;
@@ -1503,8 +1529,13 @@
       --approve-soft: #e7f7f0;
       --reject: #d25b66;
       --reject-soft: #fff0f1;
-      --shadow: 0 34px 90px rgba(0,0,0,.42), 0 8px 24px rgba(0,0,0,.22);
-      --shadow-soft: 0 16px 44px rgba(0,0,0,.18);
+      /* Sized for paper, not for the old dark shell. The previous value dropped a
+         90px-blurred black at 42% from 34px down — on beige that reads as a grey
+         smear, and its reach carried past the card and greyed out the nav arrows
+         sitting below the deck. Warm-tinted and pulled in so the shadow stays
+         under the card that casts it. */
+      --shadow: 0 14px 30px rgba(52,44,28,.14), 0 3px 9px rgba(52,44,28,.07);
+      --shadow-soft: 0 10px 26px rgba(52,44,28,.10);
       --radius-xl: 30px;
       --radius-lg: 22px;
       --radius-md: 16px;
@@ -1525,9 +1556,14 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
+      /* Two ambient washes from the landing page, plus the dotted tooth DESIGN.md
+         specifies for paper — 24px at ~5% ink. The texture is what stops a large
+         empty field reading as a flat panel of its own. */
       background:
-        radial-gradient(860px 520px at 50% 46%, rgba(118,120,255,.075), transparent 72%),
-        radial-gradient(720px 420px at 72% 74%, rgba(32,184,135,.045), transparent 70%);
+        radial-gradient(circle at 8% 0%, rgba(170,125,42,.10), transparent 30rem),
+        radial-gradient(circle at 94% 34%, rgba(88,106,142,.08), transparent 32rem),
+        radial-gradient(rgba(24,19,9,.055) 1px, transparent 1px);
+      background-size: auto, auto, 24px 24px;
     }
 
     .app {
@@ -1543,7 +1579,7 @@
       gap: 18px;
       padding: 0 20px;
       border-bottom: 1px solid var(--app-line);
-      background: rgba(10,13,18,.88);
+      background: rgba(255,255,255,.80);
       backdrop-filter: blur(22px) saturate(125%);
       -webkit-backdrop-filter: blur(22px) saturate(125%);
     }
@@ -1561,32 +1597,32 @@
     }
 
     .brand-copy strong { color: var(--app-text); font-size: 13px; font-weight: 750; }
-    .brand-copy span { color: #707b8b; font-size: 9px; }
+    .brand-copy span { color: var(--app-muted); font-size: 9px; }
 
     .view-switcher {
       gap: 3px;
       padding: 3px;
       border: 1px solid var(--app-line);
       border-radius: 13px;
-      background: rgba(255,255,255,.035);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+      background: rgba(16,17,20,.045);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
     }
 
     .view-tab {
       min-width: 104px;
       height: 36px;
       border-radius: 10px;
-      color: #7f8a99;
+      color: #6b6c73;
       font-size: 11px;
       font-weight: 720;
     }
 
-    .view-tab:hover { color: #d9dde2; }
+    .view-tab:hover { color: var(--app-text); }
 
     .view-tab.active {
-      background: #f7f7f4;
-      color: #151a21;
-      box-shadow: 0 5px 16px rgba(0,0,0,.24), inset 0 0 0 1px rgba(255,255,255,.8);
+      background: #ffffff;
+      color: #101114;
+      box-shadow: 0 4px 12px rgba(16,17,20,.10), inset 0 0 0 1px rgba(16,17,20,.05);
     }
 
     .topbar-actions { gap: 8px; }
@@ -1596,8 +1632,8 @@
       padding: 0 12px;
       border: 1px solid var(--app-line);
       border-radius: 12px;
-      background: rgba(255,255,255,.035);
-      color: #d8dde4;
+      background: rgba(255,255,255,.78);
+      color: #4b4c53;
       box-shadow: none;
       font-size: 10px;
     }
@@ -1614,8 +1650,8 @@
       padding: 0 11px;
       border: 1px solid var(--app-line);
       border-radius: 12px;
-      background: rgba(255,255,255,.035);
-      color: #9aa4b2;
+      background: rgba(255,255,255,.78);
+      color: #6b6c73;
       cursor: pointer;
       font-size: 10px;
       font-weight: 700;
@@ -1623,12 +1659,27 @@
     }
 
     .restart-button svg { width: 15px; height: 15px; }
-    .restart-button:hover { color: #fff; background: rgba(255,255,255,.065); border-color: rgba(255,255,255,.14); }
+    .restart-button:hover { color: var(--app-text); background: #ffffff; border-color: rgba(16,17,20,.18); }
     .restart-button:active { transform: scale(.97); }
 
     .workspace { height: calc(100% - 0px); }
 
     .view { background: transparent; }
+
+    /* Tab entrance. The view itself already cross-fades; this staggers the blocks
+       inside it so a screen assembles top-to-bottom instead of arriving whole.
+       `both` fill matters — without it an element is visible at its final position
+       during its delay, and the stagger reads as a stutter rather than a sequence.
+       The reduced-motion rule at the end of this sheet collapses the durations. */
+    @keyframes view-rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .view.entering [data-enter] {
+      animation: view-rise .44s var(--ease) both;
+      animation-delay: var(--enter-delay, 0ms);
+    }
 
     .view-inner {
       width: min(1040px, calc(100% - 42px));
@@ -1669,6 +1720,11 @@
       transform-origin: center bottom;
     }
 
+    /* Only the card on top casts the full shadow. The two behind it are stacked at
+       the same origin, so three full shadows were overlaying each other and reading
+       as one much darker pool than any single card should throw. */
+    .feed-card:not(.is-current) { box-shadow: 0 6px 16px rgba(52,44,28,.07); }
+
     .feed-card::after {
       content: "";
       position: absolute;
@@ -1681,9 +1737,10 @@
     }
 
     .feed-card.is-current { transform: translate3d(0,0,0) scale(1); }
-    .feed-card.is-next { opacity: .72; transform: translate3d(0,11px,-38px) scale(.985); }
-    .feed-card.is-back { opacity: .30; transform: translate3d(0,21px,-72px) scale(.967); }
-    .feed-card.is-hidden { opacity: 0; transform: translate3d(0,28px,-96px) scale(.95); }
+    .feed-card.is-next { opacity: .72; transform: translate3d(0,-4px,-38px) scale(.985); }
+    .feed-card.is-back { opacity: .30; transform: translate3d(0,-8px,-72px) scale(.967); }
+    .feed-card.is-hidden { opacity: 0; transform: translate3d(0,-11px,-96px) scale(.95); }
+    .feed-card.is-prev { opacity: 0; transform: translate3d(-14%,-8px,36px) scale(1.02); }
 
     .post-rail {
       min-height: 0;
@@ -1821,15 +1878,17 @@
     .highlight-chip span { color: #858e9a; font-size: 7px; }
 
     .details-button {
-      width: 32px;
-      height: 32px;
-      border-color: #e3e5e0;
-      border-radius: 10px;
-      background: transparent;
-      color: #8b949f;
+      height: 34px;
+      padding: 0 13px 0 10px;
+      border-color: rgba(var(--accent-rgb), .30);
+      border-radius: 999px;
+      background: rgba(var(--accent-rgb), .10);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 780;
     }
 
-    .details-button:hover { color: #1d242d; background: #f0f1ed; border-color: #d7dad4; }
+    .details-button:hover { color: var(--accent); background: rgba(var(--accent-rgb), .19); border-color: rgba(var(--accent-rgb), .48); }
 
     .post-body {
       min-height: 0;
@@ -1980,9 +2039,10 @@
     .swipe-cue {
       min-width: 70px;
       height: 32px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(10,13,18,.82);
-      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      border: 1px solid rgba(16,17,20,.10);
+      background: rgba(255,255,255,.90);
+      color: #101114;
+      box-shadow: 0 8px 24px rgba(16,17,20,.12);
       backdrop-filter: blur(10px);
     }
 
@@ -2001,14 +2061,14 @@
       height: 42px;
       border: 1px solid var(--app-line);
       border-radius: 14px;
-      background: rgba(255,255,255,.045);
-      color: #8f99a7;
+      background: rgba(255,255,255,.82);
+      color: #6b6c73;
     }
 
-    .nav-arrow:hover { background: rgba(255,255,255,.08); color: #fff; }
+    .nav-arrow:hover { background: #ffffff; color: var(--app-text); }
     .feed-dots { gap: 7px; }
-    .feed-dot { width: 6px; height: 6px; background: #343c48; }
-    .feed-dot.active { width: 24px; background: #8789ff; box-shadow: 0 0 0 4px rgba(135,137,255,.07); }
+    .feed-dot { width: 6px; height: 6px; background: rgba(16,17,20,.18); }
+    .feed-dot.active { width: 24px; background: var(--brand); box-shadow: 0 0 0 4px rgba(118,120,255,.14); }
 
     .queue-empty {
       width: min(720px,100%);
@@ -2016,38 +2076,483 @@
       border: 1px solid var(--app-line);
       border-radius: 30px;
       background: var(--app-panel);
-      box-shadow: 0 26px 70px rgba(0,0,0,.30);
+      box-shadow: 0 20px 50px rgba(16,17,20,.10);
       color: var(--app-text);
     }
 
-    .queue-empty h2 { color: #fff; }
+    .queue-empty h2 { color: var(--app-text); }
     .queue-empty p { color: var(--app-muted); }
-    .empty-primary { background: #f5f6f3; color: #161b22; }
-    .empty-secondary { border-color: var(--app-line); background: rgba(255,255,255,.04); color: #d5dbe2; }
+    .empty-primary { background: #101114; color: #fbf9f4; }
+    .empty-secondary { border-color: var(--app-line); background: #ffffff; color: #4b4c53; }
 
     /* Growth stays in the same native workspace */
     .growth-inner { padding: 28px 0 34px; }
 
     .growth-header { margin-bottom: 16px; align-items: center; }
-    .growth-header h1 { color: #f5f7f8; font-size: 30px; font-weight: 700; letter-spacing: -.04em; }
-    .growth-header p { margin-top: 6px; color: #7f8a99; font-size: 10px; }
+    .growth-header h1 { color: var(--app-text); font-size: 30px; font-weight: 700; letter-spacing: -.04em; }
+    /* 4.89:1 on the paper shell. This line is 10px, so it needs the full 4.5 —
+       the shell tone it sits on is warmer and slightly darker than the panels. */
+    .growth-header p { margin-top: 6px; color: #64656b; font-size: 10px; }
 
     .growth-period {
       min-height: 34px;
       border-color: var(--app-line);
-      background: rgba(255,255,255,.04);
-      color: #b6bec9;
+      background: rgba(255,255,255,.82);
+      color: #4b4c53;
     }
 
-    .growth-overview,
+    .growth-panel,
     .list-panel {
-      border: 0;
+      border: 1px solid rgba(52,44,28,.08);
       background: var(--surface);
-      box-shadow: 0 18px 54px rgba(0,0,0,.24);
+      box-shadow: 0 14px 34px rgba(52,44,28,.10);
     }
 
-    .growth-overview { padding: 22px 24px; border-radius: 22px; }
-    .growth-count { border-color: #e3e5e0; background: #f1f2ee; }
+    /* One card, two columns: the summary sits beside the plot rather than stacked
+       above it. The card carries the surface and shadow now — the two halves are
+       plain regions inside it, divided by a hairline. */
+    .growth-panel {
+      display: grid;
+      grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.5fr);
+      align-items: stretch;
+      margin-bottom: 18px;
+      border-radius: 22px;
+      overflow: hidden;
+    }
+
+    .growth-panel.no-chart { grid-template-columns: 1fr; }
+
+    .growth-overview {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 20px;
+      margin: 0;
+      padding: 24px 26px;
+      border: 0;
+      border-right: 1px solid #ecede8;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .growth-panel.no-chart .growth-overview {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      border-right: 0;
+    }
+
+    .growth-counts { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .growth-count { min-width: 0; border-color: #e3e5e0; background: #f1f2ee; }
+
+    /* ---- monthly revenue chart -------------------------------------------
+       Palette is two marks only, checked with the data-viz validator against
+       this panel's #faf9f6 surface: verified #0f9c74 and projected #5567e8 —
+       deutan ΔE 22.8, both clearing 3:1. The app's own --approve (#20b887)
+       measured 2.41:1 here, which is why the green is a step deeper than the
+       Approve button rather than the same token. */
+    .growth-chart {
+      --verified: #0f9c74;
+      --projected: #5567e8;
+      margin-top: 14px;
+      /* The chart panel used to sit flush against the decision lists below it —
+         bottom edge and their top edge both landed on the same pixel, so the two
+         shadows fused and read as one merged block. */
+      /* A region of .growth-panel now, not a card of its own — the wrapper carries
+         the surface, radius and shadow. */
+      margin: 0;
+      padding: 20px 24px 18px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: transparent;
+    }
+
+    .growth-chart[hidden] { display: none; }
+
+    .growth-chart-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 6px;
+    }
+
+    .growth-chart-head h2 {
+      margin: 0;
+      color: #121821;
+      font-size: 13px;
+      font-weight: 760;
+      letter-spacing: -.01em;
+    }
+
+    .growth-chart-head p { margin: 3px 0 0; color: #858e9a; font-size: 9.5px; font-weight: 650; }
+
+    .chart-legend { display: inline-flex; gap: 13px; color: #6b7481; font-size: 9px; font-weight: 720; }
+    .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    /* Line swatches, matching the marks: one drawn, one dashed. */
+    .chart-legend .key { width: 15px; height: 0; border-radius: 0; }
+    .key-verified { border-top: 2.5px solid var(--verified); }
+    .key-projected { border-top: 2.5px dashed var(--projected); }
+
+    /* The SVG is built at the container's measured pixel size, so one user unit is
+       one CSS pixel and text keeps the interface type ramp instead of scaling with
+       the panel. A ResizeObserver redraws on width change. */
+    .chart-plot { position: relative; margin-top: 12px; height: 196px; }
+    .chart-plot svg { display: block; width: 100%; height: 196px; }
+
+    .chart-grid { stroke: #ecede8; stroke-width: 1; }
+    .chart-baseline { stroke: #c9cbc4; stroke-width: 2; }
+
+    /* A 54px axis gutter, per DESIGN.md — "nothing floats without a reference".
+       Only the two ends are labelled: the build formats money once and hands the
+       page a `txt` per month, so an interpolated tick like "$3.4k" would be a
+       money figure this page invented. */
+    .chart-axis {
+      fill: #98a0ab;
+      font-size: 8.5px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chart-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .chart-line.verified { stroke: var(--verified); }
+    /* Dashed, so a projection stays a projection with colour stripped out. */
+    .chart-line.projected { stroke: var(--projected); stroke-dasharray: 6 5; }
+
+    .chart-dot-halo { fill: none; stroke-width: 1.5; }
+    /* The ring is the panel colour, so a marker sitting on the line still reads as
+       a separate object. */
+    .chart-dot { stroke: var(--surface); stroke-width: 3; }
+    .chart-dot.verified { fill: var(--verified); }
+    .chart-dot.projected { fill: var(--surface); stroke: var(--projected); stroke-width: 2.5; }
+
+    /* Marks may sit at 3:1, but these are text. The projected label is #4a58d6
+       (5.45:1) rather than the line's #5567e8, which measures 4.44:1 and misses AA. */
+    .chart-value { font-size: 12px; font-weight: 780; font-variant-numeric: tabular-nums; }
+    .chart-value.verified { fill: #121821; }
+    .chart-value.projected { fill: #4a58d6; }
+
+    .chart-month { fill: #4d5663; font-size: 10px; font-weight: 760; }
+    .chart-sub { fill: #98a0ab; font-size: 8px; font-weight: 650; }
+    .chart-sub .miss { fill: #c0442a; }
+
+    .chart-hit { fill: transparent; cursor: default; }
+    .chart-hit:hover + .chart-dot, .chart-hit:hover ~ .chart-dot { filter: brightness(1.25); }
+
+    .chart-note {
+      margin: 12px 0 0;
+      padding-top: 11px;
+      border-top: 1px solid #ecede8;
+      color: #858e9a;
+      font-size: 9.5px;
+      font-weight: 620;
+      line-height: 1.45;
+    }
+
+    .chart-note b { color: #4a58d6; font-weight: 780; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+
+    /* ---- console-mode chrome ---------------------------------------------
+       The Admin view paints its own dark field, but the topbar sits outside the
+       views, so on the console it was a strip of paper across the top of a machine
+       room. body.console-mode is set by switchView() and darkens the chrome to
+       match. Every colour here was measured against #080e16: the quietest of them,
+       the brand subtitle, is 5.87:1. */
+    .topbar,
+    .view-switcher,
+    .view-tab,
+    .queue-pill,
+    .restart-button,
+    .brand-copy strong,
+    .brand-copy span {
+      transition: background .28s var(--ease), color .28s var(--ease),
+                  border-color .28s var(--ease), box-shadow .28s var(--ease);
+    }
+
+    /* Near-opaque on purpose: the paper field and its dotted tooth are painted on a
+       fixed body::before that runs the full viewport height, so a translucent dark
+       bar would show beige texture through it. */
+    body.console-mode .topbar {
+      border-bottom-color: rgba(122,196,216,.18);
+      background: rgba(8,14,22,.94);
+    }
+
+    body.console-mode .brand-copy strong { color: #e6f3f7; }
+    body.console-mode .brand-copy span { color: #7e909e; }
+
+    body.console-mode .view-switcher {
+      border-color: rgba(122,196,216,.16);
+      background: rgba(255,255,255,.04);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+
+    body.console-mode .view-tab { color: #8b9dab; }
+    body.console-mode .view-tab:hover { color: #dff1f5; }
+
+    /* The active pill picks up the console's cyan rather than staying a white chip,
+       so the current tab reads as part of the console instead of a leftover. */
+    body.console-mode .view-tab.active {
+      background: rgba(53,201,214,.14);
+      color: #bdf0f6;
+      box-shadow: inset 0 0 0 1px rgba(53,201,214,.34);
+    }
+
+    body.console-mode .queue-pill {
+      border-color: rgba(122,196,216,.16);
+      background: rgba(255,255,255,.04);
+      color: #b9c7d2;
+    }
+
+    body.console-mode .restart-button {
+      border-color: rgba(122,196,216,.16);
+      background: rgba(255,255,255,.04);
+      color: #8b9dab;
+    }
+
+    body.console-mode .restart-button:hover {
+      border-color: rgba(122,196,216,.34);
+      background: rgba(53,201,214,.10);
+      color: #dff1f5;
+    }
+
+    /* ---- admin view: the operator console --------------------------------
+       A different visual world from the owner's two screens on purpose — this one
+       should read as the machine room, not the product. Dark field, hairline rules,
+       monospace readouts, and the five observation kinds carrying a categorical
+       palette validated against this surface (deutan worst adjacent 6.3, which the
+       data-viz floor allows only alongside direct labels, gaps and tooltips — the
+       matrix below ships all three). */
+    .view.console {
+      --con-bg:     #060b13;
+      --con-panel:  #0b1420;
+      --con-line:   rgba(122, 196, 216, .16);
+      --con-line-2: rgba(122, 196, 216, .30);
+      --con-accent: #35c9d6;
+      --con-text:   #ccd9e4;
+      --con-muted:  #6e8496;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      background:
+        radial-gradient(120% 90% at 50% 0%, rgba(53,201,214,.07) 0%, transparent 62%),
+        var(--con-bg);
+      color: var(--con-text);
+    }
+
+    .console-inner { width: min(1360px, calc(100% - 34px)); margin: 0 auto; padding: 16px 0 26px; }
+
+    .con-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+      padding: 9px 14px;
+      border: 1px solid var(--con-line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(53,201,214,.06), transparent);
+    }
+
+    .con-bar h1 {
+      flex: 1 1 auto;
+      margin: 0;
+      color: #e6f3f7;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .30em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .con-tag {
+      padding: 3px 9px;
+      border: 1px solid var(--con-line-2);
+      border-radius: 4px;
+      color: var(--con-accent);
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .18em;
+    }
+
+    .con-live { display: inline-flex; align-items: center; gap: 6px; color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .con-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--con-accent); box-shadow: 0 0 8px var(--con-accent); animation: con-pulse 2.2s ease-in-out infinite; }
+    @keyframes con-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+    .con-stamp { color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .08em; }
+
+    .con-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
+    .col-3 { grid-column: span 3; }
+    .col-6 { grid-column: span 6; }
+    .col-12 { grid-column: span 12; }
+
+    .con-panel {
+      min-width: 0;
+      border: 1px solid var(--con-line);
+      border-radius: 8px;
+      background: var(--con-panel);
+    }
+
+    .con-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--con-line);
+    }
+
+    .con-head h2 { margin: 0; color: var(--con-accent); font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    .con-head span { color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .06em; }
+    .con-body { padding: 12px; }
+    .con-label { margin-bottom: 8px; color: var(--con-muted); font-family: var(--mono); font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; }
+
+    /* Signal sources — horizontal magnitude bars, one hue per kind */
+    .kind-row { margin-bottom: 11px; }
+    .kind-row:last-child { margin-bottom: 0; }
+    .kind-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .kind-name { color: var(--con-text); font-size: 10px; font-weight: 600; }
+    .kind-num { color: var(--con-muted); font-family: var(--mono); font-size: 9.5px; }
+    .kind-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.05); overflow: hidden; }
+    .kind-fill { height: 100%; border-radius: 3px; }
+
+    /* Agent pipeline — nodes with drawn connectors */
+    .pipe-stage { position: relative; min-height: 214px; }
+    .pipe-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .pipe-edges path { fill: none; stroke: var(--con-line-2); stroke-width: 1.2; }
+    .pipe-edges path.detached { stroke-dasharray: 4 4; stroke: rgba(122,196,216,.22); }
+
+    /* The column gap has to be wide enough for a connector to actually read as a
+       line between two nodes rather than a hairline crack. */
+    .pipe-nodes { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 28px; }
+
+    .node {
+      padding: 9px 10px;
+      border: 1px solid var(--con-line-2);
+      border-radius: 7px;
+      background: #101c2b;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
+    }
+
+    /* Ask sits outside the chain — it answers on request, so it is drawn detached. */
+    .node.detached { grid-column: 2 / 4; margin-top: 22px; border-style: dashed; background: rgba(16,28,43,.55); }
+
+    .node-name { color: #dff1f5; font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .10em; text-transform: uppercase; }
+    .node-role { margin-top: 3px; color: var(--con-muted); font-size: 8.5px; font-weight: 600; }
+    .node-stat { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--con-line); color: var(--con-text); font-family: var(--mono); font-size: 9px; line-height: 1.55; }
+    .node-stat b { color: var(--con-accent); font-weight: 700; }
+
+    /* System readouts */
+    .con-readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .readout { padding: 9px 10px; border: 1px solid var(--con-line); border-radius: 6px; background: rgba(255,255,255,.02); }
+    .readout .r-label { display: block; color: var(--con-muted); font-family: var(--mono); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
+    .readout .r-value { display: block; margin-top: 5px; color: #e6f3f7; font-family: var(--mono); font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+    .readout .r-sub { display: block; margin-top: 3px; color: var(--con-muted); font-size: 8px; font-weight: 600; }
+    .readout .r-value.accent { color: var(--con-accent); }
+
+    /* Evidence matrix — one row per find, one cell per retrieved row, coloured by
+       source kind. Never by similarity: that is a number, and a tint cannot tell
+       0.58 from 0.51. The similarity lives in each cell's tooltip instead. */
+    .matrix { display: grid; gap: 2px; }
+    .matrix-row { display: flex; gap: 2px; }
+    .matrix-cell { width: 9px; height: 9px; border-radius: 2px; }
+    .matrix-cell.empty { background: rgba(255,255,255,.045); }
+    .matrix-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--con-line); }
+    .matrix-legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--con-muted); font-size: 8.5px; font-weight: 650; }
+    .matrix-legend i { width: 7px; height: 7px; border-radius: 2px; }
+
+    /* Retrieval inspector */
+    .con-select select {
+      height: 24px;
+      max-width: 240px;
+      padding: 0 7px;
+      border: 1px solid var(--con-line-2);
+      border-radius: 5px;
+      background: #0e1a28;
+      color: var(--con-text);
+      font-family: var(--mono);
+      font-size: 9px;
+      cursor: pointer;
+    }
+
+    .retrieval-body { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr); gap: 16px; }
+    .retrieval-queries ol { margin: 0; padding-left: 15px; }
+    .retrieval-queries li { margin-bottom: 6px; color: #9fb2c2; font-size: 9px; font-weight: 600; line-height: 1.5; }
+
+    .evidence-scroll { max-height: 210px; overflow-y: auto; }
+    .evidence-table { width: 100%; border-collapse: collapse; }
+    .evidence-table th {
+      position: sticky; top: 0; z-index: 1;
+      padding: 5px 6px;
+      background: var(--con-panel);
+      border-bottom: 1px solid var(--con-line);
+      color: var(--con-muted);
+      font-family: var(--mono);
+      font-size: 7.5px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      text-align: left;
+    }
+    .evidence-table td { padding: 6px; border-top: 1px solid rgba(255,255,255,.05); color: #9fb2c2; font-size: 9px; font-weight: 600; line-height: 1.45; vertical-align: top; }
+    .evidence-table td.rank { color: var(--con-muted); font-family: var(--mono); }
+    .evidence-table td.sim { color: var(--con-accent); font-family: var(--mono); font-weight: 700; white-space: nowrap; }
+    .evidence-table td.kind { white-space: nowrap; font-weight: 700; }
+    .evidence-src { display: block; margin-top: 2px; color: #5d7285; font-size: 8px; font-weight: 600; }
+
+    /* Telemetry sparkline */
+    .spark-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+    .spark-value { color: #e6f3f7; font-family: var(--mono); font-size: 19px; font-weight: 600; }
+    .spark-sub { color: var(--con-muted); font-size: 8.5px; font-weight: 650; }
+    .spark svg { display: block; width: 100%; height: 62px; }
+    .spark path.line { fill: none; stroke: var(--con-accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .spark .grid { stroke: rgba(255,255,255,.06); stroke-width: 1; }
+
+    /* Record log */
+    .con-log { max-height: 210px; overflow-y: auto; font-family: var(--mono); }
+    .log-line { display: grid; grid-template-columns: 62px 74px 1fr auto; gap: 10px; padding: 5px 2px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 9px; line-height: 1.5; }
+    .log-when { color: #5d7285; }
+    .log-tag { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .log-tag.radar { color: #219daa; }
+    .log-tag.analyst { color: #6c6ee6; }
+    .log-tag.maker { color: #b5822f; }
+    .log-tag.meter { color: #2f9a68; }
+    .log-msg { color: #9fb2c2; }
+    .log-msg b { color: #dff1f5; font-weight: 700; }
+    .log-verdict { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .log-verdict.verified { color: #2f9a68; }
+    .log-verdict.miss { color: #c0553f; }
+    .log-verdict.estimated { color: #6c6ee6; }
+    .log-verdict.ok { color: #219daa; }
+
+    .con-empty { color: var(--con-muted); font-size: 9px; font-weight: 650; }
+
+    @media (max-width: 1100px) {
+      .col-3 { grid-column: span 6; }
+      .col-6 { grid-column: span 12; }
+    }
+
+    @media (max-width: 900px) {
+      .console-inner { width: calc(100% - 22px); }
+      .col-3, .col-6 { grid-column: span 12; }
+      .retrieval-body { grid-template-columns: 1fr; }
+      .pipe-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .node.detached { grid-column: 1 / 3; }
+      .pipe-edges { display: none; }
+      .log-line { grid-template-columns: 1fr; gap: 2px; }
+    }
+    }
     .list-panel { border-radius: 22px; }
     .decision-row { background: #f2f3ef; }
     .decision-row:hover { border-color: #dde0da; background: #fff; }
@@ -2131,7 +2636,8 @@
       .post-source-copy span { display: none; }
       .highlight-chip { height: 28px; padding: 0 9px; }
       .highlight-chip span { display: none; }
-      .details-button { width: 30px; height: 30px; }
+      .details-button { width: 36px; height: 36px; padding: 0; justify-content: center; }
+      .details-button b { display: none; }
 
       .post-body { align-items: flex-start; padding: 26px 20px 22px; }
       .post-copy h2 { font-size: clamp(34px,10.5vw,44px); line-height: 1; }
@@ -2159,6 +2665,11 @@
       .nav-arrow { width: 38px; height: 38px; border-radius: 13px; }
       .growth-inner { padding: 18px 0 26px; }
       .growth-header h1 { font-size: 27px; }
+
+      /* Stack the two halves below the app's fixed-viewport breakpoint; the divider
+         moves from the right edge to the bottom so it still separates them. */
+      .growth-panel { grid-template-columns: 1fr; }
+      .growth-overview { border-right: 0; border-bottom: 1px solid #ecede8; }
     }
 
     @media (max-width: 390px) {
@@ -2203,6 +2714,14 @@
           </svg>
           <span>Growth</span>
         </button>
+        <button class="view-tab" type="button" data-view="admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="2.6" /><circle cx="5" cy="6" r="1.9" /><circle cx="19" cy="6" r="1.9" />
+            <circle cx="5" cy="18" r="1.9" /><circle cx="19" cy="18" r="1.9" />
+            <path d="M6.6 7.2l3.7 3.3M17.4 7.2l-3.7 3.3M6.6 16.8l3.7-3.3M17.4 16.8l-3.7-3.3" />
+          </svg>
+          <span>Admin view</span>
+        </button>
       </nav>
 
       <div class="topbar-actions">
@@ -2230,7 +2749,7 @@
 
       <section class="view" id="view-growth" aria-labelledby="growthHeading">
         <div class="view-inner growth-inner">
-          <header class="growth-header">
+          <header class="growth-header" data-enter>
             <div>
               <h1 id="growthHeading">Growth</h1>
               <p>Approved ideas appear here. Rejected ideas stay separate.</p>
@@ -2238,19 +2757,48 @@
             <div class="growth-period">August 2026</div>
           </header>
 
-          <section class="growth-overview" aria-label="Growth summary">
-            <div class="growth-total">
-              <span>Approved monthly potential</span>
-              <strong id="approvedAmount">+$0</strong>
+          <!-- Summary and chart share one panel: the forecast figure and the record
+               it is measured against belong in the same frame, and giving the plot a
+               column rather than the full width stops three points being stretched
+               across a thousand pixels. -->
+          <section class="growth-panel" aria-label="Growth summary" data-enter>
+            <div class="growth-overview">
+              <div class="growth-total">
+                <span>Approved monthly potential</span>
+                <strong id="approvedAmount">+$0</strong>
+              </div>
+              <div class="growth-counts">
+                <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
+                <div class="growth-count rejected"><span>Rejected</span><strong id="rejectedCount">0</strong></div>
+                <div class="growth-count"><span>Left</span><strong id="remainingCount">5</strong></div>
+              </div>
             </div>
-            <div class="growth-counts">
-              <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
-              <div class="growth-count rejected"><span>Rejected</span><strong id="rejectedCount">0</strong></div>
-              <div class="growth-count"><span>Left</span><strong id="remainingCount">5</strong></div>
-            </div>
+
+            <!--
+              The revenue chart. Every point is a row out of CockroachDB: months with
+              a measured outcome are drawn solid, and at most ONE month is projected —
+              drawn dashed, captioned with the pending find it rests on. A ramp of
+              invented future months is exactly what this must never become.
+            -->
+            <section class="growth-chart" id="growthChart" aria-labelledby="growthChartHeading" hidden>
+              <header class="growth-chart-head">
+                <div>
+                  <h2 id="growthChartHeading">Monthly revenue added</h2>
+                  <p id="growthChartSub">Measured against real sales</p>
+                </div>
+                <div class="chart-legend" role="list">
+                  <span role="listitem"><i class="key key-verified" aria-hidden="true"></i>Verified</span>
+                  <span role="listitem"><i class="key key-projected" aria-hidden="true"></i>Projected</span>
+                </div>
+              </header>
+
+              <div class="chart-plot" id="chartPlot"></div>
+              <p class="chart-note" id="chartNote"></p>
+              <div class="visually-hidden" id="chartTable"></div>
+            </section>
           </section>
 
-          <section class="decision-lists" aria-label="Approved and rejected decisions">
+          <section class="decision-lists" aria-label="Approved and rejected decisions" data-enter>
             <article class="list-panel approved-panel">
               <header class="list-panel-header">
                 <div class="list-panel-title">
@@ -2273,6 +2821,89 @@
               <div class="decision-list" id="rejectedList"></div>
             </article>
           </section>
+        </div>
+      </section>
+
+      <!--
+        Admin view — operator observability. Everything on this screen is a row the
+        cluster actually holds: agent_run rows, the corpus counts, and the evidence
+        the vector search returned for each find with its cosine similarity. The
+        console mock in `Product Demo/` was the visual reference for the shape; none
+        of its simulated job pipeline is reproduced here, because none of it is real.
+      -->
+      <!--
+        Admin view — the operator console. Deliberately a different visual world from
+        Autopilot and Growth: those are the owner's screens, this is the machine room.
+        Every panel is backed by rows the cluster actually holds. The console mock in
+        `Product Demo/` informed the shape; none of its simulated job pipeline is
+        reproduced, because none of it was real.
+      -->
+      <section class="view console" id="view-admin" aria-labelledby="adminHeading">
+        <div class="console-inner">
+          <header class="con-bar" data-enter>
+            <span class="con-tag">ADMIN</span>
+            <h1 id="adminHeading">AUTONOMOUS OPERATIONS MATRIX</h1>
+            <span class="con-live"><i></i>CockroachDB</span>
+            <span class="con-stamp" id="adminStamp"></span>
+          </header>
+
+          <div class="con-grid">
+            <section class="con-panel col-3" aria-labelledby="sourcesHeading" data-enter>
+              <div class="con-head"><h2 id="sourcesHeading">Signal sources</h2><span id="sourcesTotal"></span></div>
+              <div class="con-body" id="kindBars"></div>
+            </section>
+
+            <section class="con-panel col-6" aria-labelledby="pipeHeading" data-enter>
+              <div class="con-head"><h2 id="pipeHeading">Agent pipeline</h2><span>nightly loop</span></div>
+              <div class="con-body pipe-stage" id="pipeStage">
+                <svg class="pipe-edges" id="pipeEdges" aria-hidden="true"></svg>
+                <div class="pipe-nodes" id="pipeNodes"></div>
+              </div>
+            </section>
+
+            <section class="con-panel col-3" aria-labelledby="readoutHeading" data-enter>
+              <div class="con-head"><h2 id="readoutHeading">System readouts</h2><span>live</span></div>
+              <div class="con-body con-readouts" id="readouts"></div>
+            </section>
+
+            <section class="con-panel col-3" aria-labelledby="matrixHeading" data-enter>
+              <div class="con-head"><h2 id="matrixHeading">Evidence matrix</h2><span id="matrixMeta"></span></div>
+              <div class="con-body">
+                <div class="matrix" id="evidenceMatrix"></div>
+                <div class="matrix-legend" id="matrixLegend"></div>
+              </div>
+            </section>
+
+            <section class="con-panel col-6" aria-labelledby="retrievalHeading" data-enter>
+              <div class="con-head">
+                <h2 id="retrievalHeading">Retrieval inspector</h2>
+                <label class="con-select">
+                  <span class="visually-hidden">Choose a find to inspect</span>
+                  <select id="retrievalPick"></select>
+                </label>
+              </div>
+              <div class="con-body retrieval-body">
+                <div class="retrieval-queries">
+                  <div class="con-label">Hypothesis queries, every night</div>
+                  <ol id="queryList"></ol>
+                </div>
+                <div class="retrieval-evidence">
+                  <div class="con-label" id="evidenceLabel">Evidence returned</div>
+                  <div class="evidence-scroll"><table class="evidence-table" id="evidenceTable"></table></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="con-panel col-3" aria-labelledby="telemetryHeading" data-enter>
+              <div class="con-head"><h2 id="telemetryHeading">Review telemetry</h2><span id="telemetryMeta"></span></div>
+              <div class="con-body" id="ratingSpark"></div>
+            </section>
+
+            <section class="con-panel col-12" aria-labelledby="logHeading" data-enter>
+              <div class="con-head"><h2 id="logHeading">Record log</h2><span id="runsSub"></span></div>
+              <div class="con-body con-log" id="recordLog"></div>
+            </section>
+          </div>
         </div>
       </section>
 
@@ -2360,6 +2991,22 @@
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>`
     };
+
+    /**
+     * The cluster payload. scripts/build_web.py replaces the contents of
+     * <script id="bt-data"> with the model it computes from CockroachDB, so
+     * everything in here is rows, already formatted. The committed template holds
+     * a small stand-in so the page still opens unbuilt — it simply has no `months`,
+     * and the chart hides itself rather than drawing an invented shape.
+     */
+    const btData = (() => {
+      try {
+        return JSON.parse(document.getElementById("bt-data").textContent) || {};
+      } catch (error) {
+        console.warn("bt-data did not parse; charts will be hidden", error);
+        return {};
+      }
+    })();
 
     const posts = [
       {
@@ -2509,7 +3156,45 @@
       activeView = viewName;
       viewTabs.forEach(tab => tab.classList.toggle("active", tab.dataset.view === viewName));
       views.forEach(view => view.classList.toggle("active", view.id === `view-${viewName}`));
+      // The topbar is a sibling of the views, not inside one, so the console's dark
+      // treatment has to be driven from a shared ancestor rather than scoped under
+      // .view.console like the rest of the admin styling.
+      document.body.classList.toggle("console-mode", viewName === "admin");
       closeDrawer();
+      playViewEntrance(document.getElementById(`view-${viewName}`));
+    }
+
+    let entranceTimer;
+    const ENTER_STEP = 70;      // ms between blocks
+    const ENTER_DURATION = 440; // keep in step with the view-rise rule
+
+    /**
+     * Stagger the blocks of the view being shown, top to bottom.
+     *
+     * Driven from here rather than purely in CSS because the class has to be
+     * *removed* and re-added to replay the animation on every switch — a class that
+     * is already present does not restart one. The forced reflow between the two is
+     * what commits the removal, and dropping it makes the whole thing a no-op on the
+     * second visit to a tab.
+     */
+    function playViewEntrance(view) {
+      if (!view) return;
+      const targets = view.querySelectorAll("[data-enter]");
+      if (!targets.length) return;
+
+      targets.forEach((el, i) => el.style.setProperty("--enter-delay", `${i * ENTER_STEP}ms`));
+
+      view.classList.remove("entering");
+      void view.offsetWidth;
+      view.classList.add("entering");
+
+      // Drop the class once the last block has landed, so a later re-render inside
+      // this view is not left holding an animation it never asked for.
+      window.clearTimeout(entranceTimer);
+      entranceTimer = window.setTimeout(
+        () => view.classList.remove("entering"),
+        ENTER_DURATION + (targets.length - 1) * ENTER_STEP + 80,
+      );
     }
 
     viewTabs.forEach(tab => tab.addEventListener("click", () => switchView(tab.dataset.view)));
@@ -2518,6 +3203,7 @@
       renderTopStatus();
       renderAutopilot();
       renderGrowth();
+      renderAdmin();
       if (openPostId && detailDrawer.classList.contains("open")) renderDrawer(openPostId);
     }
 
@@ -2536,7 +3222,7 @@
 
       if (!pending.length) {
         queueContent.innerHTML = `
-          <section class="queue-empty" aria-label="No posts need a decision">
+          <section class="queue-empty" aria-label="No posts need a decision" data-enter>
             <div>
               <div class="empty-icon" aria-hidden="true">${icons.approved}</div>
               <h2>All caught up</h2>
@@ -2554,11 +3240,11 @@
 
       queueContent.innerHTML = `
         <div class="deck" aria-label="Autopilot review queue">
-          <div class="feed-stage" id="feedStage" tabindex="0" aria-label="Swipe left or right to browse posts">
+          <div class="feed-stage" id="feedStage" data-enter tabindex="0" aria-label="Swipe left or right to browse posts">
             ${pending.map((post, index) => renderFeedCard(post, index, pending.length)).join("")}
           </div>
 
-          <nav class="feed-navigation" aria-label="Browse Autopilot posts">
+          <nav class="feed-navigation" aria-label="Browse Autopilot posts" data-enter>
             <button class="nav-arrow" type="button" id="previousPost" aria-label="Previous post">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
@@ -2582,9 +3268,22 @@
       bindDynamicActions();
     }
 
+    //: The stack slot a card occupies, given how far it is ahead of the current one.
+    //  `is-prev` is only worth using once the deck is deep enough that the card behind
+    //  you is not already visible as `is-next` or `is-back`.
+    const CARD_POSITIONS = ["is-current", "is-next", "is-back", "is-hidden", "is-prev"];
+
+    function positionFor(offset, count) {
+      if (offset === 0) return "is-current";
+      if (offset === 1) return "is-next";
+      if (offset === 2) return "is-back";
+      if (offset === count - 1 && count > 3) return "is-prev";
+      return "is-hidden";
+    }
+
     function renderFeedCard(post, index, count) {
       const offset = (index - currentIndex + count) % count;
-      const positionClass = offset === 0 ? "is-current" : offset === 1 ? "is-next" : offset === 2 ? "is-back" : "is-hidden";
+      const positionClass = positionFor(offset, count);
       const position = String(index + 1).padStart(2, "0");
       const total = String(count).padStart(2, "0");
 
@@ -2617,8 +3316,9 @@
 
               <div class="post-tools">
                 <div class="highlight-chip"><strong>${post.highlightValue}</strong><span>${post.highlightLabel}</span></div>
-                <button class="details-button" type="button" data-open-post="${post.id}" aria-label="Open details for ${post.title}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
+                <button class="details-button" type="button" data-open-post="${post.id}" aria-label="Why this? Open the evidence for ${post.title} and ask a question">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
+                  <b>Why this?</b>
                 </button>
               </div>
             </header>
@@ -2660,11 +3360,65 @@
       `;
     }
 
+    /**
+     * Move the deck without rebuilding it.
+     *
+     * This used to call renderAutopilot(), which rewrites queueContent.innerHTML. Fresh
+     * nodes mount already at their final computed style, so the transition on .feed-card
+     * had nothing to interpolate from and every arrow press, dot press and arrow key
+     * snapped. Swapping the position class on the *existing* nodes is what makes the CSS
+     * transition actually run. A full re-render is still correct when the set of cards
+     * changes (a decision, a restart) — just not when only the index moves.
+     */
     function goToPost(index) {
       const pending = getPendingPosts();
       if (!pending.length || isAnimating) return;
-      currentIndex = (index + pending.length) % pending.length;
-      renderAutopilot();
+      const next = (index + pending.length) % pending.length;
+      if (next === currentIndex) return;
+      currentIndex = next;
+      applyCardPositions();
+    }
+
+    /**
+     * Re-slot every card for the current index and let CSS animate the move.
+     *
+     * `snapCard` is the card that was just flung off-screen by a swipe: it carries an
+     * inline transform we need to drop without the drop itself animating, or it would
+     * visibly fly back across the stage. Suppressing its transition, clearing the inline
+     * styles, forcing a reflow to commit that, then restoring the transition puts it in
+     * its new slot silently.
+     */
+    function applyCardPositions(snapCard = null) {
+      const cards = Array.from(document.querySelectorAll(".feed-card"));
+      if (!cards.length) return;
+      const count = cards.length;
+
+      cards.forEach(card => {
+        const offset = (Number(card.dataset.index) - currentIndex + count) % count;
+        if (card === snapCard) card.style.transition = "none";
+        else card.style.removeProperty("transition");
+        card.classList.remove(...CARD_POSITIONS, "drag-prev", "drag-next");
+        card.classList.add(positionFor(offset, count));
+        card.setAttribute("aria-hidden", offset === 0 ? "false" : "true");
+        card.style.removeProperty("transform");
+        card.style.removeProperty("opacity");
+        card.style.removeProperty("--swipe-opacity");
+      });
+
+      if (snapCard) {
+        void snapCard.offsetWidth;
+        snapCard.style.removeProperty("transition");
+      }
+
+      updateFeedChrome(count);
+    }
+
+    //: The counter and dots follow the index, so they move with a class swap too.
+    function updateFeedChrome(count) {
+      queueCount.textContent = count ? `${currentIndex + 1} of ${count}` : "0 of 0";
+      document.querySelectorAll("[data-feed-index]").forEach(dot => {
+        dot.classList.toggle("active", Number(dot.dataset.feedIndex) === currentIndex);
+      });
     }
 
     function getCurrentCard() {
@@ -2684,16 +3438,6 @@
     function bindFeedGestures() {
       const stage = document.getElementById("feedStage");
       if (!stage) return;
-
-      stage.addEventListener("keydown", event => {
-        if (event.key === "ArrowLeft") {
-          event.preventDefault();
-          goToPost(currentIndex - 1);
-        } else if (event.key === "ArrowRight") {
-          event.preventDefault();
-          goToPost(currentIndex + 1);
-        }
-      });
 
       stage.addEventListener("pointerdown", event => {
         const card = event.target.closest(".feed-card.is-current");
@@ -2733,23 +3477,25 @@
         const card = getCurrentCard();
 
         if (shouldMove && card) {
+          // Carry the card the rest of the way off the stage rather than stopping it
+          // part-way and cutting: the old .42-width throw ended while the card was still
+          // over the deck, so the re-render read as a jump cut.
           isAnimating = true;
-          card.style.transition = "transform .20s var(--ease), opacity .18s var(--ease)";
-          card.style.transform = `translate3d(${direction > 0 ? -stage.clientWidth * .42 : stage.clientWidth * .42}px, -4px, 0) rotate(${direction > 0 ? -6 : 6}deg)`;
-          card.style.opacity = ".08";
+          const exit = (direction > 0 ? -1 : 1) * (stage.clientWidth * .96 + card.offsetWidth * .5);
+          card.style.transition = "transform .26s var(--ease), opacity .24s var(--ease)";
+          card.style.transform = `translate3d(${exit}px, -10px, 0) rotate(${direction > 0 ? -9 : 9}deg)`;
+          card.style.opacity = "0";
+          card.classList.remove("drag-prev", "drag-next");
+          card.style.removeProperty("--swipe-opacity");
+
           swipeTimer = window.setTimeout(() => {
             const pendingCount = getPendingPosts().length;
             currentIndex = pendingCount ? (currentIndex + direction + pendingCount) % pendingCount : 0;
             isAnimating = false;
-            renderAutopilot();
-          }, 200);
+            applyCardPositions(card);
+          }, 260);
         } else {
           resetCurrentCard();
-        }
-
-        if (card) {
-          card.style.removeProperty("--swipe-opacity");
-          card.classList.remove("drag-prev", "drag-next");
         }
         dragStartX = null;
         dragStartY = null;
@@ -2760,6 +3506,34 @@
       stage.addEventListener("pointerup", finish);
       stage.addEventListener("pointercancel", finish);
     }
+
+    /**
+     * Arrow keys browse the queue from anywhere on the Autopilot view.
+     *
+     * This used to be a keydown on #feedStage, which meant it only fired once the stage
+     * itself held focus — so arriving on the page and pressing Right did nothing, and the
+     * shortcut read as missing. Bound on document instead, registered once here rather
+     * than inside bindFeedGestures(), which re-runs on every full render and would stack
+     * a new listener each time.
+     */
+    document.addEventListener("keydown", event => {
+      if (activeView !== "autopilot") return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (detailDrawer.classList.contains("open")) return;
+
+      // Never steal the arrow keys from a field the owner is typing in.
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goToPost(currentIndex - 1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goToPost(currentIndex + 1);
+      }
+    });
 
     function decide(postId, status, animate = true) {
       if (isAnimating || getDecision(postId)) return;
@@ -2812,7 +3586,530 @@
         ? rejected.map(post => renderDecisionRow(post, "rejected")).join("")
         : renderListEmpty("rejected");
 
+      renderRevenueChart();
       bindDynamicActions();
+    }
+
+    /**
+     * The monthly revenue chart, drawn from the cluster rows the build splices into
+     * <script id="bt-data">.
+     *
+     * Two rules from CLAUDE.md shape this and are worth stating where they are easy
+     * to break later:
+     *
+     *   1. Money is formatted once, in scripts/build_web.py, and arrives here as
+     *      `txt`. The page never does arithmetic on money — so the bars are scaled
+     *      from `cents` (geometry) while every figure shown is the string the build
+     *      produced. That is also why the axis hairlines carry no tick values: a
+     *      midpoint label would be a money figure this page invented.
+     *   2. At most one projected month, drawn hollow and dashed, captioned with the
+     *      pending find it depends on. Approving a card does not touch these bars —
+     *      the verified record is not something the interface can move.
+     */
+    function renderRevenueChart() {
+      const panel = document.getElementById("growthChart");
+      const months = (btData.months || []).filter(m => m && typeof m.cents === "number");
+
+      // A panel the database cannot support is deleted, not filled with a shape.
+      // The wrapper collapses to a single column when there is no chart beside it.
+      const frame = panel.closest(".growth-panel");
+      if (months.length < 2) {
+        panel.hidden = true;
+        if (frame) frame.classList.add("no-chart");
+        return;
+      }
+      panel.hidden = false;
+      if (frame) frame.classList.remove("no-chart");
+
+      const verifiedMonths = months.filter(m => !m.projected);
+      const projected = months.find(m => m.projected);
+
+      document.getElementById("growthChartSub").textContent = projected
+        ? `${verifiedMonths.length} months measured against real sales · 1 projected`
+        : `${verifiedMonths.length} months measured against real sales`;
+
+      drawRevenueChart(months);
+
+      const note = document.getElementById("chartNote");
+      if (projected && projected.note) {
+        note.innerHTML = `<b>${escapeHtml(projected.label)} is a projection</b> — ${escapeHtml(projected.note)}. Nothing in it has been measured yet.`;
+        note.hidden = false;
+      } else {
+        note.hidden = true;
+      }
+
+      lastDrawnMonths = months;
+
+      // Identity is never colour-alone: the same numbers, readable by a screen reader.
+      document.getElementById("chartTable").innerHTML = `
+        <table>
+          <caption>Monthly revenue added</caption>
+          <thead><tr><th>Month</th><th>Revenue added</th><th>Status</th></tr></thead>
+          <tbody>
+            ${months.map(m => `<tr>
+              <td>${escapeHtml(m.label)}</td>
+              <td>${escapeHtml(m.txt)}</td>
+              <td>${m.projected ? "Projected, not measured" : `Verified — ${m.verified} verified, ${m.miss} missed`}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    let lastDrawnMonths = null;
+    let lastDrawnWidth = 0;
+
+    /**
+     * Monotone cubic Hermite tangents.
+     *
+     * Deliberately not a Catmull-Rom / cardinal spline, which is the usual way to get
+     * a "nice curve": those overshoot around a peak, so the line would arc above a
+     * month's real figure and read as revenue that was never earned. Monotone cubic
+     * is the interpolation that cannot invent a value between two points.
+     */
+    function monotoneTangents(pts) {
+      const n = pts.length;
+      const slope = [];
+      for (let i = 0; i < n - 1; i++) {
+        slope[i] = (pts[i + 1].y - pts[i].y) / (pts[i + 1].x - pts[i].x);
+      }
+      const t = new Array(n);
+      t[0] = slope[0];
+      t[n - 1] = slope[n - 2];
+      for (let i = 1; i < n - 1; i++) {
+        t[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+      }
+      for (let i = 0; i < n - 1; i++) {
+        if (slope[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+        const a = t[i] / slope[i];
+        const b = t[i + 1] / slope[i];
+        const s = a * a + b * b;
+        if (s > 9) {
+          const tau = 3 / Math.sqrt(s);
+          t[i] = tau * a * slope[i];
+          t[i + 1] = tau * b * slope[i];
+        }
+      }
+      return t;
+    }
+
+    function splinePath(pts, t, from, to) {
+      let d = `M ${pts[from].x.toFixed(2)} ${pts[from].y.toFixed(2)}`;
+      for (let i = from; i < to; i++) {
+        const h = pts[i + 1].x - pts[i].x;
+        d += ` C ${(pts[i].x + h / 3).toFixed(2)} ${(pts[i].y + (t[i] * h) / 3).toFixed(2)}`
+           + `, ${(pts[i + 1].x - h / 3).toFixed(2)} ${(pts[i + 1].y - (t[i + 1] * h) / 3).toFixed(2)}`
+           + `, ${pts[i + 1].x.toFixed(2)} ${pts[i + 1].y.toFixed(2)}`;
+      }
+      return d;
+    }
+
+    /**
+     * Draw the line. Built at the container's measured pixel size so one SVG user
+     * unit is one CSS pixel — that keeps label type on the interface ramp instead of
+     * scaling it with the panel width.
+     */
+    function drawRevenueChart(months) {
+      const host = document.getElementById("chartPlot");
+      const width = Math.round(host.clientWidth);
+      if (!months || months.length < 2 || width < 120) return;
+
+      const H = 196;
+      const padL = 54, padR = 26, padT = 34, padB = 46;
+      const plotTop = padT, plotBottom = H - padB;
+      const peak = Math.max(...months.map(m => m.cents), 1);
+      const peakTxt = months.find(m => m.cents === peak).txt;
+
+      // A little headroom under the top rule so the peak marker is not clipped.
+      const scale = c => plotBottom - (c / peak) * (plotBottom - plotTop) * 0.94;
+      // Inset the end points from the axis and the right edge, so the first marker
+      // is not welded to the gutter and the last value label cannot clip.
+      const innerL = padL + 18;
+      const innerR = width - padR - 18;
+      const step = (innerR - innerL) / Math.max(1, months.length - 1);
+      const pts = months.map((m, i) => ({ x: innerL + i * step, y: scale(m.cents), m, i }));
+      const t = monotoneTangents(pts);
+
+      const lastVerified = Math.max(0, months.filter(m => !m.projected).length - 1);
+      const hasProjection = lastVerified < months.length - 1;
+
+      const areaFor = (from, to, fill) => {
+        if (to <= from) return "";
+        return `<path d="${splinePath(pts, t, from, to)} L ${pts[to].x.toFixed(2)} ${plotBottom} `
+             + `L ${pts[from].x.toFixed(2)} ${plotBottom} Z" fill="url(#${fill})"/>`;
+      };
+
+      host.innerHTML = `
+        <svg width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img"
+             aria-label="Monthly revenue added, ${months.map(m => `${m.label} ${m.txt}${m.projected ? " projected" : ""}`).join(", ")}">
+          <defs>
+            <linearGradient id="fillVerified" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0f9c74" stop-opacity=".26"/>
+              <stop offset="100%" stop-color="#0f9c74" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="fillProjected" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5567e8" stop-opacity=".15"/>
+              <stop offset="100%" stop-color="#5567e8" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          ${[0, 0.25, 0.5, 0.75].map(f =>
+            `<line class="chart-grid" x1="${padL}" x2="${width - 10}"
+                   y1="${(plotTop + f * (plotBottom - plotTop)).toFixed(1)}"
+                   y2="${(plotTop + f * (plotBottom - plotTop)).toFixed(1)}"/>`).join("")}
+          <line class="chart-baseline" x1="${padL}" x2="${width - 10}" y1="${plotBottom}" y2="${plotBottom}"/>
+
+          <text class="chart-axis" x="${padL - 12}" y="${plotTop + 3}" text-anchor="end">${escapeHtml(peakTxt)}</text>
+          <text class="chart-axis" x="${padL - 12}" y="${plotBottom + 3}" text-anchor="end">$0</text>
+
+          ${areaFor(0, lastVerified, "fillVerified")}
+          ${hasProjection ? areaFor(lastVerified, months.length - 1, "fillProjected") : ""}
+
+          ${lastVerified > 0 ? `<path class="chart-line verified"
+                d="${splinePath(pts, t, 0, lastVerified)}"/>` : ""}
+          ${hasProjection ? `<path class="chart-line projected"
+                d="${splinePath(pts, t, lastVerified, months.length - 1)}"/>` : ""}
+
+          ${pts.map(p => {
+            const proj = !!p.m.projected;
+            return `
+              ${proj ? `<circle class="chart-dot-halo" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="9"
+                          stroke="rgba(85,103,232,.42)"/>` : ""}
+              <circle class="chart-dot ${proj ? "projected" : "verified"}"
+                      cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${proj ? 5.5 : 5}">
+                <title>${escapeHtml(p.m.label)} — ${escapeHtml(p.m.txt)}${proj ? " (projected, not measured)" : ""}</title>
+              </circle>
+              <text class="chart-value ${proj ? "projected" : "verified"}"
+                    x="${p.x.toFixed(2)}" y="${(p.y - 16).toFixed(2)}" text-anchor="middle">${escapeHtml(p.m.txt)}</text>
+              <text class="chart-month" x="${p.x.toFixed(2)}" y="${plotBottom + 22}" text-anchor="middle">${escapeHtml(p.m.label)}</text>
+              <text class="chart-sub" x="${p.x.toFixed(2)}" y="${plotBottom + 35}" text-anchor="middle">${
+                proj ? "projected"
+                     : `${p.m.verified} verified${p.m.miss ? ` · <tspan class="miss">${p.m.miss} missed</tspan>` : ""}`
+              }</text>`;
+          }).join("")}
+        </svg>
+      `;
+
+      lastDrawnWidth = width;
+    }
+
+    // Redraw on width change only — the panel's height is fixed, so observing size
+    // without this guard would redraw on every incidental layout pass.
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver(() => {
+        const host = document.getElementById("chartPlot");
+        if (!host || !lastDrawnMonths) return;
+        if (Math.abs(host.clientWidth - lastDrawnWidth) > 1) drawRevenueChart(lastDrawnMonths);
+      }).observe(document.getElementById("chartPlot"));
+    }
+
+    /* ---------------------------------------------------------------- admin view
+       The operator console. Every panel is read out of bt-data, i.e. out of
+       CockroachDB. Nothing here is simulated: where the cluster holds little (one
+       seeded agent_run) the panel says so rather than inventing traffic. */
+
+    const AGENTS = [
+      { key: "radar",   name: "Radar",   role: "observe → embed → store" },
+      { key: "analyst", name: "Analyst", role: "vector search → reason" },
+      { key: "maker",   name: "Maker",   role: "draft the deliverable" },
+      { key: "meter",   name: "Meter",   role: "judge prior predictions" },
+      { key: "ask",     name: "Ask",     role: "answer over MCP, read-only", detached: true },
+    ];
+
+    /* One hue per observation kind, in fixed order — never cycled, never reassigned
+       by rank. Validated against the console surface with the data-viz checker:
+       lightness band, chroma floor, contrast and CVD separation all pass. */
+    const KIND_HUE = {
+      review:       "#219daa",
+      trend:        "#6c6ee6",
+      rival_price:  "#b5822f",
+      rival_menu:   "#bd5194",
+      social:       "#2f9a68",
+      owner_upload: "#8d6bd8",
+    };
+    const KIND_FALLBACK = "#4d6275";
+
+    function kindHue(kind) { return KIND_HUE[kind] || KIND_FALLBACK; }
+
+    function renderAdmin() {
+      const summary = btData.summary || {};
+      const corpus = btData.corpus || {};
+      const finds = btData.finds || [];
+      const kinds = btData.kinds || [];
+
+      document.getElementById("adminStamp").textContent =
+        btData.business?.name ? btData.business.name.toUpperCase() : "";
+
+      renderKindBars(kinds, corpus);
+      renderPipeline(summary, corpus, finds);
+      renderReadouts(summary, corpus, finds);
+      renderEvidenceMatrix(finds);
+      renderRetrieval(finds);
+      renderRatingSpark(btData.ratings || []);
+      renderRecordLog(finds, btData.runs || []);
+    }
+
+    // --- signal sources -------------------------------------------------------
+    function renderKindBars(kinds, corpus) {
+      const peak = Math.max(...kinds.map(k => k.count), 1);
+      document.getElementById("sourcesTotal").textContent = `${corpus.observations ?? 0} rows`;
+      document.getElementById("kindBars").innerHTML = kinds.length ? kinds.map(k => `
+        <div class="kind-row">
+          <div class="kind-top">
+            <span class="kind-name">${escapeHtml(k.label)}</span>
+            <span class="kind-num">${k.count}</span>
+          </div>
+          <div class="kind-track">
+            <div class="kind-fill" style="width:${Math.round((k.count / peak) * 100)}%;background:${kindHue(k.kind)}"></div>
+          </div>
+        </div>`).join("") : `<p class="con-empty">No observations stored.</p>`;
+    }
+
+    // --- agent pipeline -------------------------------------------------------
+    function renderPipeline(summary, corpus, finds) {
+      const stat = {
+        radar: `<b>${corpus.observations ?? 0}</b> observations`,
+        analyst: `<b>${finds.length}</b> finds · <b>${(btData.queries || []).length}</b> queries/night`,
+        maker: `<b>${(btData.saved || []).length}</b> drafted`,
+        meter: `<b>${summary.judged ?? 0}</b> judged · <b>${summary.miss ?? 0}</b> miss`,
+        ask: `on request · <b>0</b> scheduled`,
+      };
+
+      document.getElementById("pipeNodes").innerHTML = AGENTS.map(a => `
+        <article class="node ${a.detached ? "detached" : ""}" data-node="${a.key}">
+          <div class="node-name">${escapeHtml(a.name)}</div>
+          <div class="node-role">${escapeHtml(a.role)}</div>
+          <div class="node-stat">${stat[a.key]}</div>
+        </article>`).join("");
+
+      drawPipelineEdges();
+    }
+
+    /* Connectors are measured from the laid-out nodes rather than hard-coded, so
+       they stay attached when the panel reflows. */
+    function drawPipelineEdges() {
+      const stage = document.getElementById("pipeStage");
+      const svg = document.getElementById("pipeEdges");
+      const nodes = [...document.querySelectorAll("#pipeNodes .node")];
+      if (!stage || !nodes.length || stage.clientWidth < 60) return;
+
+      const base = stage.getBoundingClientRect();
+      const box = el => {
+        const r = el.getBoundingClientRect();
+        return { l: r.left - base.left, r: r.right - base.left, t: r.top - base.top, b: r.bottom - base.top,
+                 cx: r.left - base.left + r.width / 2, cy: r.top - base.top + r.height / 2 };
+      };
+
+      const chain = nodes.filter(n => !n.classList.contains("detached")).map(box);
+      let d = "";
+      for (let i = 0; i < chain.length - 1; i++) {
+        const a = chain[i], b = chain[i + 1];
+        const mid = (a.r + b.l) / 2;
+        d += `M ${a.r} ${a.cy} C ${mid} ${a.cy}, ${mid} ${b.cy}, ${b.l} ${b.cy} `;
+      }
+
+      const askEl = nodes.find(n => n.classList.contains("detached"));
+      let dashed = "";
+      if (askEl && chain.length) {
+        const ask = box(askEl), analyst = chain[Math.min(1, chain.length - 1)];
+        dashed = `M ${analyst.cx} ${analyst.b} C ${analyst.cx} ${(analyst.b + ask.t) / 2}, `
+               + `${ask.cx} ${(analyst.b + ask.t) / 2}, ${ask.cx} ${ask.t}`;
+      }
+
+      svg.setAttribute("viewBox", `0 0 ${Math.round(stage.clientWidth)} ${Math.round(stage.clientHeight)}`);
+      svg.innerHTML = `${d ? `<path d="${d.trim()}"/>` : ""}${dashed ? `<path class="detached" d="${dashed}"/>` : ""}`;
+    }
+
+    // --- system readouts ------------------------------------------------------
+    function renderReadouts(summary, corpus, finds) {
+      const span = corpus.earliest && corpus.latest
+        ? `${shortDate(corpus.earliest)} – ${shortDate(corpus.latest)}`
+        : "—";
+      document.getElementById("readouts").innerHTML = [
+        ["Vectors", corpus.observations ?? "—", span, true],
+        ["Dimensions", "1024", "cosine ops"],
+        ["Evidence", corpus.evidenceRows ?? "—", `over ${finds.length} finds`],
+        ["Hit rate", summary.hitRate == null ? "—" : `${summary.hitRate}%`, `${summary.judged ?? 0} judged`, true],
+      ].map(([label, value, sub, accent]) => `
+        <div class="readout">
+          <span class="r-label">${escapeHtml(label)}</span>
+          <span class="r-value ${accent ? "accent" : ""}">${escapeHtml(String(value))}</span>
+          <span class="r-sub">${escapeHtml(sub)}</span>
+        </div>`).join("");
+    }
+
+    // --- evidence matrix ------------------------------------------------------
+    function renderEvidenceMatrix(finds) {
+      const withEvidence = finds.filter(f => (f.evidence || []).length);
+      const widest = Math.max(1, ...withEvidence.map(f => f.evidence.length));
+      document.getElementById("matrixMeta").textContent = `${withEvidence.length} × ${widest}`;
+
+      document.getElementById("evidenceMatrix").innerHTML = withEvidence.map(f => `
+        <div class="matrix-row">
+          ${Array.from({ length: widest }, (_, i) => {
+            const e = f.evidence[i];
+            if (!e) return `<span class="matrix-cell empty"></span>`;
+            // Colour carries the kind; the similarity is a number in the tooltip,
+            // never a tint — a reader cannot rank shades.
+            return `<span class="matrix-cell" style="background:${kindHue(e.kind)}"
+                      title="${escapeHtml(f.shortTitle || f.title)} · #${i + 1} · ${escapeHtml(e.kind || "")} · ${Number(e.similarity).toFixed(3)}"></span>`;
+          }).join("")}
+        </div>`).join("");
+
+      const present = [...new Set(withEvidence.flatMap(f => f.evidence.map(e => e.kind)))];
+      const label = Object.fromEntries((btData.kinds || []).map(k => [k.kind, k.label]));
+      document.getElementById("matrixLegend").innerHTML = present.map(k =>
+        `<span><i style="background:${kindHue(k)}"></i>${escapeHtml(label[k] || k)}</span>`).join("");
+    }
+
+    // --- retrieval inspector --------------------------------------------------
+    function renderRetrieval(finds) {
+      const pick = document.getElementById("retrievalPick");
+      // Ordered by best match and labelled with it, so the inspector opens on
+      // retrieval working without hiding the weak end — every find stays selectable.
+      const ranked = finds
+        .filter(f => (f.evidence || []).length)
+        .map(f => ({ f, top: Math.max(...f.evidence.map(e => Number(e.similarity))) }))
+        .sort((a, b) => b.top - a.top);
+
+      if (!pick.dataset.filled) {
+        pick.innerHTML = ranked.map(({ f, top }) =>
+          `<option value="${escapeHtml(f.id)}">${escapeHtml(f.shortTitle || f.title)} · ${top.toFixed(3)}</option>`
+        ).join("");
+        pick.dataset.filled = "1";
+        pick.onchange = () => renderEvidence(pick.value);
+      }
+
+      document.getElementById("queryList").innerHTML =
+        (btData.queries || []).map(q => `<li>${escapeHtml(q)}</li>`).join("")
+        || `<li class="con-empty">No queries recorded.</li>`;
+
+      renderEvidence(pick.value || (ranked[0] && ranked[0].f.id));
+    }
+
+    function renderEvidence(findId) {
+      const find = (btData.finds || []).find(f => f.id === findId);
+      const rows = (find && find.evidence) || [];
+      const label = Object.fromEntries((btData.kinds || []).map(k => [k.kind, k.label]));
+      document.getElementById("evidenceLabel").textContent =
+        find ? `Evidence returned · ${rows.length} rows` : "Evidence returned";
+
+      // The model hands evidence over already ordered by similarity and keeps no
+      // rank column, so position in the array is the rank.
+      document.getElementById("evidenceTable").innerHTML = rows.length ? `
+        <thead><tr><th>#</th><th>Sim</th><th>Kind</th><th>Observation</th></tr></thead>
+        <tbody>
+          ${rows.map((e, i) => `
+            <tr>
+              <td class="rank">${i + 1}</td>
+              <td class="sim">${Number(e.similarity).toFixed(3)}</td>
+              <td class="kind" style="color:${kindHue(e.kind)}">${escapeHtml(label[e.kind] || e.kind || "—")}</td>
+              <td>
+                ${escapeHtml(clampText(e.content || "", 130))}
+                <span class="evidence-src">${escapeHtml([e.source, e.when].filter(Boolean).join(" · "))}</span>
+              </td>
+            </tr>`).join("")}
+        </tbody>` : `<tbody><tr><td class="con-empty">This find has no stored evidence.</td></tr></tbody>`;
+    }
+
+    // --- review telemetry -----------------------------------------------------
+    function renderRatingSpark(ratings) {
+      const host = document.getElementById("ratingSpark");
+      if (ratings.length < 2) {
+        host.innerHTML = `<p class="con-empty">Not enough rating weeks to plot.</p>`;
+        document.getElementById("telemetryMeta").textContent = "";
+        return;
+      }
+
+      const latest = ratings[ratings.length - 1];
+      const totalReviews = ratings.reduce((n, r) => n + r.reviews, 0);
+      document.getElementById("telemetryMeta").textContent =
+        `${ratings.length} weeks · ${totalReviews} reviews`;
+
+      const W = 240, H = 62, pad = 4;
+      const lo = Math.min(...ratings.map(r => r.avg));
+      const hi = Math.max(...ratings.map(r => r.avg));
+      const span = hi - lo || 1;
+      const step = (W - pad * 2) / (ratings.length - 1);
+      const pts = ratings.map((r, i) => ({
+        x: pad + i * step,
+        y: H - pad - ((r.avg - lo) / span) * (H - pad * 2),
+      }));
+      const t = monotoneTangents(pts);
+
+      host.className = "con-body spark";
+      host.innerHTML = `
+        <div class="spark-head">
+          <span class="spark-value">${latest.avg.toFixed(2)}</span>
+          <!-- The week's own review count sits beside its average on purpose: the
+               last week of this corpus is a single 5-star review, and a bare 5.00
+               next to a 70-review total would read as a far stronger result. -->
+          <span class="spark-sub">${escapeHtml(latest.label)} · ${latest.reviews} review${latest.reviews === 1 ? "" : "s"}</span>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+             aria-label="Average review rating by week, ${ratings.map(r => `${r.label} ${r.avg.toFixed(2)}`).join(", ")}">
+          <line class="grid" x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}"/>
+          <path class="line" d="${splinePath(pts, t, 0, pts.length - 1)}"/>
+        </svg>
+        <div class="spark-head" style="margin:6px 0 0">
+          <span class="spark-sub">${escapeHtml(ratings[0].label)}</span>
+          <span class="spark-sub">${escapeHtml(latest.label)}</span>
+        </div>`;
+    }
+
+    // --- record log -----------------------------------------------------------
+    function renderRecordLog(finds, runs) {
+      const lines = [];
+
+      runs.forEach(r => lines.push({
+        when: shortDate(r.startedAt),
+        sort: r.startedAt,
+        tag: r.agent,
+        msg: `${escapeHtml(r.note || "run")} <b>${r.seconds == null ? "running" : `${r.seconds}s`}</b>`,
+        verdict: r.status,
+      }));
+
+      // Every judged find is a Meter decision the cluster recorded, with the date
+      // it was measured and the method it used. Misses included — that is the point.
+      finds.filter(f => f.verdict && f.measuredAt).forEach(f => lines.push({
+        when: shortDate(f.measuredAt),
+        sort: f.measuredAt,
+        tag: "meter",
+        msg: `<b>${escapeHtml(f.shortTitle || f.title)}</b> predicted ${escapeHtml(f.predictedDailyTxt || "—")}`
+           + `${f.actualDailyTxt ? ` · actual ${escapeHtml(f.actualDailyTxt)}` : ""}`,
+        verdict: f.verdict,
+      }));
+
+      lines.sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
+
+      document.getElementById("runsSub").textContent = runs.length === 1
+        ? `${lines.length} records · 1 agent_run row`
+        : `${lines.length} records · ${runs.length} agent_run rows`;
+
+      document.getElementById("recordLog").innerHTML = lines.length ? lines.map(l => `
+        <div class="log-line">
+          <span class="log-when">${escapeHtml(l.when)}</span>
+          <span class="log-tag ${escapeHtml(l.tag)}">${escapeHtml(l.tag)}</span>
+          <span class="log-msg">${l.msg}</span>
+          <span class="log-verdict ${escapeHtml(l.verdict)}">${escapeHtml(l.verdict)}</span>
+        </div>`).join("") : `<p class="con-empty">No records yet.</p>`;
+    }
+
+    function shortDate(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime())
+        ? "—"
+        : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    }
+
+    function clampText(text, max) {
+      return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+    }
+
+    if (typeof ResizeObserver === "function") {
+      const stage = document.getElementById("pipeStage");
+      if (stage) new ResizeObserver(() => drawPipelineEdges()).observe(stage);
     }
 
     function renderDecisionRow(post, status) {

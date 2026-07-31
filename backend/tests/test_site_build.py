@@ -287,3 +287,32 @@ def test_build_model_does_not_mutate_its_input(data):
     before = copy.deepcopy(data)
     build_web.build_model(data)
     assert data == before
+
+
+# ------------------------------------------------- agent runs (admin view)
+
+
+@pytest.mark.parametrize("started, finished, expected", [
+    ("2026-07-28T10:09:58.200643+00:00", "2026-07-28T10:11:16.319624+00:00", 78),
+    ("2026-07-28T10:09:58+00:00", "2026-07-28T10:09:58+00:00", 0),
+    ("2026-07-28T10:09:58+00:00", None, None),
+    ("2026-07-28T10:09:58+00:00", "", None),
+])
+def test_run_seconds_measures_a_finished_run_only(started, finished, expected):
+    """A run still in flight has no duration — it must not report 0 seconds,
+    which would read on the admin screen as "finished instantly"."""
+    assert build_web.run_seconds(
+        {"started_at": started, "finished_at": finished}) == expected
+
+
+def test_runs_reach_the_model_for_the_admin_view(data):
+    model = build_web.build_model(data)
+    assert [r["agent"] for r in model["runs"]] == [r["agent"] for r in data["runs"]]
+    assert all(len(r["id"]) == 8 for r in model["runs"]), "ids are shortened for display"
+
+
+def test_admin_run_list_is_not_padded(data):
+    """The seeded corpus has exactly one run. The view says so rather than
+    inventing a busier night than the cluster actually recorded."""
+    model = build_web.build_model(data)
+    assert len(model["runs"]) == len(data["runs"])
