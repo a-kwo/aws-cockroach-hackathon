@@ -163,10 +163,17 @@ QUERIES: dict[str, str] = {
     # tenant. `version()` is a live-cluster fact a static page could not
     # plausibly invent, and `now()` is the cluster's clock rather than the
     # exporting laptop's.
+    # `crdb_internal` is deliberately absent. CockroachDB Cloud restricts it for
+    # application roles: `crdb_internal.cluster_id()` raises InsufficientPrivilege
+    # ("Access to crdb_internal and system is restricted") for the role this
+    # exporter connects as. Asking for it in the same SELECT cost the entire
+    # stamp — including `now()`, which is permitted — so one blocked column took
+    # down the "as of" timestamp the console depends on. The cluster id is an
+    # identifier rather than a fact to be queried; it comes from
+    # COCKROACH_CLUSTER_ID, which config.py already resolves.
     "cluster": """
         SELECT current_database() AS database,
                version() AS version,
-               crdb_internal.cluster_id()::STRING AS cluster_id,
                now() AS now
     """,
 }
@@ -180,7 +187,7 @@ def jsonable(value):
     return value
 
 
-def export(cur, business_id: str) -> dict:
+def export(cur, business_id: str, cluster_id: str | None = None) -> dict:
     """Run every catalogued query against `cur` and assemble the payload.
 
     Takes a cursor rather than a connection so it can be driven by a stub. The
@@ -264,7 +271,7 @@ def export(cur, business_id: str) -> dict:
         "_receipt": {
             "database": cluster.get("database"),
             "version": cluster.get("version"),
-            "clusterId": cluster.get("cluster_id"),
+            "clusterId": cluster_id,
             "queries": receipt,
         },
         "business": business,
@@ -290,7 +297,8 @@ def main() -> int:
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
         with conn.cursor() as cur:
-            payload = export(cur, settings.business_id)
+            payload = export(cur, settings.business_id,
+                             cluster_id=settings.cockroach_cluster_id)
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
