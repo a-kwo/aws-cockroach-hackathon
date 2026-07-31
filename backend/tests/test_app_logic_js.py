@@ -242,3 +242,35 @@ def test_the_one_money_formatter_in_js_matches_the_python(cents):
     """, {}, {})
 
     assert out == build_web.money(cents)
+
+
+# ------------------------------------------------------- the headline fits
+
+
+@pytest.mark.parametrize("title,expected", [
+    ("Raise pasta mains by $2", ""),
+    ("Take reservations Thursday to Saturday", "title-medium"),
+    ("Nonna's Table: a Tue–Thu dinner prix fixe built from dishes "
+     "already on the line", "title-long"),
+])
+def test_the_headline_size_answers_to_the_title_it_has_to_hold(title, expected):
+    """The card's 54px headline was sized for the mock's four-word labels. Real
+    agent titles run three and four times that, and the card is a fixed grid
+    with overflow hidden — so at 54px a real title either ellipsed away half of
+    itself or shoved the price and the Pass/Do it row off the bottom edge.
+
+    The step-down is a function of length rather than a media query because it
+    is the *text* that varies, not the viewport."""
+    out = run_js(f"""
+        console.log(JSON.stringify(titleSizeClass({json.dumps(title)})));
+    """, {}, {})
+
+    assert out == expected
+
+
+def test_a_missing_title_does_not_throw_on_the_way_to_a_size():
+    out = run_js("""
+        console.log(JSON.stringify([titleSizeClass(""), titleSizeClass(null)]));
+    """, {}, {})
+
+    assert out == ["", ""]

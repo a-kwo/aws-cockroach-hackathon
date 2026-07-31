@@ -123,6 +123,45 @@ def test_bullets_keeps_a_single_sentence_whole():
     assert build_web.bullets(text) == [text]
 
 
+def test_bullets_splits_the_prose_that_precedes_an_enumerated_list():
+    """A real `move` opens with several sentences and only *then* enumerates.
+
+    The enumerated split used to return that whole preamble as one part and
+    stop, so a paragraph arrived on the card as a single bullet. The For You
+    card is a fixed grid with overflow hidden, so that bullet did not reflow —
+    it pushed the price and the Pass/Do it row off the bottom edge.
+    """
+    out = build_web.bullets(
+        "Draft the insert. Send it to the owner first. Then order: "
+        "(a) a menu card; (b) a server script."
+    )
+    assert out == ["Draft the insert.", "Send it to the owner first.",
+                   "Then order:", "a menu card", "a server script."]
+
+
+def test_no_card_bullet_can_overrun_the_card(data):
+    """Belt to the splitter's braces: whatever shape the agent's prose takes,
+    the two bullets the card renders are short enough to fit beside the title,
+    the quote and the footer. The whole `move` is still on the card — as the
+    tooltip — and in full in the drawer."""
+    data["finds"] = [find(move=(
+        "Draft a three-course midweek prix fixe — working name 'Nonna's "
+        "Table' — for Tuesday through Thursday dinner only, and send it to "
+        "the owner for approval before anything is printed or posted, built "
+        "entirely from dishes already on the line so the kitchen adds zero "
+        "new prep and the margin arithmetic holds: (a) a one-page insert; "
+        "(b) a two-line server script."
+    ))]
+    view = build_web.build_model(data)
+    bullets = view["finds"][0]["bullets"]
+    assert bullets, "the move still produces card bullets"
+    assert all(len(b) <= build_web.BULLET_CHARS + 1 for b in bullets)  # + the ellipsis
+    # Nothing is cut mid-word, and a cut is visibly a cut.
+    assert all(b == b.rstrip() and not b.endswith(" …") for b in bullets)
+    # The untouched paragraph survives for the tooltip and the drawer.
+    assert "two-line server script" in view["finds"][0]["move"]
+
+
 def test_bullets_of_nothing_is_empty():
     assert build_web.bullets("") == []
     assert build_web.bullets(None) == []
@@ -479,3 +518,18 @@ def test_a_drafted_artifact_is_counted_on_the_find_that_earned_it(data):
     model = build_web.build_model(data)
     assert model["artifacts"] == 1
     assert model["finds"][0]["artifactCount"] == 1
+
+
+def test_bullets_drop_an_enumerator_the_list_already_supplies():
+    """Not every agent writes "(1)" — some write "1)" or "2.", which the paren
+    split does not catch. The list already marks each step, so the leftover
+    digit read as "• 1) Draft …", numbering the same line twice."""
+    out = build_web.bullets("1) Draft the sheet. 2. Post the hours.")
+    assert out == ["Draft the sheet.", "Post the hours."]
+
+
+def test_bullets_keep_a_number_that_is_not_an_enumerator():
+    """A step may legitimately open with a figure — "$38 average check" — and a
+    stripped one would change what the owner is told to do."""
+    assert build_web.bullets("6 covers a night is the floor.") == [
+        "6 covers a night is the floor."]

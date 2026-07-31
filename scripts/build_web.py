@@ -39,6 +39,14 @@ OUT_DIR = REPO / "web"
 #: 30 is the figure the seeded predictions were written against.
 PER_MONTH = 30
 
+#: How much of one action fits on the face of a For You card. The card is a
+#: fixed grid with overflow hidden — long prose does not reflow it, it silently
+#: pushes the price and the Pass/Do it row past the bottom edge — so the limit
+#: lives here, next to the splitter, rather than being guessed at in CSS. Two
+#: bullets of this length sit under a two-line title and a quote and still leave
+#: the footer on screen. The whole `move` stays on the card as its tooltip.
+BULLET_CHARS = 116
+
 #: The concrete hypothesis queries the Analyst issues every night, from
 #: backend/src/brasstacks/agents/analyst.py. Shown in the run receipt so the
 #: retrieval step is visible rather than asserted. Kept in sync by a test.
@@ -115,10 +123,29 @@ def bullets(move: str) -> list[str]:
         return []
     parts = re.split(r"\s*\((?:\d+|[a-e])\)\s*", text)
     parts = [p for p in (p.strip() for p in parts) if p]
-    if len(parts) > 1:
-        return [p.rstrip(" ;,") for p in parts]
-    sentences = re.split(r"(?<=[.;])\s+", text)
-    return [s.strip().rstrip(";") for s in sentences if s.strip()]
+    if len(parts) == 1:
+        return sentences(text)
+    # An enumerated move usually opens with prose and only *then* counts off:
+    # "Draft the insert. Send it to the owner first. Then order: (a) … (b) …".
+    # Returning that preamble whole made one bullet out of a paragraph, which
+    # is what overran the card. Every part gets the sentence split.
+    return [b for part in parts for b in sentences(part)]
+
+
+#: A step that opens with its own list marker — "1) Draft …", "2. Post …".
+#: Only ")" and "." after a single digit or letter, so "6 covers a night" and
+#: "$38 average check" keep the figure they start with.
+#: "2." also ends a sentence, so the split can leave the marker stranded on its
+#: own — hence the `$`, which turns that fragment into nothing and drops it.
+ENUMERATOR = re.compile(r"^\(?(?:\d|[a-e])[).](\s+|$)", re.I)
+
+
+def sentences(text: str) -> list[str]:
+    # The list already marks each step, so an enumerator left in the prose
+    # numbers the same line twice: "• 1) Draft the sheet."
+    parts = (ENUMERATOR.sub("", p.strip()).strip().rstrip(" ;,")
+             for p in re.split(r"(?<=[.;])\s+", text))
+    return [p for p in parts if p]
 
 
 def month_label(value: str) -> str:
@@ -215,7 +242,11 @@ def build_model(data: dict) -> dict:
             "shortTitle": short_title(f["title"]),
             "tinyTitle": short_title(f["title"], 20),
             "move": " ".join((f["move"] or "").split()),
-            "bullets": bullets(f["move"]),
+            # Split, then clamped: a sentence an agent wrote can still run long
+            # enough to overrun a card of fixed height. `move` above keeps the
+            # paragraph whole for the tooltip and the drawer, so nothing is lost
+            # — only the two lines on the face of the card are cut, visibly.
+            "bullets": [clamp(b, BULLET_CHARS) for b in bullets(f["move"])],
             "rationale": " ".join((f["rationale"] or "").split()),
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),

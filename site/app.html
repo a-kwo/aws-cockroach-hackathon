@@ -6465,6 +6465,23 @@
       overflow: hidden;
     }
 
+    /* …and clamping alone only chose *where* to lose the sentence. The size
+       steps down with the length instead, from titleSizeClass(), so a short
+       title stays the headline it was in the mock and a long one is readable
+       at three lines inside the same vertical budget. */
+    body.autopilot-mode .post-copy h2.title-medium {
+      font-size: clamp(27px, 3.4vw, 39px);
+      line-height: 1.04;
+      letter-spacing: -.04em;
+    }
+
+    body.autopilot-mode .post-copy h2.title-long {
+      font-size: clamp(22px, 2.5vw, 29px);
+      line-height: 1.08;
+      letter-spacing: -.028em;
+      -webkit-line-clamp: 3;
+    }
+
     /* The glyph slots held line art chosen from the invented category; they now
        hold the find's own emoji column. */
     .art-glyph-emoji { font-size: 30px; line-height: 1; }
@@ -6506,6 +6523,31 @@
     }
 
     .move-steps li + li { margin-top: 4px; }
+
+    /* The spacing was set when this block held one short line. Two steps under
+       a three-line title is the tightest the card ever gets, and it was 24px
+       over — so the block gives that back in padding and leading rather than in
+       another sentence of the owner's plan. */
+    body.autopilot-mode .recommendation { margin-top: 14px; padding: 12px 14px; }
+    body.autopilot-mode blockquote.signal-text { margin-top: 12px; }
+    .move-steps { line-height: 1.36; }
+
+    /* The build clamps each step to BULLET_CHARS, so this never fires on the
+       committed fixture. It is here because the failure it prevents is silent:
+       a longer sentence in a later export would not wrap the card taller, it
+       would push the price and the buttons out of sight with nothing on screen
+       to say so.
+
+       The clamp rides on a box inside the li, not on the li itself: -webkit-box
+       replaces display:list-item, and an li that is a box has no marker. A div
+       and not a span, because the sheets above style every span inside
+       .recommendation-copy as the uppercase "Try this" label. */
+    .move-steps li > div {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
 
     /* ---- Growth: the record and the forecast, kept apart ------------------
        The summary slide was built for exactly one hero figure at
@@ -7136,6 +7178,26 @@
     }
 
     /**
+     * How large the card headline may be, given how much title it has to hold.
+     *
+     * The 54px headline came from the mock, whose titles were four words long.
+     * The Analyst writes 60 to 100 characters, and the card is a fixed grid
+     * with overflow hidden — so one size for every title either ellipsed half
+     * the sentence away or pushed the price and the Pass/Do it row off the
+     * bottom edge. Stepping the size down by length keeps the short titles as
+     * loud as they were and lets the long ones be read.
+     *
+     * Length, not viewport: it is the text that varies. The thresholds are
+     * where a title stops fitting two lines at the size above.
+     */
+    function titleSizeClass(title) {
+      const n = (title || "").trim().length;
+      if (n > 58) return "title-long";
+      if (n > 30) return "title-medium";
+      return "";
+    }
+
+    /**
      * The two Growth figures, and the lists behind them.
      *
      * `verifiedTxt` is passed through from the build untouched. It is not
@@ -7440,10 +7502,15 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
                   </button>
                 </div>
-                <h2>${safe(find.title)}</h2>
+                <!-- safe() around a class name out of a three-word vocabulary
+                     is a no-op, and it stays because the rule the test enforces
+                     is "find.title never reaches the template unescaped" — a
+                     rule worth keeping absolute rather than arguing case by
+                     case. -->
+                <h2 class="${safe(titleSizeClass(find.title))}">${safe(find.title)}</h2>
                 ${top ? `
                   <blockquote class="signal-text">
-                    ${safe(clampText(top.content || "", 150))}
+                    ${safe(clampText(top.content || "", 118))}
                     <cite>${safe([top.source, top.when].filter(Boolean).join(" · "))}</cite>
                   </blockquote>` : `
                   <p class="signal-text muted-note">No stored observation is attached to this find.</p>`}
@@ -7453,7 +7520,7 @@
                     <span>Try this</span>
                     ${steps.length
                       ? `<ul class="move-steps" title="${safe(find.move || "")}">${
-                          steps.map(step => `<li>${safe(step)}</li>`).join("")}</ul>`
+                          steps.map(step => `<li><div>${safe(step)}</div></li>`).join("")}</ul>`
                       : `<strong>${safe(find.move || "")}</strong>`}
                   </span>
                 </div>
