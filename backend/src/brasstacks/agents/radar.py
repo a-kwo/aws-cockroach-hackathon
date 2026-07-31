@@ -15,7 +15,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from brasstacks.providers import Embedder, EmbeddingError
+from brasstacks.providers import (
+    Embedder,
+    EmbeddingError,
+    drain_usage,
+    recorded_tokens,
+)
 from brasstacks.repository import Repository, content_hash
 from brasstacks.signals import RawSignal, SignalSource
 
@@ -114,8 +119,12 @@ def run_radar(
     limit_per_source: int = DEFAULT_LIMIT_PER_SOURCE,
     business_name: str = "",
     city: str | None = None,
+    model_id: str | None = None,
 ) -> RadarResult:
-    run_id = repo.start_run(business_id, agent="radar")
+    # Radar's model is the embedding model, not a reasoner — it is the only
+    # agent whose token cost is Bedrock's rather than Anthropic's, and the run
+    # record has to name which one so the number can be priced.
+    run_id = repo.start_run(business_id, agent="radar", model_id=model_id)
     observed_at_default = now or datetime.now(timezone.utc)
 
     signals, failed = _collect(sources, business_name=business_name, city=city,
@@ -144,7 +153,9 @@ def run_radar(
                 if observation_id is not None:
                     stored += 1
     except EmbeddingError as e:
-        repo.finish_run(run_id, status="failed", error=str(e))
+        spent_in, spent_out = recorded_tokens(drain_usage(embedder))
+        repo.finish_run(run_id, status="failed", error=str(e),
+                        input_tokens=spent_in, output_tokens=spent_out)
         raise
 
     duplicates = len(signals) - stored
@@ -162,10 +173,14 @@ def run_radar(
         failed_sources=tuple(failed),
         expired=expired,
     )
+    # An embedding has no output side, so output_tokens is 0 on a night that
+    # embedded anything, and None on a night that embedded nothing at all.
+    spent_in, spent_out = recorded_tokens(drain_usage(embedder))
     repo.finish_run(
         run_id,
         status="failed" if everything_failed else "ok",
         error=f"all sources failed: {', '.join(failed)}" if everything_failed else None,
         note=result.note,
+        input_tokens=spent_in, output_tokens=spent_out,
     )
     return result

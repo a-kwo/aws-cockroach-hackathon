@@ -77,6 +77,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             # it returns noise that pollutes the memory layer.
             sources=[CorpusSignalSource(CORPUS_PATH, anchor=anchor)],
             model_id=settings.reasoning_model_id,
+            embedding_model_id=settings.embedding_model_id,
         )
 
     return summarise(result)

@@ -27,6 +27,9 @@ from brasstacks.providers import (
     EmbeddingError,
     FakeEmbedder,
     FakeReasoner,
+    Usage,
+    drain_usage,
+    recorded_tokens,
     ModelRefusedError,
     ReasoningError,
 )
@@ -63,7 +66,12 @@ class StubBedrockRuntime:
             raise RuntimeError(f"bedrock exploded on {text!r}")
         # Encode the text's length in position 0 so tests can tell vectors apart.
         vector = [float(len(text))] + [0.0] * (self.dimensions - 1)
-        return {"body": _Body(json.dumps({"embedding": vector}))}
+        return {"body": _Body(json.dumps({
+            "embedding": vector,
+            # Titan reports what it charged for. One token per character here is
+            # not how the real tokenizer works; it just has to be countable.
+            "inputTextTokenCount": len(text),
+        }))}
 
 
 class _Body:
@@ -267,3 +275,84 @@ class TestFakeReasoner:
         fake = FakeReasoner([ModelRefusedError("policy")])
         with pytest.raises(ModelRefusedError):
             fake.complete_json(system="s", user="u", schema=SCHEMA)
+
+
+# --------------------------------------------------------------------------
+# Usage accounting
+# --------------------------------------------------------------------------
+
+class TestUsageAccounting:
+    """What a night cost, in tokens.
+
+    Accumulated out of band and drained rather than returned from
+    `complete_json`, because widening that return type would change the
+    `Reasoner` Protocol and every fake and test that queues a response. Drain
+    resets, because `build_reasoner()` hands one instance to the whole process
+    — without the reset the Maker would be billed for the Analyst's tokens.
+    """
+
+    def _reasoner(self, message):
+        return AnthropicReasoner(client=StubAnthropic(message), model_id="m")
+
+    def test_the_reasoner_reports_what_the_call_cost(self):
+        r = self._reasoner(StubMessage([StubBlock('{"title": "x"}')]))
+        r.complete_json(system="s", user="u", schema=SCHEMA)
+        assert drain_usage(r) == Usage(input_tokens=10, output_tokens=20, calls=1)
+
+    def test_usage_accumulates_across_calls(self):
+        r = self._reasoner(StubMessage([StubBlock('{"title": "x"}')]))
+        r.complete_json(system="s", user="u", schema=SCHEMA)
+        r.complete_json(system="s", user="u", schema=SCHEMA)
+        assert drain_usage(r) == Usage(input_tokens=20, output_tokens=40, calls=2)
+
+    def test_a_refusal_still_reports_its_token_cost(self):
+        """A refusal burns input tokens. Recording it only on the happy path
+        would understate what the night actually cost."""
+        r = self._reasoner(StubMessage([], stop_reason="refusal"))
+        with pytest.raises(ModelRefusedError):
+            r.complete_json(system="s", user="u", schema=SCHEMA)
+        assert drain_usage(r) == Usage(input_tokens=10, output_tokens=20, calls=1)
+
+    def test_a_call_that_never_reached_the_model_costs_nothing(self):
+        r = self._reasoner(RuntimeError("connection reset"))
+        with pytest.raises(ReasoningError):
+            r.complete_json(system="s", user="u", schema=SCHEMA)
+        assert drain_usage(r) == Usage()
+
+    def test_draining_usage_resets_it(self):
+        r = self._reasoner(StubMessage([StubBlock('{"title": "x"}')]))
+        r.complete_json(system="s", user="u", schema=SCHEMA)
+        drain_usage(r)
+        assert drain_usage(r) == Usage()
+
+    def test_a_provider_that_does_not_meter_reports_nothing(self):
+        """Usage(), not zeros that look measured. `calls=0` is what tells the
+        admin view to say "tokens not recorded" rather than "0 tokens"."""
+        assert drain_usage(FakeReasoner([{"title": "x"}])) == Usage()
+        assert drain_usage(FakeEmbedder()) == Usage()
+
+    def test_the_embedder_reports_the_tokens_titan_charged_for(self):
+        """An embedding produces no output tokens. Reporting 0 there is true;
+        inventing a number would not be."""
+        stub = StubBedrockRuntime()
+        embedder = BedrockEmbedder(client=stub, model_id="titan", dimensions=1024)
+        embedder.embed(["abc", "de"])
+        assert drain_usage(embedder) == Usage(input_tokens=5, output_tokens=0, calls=2)
+
+    def test_a_metering_fake_reports_its_configured_cost(self):
+        """`FakeReasoner` can meter on request, so agent tests can assert on
+        what a night cost without a network call or a credential."""
+        fake = FakeReasoner([{"title": "a"}, {"title": "b"}], usage_per_call=(100, 7))
+        fake.complete_json(system="s", user="u", schema=SCHEMA)
+        fake.complete_json(system="s", user="u", schema=SCHEMA)
+        assert drain_usage(fake) == Usage(input_tokens=200, output_tokens=14, calls=2)
+
+
+class TestRecordedTokens:
+    def test_a_measured_call_reports_its_numbers(self):
+        assert recorded_tokens(Usage(120, 30, 1)) == (120, 30)
+
+    def test_nothing_measured_is_none_not_zero(self):
+        """This is the whole honesty rule in one function: 0 says "we called the
+        model and it cost nothing", None says "no model was called"."""
+        assert recorded_tokens(Usage()) == (None, None)

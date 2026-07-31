@@ -65,6 +65,87 @@ class ModelRefusedError(ReasoningError):
 
 
 # ---------------------------------------------------------------------------
+# Usage accounting
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Usage:
+    """What provider calls cost, in tokens.
+
+    ``calls`` is what separates "we called the model and it was free" from "we
+    never called it". A run that made no model call must report unknown rather
+    than zero, or the admin view launders an absence into a measurement.
+    """
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    calls: int = 0
+
+    def __add__(self, other: "Usage") -> "Usage":
+        return Usage(
+            self.input_tokens + other.input_tokens,
+            self.output_tokens + other.output_tokens,
+            self.calls + other.calls,
+        )
+
+
+class _Meter:
+    """Mutable accumulator held privately by a metering provider.
+
+    Deliberately not part of any Protocol. Widening ``complete_json`` to return
+    usage alongside the parsed JSON would change the contract both agents, every
+    fake and every queued-response test depend on, to carry a number only the
+    run record wants.
+    """
+
+    def __init__(self) -> None:
+        self.total = Usage()
+
+    def record(self, *, input_tokens: int = 0, output_tokens: int = 0) -> None:
+        self.total = self.total + Usage(int(input_tokens or 0),
+                                        int(output_tokens or 0), 1)
+
+    def drain(self) -> Usage:
+        total, self.total = self.total, Usage()
+        return total
+
+
+def _usage_of(message: Any) -> dict[str, int]:
+    """Pull token counts off a message, tolerating an SDK that omits them."""
+    usage = getattr(message, "usage", None)
+    return {
+        "input_tokens": getattr(usage, "input_tokens", 0) or 0,
+        "output_tokens": getattr(usage, "output_tokens", 0) or 0,
+    }
+
+
+def drain_usage(provider: Any) -> Usage:
+    """Usage since the last drain, then reset.
+
+    ``Usage()`` for a provider that does not meter — the fakes, and anything a
+    contributor injects — so callers never have to branch on provider type.
+
+    Drain-and-reset rather than a readable ``last_usage`` attribute because
+    ``build_reasoner()`` hands one instance to the whole process: without the
+    reset, the Maker's run record would be charged for the Analyst's tokens.
+    """
+    meter = getattr(provider, "_meter", None)
+    return meter.drain() if isinstance(meter, _Meter) else Usage()
+
+
+def recorded_tokens(usage: Usage) -> tuple[int | None, int | None]:
+    """``(input, output)`` for a metered call; ``(None, None)`` when nothing was.
+
+    The whole honesty rule in one function. 0 says "we called the model and it
+    cost nothing"; None says "no model was called". The Meter and any run using
+    an unmetered provider must land on the second.
+    """
+    if not usage.calls:
+        return (None, None)
+    return (usage.input_tokens, usage.output_tokens)
+
+
+# ---------------------------------------------------------------------------
 # Interfaces
 # ---------------------------------------------------------------------------
 
@@ -156,6 +237,7 @@ class BedrockEmbedder:
         self._client = client
         self._model_id = model_id
         self._dimensions = dimensions
+        self._meter = _Meter()
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
@@ -178,7 +260,13 @@ class BedrockEmbedder:
                         "dimensions": self._dimensions,
                     }),
                 )
-                vector = json.loads(response["body"].read())["embedding"]
+                payload = json.loads(response["body"].read())
+                vector = payload["embedding"]
+                # Titan reports what it charged for. There is no output side to
+                # an embedding, so output_tokens stays 0 — which is true, unlike
+                # leaving the whole call unrecorded.
+                self._meter.record(
+                    input_tokens=payload.get("inputTextTokenCount") or 0)
             except EmbeddingError:
                 raise
             except Exception as e:
@@ -272,6 +360,7 @@ class AnthropicReasoner:
         self._client = client
         self._model_id = model_id
         self._effort = effort
+        self._meter = _Meter()
 
     def complete_json(
         self,
@@ -299,6 +388,11 @@ class AnthropicReasoner:
             raise
         except Exception as e:
             raise ReasoningError(f"{type(e).__name__}: {e}") from e
+
+        # Recorded before the stop_reason ladder below, not after it. A refusal
+        # burns input tokens like any other call; charging only the calls that
+        # returned usable JSON would understate what the night cost.
+        self._meter.record(**_usage_of(message))
 
         stop_reason = getattr(message, "stop_reason", None)
 
@@ -354,9 +448,16 @@ class FakeReasoner:
     simulate a failure.
     """
 
-    def __init__(self, responses: Sequence[Any]) -> None:
+    def __init__(self, responses: Sequence[Any],
+                 usage_per_call: tuple[int, int] | None = None) -> None:
         self._responses = list(responses)
         self.calls: list[dict[str, Any]] = []
+        # Metering is opt-in so the default fake stays honestly unmetered: a
+        # provider that reports Usage() is what makes the run record say
+        # "tokens not recorded" rather than "0 tokens".
+        self._usage_per_call = usage_per_call
+        if usage_per_call is not None:
+            self._meter = _Meter()
 
     def complete_json(
         self,
@@ -366,6 +467,9 @@ class FakeReasoner:
         schema: Mapping[str, Any],
         max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> dict[str, Any]:
+        if self._usage_per_call is not None:
+            self._meter.record(input_tokens=self._usage_per_call[0],
+                               output_tokens=self._usage_per_call[1])
         self.calls.append({
             "system": system,
             "user": user,
@@ -448,6 +552,7 @@ class McpAsker:
         self._mcp_token = mcp_token
         self._server_name = server_name
         self._effort = effort
+        self._meter = _Meter()
 
     def ask(
         self,
@@ -485,6 +590,10 @@ class McpAsker:
             raise
         except Exception as e:
             raise ReasoningError(f"{type(e).__name__}: {e}") from e
+
+        # Before the stop_reason ladder, for the same reason as complete_json:
+        # a refused answer still cost input tokens.
+        self._meter.record(**_usage_of(message))
 
         stop_reason = getattr(message, "stop_reason", None)
 
