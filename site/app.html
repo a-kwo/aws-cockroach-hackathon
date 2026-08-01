@@ -2328,230 +2328,619 @@
       color: #dff1f5;
     }
 
-    /* ---- admin view: the operator console --------------------------------
-       A different visual world from the owner's two screens on purpose — this one
-       should read as the machine room, not the product. Dark field, hairline rules,
-       monospace readouts, and the five observation kinds carrying a categorical
-       palette validated against this surface (deutan worst adjacent 6.3, which the
-       data-viz floor allows only alongside direct labels, gaps and tooltips — the
-       matrix below ships all three). */
+    /* ---- admin view: the agent network -----------------------------------
+       A different visual world from the owner's two screens on purpose. The
+       owner's screens are paper and money; this one is the machine, and it is
+       laid out as what it is — five agents around the store they share.
+
+       The layout carries the argument. Radar and Maker sit on the write side,
+       Analyst and Meter on the read side, and each connector flows in the
+       direction its agent actually moves data. The core is the vector index.
+
+       The one rule this screen does not get to break: every number on it is a
+       row count or a stored value. Glow is decoration and may be invented;
+       figures are not. There is no synthetic progress bar and no countdown.
+
+       The five observation kinds keep their categorical palette, validated
+       against this surface (worst adjacent CVD separation 6.8 deutan, which is
+       legal only alongside a written label — so every hue here carries its own
+       name beside it). */
     .view.console {
-      --con-bg:     #060b13;
-      --con-panel:  #0b1420;
-      --con-line:   rgba(122, 196, 216, .16);
-      --con-line-2: rgba(122, 196, 216, .30);
-      --con-accent: #35c9d6;
-      --con-text:   #ccd9e4;
-      --con-muted:  #6e8496;
+      --hud-bg:      #050a12;
+      /* Opaque enough to sit on a lit backdrop. A translucent panel over a
+         brightened field simply brightens with it, and the contrast the lift
+         was meant to buy goes straight back out. */
+      --hud-panel:   rgba(8, 19, 34, .90);
+      --hud-line:    rgba(86, 190, 235, .30);
+      --hud-line-2:  rgba(86, 190, 235, .55);
+      --hud-cyan:    #4fc3e8;
+      --hud-bright:  #d8f2fb;
+      --hud-text:    #a8c4d8;
+      --hud-muted:   #6d8ba3;
+      --hud-amber:   #e8a34f;
       --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
+      /* No `position` here. `.view` is `absolute; inset: 0`, which is what makes
+         a view fill the workspace — setting `relative` collapses it to content
+         height and leaves the page's own background showing underneath. It is
+         already a containing block for the layers below without help. */
+      /* The floor grid below is a rotated plane and would widen the page. */
+      overflow-x: hidden;
       background:
-        radial-gradient(120% 90% at 50% 0%, rgba(53,201,214,.07) 0%, transparent 62%),
-        var(--con-bg);
-      color: var(--con-text);
+        radial-gradient(46% 36% at 50% 40%, rgba(52, 158, 220, .26) 0%, transparent 72%),
+        radial-gradient(96% 62% at 50% -6%, rgba(22, 78, 132, .34) 0%, transparent 66%),
+        radial-gradient(72% 46% at 50% 104%, rgba(15, 62, 110, .38) 0%, transparent 72%),
+        var(--hud-bg);
+      color: var(--hud-text);
     }
 
-    .console-inner { width: min(1360px, calc(100% - 34px)); margin: 0 auto; padding: 16px 0 26px; }
+    /* The faint survey grid the panels sit on. Purely atmosphere, so it is the
+       first thing to go when the viewer has asked for less motion or less. */
+    .view.console::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      /* Vignette only. The dots are a real map now, drawn in .hud-scene, and a
+         second field of them here only fought with it. */
+      background: radial-gradient(72% 62% at 50% 44%, transparent 40%, rgba(2, 6, 12, .72) 100%);
+    }
 
-    .con-bar {
+    /* The ground plane. A rotated grid rather than a drawn one, so the lines
+       converge on their own and stay in step with the page width. */
+    .view.console::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 40%;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(90deg, rgba(96, 200, 245, .40) 0 1px, transparent 1px 46px),
+        repeating-linear-gradient(0deg, rgba(96, 200, 245, .30) 0 1px, transparent 1px 34px);
+      transform: perspective(240px) rotateX(74deg);
+      transform-origin: 50% 100%;
+      mask-image: linear-gradient(to top, rgba(0,0,0,.95) 0%, rgba(0,0,0,.4) 42%, transparent 84%);
+    }
+
+    /* Drawn backdrop: the arcs, tick ring, dials and horizon glow. Separate
+       from the CSS layers because these want real geometry, not gradients. */
+    .hud-scene {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .hud-scene .arc { fill: none; stroke: rgba(94, 190, 238, .16); stroke-width: 1; }
+    .hud-scene .arc.faint { stroke: rgba(94, 190, 238, .09); }
+    .hud-scene .tick { stroke: rgba(120, 210, 248, .30); stroke-width: 1.4; }
+    .hud-scene .dial { fill: none; stroke: rgba(94, 190, 238, .28); stroke-width: 1.2; }
+    .hud-scene .dial-fill { fill: rgba(94, 190, 238, .07); }
+    .hud-scene .horizon { stroke: rgba(150, 228, 255, .34); stroke-width: 1.4; }
+
+    /* The map. Dots are a pattern clipped to the land, so the continents are
+       drawn once as outlines and the texture comes from tiling. */
+    .hud-scene .map-dot { fill: #79cdf2; }
+    .hud-scene .map-glow { filter: drop-shadow(0 0 3px rgba(90, 190, 240, .8)); }
+
+    /* ---- a painted backdrop, when one has been supplied -------------------
+       A picture carries haze, bloom and a real map at a depth that vector
+       chrome does not reach, so it replaces the drawn scene outright rather
+       than layering over it — two maps and two light sources read as two
+       worlds. The build sets --hud-backdrop and the class; with no image the
+       rules below never apply and the drawn scene stands. */
+    .view.console.has-backdrop .hud-scene { display: none; }
+    .view.console.has-backdrop::after { display: none; }
+
+    /* The image rides ::before rather than the element's own background so a
+       scrim can be laid over it without touching anything drawn above.
+
+       The scrim is heaviest through the middle, which is the opposite of what
+       looks best in isolation and the right way round for this page: the panels
+       and the core sit there, and they are what a reader came for. The backdrop
+       is atmosphere — it should be felt at the edges and barely noticed behind
+       the content. Brightening it was a mistake in the other direction. */
+    .view.console.has-backdrop::before {
+      z-index: 0;
+      background:
+        radial-gradient(74% 64% at 50% 46%,
+          rgba(3, 8, 15, .89) 0%, rgba(3, 8, 15, .72) 58%, rgba(3, 8, 15, .57) 100%),
+        var(--hud-backdrop) center / cover no-repeat;
+      /* Held back from the very edges so the frame still closes in. */
+      mask-image: radial-gradient(122% 110% at 50% 46%, #000 60%, rgba(0, 0, 0, .6) 100%);
+    }
+
+    .hud-shell {
+      position: relative;
+      z-index: 1;
+      width: min(1460px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 8px 0 6px;
+      /* Fill the view and let the network centre itself in whatever the status
+         bar leaves. Sized to content it sat at the top, so every pixel the
+         window had spare piled up underneath it. */
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Auto margins take the free space evenly above and below, and collapse to
+       nothing on a short window rather than forcing a scroll. */
+    .hud-stage { margin-top: auto; margin-bottom: auto; }
+
+    /* ---- status bar */
+    /* Three tracks so the title is centred on the page, not on whatever is
+       left over after the two ends have taken their width. */
+    .hud-bar {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+      /* The network sits clear of the status bar rather than tucked under it. */
+      margin-bottom: 28px;
+      padding: 6px 16px;
+      border: 1px solid var(--hud-line);
+      background: linear-gradient(180deg, rgba(79, 195, 232, .14), rgba(5, 11, 20, .82));
+      clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+    }
+
+    /* The title rides its own frame, standing slightly proud of the bar. */
+    .hud-title {
       display: flex;
       align-items: center;
-      gap: 14px;
-      margin-bottom: 12px;
-      padding: 9px 14px;
-      border: 1px solid var(--con-line);
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(53,201,214,.06), transparent);
+      gap: 16px;
+      margin: -15px 0 -11px;
+      padding: 8px 22px;
+      border: 1px solid var(--hud-line-2);
+      background: linear-gradient(180deg, rgba(79, 195, 232, .2), rgba(5, 12, 22, .88));
+      box-shadow: 0 0 22px rgba(31, 106, 158, .34);
+      clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 50%,
+                         calc(100% - 16px) 100%, 16px 100%, 0 50%);
     }
 
-    .con-bar h1 {
-      flex: 1 1 auto;
+    .hud-bar h1 {
       margin: 0;
-      color: #e6f3f7;
-      font-family: var(--mono);
-      font-size: 12px;
+      color: var(--hud-bright);
+      font-size: 14px;
       font-weight: 600;
-      letter-spacing: .30em;
+      letter-spacing: .34em;
       text-align: center;
       text-transform: uppercase;
     }
 
-    .con-tag {
-      padding: 3px 9px;
-      border: 1px solid var(--con-line-2);
-      border-radius: 4px;
-      color: var(--con-accent);
+    .hud-orn { position: relative; width: 13px; height: 13px; border: 1px solid var(--hud-line-2); border-radius: 50%; }
+    .hud-orn::after {
+      content: "";
+      position: absolute;
+      inset: 3.5px;
+      border-radius: 50%;
+      background: var(--hud-cyan);
+      box-shadow: 0 0 7px var(--hud-cyan);
+    }
+
+    .hud-status,
+    .hud-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--hud-muted);
       font-family: var(--mono);
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: .18em;
-    }
-
-    .con-live { display: inline-flex; align-items: center; gap: 6px; color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
-    .con-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--con-accent); box-shadow: 0 0 8px var(--con-accent); animation: con-pulse 2.2s ease-in-out infinite; }
-    @keyframes con-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
-    .con-stamp { color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .08em; }
-
-    .con-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
-    .col-3 { grid-column: span 3; }
-    .col-6 { grid-column: span 6; }
-    .col-12 { grid-column: span 12; }
-
-    .con-panel {
-      min-width: 0;
-      border: 1px solid var(--con-line);
-      border-radius: 8px;
-      background: var(--con-panel);
-    }
-
-    .con-head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 9px 12px;
-      border-bottom: 1px solid var(--con-line);
-    }
-
-    .con-head h2 { margin: 0; color: var(--con-accent); font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
-    .con-head span { color: var(--con-muted); font-family: var(--mono); font-size: 9px; letter-spacing: .06em; }
-    .con-body { padding: 12px; }
-    .con-label { margin-bottom: 8px; color: var(--con-muted); font-family: var(--mono); font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; }
-
-    /* Signal sources — horizontal magnitude bars, one hue per kind */
-    .kind-row { margin-bottom: 11px; }
-    .kind-row:last-child { margin-bottom: 0; }
-    .kind-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-    .kind-name { color: var(--con-text); font-size: 10px; font-weight: 600; }
-    .kind-num { color: var(--con-muted); font-family: var(--mono); font-size: 9.5px; }
-    .kind-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.05); overflow: hidden; }
-    .kind-fill { height: 100%; border-radius: 3px; }
-
-    /* Agent pipeline — nodes with drawn connectors */
-    .pipe-stage { position: relative; min-height: 214px; }
-    .pipe-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-    .pipe-edges path { fill: none; stroke: var(--con-line-2); stroke-width: 1.2; }
-    .pipe-edges path.detached { stroke-dasharray: 4 4; stroke: rgba(122,196,216,.22); }
-
-    /* The column gap has to be wide enough for a connector to actually read as a
-       line between two nodes rather than a hairline crack. */
-    .pipe-nodes { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 28px; }
-
-    .node {
-      padding: 9px 10px;
-      border: 1px solid var(--con-line-2);
-      border-radius: 7px;
-      background: #101c2b;
-      box-shadow: 0 0 0 1px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.35);
-    }
-
-    /* Ask sits outside the chain — it answers on request, so it is drawn detached. */
-    .node.detached { grid-column: 2 / 4; margin-top: 22px; border-style: dashed; background: rgba(16,28,43,.55); }
-
-    .node-name { color: #dff1f5; font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .10em; text-transform: uppercase; }
-    .node-role { margin-top: 3px; color: var(--con-muted); font-size: 8.5px; font-weight: 600; }
-    .node-stat { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--con-line); color: var(--con-text); font-family: var(--mono); font-size: 9px; line-height: 1.55; }
-    .node-stat b { color: var(--con-accent); font-weight: 700; }
-
-    /* System readouts */
-    .con-readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .readout { padding: 9px 10px; border: 1px solid var(--con-line); border-radius: 6px; background: rgba(255,255,255,.02); }
-    .readout .r-label { display: block; color: var(--con-muted); font-family: var(--mono); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
-    .readout .r-value { display: block; margin-top: 5px; color: #e6f3f7; font-family: var(--mono); font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
-    .readout .r-sub { display: block; margin-top: 3px; color: var(--con-muted); font-size: 8px; font-weight: 600; }
-    .readout .r-value.accent { color: var(--con-accent); }
-
-    /* Evidence matrix — one row per find, one cell per retrieved row, coloured by
-       source kind. Never by similarity: that is a number, and a tint cannot tell
-       0.58 from 0.51. The similarity lives in each cell's tooltip instead. */
-    .matrix { display: grid; gap: 2px; }
-    .matrix-row { display: flex; gap: 2px; }
-    .matrix-cell { width: 9px; height: 9px; border-radius: 2px; }
-    .matrix-cell.empty { background: rgba(255,255,255,.045); }
-    .matrix-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--con-line); }
-    .matrix-legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--con-muted); font-size: 8.5px; font-weight: 650; }
-    .matrix-legend i { width: 7px; height: 7px; border-radius: 2px; }
-
-    /* Retrieval inspector */
-    .con-select select {
-      height: 24px;
-      max-width: 240px;
-      padding: 0 7px;
-      border: 1px solid var(--con-line-2);
-      border-radius: 5px;
-      background: #0e1a28;
-      color: var(--con-text);
-      font-family: var(--mono);
-      font-size: 9px;
-      cursor: pointer;
-    }
-
-    .retrieval-body { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr); gap: 16px; }
-    .retrieval-queries ol { margin: 0; padding-left: 15px; }
-    .retrieval-queries li { margin-bottom: 6px; color: #9fb2c2; font-size: 9px; font-weight: 600; line-height: 1.5; }
-
-    .evidence-scroll { max-height: 210px; overflow-y: auto; }
-    .evidence-table { width: 100%; border-collapse: collapse; }
-    .evidence-table th {
-      position: sticky; top: 0; z-index: 1;
-      padding: 5px 6px;
-      background: var(--con-panel);
-      border-bottom: 1px solid var(--con-line);
-      color: var(--con-muted);
-      font-family: var(--mono);
-      font-size: 7.5px;
-      font-weight: 700;
+      font-size: 12px;
       letter-spacing: .12em;
       text-transform: uppercase;
-      text-align: left;
+      white-space: nowrap;
     }
-    .evidence-table td { padding: 6px; border-top: 1px solid rgba(255,255,255,.05); color: #9fb2c2; font-size: 9px; font-weight: 600; line-height: 1.45; vertical-align: top; }
-    .evidence-table td.rank { color: var(--con-muted); font-family: var(--mono); }
-    .evidence-table td.sim { color: var(--con-accent); font-family: var(--mono); font-weight: 700; white-space: nowrap; }
-    .evidence-table td.kind { white-space: nowrap; font-weight: 700; }
-    .evidence-src { display: block; margin-top: 2px; color: #5d7285; font-size: 8px; font-weight: 600; }
+    .hud-meta { gap: 18px; justify-content: flex-end; }
+    .hud-pair { display: inline-flex; align-items: baseline; gap: 7px; }
+    .hud-pair i { color: var(--hud-muted); font-style: normal; letter-spacing: .14em; }
+    .hud-pair b { color: var(--hud-bright); font-weight: 600; letter-spacing: .06em; }
 
-    /* Telemetry sparkline */
-    .spark-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-    .spark-value { color: #e6f3f7; font-family: var(--mono); font-size: 19px; font-weight: 600; }
-    .spark-sub { color: var(--con-muted); font-size: 8.5px; font-weight: 650; }
-    .spark svg { display: block; width: 100%; height: 62px; }
-    .spark path.line { fill: none; stroke: var(--con-accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .spark .grid { stroke: rgba(255,255,255,.06); stroke-width: 1; }
+    .hud-status i {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--hud-cyan);
+      box-shadow: 0 0 9px var(--hud-cyan);
+      animation: hud-blink 2.6s ease-in-out infinite;
+    }
+    @keyframes hud-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
-    /* Record log */
-    .con-log { max-height: 210px; overflow-y: auto; font-family: var(--mono); }
-    .log-line { display: grid; grid-template-columns: 62px 74px 1fr auto; gap: 10px; padding: 5px 2px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 9px; line-height: 1.5; }
-    .log-when { color: #5d7285; }
-    .log-tag { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-    .log-tag.radar { color: #219daa; }
-    .log-tag.analyst { color: #6c6ee6; }
-    .log-tag.maker { color: #b5822f; }
-    .log-tag.meter { color: #2f9a68; }
-    .log-msg { color: #9fb2c2; }
-    .log-msg b { color: #dff1f5; font-weight: 700; }
-    .log-verdict { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-    .log-verdict.verified { color: #2f9a68; }
-    .log-verdict.miss { color: #c0553f; }
-    .log-verdict.estimated { color: #6c6ee6; }
-    .log-verdict.ok { color: #219daa; }
-
-    .con-empty { color: var(--con-muted); font-size: 9px; font-weight: 650; }
-
-    @media (max-width: 1100px) {
-      .col-3 { grid-column: span 6; }
-      .col-6 { grid-column: span 12; }
+    /* ---- the stage: agents around the core */
+    .hud-stage {
+      position: relative;
+      display: grid;
+      /* A radial arrangement, not columns: the four night agents take the
+         corners and the store sits in the middle, so each connector leaves the
+         core on a diagonal. The centre column is the narrow one — the core is
+         the hub, and a hub that outweighs the things around it stops reading as
+         a hub. */
+      /* The depth the cards tilt into. Set on the stage rather than each card
+         so they share one vanishing point and lean as parts of one scene. */
+      perspective: 1500px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, .78fr) minmax(0, 1fr);
+      row-gap: 76px;
+      column-gap: 96px;
+      align-items: stretch;
+      justify-items: stretch;
     }
 
-    @media (max-width: 900px) {
-      .console-inner { width: calc(100% - 22px); }
-      .col-3, .col-6 { grid-column: span 12; }
-      .retrieval-body { grid-template-columns: 1fr; }
-      .pipe-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .node.detached { grid-column: 1 / 3; }
-      .pipe-edges { display: none; }
-      .log-line { grid-template-columns: 1fr; gap: 2px; }
+    .hud-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+    /* A beam, not a line. Four stacked strokes on the same path: a wide soft
+       bloom, a tighter halo, a bright filament, and a surge that runs the
+       length of it. Dots on a hairline read as a dashed border; this reads as
+       something carrying power. */
+    .hud-links path.bloom {
+      fill: none;
+      stroke: rgba(60, 170, 225, .20);
+      stroke-width: 17;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: blur(9px);
     }
+    .hud-links path.halo {
+      fill: none;
+      stroke: rgba(110, 210, 248, .42);
+      stroke-width: 6.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: blur(3px);
+    }
+    .hud-links path.link {
+      fill: none;
+      stroke: rgba(206, 244, 255, .92);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .hud-links path.surge {
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 3.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      /* A long lit run with a long gap: a pulse travelling the beam. */
+      stroke-dasharray: 34 190;
+      filter: drop-shadow(0 0 9px rgba(150, 232, 255, 1));
+      animation: hud-flow 3.4s linear infinite;
+    }
+    .hud-links path.surge.to-core { animation-direction: reverse; }
+
+    .hud-links path.bloom.amber { stroke: rgba(214, 140, 52, .20); }
+    .hud-links path.halo.amber  { stroke: rgba(240, 182, 104, .40); }
+    .hud-links path.link.amber  { stroke: rgba(255, 226, 176, .9); }
+    .hud-links path.surge.amber { stroke: #fff3dd; filter: drop-shadow(0 0 9px rgba(240, 180, 100, 1)); }
+
+    @keyframes hud-flow { to { stroke-dashoffset: -224; } }
+
+    /*  RADAR      ASK      ANALYST     <- one top line, three tops aligned
+                    CORE
+        MAKER                METER
+
+       Ask shares the centre column with the store rather than taking a row of
+       its own, which is what lets its top edge sit on the same line as the two
+       agents beside it. The core then centres itself in whatever that column
+       has left, landing between the rows — so all four connectors still leave
+       it on a diagonal. */
+    .hud-centre {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .hud-centre .core { margin-top: auto; margin-bottom: auto; }
+
+    #nodeRadar   { grid-column: 1; grid-row: 1; align-self: start; }
+    #nodeAnalyst { grid-column: 3; grid-row: 1; align-self: start; }
+    #nodeMaker   { grid-column: 1; grid-row: 2; align-self: start; }
+    #nodeMeter   { grid-column: 3; grid-row: 2; align-self: start; }
+
+    /* ---- an agent */
+    /* ---- panel frame -----------------------------------------------------
+       Three things make a flat rectangle read as machined: the chamfer it
+       already had, a second line held inside the first, and a bright run along
+       the top-left where the corner is cut away. The accent starts after the
+       chamfer so it reads as following the frame rather than crossing it. */
+    .node::before,
+    .core::before {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      z-index: 0;
+      pointer-events: none;
+      border: 1px solid rgba(120, 200, 240, .16);
+      clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px),
+                         calc(100% - 12px) 100%, 0 100%, 0 12px);
+    }
+    .core::before {
+      inset: 6px;
+      border-color: rgba(120, 200, 240, .2);
+      clip-path: polygon(17px 0, calc(100% - 17px) 0, 100% 17px,
+                         100% calc(100% - 17px), calc(100% - 17px) 100%,
+                         17px 100%, 0 calc(100% - 17px), 0 17px);
+    }
+
+    /* The cursor's own light. Follows the pointer via --gx/--gy and is simply
+       absent until a card is being touched, so nothing glows unprompted. */
+    .node::after,
+    .core::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .3s ease;
+      background: radial-gradient(46% 60% at var(--gx, 50%) var(--gy, 50%),
+                                  rgba(140, 220, 255, .16) 0%, transparent 72%);
+    }
+    .node.is-tilted::after,
+    .core.is-tilted::after { opacity: 1; }
+
+    .node > *,
+    .core > * { position: relative; z-index: 1; }
+
+    .node {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 50px minmax(0, 1fr);
+      gap: 12px;
+      padding: 9px 14px;
+      border: 1px solid var(--hud-line);
+      background:
+        linear-gradient(90deg, rgba(140, 220, 255, .9), transparent)
+          17px 0 / 62px 2px no-repeat,
+        linear-gradient(180deg, rgba(140, 220, 255, .55), transparent)
+          0 17px / 2px 46px no-repeat,
+        var(--hud-panel);
+      backdrop-filter: blur(2px);
+      clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+      transition: border-color .25s ease, transform .4s var(--ease),
+                  box-shadow .4s var(--ease);
+    }
+    .node:hover { border-color: var(--hud-line-2); }
+
+    /* ---- lean --------------------------------------------------------------
+       The angles are small on purpose. The connectors are drawn once against
+       where the panels sit, so a card that swings far enough to matter pulls
+       its own beam off its edge. Five degrees and a lift reads as depth without
+       breaking the join. */
+    .node,
+    .core {
+      transform: perspective(1500px)
+                 rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))
+                 translateZ(var(--tz, 0px));
+    }
+
+    .node.is-tilted,
+    .core.is-tilted {
+      /* Short enough to feel attached to the pointer rather than chasing it. */
+      transition: transform .08s linear, box-shadow .25s ease;
+      z-index: 4;
+      box-shadow: 0 22px 48px rgba(0, 6, 14, .6),
+                  0 0 0 1px rgba(140, 220, 255, .22),
+                  0 0 34px rgba(60, 170, 225, .22);
+    }
+    .core.is-tilted { box-shadow: 0 26px 56px rgba(0, 6, 14, .62),
+                                  0 0 0 1px rgba(140, 220, 255, .26),
+                                  0 0 60px rgba(31, 106, 158, .4); }
+
+    .node-dial { position: relative; width: 50px; height: 50px; align-self: start; }
+    .node-dial svg { width: 100%; height: 100%; overflow: visible; }
+    .node-dial .ring { fill: none; stroke: rgba(86, 190, 235, .22); stroke-width: 1.4; }
+    .node-dial .arc {
+      fill: none;
+      stroke: var(--hud-cyan);
+      stroke-width: 2;
+      stroke-linecap: round;
+      transform-origin: 50% 50%;
+      filter: drop-shadow(0 0 5px rgba(79, 195, 232, .7));
+      animation: hud-spin 9s linear infinite;
+    }
+    .node-dial .arc.slow { animation-duration: 15s; animation-direction: reverse; opacity: .55; }
+    @keyframes hud-spin { to { transform: rotate(360deg); } }
+    .node-glyph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--hud-cyan); }
+    .node-glyph svg { width: 22px; height: 22px; filter: drop-shadow(0 0 6px rgba(79, 195, 232, .5)); }
+
+    .node-name {
+      margin: 0 0 1px;
+      color: var(--hud-bright);
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    .node-role { margin: 0 0 6px; color: var(--hud-muted); font-family: var(--mono); font-size: 11.5px; }
+
+    .node-stats { display: flex; flex-wrap: wrap; gap: 3px 18px; margin: 0; }
+    .node.is-detached .node-stats { flex-wrap: nowrap; }
+    .node-stat { display: flex; align-items: baseline; gap: 7px; }
+    .node-stat dt { color: var(--hud-muted); font-size: 12px; }
+    .node-stat dd { margin: 0; color: var(--hud-bright); font-family: var(--mono); font-size: 14px; font-weight: 650; }
+    .node-stat dd.dim { color: var(--hud-muted); font-weight: 400; }
+
+    /* What each agent is actually working on. Real rows, not a feature list:
+       Radar's is the corpus by kind, Meter's is the verdict split. */
+    .node-focus {
+      margin: 7px 0 0;
+      padding: 6px 0 0;
+      border-top: 1px solid rgba(86, 190, 235, .14);
+      list-style: none;
+    }
+    .node-focus li { display: flex; align-items: center; gap: 8px; padding: 1.5px 0; font-size: 12px; }
+    .node-focus i { flex: 0 0 6px; width: 6px; height: 6px; border-radius: 2px; }
+    .node-focus i.plain { background: rgba(86, 190, 235, .32); }
+    .node-focus span { flex: 1 1 auto; min-width: 0; color: var(--hud-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .node-focus b { color: var(--hud-bright); font-family: var(--mono); font-size: 12px; font-weight: 650; }
+    .node-focus b.dim { color: var(--hud-muted); font-weight: 400; }
+
+    .node-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 8px;
+      padding: 3px 10px;
+      border: 1px solid var(--hud-line);
+      color: var(--hud-cyan);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    }
+    .node-tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
+
+    /* Ask is the one that is not part of the nightly loop — it answers when
+       someone asks. Amber says "different kind of thing", not "warning". */
+    .node.is-detached {
+      grid-template-columns: 46px minmax(0, 1fr);
+      align-items: center;
+      padding: 9px 15px;
+      --hud-cyan: var(--hud-amber);
+      border-color: rgba(232, 163, 79, .30);
+    }
+    .node.is-detached .node-dial { width: 46px; height: 46px; align-self: center; }
+    .node.is-detached .node-role { margin-bottom: 6px; }
+    .node.is-detached .node-tag { margin-top: 5px; }
+    .node.is-detached .node-role { margin-bottom: 4px; }
+    .node.is-detached .node-tag { border-color: rgba(232, 163, 79, .34); }
+    .node.is-detached { background-image:
+        linear-gradient(90deg, rgba(255, 205, 140, .9), transparent),
+        linear-gradient(180deg, rgba(255, 205, 140, .55), transparent); }
+    .node.is-detached::after { background: radial-gradient(46% 60% at var(--gx, 50%) var(--gy, 50%),
+                                  rgba(255, 205, 140, .15) 0%, transparent 72%); }
+    .node.is-detached .ring { stroke: rgba(232, 163, 79, .22); }
+
+    /* Inline with the status tag rather than in its own column: the Ask node
+       is a single strip under the core, and a third column squeezed its stats
+       onto two lines. */
+    .node-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 10px;
+      border: 1px dashed rgba(232, 163, 79, .5);
+      color: var(--hud-amber);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    /* ---- the core */
+    .core {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 18px 9px;
+      border: 1px solid var(--hud-line-2);
+      background: linear-gradient(180deg, rgba(13, 34, 57, .94), rgba(5, 14, 26, .95));
+      box-shadow: 0 0 0 1px rgba(79, 195, 232, .10), 0 0 52px rgba(31, 106, 158, .34);
+      clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 22px, 100% calc(100% - 22px), calc(100% - 22px) 100%, 22px 100%, 0 calc(100% - 22px), 0 22px);
+    }
+
+    .core-head { text-align: center; }
+    .core-head h2 {
+      margin: 0;
+      color: var(--hud-bright);
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+    .core-head p { margin: 4px 0 0; color: var(--hud-muted); font-family: var(--mono); font-size: 11.5px; }
+
+    /* The field takes whatever height the side columns leave, and the viewBox
+       scales into it. Capping the svg instead left a band of dead space inside
+       the core whenever the agent cards happened to be tall. */
+    /* A fixed height, not `flex: 1`. A full-width svg with a 340x300 viewBox
+       resolves its own height from that ratio, so letting it flex made the core
+       grow to whatever width it was given — the opposite of the hub it is meant
+       to be. Pinning the box and letting the viewBox letterbox into it keeps the
+       core the smallest panel on the screen. */
+    .core-field { flex: 0 0 auto; height: 118px; margin: 4px 0 2px; }
+    .core-field svg { display: block; width: 100%; height: 100%; }
+
+    .vf-dot { fill: rgba(120, 176, 208, .30); }
+    .vf-dot.lit { fill: var(--hud-cyan); }
+    .vf-spoke { stroke: rgba(79, 195, 232, .45); stroke-width: 1; fill: none; }
+    .vf-sim { fill: var(--hud-bright); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+    .vf-core { fill: none; stroke: var(--hud-cyan); stroke-width: 1.4; }
+    .vf-core-fill { fill: rgba(79, 195, 232, .16); }
+
+    /* The pulse that runs when a query lands. Not decoration for its own sake:
+       it marks the moment the rows below it changed. */
+    .vf-pulse { fill: none; stroke: rgba(79, 195, 232, .55); stroke-width: 1.2; }
+
+    .core-caption {
+      margin: 0 0 7px;
+      min-height: 30px;
+      color: var(--hud-text);
+      font-size: 12.5px;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .core-caption b { color: var(--hud-bright); font-weight: 650; }
+
+    /* One line rather than three stacked tiles. The figures still read, and the
+       core stops being the tallest thing on a screen where it is meant to be
+       the smallest. */
+    .core-stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 3px 14px;
+      margin: 0;
+      padding-top: 9px;
+      border-top: 1px solid var(--hud-line);
+      font-family: var(--mono);
+      font-size: 11.5px;
+    }
+    .core-stats div { display: inline-flex; align-items: baseline; gap: 5px; }
+    .core-stats dt { order: 2; color: var(--hud-muted); letter-spacing: .06em; text-transform: uppercase; }
+    .core-stats dd { order: 1; margin: 0; color: var(--hud-bright); font-size: 14px; font-weight: 650; }
+
+    @media (max-width: 1080px) {
+      .hud-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 16px; column-gap: 16px; }
+      #nodeRadar   { grid-column: 1; grid-row: 2; }
+      #nodeAnalyst { grid-column: 2; grid-row: 2; }
+      #nodeMaker   { grid-column: 1; grid-row: 3; }
+      #nodeMeter   { grid-column: 2; grid-row: 3; }
+      .hud-centre  { grid-column: 1 / 3; grid-row: 1; }
+      .hud-links   { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      .hud-shell { width: calc(100% - 20px); }
+      .hud-bar { flex-wrap: wrap; gap: 8px 14px; }
+      .hud-bar h1 { flex-basis: 100%; order: -1; text-align: left; letter-spacing: .2em; }
+      .hud-stage { grid-template-columns: minmax(0, 1fr); }
+      .hud-stage > * { grid-column: 1 !important; }
+      .node, .node.is-detached { grid-template-columns: 48px minmax(0, 1fr); }
+      .node-dial { width: 48px; height: 48px; }
+      .node-badge { grid-column: 2; justify-self: start; margin-top: 8px; }
+      .core-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+      .core-stats dd { font-size: 17px; }
+    }
+
+    /* One switch turns the whole console still. The layout says everything the
+       motion does; the motion only says it faster. */
+    @media (prefers-reduced-motion: reduce) {
+      .view.console::before { opacity: .3; }
+      .hud-status i,
+      .node,
+      .core { transform: none !important; }
+      .hud-links path.surge,
+      .node-dial .arc,
+      .vf-pulse { animation: none !important; }
+      .hud-links path.surge { display: none; }
     }
     .list-panel { border-radius: 22px; }
     .decision-row { background: #f2f3ef; }
@@ -2688,8 +3077,8 @@
   <style id="social-owner-refinement">
     /* Clean social feed — scoped to the owner-facing For You screen. */
     body.autopilot-mode {
-      background: #080b10;
-      color-scheme: dark;
+      background: var(--theme-shell);
+      color-scheme: light;
     }
     body.autopilot-mode::before {
       background:
@@ -4083,7 +4472,7 @@
     }
 
     body.autopilot-mode .view-inner {
-      width: min(700px, calc(100% - 28px));
+      width: min(860px, calc(100% - 28px));
     }
 
     body.autopilot-mode .autopilot-inner {
@@ -4091,7 +4480,7 @@
     }
 
     body.autopilot-mode .deck {
-      width: min(640px, 100%);
+      width: min(800px, 100%);
       gap: 10px;
     }
 
@@ -5036,8 +5425,8 @@
   <style id="compact-for-you-no-art">
     /* Compact For You cards: remove decorative cover and prioritize the decision. */
     body.autopilot-mode .feed-stage {
-      height: min(500px, calc(100dvh - 128px));
-      min-height: 460px;
+      height: min(420px, calc(100dvh - 128px));
+      min-height: 390px;
     }
 
     body.autopilot-mode .feed-card {
@@ -5851,8 +6240,8 @@
       --theme-reviews-rgb: 138, 95, 114;
       --theme-demand: #2f7468;
       --theme-demand-rgb: 47, 116, 104;
-      --theme-shell: #0d1215;
-      --theme-shell-2: #11171a;
+      --theme-shell: #e7dfd1;
+      --theme-shell-2: #efe8dc;
       --theme-paper: #f7f6f2;
       --theme-paper-raised: #fbfaf7;
       --theme-soft: #ecece7;
@@ -5877,42 +6266,42 @@
 
     body.autopilot-mode .topbar,
     body.growth-mode .topbar {
-      border-bottom-color: rgba(255, 255, 255, .07) !important;
-      background: rgba(13, 18, 21, .91) !important;
+      border-bottom-color: rgba(46, 40, 30, .10) !important;
+      background: rgba(231, 223, 209, .88) !important;
     }
 
     body.autopilot-mode .brand-copy strong,
-    body.growth-mode .brand-copy strong { color: #f5f3ef !important; }
+    body.growth-mode .brand-copy strong { color: var(--theme-ink) !important; }
 
     body.autopilot-mode .brand-copy span,
-    body.growth-mode .brand-copy span { color: #7f898f !important; }
+    body.growth-mode .brand-copy span { color: var(--theme-muted) !important; }
 
     body.autopilot-mode .view-switcher,
     body.growth-mode .view-switcher {
-      border-color: rgba(255, 255, 255, .085) !important;
-      background: rgba(255, 255, 255, .045) !important;
+      border-color: rgba(46, 40, 30, .11) !important;
+      background: rgba(255, 255, 255, .46) !important;
     }
 
     body.autopilot-mode .view-tab,
-    body.growth-mode .view-tab { color: #8e989e !important; }
+    body.growth-mode .view-tab { color: var(--theme-muted) !important; }
 
     body.autopilot-mode .view-tab:hover,
-    body.growth-mode .view-tab:hover { color: #f3f1ed !important; }
+    body.growth-mode .view-tab:hover { color: var(--theme-ink) !important; }
 
     body.autopilot-mode .view-tab.active,
     body.growth-mode .view-tab.active {
-      background: var(--theme-paper) !important;
+      background: var(--theme-paper-raised) !important;
       color: var(--theme-ink) !important;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, .18) !important;
+      box-shadow: 0 2px 8px rgba(46, 40, 30, .14) !important;
     }
 
     body.autopilot-mode .queue-pill,
     body.autopilot-mode .restart-button,
     body.growth-mode .queue-pill,
     body.growth-mode .restart-button {
-      border-color: rgba(255, 255, 255, .08) !important;
-      background: rgba(255, 255, 255, .045) !important;
-      color: #a8b0b5 !important;
+      border-color: rgba(46, 40, 30, .11) !important;
+      background: rgba(255, 255, 255, .46) !important;
+      color: var(--theme-copy) !important;
     }
 
     body.autopilot-mode .queue-pill-dot,
@@ -5921,14 +6310,24 @@
       box-shadow: 0 0 0 4px rgba(var(--theme-demand-rgb), .10) !important;
     }
 
+    /* Deck controls: sized against the shell, which is now light. */
+    body.autopilot-mode .feed-dot { background: rgba(46, 40, 30, .20) !important; }
+    body.autopilot-mode .feed-dot.active { background: var(--theme-demand) !important; }
+
+    body.autopilot-mode .nav-arrow { color: var(--theme-muted) !important; }
+    body.autopilot-mode .nav-arrow:hover {
+      background: rgba(46, 40, 30, .06) !important;
+      color: var(--theme-ink) !important;
+    }
+
     /* Shared warm surfaces keep the two owner views in the same visual family. */
     body.autopilot-mode .feed-card,
     body.growth-mode .growth-swipe,
     body.growth-mode .growth-story-card,
     body.growth-mode .list-panel {
-      border-color: rgba(255, 255, 255, .10) !important;
-      background: var(--theme-paper) !important;
-      box-shadow: 0 20px 58px rgba(0, 0, 0, .25) !important;
+      border-color: rgba(46, 40, 30, .09) !important;
+      background: var(--theme-paper-raised) !important;
+      box-shadow: 0 14px 40px rgba(74, 62, 44, .13) !important;
     }
 
     body.autopilot-mode .post-footer {
@@ -6008,13 +6407,13 @@
     }
 
     /* Growth uses the same three colors, without introducing a fourth accent. */
-    body.growth-mode .growth-header h1 { color: #f5f3ef !important; }
-    body.growth-mode .growth-header p { color: #8d979d !important; }
+    body.growth-mode .growth-header h1 { color: var(--theme-ink) !important; }
+    body.growth-mode .growth-header p { color: var(--theme-muted) !important; }
 
     body.growth-mode .growth-period {
       border-color: rgba(var(--theme-competitors-rgb), .22) !important;
       background: rgba(var(--theme-competitors-rgb), .10) !important;
-      color: #b9c2d9 !important;
+      color: var(--theme-competitors) !important;
     }
 
     body.growth-mode .growth-slide-summary,
@@ -6033,7 +6432,58 @@
 
     body.growth-mode .growth-story-kicker { color: var(--theme-competitors) !important; }
 
-    body.growth-mode .growth-swipe-dot { background: rgba(255, 255, 255, .19) !important; }
+    /* Arrows ride the edges of the box itself: the second card holds the chart,
+       and dots alone were not saying so. Each sits on the side it travels
+       toward — next on the right of the money card, back on the left once the
+       chart is showing — so the control points where the card will go. Inside
+       the box rather than below it, so they sit against the content they page
+       through, and inside `.growth-swipe`, so `top:50%` centres them without a
+       magic number. The wrapper is `display:contents` precisely so each button
+       can take its own edge rather than sharing one corner. */
+    body.growth-mode .growth-swipe { position: relative; }
+
+    body.growth-mode .growth-swipe-arrows { display: contents; }
+
+    body.growth-mode .growth-swipe-arrow {
+      position: absolute;
+      top: 50%;
+      z-index: 3;
+      transform: translateY(-50%);
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--theme-line);
+      border-radius: 50%;
+      background: var(--theme-paper-raised);
+      color: var(--theme-muted);
+      cursor: pointer;
+      transition: background .2s var(--ease), color .2s var(--ease),
+                  border-color .2s var(--ease), opacity .2s var(--ease);
+    }
+
+    body.growth-mode .growth-swipe-arrow[data-growth-nav="-1"] { left: 14px; }
+    body.growth-mode .growth-swipe-arrow[data-growth-nav="1"] { right: 14px; }
+
+    body.growth-mode .growth-swipe-arrow svg { width: 15px; height: 15px; }
+
+    body.growth-mode .growth-swipe-arrow:hover:not(:disabled) {
+      border-color: rgba(var(--theme-demand-rgb), .30);
+      background: #ffffff;
+      color: var(--theme-ink);
+    }
+
+    /* An arrow with nowhere to go is hidden rather than greyed: on its own edge
+       a dim arrow reads as a dead control, and the dots below still say there
+       are two cards. It keeps `disabled`, so it stays out of the tab order. */
+    body.growth-mode .growth-swipe-arrow:disabled {
+      opacity: 0;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    body.growth-mode .growth-swipe-dot { background: rgba(46, 40, 30, .18) !important; }
     body.growth-mode .growth-swipe-dot.active {
       background: linear-gradient(90deg,
         var(--theme-competitors),
@@ -6268,6 +6718,69 @@
       padding-top: 28px !important;
     }
 
+    /* Where a card's spare room goes.
+
+       The deck is a fixed height, so a short card has room left over and
+       something has to hold it. It used to be the gap above "Try this", which
+       was `margin-top: auto` — an auto margin takes *all* the free space, so
+       that gap ranged from 0px on a card whose title wrapped to 66px on
+       "Earlier Sunday opening", where it read as a hole punched in the middle
+       of the card. Both ends of that range were wrong for the same reason: the
+       gap was a leftover rather than a decision.
+
+       So the spare room now falls to the bottom of the column, below the
+       Try-this panel and against the footer, where it reads as padding instead
+       of a hole. The gaps between the copy elements are fixed: a `gap` on this
+       column rather than margins on the children, because a gap is charged
+       before any flexible space is handed out and so cannot be spent. The
+       children must not reintroduce vertical margins of their own. */
+    body.autopilot-mode .post-copy {
+      --copy-gap: 18px;
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      gap: var(--copy-gap);
+    }
+
+    /* The spare room, as a flexible last child. A pseudo-element rather than a
+       real one so the fit measurement, which sums `children`, does not see it —
+       it is empty space by definition and must never count as content wanting
+       room. The negative margin cancels the column gap in front of it: without
+       that, an empty spacer would still charge a card 18px it may not have, and
+       on a full card that is 18px taken from the copy for nothing. Hence the
+       gap being a variable — the two must move together. */
+    body.autopilot-mode .post-copy::after {
+      content: "";
+      flex: 1 1 auto;
+      margin-top: calc(-1 * var(--copy-gap));
+    }
+
+    body.autopilot-mode .post-copy > .post-meta-row { margin-bottom: 0; }
+    body.autopilot-mode .post-copy > .signal-text { margin-top: 0; }
+
+    /* The rungs `fitFeedCards()` climbs when a card's copy wants more room than
+       the deck has. Step 0 is the design; a card only leaves it if measurement
+       says it must, and the whole deck stays on step 0 unless a title wraps. */
+    body.autopilot-mode .feed-card[data-fit="1"] .post-copy h2 {
+      font-size: clamp(32px, 4.1vw, 45px);
+      letter-spacing: -.045em;
+    }
+
+    body.autopilot-mode .feed-card[data-fit="2"] .post-copy h2 {
+      font-size: clamp(28px, 3.5vw, 38px);
+      letter-spacing: -.04em;
+    }
+
+    body.autopilot-mode .feed-card[data-fit="2"] .post-copy { --copy-gap: 14px; }
+
+    /* A little more air than the internal rhythm, because this is the turn from
+       what we found to what to do about it. Fixed, so it is the same on every
+       card in the deck whatever room that card happens to have. */
+    body.autopilot-mode .post-copy .recommendation {
+      margin-top: 8px;
+    }
+
     body.autopilot-mode .post-header {
       display: none !important;
       min-height: 0 !important;
@@ -6311,6 +6824,9 @@
       body.autopilot-mode .post-body {
         padding-top: 20px !important;
       }
+
+      /* Same floor, tightened for the phone, where the title takes more lines. */
+      body.autopilot-mode .post-copy { --copy-gap: 14px; }
 
       body.autopilot-mode .footer-details-button {
         width: 44px !important;
@@ -6542,6 +7058,14 @@
                   </section>
                 </article>
               </div>
+              <div class="growth-swipe-arrows">
+                <button class="growth-swipe-arrow" type="button" data-growth-nav="-1" aria-label="Show this month" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+                </button>
+                <button class="growth-swipe-arrow" type="button" data-growth-nav="1" aria-label="Show your progress chart">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
             </div>
             <nav class="growth-swipe-nav" aria-label="Growth cards">
               <button class="growth-swipe-dot active" type="button" data-growth-slide="0" aria-label="Show this month"></button>
@@ -6589,71 +7113,67 @@
         `Product Demo/` informed the shape; none of its simulated job pipeline is
         reproduced, because none of it was real.
       -->
+      <!--
+        The agent network, live.
+
+        Five agents around the store they share. The arrangement carries the
+        argument: Radar and Maker write into CockroachDB, Analyst and Meter read
+        back out of it, and the direction each connector flows says which. The
+        core is the vector index doing the one thing the product cannot exist
+        without — answering a query with rows and a similarity for each.
+
+        Every figure on this screen is a row count or a stored value. There is no
+        progress bar counting to a number nobody measured and no countdown to an
+        event nobody scheduled: a console that invents its own telemetry is
+        exactly the thing the rest of this product refuses to be.
+      -->
       <section class="view console" id="view-admin" aria-labelledby="adminHeading">
-        <div class="console-inner">
-          <header class="con-bar" data-enter>
-            <span class="con-tag">ADMIN</span>
-            <h1 id="adminHeading">AUTONOMOUS OPERATIONS MATRIX</h1>
-            <span class="con-live"><i></i>CockroachDB</span>
-            <span class="con-stamp" id="adminStamp"></span>
+        <svg class="hud-scene" id="hudScene" viewBox="0 0 1600 900"
+             preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+
+        <div class="hud-shell">
+          <header class="hud-bar" data-enter>
+            <span class="hud-status"><i></i>System operational</span>
+            <div class="hud-title">
+              <span class="hud-orn" aria-hidden="true"></span>
+              <h1 id="adminHeading">Agent network</h1>
+              <span class="hud-orn" aria-hidden="true"></span>
+            </div>
+            <span class="hud-meta" id="adminStamp"></span>
           </header>
 
-          <div class="con-grid">
-            <section class="con-panel col-3" aria-labelledby="sourcesHeading" data-enter>
-              <div class="con-head"><h2 id="sourcesHeading">Signal sources</h2><span id="sourcesTotal"></span></div>
-              <div class="con-body" id="kindBars"></div>
-            </section>
+          <div class="hud-stage" id="hudStage" data-enter>
+            <svg class="hud-links" id="hudLinks" aria-hidden="true"></svg>
 
-            <section class="con-panel col-6" aria-labelledby="pipeHeading" data-enter>
-              <div class="con-head"><h2 id="pipeHeading">Agent pipeline</h2><span>nightly loop</span></div>
-              <div class="con-body pipe-stage" id="pipeStage">
-                <svg class="pipe-edges" id="pipeEdges" aria-hidden="true"></svg>
-                <div class="pipe-nodes" id="pipeNodes"></div>
+            <article class="node" data-node="radar" data-flow="write" id="nodeRadar"></article>
+            <article class="node" data-node="analyst" data-flow="read" id="nodeAnalyst"></article>
+
+            <!-- Ask and the store share a column so Ask can sit on the top line
+                 with Radar and Analyst while the core stays centred below it. -->
+            <div class="hud-centre">
+            <article class="node is-detached" data-node="ask" data-flow="read" id="nodeAsk"></article>
+
+            <section class="core" aria-labelledby="coreHeading">
+              <div class="core-head">
+                <h2 id="coreHeading">CockroachDB</h2>
+                <p>Vector index &middot; the shared memory</p>
               </div>
-            </section>
 
-            <section class="con-panel col-3" aria-labelledby="readoutHeading" data-enter>
-              <div class="con-head"><h2 id="readoutHeading">System readouts</h2><span>live</span></div>
-              <div class="con-body con-readouts" id="readouts"></div>
-            </section>
-
-            <section class="con-panel col-3" aria-labelledby="matrixHeading" data-enter>
-              <div class="con-head"><h2 id="matrixHeading">Evidence matrix</h2><span id="matrixMeta"></span></div>
-              <div class="con-body">
-                <div class="matrix" id="evidenceMatrix"></div>
-                <div class="matrix-legend" id="matrixLegend"></div>
+              <div class="core-field">
+                <svg id="vectorField" viewBox="0 0 340 150" role="img"
+                     aria-labelledby="fieldDesc"></svg>
+                <p id="fieldDesc" class="visually-hidden">Every stored observation as a
+                  point. When a query runs, the rows it returned are marked with the
+                  similarity recorded for each.</p>
               </div>
-            </section>
 
-            <section class="con-panel col-6" aria-labelledby="retrievalHeading" data-enter>
-              <div class="con-head">
-                <h2 id="retrievalHeading">Retrieval inspector</h2>
-                <label class="con-select">
-                  <span class="visually-hidden">Choose a find to inspect</span>
-                  <select id="retrievalPick"></select>
-                </label>
-              </div>
-              <div class="con-body retrieval-body">
-                <div class="retrieval-queries">
-                  <div class="con-label">Hypothesis queries, every night</div>
-                  <ol id="queryList"></ol>
-                </div>
-                <div class="retrieval-evidence">
-                  <div class="con-label" id="evidenceLabel">Evidence returned</div>
-                  <div class="evidence-scroll"><table class="evidence-table" id="evidenceTable"></table></div>
-                </div>
-              </div>
+              <p class="core-caption" id="coreCaption"></p>
+              <dl class="core-stats" id="coreStats"></dl>
             </section>
+            </div>
 
-            <section class="con-panel col-3" aria-labelledby="telemetryHeading" data-enter>
-              <div class="con-head"><h2 id="telemetryHeading">Review telemetry</h2><span id="telemetryMeta"></span></div>
-              <div class="con-body" id="ratingSpark"></div>
-            </section>
-
-            <section class="con-panel col-12" aria-labelledby="logHeading" data-enter>
-              <div class="con-head"><h2 id="logHeading">Record log</h2><span id="runsSub"></span></div>
-              <div class="con-body con-log" id="recordLog"></div>
-            </section>
+            <article class="node" data-node="maker" data-flow="write" id="nodeMaker"></article>
+            <article class="node" data-node="meter" data-flow="read" id="nodeMeter"></article>
           </div>
         </div>
       </section>
@@ -6918,6 +7438,9 @@
       document.body.classList.toggle("console-mode", viewName === "admin");
       document.body.classList.toggle("autopilot-mode", viewName === "autopilot");
       document.body.classList.toggle("growth-mode", viewName === "growth");
+      // Cards measure as zero-height while their view is hidden, so any fit
+      // that was skipped is settled here, on the way in.
+      if (viewName === "autopilot") fitFeedCards();
       closeDrawer();
       playViewEntrance(document.getElementById(`view-${viewName}`));
     }
@@ -7024,7 +7547,71 @@
 
       bindFeedGestures();
       bindDynamicActions();
+      fitFeedCards();
     }
+
+    /**
+     * Step a card's title down until its copy fits the card.
+     *
+     * The deck is a fixed-height stack, so the room a card has is the same
+     * whatever is written on it. A title that wraps to two lines eats about
+     * fifty more pixels than a one-line title, and the card used to pay for
+     * that by silently closing the gap above "Try this" — nothing overflowed,
+     * it just went cramped, which is why it read as a spacing bug rather than
+     * a fitting one. The spacing is now a floor the layout cannot spend, so
+     * this is what gives back the pixels instead.
+     *
+     * Measured rather than inferred from title length: the summary and the
+     * recommendation wrap too, a longer one of either costs the same room, and
+     * where a title breaks depends on the words. Each card is measured from
+     * step 0 upward, so a card only ever shrinks as far as it must, and
+     * re-running this is idempotent.
+     */
+    const FIT_STEPS = 3;
+
+    function fitFeedCards() {
+      document.querySelectorAll(".feed-card").forEach(card => {
+        const copy = card.querySelector(".post-copy");
+        // A hidden view measures as zero-height; leave the last good fit alone
+        // and re-run on the way back in rather than shrink every card to spite.
+        if (!copy || copy.clientHeight < 40) return;
+        for (let step = 0; step < FIT_STEPS; step += 1) {
+          card.dataset.fit = String(step);
+          if (!copyOverflows(copy)) break;
+        }
+      });
+    }
+
+    //: `scrollHeight` is no use here — the flexible spacer at the bottom of the
+    //  column soaks up whatever is left, so the column reports itself as exactly
+    //  full whether the copy is comfortable or crushed. Measuring the span from
+    //  the first child to the last asks the question the spacer hides: how much
+    //  room does this copy actually want? The span is used rather than a sum of
+    //  heights because it counts the gaps and the margins between them too.
+    //
+    //  `offsetTop`/`offsetHeight` and not `getBoundingClientRect()`: cards in
+    //  the stack behind the current one are scaled by a transform, which shrinks
+    //  every rect but not `clientHeight`, and comparing the two would call a
+    //  card that fits a card that overflows.
+    function copyOverflows(copy) {
+      const kids = Array.from(copy.children);
+      if (!kids.length) return false;
+      const last = kids[kids.length - 1];
+      const wanted = last.offsetTop + last.offsetHeight - kids[0].offsetTop;
+      return wanted > copy.clientHeight + 0.5;
+    }
+
+    //: Width changes rewrap every title, so the fit has to be recomputed. The
+    //  timer coalesces the burst of events a drag of the window edge produces.
+    //  Deliberately not requestAnimationFrame: the browser stops serving frames
+    //  to a tab it is not painting, and the resize that matters most is exactly
+    //  the one that happened while the window was somewhere else — it was tried
+    //  that way first and the fit simply never ran.
+    let fitTimer;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(fitTimer);
+      fitTimer = window.setTimeout(fitFeedCards, 120);
+    });
 
     //: The stack slot a card occupies, given how far it is ahead of the current one.
     //  `is-prev` is only worth using once the deck is deep enough that the card behind
@@ -7574,268 +8161,550 @@
 
     function kindHue(kind) { return KIND_HUE[kind] || KIND_FALLBACK; }
 
+    /**
+     * The admin view renders an argument in four parts.
+     *
+     * Each band states a claim and then draws the artifact that backs it. The
+     * artifacts are the point: the real SQL the agents run, the similarity
+     * numbers stored beside each find, the two dates between which a prediction
+     * waited to be judged. Where the cluster holds nothing, the band says so —
+     * an honest empty state is worth more here than a plausible number, because
+     * the whole page is asking a judge to trust what it shows.
+     */
+    /**
+     * The agent network.
+     *
+     * Five agents drawn around the store they share, arranged so the picture
+     * carries the argument: Radar and Maker write into CockroachDB, Analyst and
+     * Meter read back out of it, and each connector flows the way its agent
+     * actually moves data.
+     *
+     * Every figure here is a row count or a stored value. A console that
+     * invents its own telemetry — a progress bar to a number nobody measured, a
+     * countdown to an event nobody scheduled — would undo the thing the rest of
+     * this product spends its effort proving.
+     */
+    const NETWORK = [
+      {
+        key: "radar", name: "Radar", role: "observe → embed → store", flow: "write",
+        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 8"/><circle cx="12" cy="12" r="2.6"/></svg>`,
+        stats: m => [
+          ["observations", m.corpus.observations ?? 0],
+          ["kinds", (m.kinds || []).length],
+        ],
+        //: The kind hue appears here beside its own name, which is what makes
+        //  the palette legal at its worst adjacent pair.
+        focus: m => (m.kinds || []).map(k =>
+          ({ label: k.label, value: k.count, hue: kindHue(k.kind) })),
+        tag: () => "Writing",
+      },
+      {
+        key: "analyst", name: "Analyst", role: "vector search → reason", flow: "read",
+        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4 21 21"/></svg>`,
+        stats: m => [
+          ["queries a night", (m.retrieval?.queries || m.queries || []).length],
+          ["finds", (m.finds || []).length],
+          ["evidence rows", m.corpus.evidenceRows ?? 0],
+        ],
+        //: The six concrete hypotheses, clamped. Concrete is the whole point —
+        //  one open-ended "what should we do?" retrieves the wrong cluster.
+        focus: m => (m.retrieval?.queries || m.queries || [])
+          .map(q => ({ label: clampText(q, 40) })),
+        tag: () => "Reading",
+      },
+      {
+        key: "maker", name: "Maker", role: "draft the deliverable", flow: "write",
+        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 13.5h7M8.5 17h4"/></svg>`,
+        //: `artifactCount`, not the Later jar — the node used to read the count
+        //  of saved finds and call them drafts, which they are not.
+        stats: m => [["drafted", m.artifactCount ?? 0]],
+        focus: m => {
+          const waiting = (m.finds || []).filter(f => f.status === "accepted").length;
+          return [
+            { label: "review_reply", value: m.artifactCount ?? 0 },
+            { label: "accepted, undrafted", value: waiting },
+            { label: "drafts, never sent" },
+          ];
+        },
+        tag: m => (m.artifactCount ? "Drafting" : "Nothing queued"),
+      },
+      {
+        key: "meter", name: "Meter", role: "judge earlier nights", flow: "read",
+        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19h16"/><path d="M7 19v-6M12 19V6M17 19v-9"/></svg>`,
+        stats: m => [
+          ["judged", m.summary.judged ?? 0],
+          ["at or above", m.summary.hitRate == null ? "—" : `${m.summary.hitRate}%`],
+          ["missed", m.summary.miss ?? 0],
+        ],
+        //: "Modelled", never "actual" — an estimated verdict means the Meter had
+        //  no measured outcome to compare against.
+        focus: m => [
+          { label: "verified", value: m.summary.verified ?? 0, hue: "var(--v-verified)" },
+          { label: "modelled", value: m.summary.estimated ?? 0, hue: "var(--v-estimated)" },
+          { label: "miss", value: m.summary.miss ?? 0, hue: "var(--v-miss)" },
+          { label: "still being measured", value: (m.finds || []).filter(f => !f.verdict && (f.status === "live" || f.status === "accepted")).length },
+        ],
+        tag: () => "Watching",
+      },
+      {
+        key: "ask", name: "Ask", role: "read-only SQL over MCP", flow: "read", detached: true,
+        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.3-1 .9-1 1.7v.5"/><path d="M12 17.5h.01"/><circle cx="12" cy="12" r="9"/></svg>`,
+        stats: m => {
+          const sessions = m.ask?.sessions || [];
+          const ran = sessions.reduce((n, s) => n + (s.trail || []).length, 0);
+          return [["questions", sessions.length], ["statements run", ran]];
+        },
+        tag: () => "On request",
+      },
+    ];
+
     function renderAdmin() {
-      const summary = btData.summary || {};
-      const corpus = btData.corpus || {};
-      const finds = btData.finds || [];
-      const kinds = btData.kinds || [];
-
-      document.getElementById("adminStamp").textContent =
-        btData.business?.name ? btData.business.name.toUpperCase() : "";
-
-      renderKindBars(kinds, corpus);
-      renderPipeline(summary, corpus, finds);
-      renderReadouts(summary, corpus, finds);
-      renderEvidenceMatrix(finds);
-      renderRetrieval(finds);
-      renderRatingSpark(btData.ratings || []);
-      renderRecordLog(finds, btData.runs || []);
-    }
-
-    // --- signal sources -------------------------------------------------------
-    function renderKindBars(kinds, corpus) {
-      const peak = Math.max(...kinds.map(k => k.count), 1);
-      document.getElementById("sourcesTotal").textContent = `${corpus.observations ?? 0} rows`;
-      document.getElementById("kindBars").innerHTML = kinds.length ? kinds.map(k => `
-        <div class="kind-row">
-          <div class="kind-top">
-            <span class="kind-name">${escapeHtml(k.label)}</span>
-            <span class="kind-num">${k.count}</span>
-          </div>
-          <div class="kind-track">
-            <div class="kind-fill" style="width:${Math.round((k.count / peak) * 100)}%;background:${kindHue(k.kind)}"></div>
-          </div>
-        </div>`).join("") : `<p class="con-empty">No observations stored.</p>`;
-    }
-
-    // --- agent pipeline -------------------------------------------------------
-    function renderPipeline(summary, corpus, finds) {
-      const stat = {
-        radar: `<b>${corpus.observations ?? 0}</b> observations`,
-        analyst: `<b>${finds.length}</b> finds · <b>${(btData.queries || []).length}</b> queries/night`,
-        maker: `<b>${(btData.saved || []).length}</b> drafted`,
-        meter: `<b>${summary.judged ?? 0}</b> judged · <b>${summary.miss ?? 0}</b> miss`,
-        ask: `on request · <b>0</b> scheduled`,
+      const model = {
+        summary: btData.summary || {},
+        corpus: btData.corpus || {},
+        finds: btData.finds || [],
+        kinds: btData.kinds || [],
+        queries: btData.queries || [],
+        retrieval: btData.retrieval,
+        ask: btData.ask,
+        artifactCount: btData.artifactCount,
       };
 
-      document.getElementById("pipeNodes").innerHTML = AGENTS.map(a => `
-        <article class="node ${a.detached ? "detached" : ""}" data-node="${a.key}">
-          <div class="node-name">${escapeHtml(a.name)}</div>
-          <div class="node-role">${escapeHtml(a.role)}</div>
-          <div class="node-stat">${stat[a.key]}</div>
-        </article>`).join("");
+      const span = model.corpus.earliest && model.corpus.latest
+        ? `${shortDate(model.corpus.earliest)} – ${shortDate(model.corpus.latest)}` : "";
+      //: Labelled pairs, so each figure says what it is. All three are real:
+      //  the clock is the machine's, the span and the tenant are the export's.
+      const pair = (label, value) =>
+        `<span class="hud-pair"><i>${label}</i><b>${value}</b></span>`;
+      document.getElementById("adminStamp").innerHTML =
+        pair("Time", `<span id="hudClock"></span> UTC`) +
+        (span ? pair("Corpus", escapeHtml(span)) : "") +
+        pair("Tenant", escapeHtml(btData.business?.name || "—"));
+      startClock();
 
-      drawPipelineEdges();
+      applyBackdrop();
+      renderScene();
+      NETWORK.forEach(agent => renderNode(agent, model));
+      bindCardTilt();
+      renderCore(model);
+      drawLinks();
+      startVectorField(model);
     }
 
-    /* Connectors are measured from the laid-out nodes rather than hard-coded, so
-       they stay attached when the panel reflows. */
-    function drawPipelineEdges() {
-      const stage = document.getElementById("pipeStage");
-      const svg = document.getElementById("pipeEdges");
-      const nodes = [...document.querySelectorAll("#pipeNodes .node")];
-      if (!stage || !nodes.length || stage.clientWidth < 60) return;
+    //: The one number on this screen that is not a stored value — and it is
+    //  honest, because it is the clock, read from the machine showing the page.
+    //  It is here so the console reads as running rather than printed.
+    let clockTimer;
+    function startClock() {
+      const tick = () => {
+        const el = document.getElementById("hudClock");
+        if (!el) return;
+        el.textContent = new Date().toISOString().slice(11, 19);
+      };
+      window.clearInterval(clockTimer);
+      tick();
+      clockTimer = window.setInterval(tick, 1000);
+    }
 
-      const base = stage.getBoundingClientRect();
-      const box = el => {
-        const r = el.getBoundingClientRect();
-        return { l: r.left - base.left, r: r.right - base.left, t: r.top - base.top, b: r.bottom - base.top,
-                 cx: r.left - base.left + r.width / 2, cy: r.top - base.top + r.height / 2 };
+
+    /**
+     * Coarse continent outlines on a 1000x500 equirectangular grid, which is
+     * why the numbers look like longitude and latitude run through
+     * x = (lon + 180) / 360 * 1000 and y = (90 - lat) / 180 * 500. They are
+     * rough — this is a texture behind a console, and every dot of it sits at a
+     * tenth of the brightness of anything that means something.
+     */
+    const LANDMASSES = [
+      // North America
+      "33,69 111,56 153,56 236,50 278,61 333,83 347,119 306,133 278,161 231,178 208,194 181,167 153,139 139,97 83,83",
+      // Greenland
+      "375,83 444,72 450,39 411,19 347,28 339,56",
+      // South America
+      "278,222 333,222 361,250 403,264 394,311 367,319 339,361 319,394 300,394 306,333 283,278",
+      // Africa
+      "453,208 500,203 533,161 589,161 619,217 642,217 617,256 611,292 592,325 569,344 550,347 533,300 525,253 478,236",
+      // Eurasia
+      "472,131 478,106 514,89 528,72 583,56 667,50 750,39 861,50 944,61 972,83 917,97 889,125 861,153 839,167 806,194 778,222 764,194 744,189 717,228 700,194 667,181 639,167 625,139 606,150 578,150 556,139 528,144 500,128",
+      // Australia
+      "814,311 861,283 894,281 917,311 925,328 908,356 875,356 842,344 819,344",
+      // Madagascar, Japan, New Zealand, Britain — small but they read as absent
+      "603,320 611,306 617,314 609,332",
+      "916,140 928,124 934,132 922,152",
+      "962,372 972,358 978,366 968,384",
+      "487,116 497,108 501,120 491,128",
+    ];
+
+    /**
+     * Hang the supplied backdrop image, if the build found one.
+     *
+     * Set as a custom property rather than written into the stylesheet so the
+     * filename stays in one place — the build states it, the page reads it, and
+     * neither has to agree on a name. `renderScene` still runs either way; the
+     * class it draws under is simply hidden when an image took over.
+     */
+    function applyBackdrop() {
+      const view = document.getElementById("view-admin");
+      if (!view || !btData.backdrop) return;
+      view.style.setProperty("--hud-backdrop", `url("${btData.backdrop}")`);
+      view.classList.add("has-backdrop");
+    }
+
+    /**
+     * The backdrop: a dotted world map, faint arcs, two dials, the horizon.
+     *
+     * The map is drawn the way these maps are usually made — a tiled dot
+     * pattern clipped to the land — so the continents are described once as
+     * outlines and the texture comes from the tile. The outlines are coarse on
+     * purpose: this is atmosphere at a tenth of the screen's brightness, not a
+     * chart, and no figure on this layer means anything. That is exactly why it
+     * is a separate svg from the two that do carry data.
+     */
+    function renderScene() {
+      const svg = document.getElementById("hudScene");
+      if (!svg || svg.dataset.drawn) return;
+      svg.dataset.drawn = "1";
+      const CX = 800, CY = 400;
+
+      const dial = (x, y, r) => {
+        const marks = Array.from({ length: 24 }, (_, i) => {
+          const a = (i / 24) * Math.PI * 2;
+          const inner = i % 4 === 0 ? r - 12 : r - 6;
+          return `<line class="tick" x1="${(x + Math.cos(a) * inner).toFixed(1)}"
+            y1="${(y + Math.sin(a) * inner).toFixed(1)}"
+            x2="${(x + Math.cos(a) * r).toFixed(1)}" y2="${(y + Math.sin(a) * r).toFixed(1)}"/>`;
+        }).join("");
+        return `<g><circle class="dial-fill" cx="${x}" cy="${y}" r="${r - 16}"/>
+          <circle class="dial" cx="${x}" cy="${y}" r="${r}"/>
+          <circle class="dial" cx="${x}" cy="${y}" r="${r - 22}"/>${marks}</g>`;
       };
 
-      const chain = nodes.filter(n => !n.classList.contains("detached")).map(box);
-      let d = "";
-      for (let i = 0; i < chain.length - 1; i++) {
-        const a = chain[i], b = chain[i + 1];
-        const mid = (a.r + b.l) / 2;
-        d += `M ${a.r} ${a.cy} C ${mid} ${a.cy}, ${mid} ${b.cy}, ${b.l} ${b.cy} `;
-      }
+      const land = LANDMASSES.map(pts => `<polygon points="${pts}"/>`).join("");
 
-      const askEl = nodes.find(n => n.classList.contains("detached"));
-      let dashed = "";
-      if (askEl && chain.length) {
-        const ask = box(askEl), analyst = chain[Math.min(1, chain.length - 1)];
-        dashed = `M ${analyst.cx} ${analyst.b} C ${analyst.cx} ${(analyst.b + ask.t) / 2}, `
-               + `${ask.cx} ${(analyst.b + ask.t) / 2}, ${ask.cx} ${ask.t}`;
-      }
+      svg.innerHTML = `
+        <defs>
+          <pattern id="mapDots" width="7.5" height="7.5" patternUnits="userSpaceOnUse">
+            <circle class="map-dot" cx="1.7" cy="1.7" r="1.15"/>
+          </pattern>
+          <mask id="landMask"><g fill="#fff">${land}</g></mask>
+          <linearGradient id="mapFade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#fff" stop-opacity=".30"/>
+            <stop offset="34%" stop-color="#fff" stop-opacity="1"/>
+            <stop offset="72%" stop-color="#fff" stop-opacity=".45"/>
+            <stop offset="96%" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+          <mask id="mapFadeMask">
+            <rect x="0" y="0" width="1600" height="900" fill="url(#mapFade)"/>
+          </mask>
+        </defs>
 
-      svg.setAttribute("viewBox", `0 0 ${Math.round(stage.clientWidth)} ${Math.round(stage.clientHeight)}`);
-      svg.innerHTML = `${d ? `<path d="${d.trim()}"/>` : ""}${dashed ? `<path class="detached" d="${dashed}"/>` : ""}`;
+        <g mask="url(#mapFadeMask)" class="map-glow">
+          <g transform="translate(-46, 96) scale(1.69)">
+            <rect x="0" y="0" width="1000" height="500"
+                  fill="url(#mapDots)" mask="url(#landMask)"/>
+          </g>
+        </g>
+
+        <g>
+          <ellipse class="arc" cx="${CX}" cy="${CY}" rx="700" ry="336"/>
+          <ellipse class="arc faint" cx="${CX}" cy="${CY}" rx="560" ry="270"/>
+          <circle class="arc faint" cx="${CX}" cy="${CY}" r="470"/>
+        </g>
+        ${dial(150, 780, 92)}
+        ${dial(1462, 812, 66)}
+        <line class="horizon" x1="0" y1="612" x2="1600" y2="612"/>`;
     }
 
-    // --- system readouts ------------------------------------------------------
-    function renderReadouts(summary, corpus, finds) {
-      const span = corpus.earliest && corpus.latest
-        ? `${shortDate(corpus.earliest)} – ${shortDate(corpus.latest)}`
-        : "—";
-      document.getElementById("readouts").innerHTML = [
-        ["Vectors", corpus.observations ?? "—", span, true],
-        ["Dimensions", "1024", "cosine ops"],
-        ["Evidence", corpus.evidenceRows ?? "—", `over ${finds.length} finds`],
-        ["Hit rate", summary.hitRate == null ? "—" : `${summary.hitRate}%`, `${summary.judged ?? 0} judged`, true],
-      ].map(([label, value, sub, accent]) => `
-        <div class="readout">
-          <span class="r-label">${escapeHtml(label)}</span>
-          <span class="r-value ${accent ? "accent" : ""}">${escapeHtml(String(value))}</span>
-          <span class="r-sub">${escapeHtml(sub)}</span>
-        </div>`).join("");
+    /**
+     * Cards lean toward the cursor, and carry its light with them.
+     *
+     * Bound to the panels themselves rather than the stage, so the maths stays
+     * one rectangle wide and a card that is re-rendered keeps its handlers —
+     * `renderNode` replaces a panel's contents, never the panel.
+     *
+     * The tilt is deliberately shallow. The connectors are drawn once against
+     * where the panels sit and are not redrawn on hover, so a card that swings
+     * far enough to matter pulls its own beam off its edge.
+     */
+    const TILT_DEGREES = 5;
+
+    function bindCardTilt() {
+      const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (still) return;
+
+      document.querySelectorAll(".hud-stage .node, .hud-stage .core").forEach(card => {
+        if (card.dataset.tilt) return;
+        card.dataset.tilt = "1";
+
+        card.addEventListener("pointermove", event => {
+          const box = card.getBoundingClientRect();
+          const x = (event.clientX - box.left) / box.width - .5;
+          const y = (event.clientY - box.top) / box.height - .5;
+          card.style.setProperty("--ry", `${(x * TILT_DEGREES * 2).toFixed(2)}deg`);
+          card.style.setProperty("--rx", `${(-y * TILT_DEGREES * 2).toFixed(2)}deg`);
+          card.style.setProperty("--tz", "14px");
+          card.style.setProperty("--gx", `${(x * 100 + 50).toFixed(1)}%`);
+          card.style.setProperty("--gy", `${(y * 100 + 50).toFixed(1)}%`);
+          card.classList.add("is-tilted");
+        });
+
+        //: Every property goes back, not just the class. A card left holding an
+        //  angle would ease back to level and then jump when next touched.
+        const settle = () => {
+          card.classList.remove("is-tilted");
+          ["--rx", "--ry", "--tz"].forEach(prop => card.style.removeProperty(prop));
+        };
+        card.addEventListener("pointerleave", settle);
+        card.addEventListener("pointercancel", settle);
+      });
     }
 
-    // --- evidence matrix ------------------------------------------------------
-    function renderEvidenceMatrix(finds) {
-      const withEvidence = finds.filter(f => (f.evidence || []).length);
-      const widest = Math.max(1, ...withEvidence.map(f => f.evidence.length));
-      document.getElementById("matrixMeta").textContent = `${withEvidence.length} × ${widest}`;
+    function renderNode(agent, model) {
+      const host = document.getElementById(`node${agent.key[0].toUpperCase()}${agent.key.slice(1)}`);
+      if (!host) return;
+      const stats = agent.stats(model);
+      const badge = agent.key === "ask" && model.ask?.source && model.ask.source !== "cluster"
+        ? `<span class="node-badge">${escapeHtml(model.ask.source)}</span>` : "";
 
-      document.getElementById("evidenceMatrix").innerHTML = withEvidence.map(f => `
-        <div class="matrix-row">
-          ${Array.from({ length: widest }, (_, i) => {
-            const e = f.evidence[i];
-            if (!e) return `<span class="matrix-cell empty"></span>`;
-            // Colour carries the kind; the similarity is a number in the tooltip,
-            // never a tint — a reader cannot rank shades.
-            return `<span class="matrix-cell" style="background:${kindHue(e.kind)}"
-                      title="${escapeHtml(f.shortTitle || f.title)} · #${i + 1} · ${escapeHtml(e.kind || "")} · ${Number(e.similarity).toFixed(3)}"></span>`;
-          }).join("")}
-        </div>`).join("");
-
-      const present = [...new Set(withEvidence.flatMap(f => f.evidence.map(e => e.kind)))];
-      const label = Object.fromEntries((btData.kinds || []).map(k => [k.kind, k.label]));
-      document.getElementById("matrixLegend").innerHTML = present.map(k =>
-        `<span><i style="background:${kindHue(k)}"></i>${escapeHtml(label[k] || k)}</span>`).join("");
-    }
-
-    // --- retrieval inspector --------------------------------------------------
-    function renderRetrieval(finds) {
-      const pick = document.getElementById("retrievalPick");
-      // Ordered by best match and labelled with it, so the inspector opens on
-      // retrieval working without hiding the weak end — every find stays selectable.
-      const ranked = finds
-        .filter(f => (f.evidence || []).length)
-        .map(f => ({ f, top: Math.max(...f.evidence.map(e => Number(e.similarity))) }))
-        .sort((a, b) => b.top - a.top);
-
-      if (!pick.dataset.filled) {
-        pick.innerHTML = ranked.map(({ f, top }) =>
-          `<option value="${escapeHtml(f.id)}">${escapeHtml(f.shortTitle || f.title)} · ${top.toFixed(3)}</option>`
-        ).join("");
-        pick.dataset.filled = "1";
-        pick.onchange = () => renderEvidence(pick.value);
-      }
-
-      document.getElementById("queryList").innerHTML =
-        (btData.queries || []).map(q => `<li>${escapeHtml(q)}</li>`).join("")
-        || `<li class="con-empty">No queries recorded.</li>`;
-
-      renderEvidence(pick.value || (ranked[0] && ranked[0].f.id));
-    }
-
-    function renderEvidence(findId) {
-      const find = (btData.finds || []).find(f => f.id === findId);
-      const rows = (find && find.evidence) || [];
-      const label = Object.fromEntries((btData.kinds || []).map(k => [k.kind, k.label]));
-      document.getElementById("evidenceLabel").textContent =
-        find ? `Evidence returned · ${rows.length} rows` : "Evidence returned";
-
-      // The model hands evidence over already ordered by similarity and keeps no
-      // rank column, so position in the array is the rank.
-      document.getElementById("evidenceTable").innerHTML = rows.length ? `
-        <thead><tr><th>#</th><th>Sim</th><th>Kind</th><th>Observation</th></tr></thead>
-        <tbody>
-          ${rows.map((e, i) => `
-            <tr>
-              <td class="rank">${i + 1}</td>
-              <td class="sim">${Number(e.similarity).toFixed(3)}</td>
-              <td class="kind" style="color:${kindHue(e.kind)}">${escapeHtml(label[e.kind] || e.kind || "—")}</td>
-              <td>
-                ${escapeHtml(clampText(e.content || "", 130))}
-                <span class="evidence-src">${escapeHtml([e.source, e.when].filter(Boolean).join(" · "))}</span>
-              </td>
-            </tr>`).join("")}
-        </tbody>` : `<tbody><tr><td class="con-empty">This find has no stored evidence.</td></tr></tbody>`;
-    }
-
-    // --- review telemetry -----------------------------------------------------
-    function renderRatingSpark(ratings) {
-      const host = document.getElementById("ratingSpark");
-      if (ratings.length < 2) {
-        host.innerHTML = `<p class="con-empty">Not enough rating weeks to plot.</p>`;
-        document.getElementById("telemetryMeta").textContent = "";
-        return;
-      }
-
-      const latest = ratings[ratings.length - 1];
-      const totalReviews = ratings.reduce((n, r) => n + r.reviews, 0);
-      document.getElementById("telemetryMeta").textContent =
-        `${ratings.length} weeks · ${totalReviews} reviews`;
-
-      const W = 240, H = 62, pad = 4;
-      const lo = Math.min(...ratings.map(r => r.avg));
-      const hi = Math.max(...ratings.map(r => r.avg));
-      const span = hi - lo || 1;
-      const step = (W - pad * 2) / (ratings.length - 1);
-      const pts = ratings.map((r, i) => ({
-        x: pad + i * step,
-        y: H - pad - ((r.avg - lo) / span) * (H - pad * 2),
-      }));
-      const t = monotoneTangents(pts);
-
-      host.className = "con-body spark";
       host.innerHTML = `
-        <div class="spark-head">
-          <span class="spark-value">${latest.avg.toFixed(2)}</span>
-          <!-- The week's own review count sits beside its average on purpose: the
-               last week of this corpus is a single 5-star review, and a bare 5.00
-               next to a 70-review total would read as a far stronger result. -->
-          <span class="spark-sub">${escapeHtml(latest.label)} · ${latest.reviews} review${latest.reviews === 1 ? "" : "s"}</span>
+        <div class="node-dial" aria-hidden="true">
+          <svg viewBox="0 0 62 62">
+            <circle class="ring" cx="31" cy="31" r="27"/>
+            <circle class="ring" cx="31" cy="31" r="21" opacity=".6"/>
+            <circle class="arc" cx="31" cy="31" r="27" stroke-dasharray="42 128"/>
+            <circle class="arc slow" cx="31" cy="31" r="21" stroke-dasharray="20 112"/>
+          </svg>
+          <span class="node-glyph">${agent.glyph}</span>
         </div>
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
-             aria-label="Average review rating by week, ${ratings.map(r => `${r.label} ${r.avg.toFixed(2)}`).join(", ")}">
-          <line class="grid" x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}"/>
-          <path class="line" d="${splinePath(pts, t, 0, pts.length - 1)}"/>
-        </svg>
-        <div class="spark-head" style="margin:6px 0 0">
-          <span class="spark-sub">${escapeHtml(ratings[0].label)}</span>
-          <span class="spark-sub">${escapeHtml(latest.label)}</span>
+        <div>
+          <h2 class="node-name">${escapeHtml(agent.name)}</h2>
+          <p class="node-role">${escapeHtml(agent.role)}</p>
+          <dl class="node-stats">
+            ${stats.map(([label, value]) => `
+              <div class="node-stat">
+                <dd class="${value === 0 || value === "—" ? "dim" : ""}">${escapeHtml(String(value))}</dd>
+                <dt>${escapeHtml(label)}</dt>
+              </div>`).join("")}
+          </dl>
+          ${agent.focus ? `<ul class="node-focus">
+            ${agent.focus(model).map(f => `
+              <li>
+                ${f.hue ? `<i style="background:${f.hue}"></i>` : `<i class="plain"></i>`}
+                <span>${escapeHtml(f.label)}</span>
+                ${f.value === undefined ? "" : `<b class="${f.value === 0 ? "dim" : ""}">${escapeHtml(String(f.value))}</b>`}
+              </li>`).join("")}
+          </ul>` : ""}
+          <span class="node-tag">${escapeHtml(agent.tag(model))}</span>${badge}
         </div>`;
     }
 
-    // --- record log -----------------------------------------------------------
-    function renderRecordLog(finds, runs) {
-      const lines = [];
+    function renderCore(model) {
+      document.getElementById("coreStats").innerHTML = `
+        <div><dt>vectors</dt><dd>${model.corpus.observations ?? 0}</dd></div>
+        <div><dt>dimensions</dt><dd>1024</dd></div>
+        <div><dt>evidence rows</dt><dd>${model.corpus.evidenceRows ?? 0}</dd></div>`;
+    }
 
-      runs.forEach(r => lines.push({
-        when: shortDate(r.startedAt),
-        sort: r.startedAt,
-        tag: r.agent,
-        msg: `${escapeHtml(r.note || "run")} <b>${r.seconds == null ? "running" : `${r.seconds}s`}</b>`,
-        verdict: r.status,
-      }));
+    /**
+     * Connectors, drawn between the measured edges of the panels.
+     *
+     * Measured rather than hand-placed because the panels are a responsive grid
+     * and a curve pinned to guessed coordinates comes adrift the moment anything
+     * reflows. The direction of travel is the point: a write flows toward the
+     * core, a read flows away from it.
+     */
+    function drawLinks() {
+      const svg = document.getElementById("hudLinks");
+      const stage = document.getElementById("hudStage");
+      const core = stage?.querySelector(".core");
+      if (!svg || !core || !stage.offsetWidth) return;
 
-      // Every judged find is a Meter decision the cluster recorded, with the date
-      // it was measured and the method it used. Misses included — that is the point.
-      finds.filter(f => f.verdict && f.measuredAt).forEach(f => lines.push({
-        when: shortDate(f.measuredAt),
-        sort: f.measuredAt,
-        tag: "meter",
-        msg: `<b>${escapeHtml(f.shortTitle || f.title)}</b> predicted ${escapeHtml(f.predictedDailyTxt || "—")}`
-           + `${f.actualDailyTxt ? ` · actual ${escapeHtml(f.actualDailyTxt)}` : ""}`,
-        verdict: f.verdict,
-      }));
+      const frame = stage.getBoundingClientRect();
+      const box = el => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left - frame.left, y: r.top - frame.top, w: r.width, h: r.height,
+                 cx: r.left - frame.left + r.width / 2, cy: r.top - frame.top + r.height / 2 };
+      };
+      const c = box(core);
 
-      lines.sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
+      svg.setAttribute("viewBox", `0 0 ${frame.width} ${frame.height}`);
+      svg.innerHTML = NETWORK.map(agent => {
+        const el = stage.querySelector(`[data-node="${agent.key}"]`);
+        if (!el) return "";
+        const r = box(el);
+        // Both ends leave on the line joining the two centres, so a corner
+        // agent gets a true diagonal and the one directly below the core gets a
+        // straight drop — without either case being special-cased.
+        const from = edgeToward(r, c);
+        const to = edgeToward(c, r);
+        const d = beamPath(from, to);
+        const dir = agent.flow === "write" ? "to-core" : "";
+        const hue = agent.detached ? "amber" : "";
+        return `<path class="bloom ${hue}" d="${d}"/>`
+             + `<path class="halo ${hue}" d="${d}"/>`
+             + `<path class="link ${hue}" d="${d}"/>`
+             + `<path class="surge ${dir} ${hue}" d="${d}"/>`;
+      }).join("");
+    }
 
-      document.getElementById("runsSub").textContent = runs.length === 1
-        ? `${lines.length} records · 1 agent_run row`
-        : `${lines.length} records · ${runs.length} agent_run rows`;
+    /**
+     * A beam leaves its panel square-on, then bends once toward the core.
+     *
+     * A straight diagonal reads as a wire between two boxes. Leaving on the
+     * panel's own axis and turning in the middle is what makes it read as
+     * routed — the same reason circuit traces and HUD callouts bend rather than
+     * cutting corners. The lead is short and the corner is a curve, so the turn
+     * carries the glow around instead of breaking it.
+     */
+    function beamPath(from, to) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const lead = 22;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        const step = Math.sign(dx) * lead;
+        return `M${from.x.toFixed(1)} ${from.y.toFixed(1)}`
+             + ` L${(from.x + step).toFixed(1)} ${from.y.toFixed(1)}`
+             + ` Q${(to.x - step).toFixed(1)} ${from.y.toFixed(1)}`
+             + ` ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+      }
+      const step = Math.sign(dy) * lead;
+      return `M${from.x.toFixed(1)} ${from.y.toFixed(1)}`
+           + ` L${from.x.toFixed(1)} ${(from.y + step).toFixed(1)}`
+           + ` Q${from.x.toFixed(1)} ${(to.y - step).toFixed(1)}`
+           + ` ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+    }
 
-      document.getElementById("recordLog").innerHTML = lines.length ? lines.map(l => `
-        <div class="log-line">
-          <span class="log-when">${escapeHtml(l.when)}</span>
-          <span class="log-tag ${escapeHtml(l.tag)}">${escapeHtml(l.tag)}</span>
-          <span class="log-msg">${l.msg}</span>
-          <span class="log-verdict ${escapeHtml(l.verdict)}">${escapeHtml(l.verdict)}</span>
-        </div>`).join("") : `<p class="con-empty">No records yet.</p>`;
+    //: Where the line from one panel's centre to another's crosses the first
+    //  panel's border. Keeps a connector outside the card it belongs to at any
+    //  angle, which a fixed edge-and-midpoint rule cannot do once the layout is
+    //  diagonal rather than in columns.
+    function edgeToward(rect, target) {
+      const dx = target.cx - rect.cx;
+      const dy = target.cy - rect.cy;
+      if (!dx && !dy) return { x: rect.cx, y: rect.cy };
+      const scale = Math.min(
+        dx ? (rect.w / 2) / Math.abs(dx) : Infinity,
+        dy ? (rect.h / 2) / Math.abs(dy) : Infinity,
+      );
+      return { x: rect.cx + dx * scale, y: rect.cy + dy * scale };
+    }
+
+    /**
+     * The core: the vector index, answering.
+     *
+     * Each stored observation is a point. When a find's retrieval is replayed,
+     * the rows it actually returned are lit and drawn at a radius set by the
+     * similarity recorded against them — closer means closer — with the number
+     * printed beside the nearest few. The number is what carries the value;
+     * the radius only makes the ranking legible at a glance.
+     *
+     * The scattered background points are the rest of the corpus. Their
+     * positions mean nothing and are never labelled as a projection: we store
+     * 1024-dimensional vectors and have not computed a 2-D embedding of them.
+     * What is true is the count, and the count is the real one.
+     */
+    //: A wide, shallow viewBox because the core is a small hub in the middle of
+    //  the network, not a square panel. A 340x300 box letterboxed into it and
+    //  left the field a sliver down the centre.
+    const FIELD = { w: 340, h: 150, cx: 170, cy: 75, spreadX: 1.14, spreadY: 0.46 };
+    let fieldTimer;
+
+    function startVectorField(model) {
+      const svg = document.getElementById("vectorField");
+      if (!svg) return;
+      window.clearInterval(fieldTimer);
+
+      // The lit rows are drawn as their own points, so the backdrop holds the
+      // rest of the corpus rather than all of it. Total points on screen equals
+      // the stored row count exactly, which is a thing a judge can count.
+      const total = model.corpus.observations ?? 0;
+      const litMost = Math.min(8, Math.max(0, ...(model.finds || [])
+        .map(f => (f.evidence || []).length)));
+      const backdrop = scatter(Math.max(total - litMost, 0));
+      const replays = (model.finds || [])
+        .filter(f => (f.evidence || []).length)
+        .sort((a, b) => (b.topSimilarity ?? 0) - (a.topSimilarity ?? 0));
+
+      if (!replays.length) {
+        svg.innerHTML = backdropMarkup(backdrop) + coreMarkup();
+        return;
+      }
+
+      let at = 0;
+      const show = () => {
+        drawReplay(svg, backdrop, replays[at % replays.length]);
+        at += 1;
+      };
+      show();
+      const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (!still) fieldTimer = window.setInterval(show, 5200);
+    }
+
+    //: Deterministic scatter — the same corpus draws the same field on every
+    //  build, so a screenshot taken today matches the one taken tomorrow.
+    function scatter(count) {
+      const points = [];
+      for (let i = 0; i < count; i += 1) {
+        const angle = i * 2.399963; // golden angle, so nothing clumps
+        const radius = 26 + Math.sqrt((i + 1) / Math.max(count, 1)) * 122;
+        points.push({
+          x: FIELD.cx + Math.cos(angle) * radius * FIELD.spreadX,
+          y: FIELD.cy + Math.sin(angle) * radius * FIELD.spreadY,
+        });
+      }
+      return points;
+    }
+
+    function backdropMarkup(points) {
+      return points.map(p =>
+        `<circle class="vf-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.7"/>`).join("");
+    }
+
+    function coreMarkup() {
+      return `
+        <circle class="vf-pulse" cx="${FIELD.cx}" cy="${FIELD.cy}" r="20">
+          <animate attributeName="r" values="14;58" dur="5.2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".55;0" dur="5.2s" repeatCount="indefinite"/>
+        </circle>
+        <circle class="vf-core-fill" cx="${FIELD.cx}" cy="${FIELD.cy}" r="13"/>
+        <circle class="vf-core" cx="${FIELD.cx}" cy="${FIELD.cy}" r="13"/>
+        <circle class="vf-core" cx="${FIELD.cx}" cy="${FIELD.cy}" r="7.5" opacity=".7"/>`;
+    }
+
+    function drawReplay(svg, backdrop, find) {
+      const rows = (find.evidence || []).slice(0, 8);
+      const marks = rows.map((e, i) => {
+        // Similarity sets the radius: 0.8 sits on the core, 0 out at the rim.
+        const reach = 26 + (1 - Math.min(e.similarity / 0.8, 1)) * 116;
+        const angle = (-Math.PI / 2) + (i / rows.length) * Math.PI * 2 + 0.35;
+        const x = FIELD.cx + Math.cos(angle) * reach * FIELD.spreadX;
+        const y = FIELD.cy + Math.sin(angle) * reach * FIELD.spreadY;
+        const label = i < 3
+          ? `<text class="vf-sim" x="${(x + (x < FIELD.cx ? -8 : 8)).toFixed(1)}" y="${(y - 7).toFixed(1)}"
+                   text-anchor="${x < FIELD.cx ? "end" : "start"}">${e.similarity.toFixed(3)}</text>`
+          : "";
+        return `
+          <line class="vf-spoke" x1="${FIELD.cx}" y1="${FIELD.cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>
+          <circle class="vf-dot lit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6"/>
+          ${label}`;
+      }).join("");
+
+      svg.innerHTML = backdropMarkup(backdrop) + marks + coreMarkup();
+
+      const caption = document.getElementById("coreCaption");
+      if (caption) {
+        caption.innerHTML =
+          `Returned <b>${rows.length}</b> of ${find.evidenceCount} stored rows for ` +
+          `<b>${escapeHtml(find.shortTitle || find.title)}</b>, closest at ` +
+          `<b>${(find.topSimilarity ?? 0).toFixed(3)}</b>`;
+      }
+    }
+
+    //: The connectors are measured from laid-out panels, so they have to be
+    //  redrawn whenever the layout moves — including the first time the view is
+    //  shown, since a hidden panel measures as nothing.
+    if (typeof ResizeObserver === "function") {
+      const stage = document.getElementById("hudStage");
+      if (stage) new ResizeObserver(() => drawLinks()).observe(stage);
     }
 
     function shortDate(iso) {
@@ -7849,12 +8718,6 @@
     function clampText(text, max) {
       return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
     }
-
-    if (typeof ResizeObserver === "function") {
-      const stage = document.getElementById("pipeStage");
-      if (stage) new ResizeObserver(() => drawPipelineEdges()).observe(stage);
-    }
-
     function renderDecisionRow(post, status) {
       return `
         <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}.">
@@ -8056,6 +8919,13 @@
       track.classList.toggle("is-dragging", !animate);
       track.style.transform = `translate3d(${-growthSlideIndex * 50}%,0,0)`;
       document.querySelectorAll("[data-growth-slide]").forEach(dot => dot.classList.toggle("active", Number(dot.dataset.growthSlide) === growthSlideIndex));
+      // Disabled at each end, and the stylesheet fades it out: each arrow sits
+      // on its own edge, where a greyed one reads as a broken control. The dots
+      // are what say "there are only two of these".
+      document.querySelectorAll("[data-growth-nav]").forEach(arrow => {
+        const target = growthSlideIndex + Number(arrow.dataset.growthNav);
+        arrow.disabled = target < 0 || target > 1;
+      });
       if (!animate) requestAnimationFrame(() => track.classList.remove("is-dragging"));
     }
     function bindGrowthSwipe() {
@@ -8086,6 +8956,7 @@
       };
       swipe.addEventListener("pointerup",finish);swipe.addEventListener("pointercancel",finish);
       document.querySelectorAll("[data-growth-slide]").forEach(dot=>dot.addEventListener("click",()=>setGrowthSlide(Number(dot.dataset.growthSlide))));
+      document.querySelectorAll("[data-growth-nav]").forEach(arrow=>arrow.addEventListener("click",()=>setGrowthSlide(growthSlideIndex+Number(arrow.dataset.growthNav))));
     }
     document.body.classList.add("autopilot-mode");
     bindGrowthSwipe();
