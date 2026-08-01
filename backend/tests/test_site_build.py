@@ -560,6 +560,83 @@ def test_merging_nothing_leaves_the_model_alone(data):
     assert {k: v for k, v in merged.items() if k != "provenance"} == before
 
 
+# ------------------------------------------ what the detail panels claim
+#
+# Clicking an agent opens a panel that quotes the backend at a judge: model
+# ids, endpoints, thresholds, index names. Quoting is the whole value of it,
+# so each of these pins a string on screen to the code it came from. A panel
+# that drifts is worse than one that says nothing.
+
+
+def detail_panels():
+    """The DETAIL map's source text, which is where the claims live."""
+    start = APP.index("const DETAIL = {")
+    return APP[start:APP.index("\n    };", start)]
+
+
+@pytest.mark.parametrize("named", [
+    "VECTOR(1024)",
+    "observation_embed_idx",
+    "observation_dedup_idx",
+    "ledger_period_idx",
+    "vector_cosine_ops",
+])
+def test_the_panels_name_the_schema_as_it_is(named):
+    assert named in detail_panels(), f"{named} is not on the page"
+    assert named in SCHEMA, f"{named} is not in db/schema.sql"
+
+
+def test_the_panels_name_the_embedding_model_as_configured():
+    """The embedding model is the load-bearing AWS dependency the submission
+    discloses, so the id on screen has to be the id the build ships."""
+    env = (build_web.REPO / ".env.example").read_text(encoding="utf-8")
+    model_id = "amazon.titan-embed-text-v2:0"
+    assert model_id in detail_panels()
+    assert model_id in env
+
+
+def test_the_panels_quote_the_backend_constants():
+    from brasstacks import meter as meter_mod
+    from brasstacks import providers
+    from brasstacks.agents import maker
+    from brasstacks.handlers import ask as ask_handler
+
+    panels = detail_panels()
+    assert providers.DEFAULT_MCP_URL in panels
+    assert providers.MCP_BETA_FLAG in panels
+    assert providers.DEFAULT_MCP_SERVER_NAME in panels
+    assert maker.ARTIFACT_KIND in panels
+    assert str(maker.PREVIEW_CHARS) in panels
+    assert str(ask_handler.MAX_QUESTION_CHARS) in panels
+    # 0.25 is shown to the owner as a percentage, which is the same number.
+    assert f"{int(meter_mod.DEFAULT_MISS_THRESHOLD * 100)}%" in panels
+
+
+def test_the_yelp_retention_claim_matches_the_licence_term():
+    """The panel tells a judge Yelp review text expires after 24 hours. That
+    figure is a licence term rather than a setting, so it is the one number on
+    the page that must not be tuned to look better."""
+    from brasstacks import signals
+    assert signals.YELP_RETENTION_HOURS == 24
+    assert "twenty-four hours" in detail_panels()
+
+
+def test_the_panels_do_not_claim_bedrock_reasoning():
+    """Reasoning runs on the Anthropic API because AWS would not grant this
+    account a current Claude model on Bedrock. The panel says so; a page that
+    implied otherwise would misstate the one disclosure most worth getting
+    right."""
+    panels = detail_panels()
+    assert "Anthropic API" in panels and "not on\n                   Bedrock" in panels
+    assert "claude-opus-5" in panels
+
+
+def test_every_agent_and_the_core_open_into_a_panel():
+    panels = detail_panels()
+    for key in ("radar:", "analyst:", "maker:", "meter:", "ask:", "core:"):
+        assert f"\n      {key}" in panels, key
+
+
 # --------------------------------------------------- the console backdrop
 #
 # The admin view's scene is hand-drawn vector by default. A painted backdrop
@@ -693,6 +770,7 @@ def test_no_ask_runs_is_an_empty_session_list_not_a_missing_block(data):
 # ------------------------------------------------------ the card can't crush
 
 APP = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+SCHEMA = (build_web.REPO / "db" / "schema.sql").read_text(encoding="utf-8")
 
 
 def test_card_copy_spacing_is_fixed_and_never_a_leftover():

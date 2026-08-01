@@ -2642,6 +2642,125 @@
     #nodeMeter   { grid-column: 3; grid-row: 2; align-self: start; }
 
     /* ---- an agent */
+    /* ---- the detail view ---------------------------------------------------
+       One panel, opened from whichever card was clicked. It is a dialog rather
+       than a route because the network behind it is the context: closing should
+       put you back exactly where you were, mid-thought. */
+    .detail-scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      background: rgba(2, 6, 13, .74);
+      backdrop-filter: blur(3px);
+    }
+
+    .detail {
+      position: absolute;
+      z-index: 9;
+      top: 50%;
+      left: 50%;
+      width: min(940px, calc(100% - 48px));
+      max-height: min(78vh, 720px);
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      translate: -50% -50%;
+      border: 1px solid var(--hud-line-2);
+      background: linear-gradient(180deg, rgba(12, 30, 50, .97), rgba(5, 13, 24, .98));
+      box-shadow: 0 40px 90px rgba(0, 5, 12, .7), 0 0 70px rgba(31, 106, 158, .3);
+      clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 22px,
+                         100% calc(100% - 22px), calc(100% - 22px) 100%,
+                         22px 100%, 0 calc(100% - 22px), 0 22px);
+    }
+    .detail[hidden], .detail-scrim[hidden] { display: none; }
+
+    .detail-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--hud-line);
+    }
+    .detail-eyebrow { color: var(--hud-cyan); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+    .detail-head h2 { margin: 6px 0 0; color: var(--hud-bright); font-size: 24px; font-weight: 650; letter-spacing: .16em; text-transform: uppercase; }
+    .detail-role { margin: 6px 0 0; color: var(--hud-muted); font-family: var(--mono); font-size: 13px; }
+
+    .detail-close {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 36px; height: 36px;
+      border: 1px solid var(--hud-line-2);
+      background: transparent;
+      color: var(--hud-text);
+      cursor: pointer;
+    }
+    .detail-close:hover { border-color: var(--hud-cyan); color: var(--hud-bright); }
+    .detail-close svg { width: 17px; height: 17px; }
+    .detail-close:focus-visible { outline: 2px solid var(--hud-cyan); outline-offset: 2px; }
+
+    .detail-body { overflow-y: auto; padding: 20px 24px 24px; scrollbar-width: thin; }
+
+    .detail-section { padding: 18px 0; border-top: 1px solid rgba(120, 200, 240, .12); }
+    .detail-section:first-child { padding-top: 4px; border-top: 0; }
+    .detail-section > h3 {
+      margin: 0 0 12px;
+      color: var(--hud-muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .detail-lede { margin: 0 0 4px; color: var(--hud-text); font-size: 15px; line-height: 1.6; }
+    .detail-note { margin: 10px 0 0; color: var(--hud-muted); font-size: 13px; line-height: 1.55; }
+    .detail-note code, .detail-rows code { color: var(--hud-bright); font-family: var(--mono); font-size: 12.5px; }
+
+    .detail-rows { display: grid; gap: 1px; margin: 0; background: rgba(120, 200, 240, .1); border: 1px solid rgba(120, 200, 240, .1); }
+    .detail-row { display: grid; grid-template-columns: minmax(0, 210px) minmax(0, 1fr); gap: 16px; padding: 11px 14px; background: rgba(6, 16, 29, .96); }
+    .detail-row dt { color: var(--hud-muted); font-family: var(--mono); font-size: 12px; }
+    .detail-row dd { margin: 0; color: var(--hud-text); font-size: 13.5px; line-height: 1.5; }
+    .detail-row dd b { color: var(--hud-bright); font-weight: 650; }
+
+    .detail-list { margin: 0; padding-left: 20px; }
+    .detail-list li { margin-bottom: 7px; color: var(--hud-text); font-size: 13.5px; line-height: 1.55; }
+    .detail-list li::marker { color: var(--hud-cyan); }
+
+    .detail-code {
+      margin: 0;
+      padding: 14px 16px;
+      border: 1px solid rgba(120, 200, 240, .16);
+      border-left: 2px solid var(--hud-cyan);
+      background: rgba(0, 0, 0, .34);
+      color: #b9dcef;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .detail-code b { color: var(--hud-bright); font-weight: 700; }
+    .detail-where { display: block; margin-top: 8px; color: var(--hud-muted); font-family: var(--mono); font-size: 11.5px; }
+
+    .detail-figs { display: flex; flex-wrap: wrap; gap: 14px 34px; }
+    .detail-fig b { display: block; color: var(--hud-bright); font-family: var(--mono); font-size: 26px; font-weight: 650; line-height: 1; }
+    .detail-fig span { display: block; margin-top: 6px; color: var(--hud-muted); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+
+    /* A card advertises that it opens. The cursor and the ring do the telling;
+       nothing about the resting state changes, so the network stays calm. */
+    .node, .core { cursor: pointer; }
+    .node:focus-visible, .core:focus-visible { outline: 2px solid var(--hud-cyan); outline-offset: 3px; }
+
+    @media (max-width: 640px) {
+      .detail { width: calc(100% - 20px); max-height: 84vh; }
+      .detail-head { padding: 16px 16px 13px; }
+      .detail-head h2 { font-size: 19px; }
+      .detail-body { padding: 16px; }
+      .detail-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    }
+
     /* ---- panel frame -----------------------------------------------------
        Three things make a flat rectangle read as machined: the chamfer it
        already had, a second line held inside the first, and a bright run along
@@ -7175,6 +7294,25 @@
             <article class="node" data-node="maker" data-flow="write" id="nodeMaker"></article>
             <article class="node" data-node="meter" data-flow="read" id="nodeMeter"></article>
           </div>
+
+          <!-- Opens by growing out of whichever panel was clicked, so the
+               detail reads as that panel enlarged rather than as a new screen
+               arriving over it. -->
+          <div class="detail-scrim" id="detailScrim" hidden></div>
+          <section class="detail" id="detailPanel" hidden
+                   role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+            <header class="detail-head">
+              <div>
+                <span class="detail-eyebrow" id="detailEyebrow"></span>
+                <h2 id="detailTitle"></h2>
+                <p class="detail-role" id="detailRole"></p>
+              </div>
+              <button class="detail-close" id="detailClose" type="button" aria-label="Close details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </header>
+            <div class="detail-body" id="detailBody"></div>
+          </section>
         </div>
       </section>
 
@@ -8286,6 +8424,7 @@
       renderScene();
       NETWORK.forEach(agent => renderNode(agent, model));
       bindCardTilt();
+      bindDetailView(model);
       renderCore(model);
       drawLinks();
       startVectorField(model);
@@ -8456,6 +8595,537 @@
         card.addEventListener("pointerleave", settle);
         card.addEventListener("pointercancel", settle);
       });
+    }
+
+    /**
+     * What each panel says when you open it.
+     *
+     * Every constant, endpoint, model id and statement below is quoted from the
+     * backend rather than described, because the whole point of this screen is
+     * that a judge can check it. Where a figure comes from the cluster it is
+     * read from the model; where it comes from the code it is pinned to the
+     * backend by a cross-check test, in the same way the query list already is.
+     */
+    const CODE_REF = {
+      radar: "backend/src/brasstacks/signals.py · agents/radar.py",
+      analyst: "backend/src/brasstacks/agents/analyst.py · repository_pg.py",
+      maker: "backend/src/brasstacks/agents/maker.py · artifacts.py",
+      meter: "backend/src/brasstacks/meter.py · outcomes.py",
+      ask: "backend/src/brasstacks/agents/ask.py · providers.py",
+      core: "db/schema.sql · backend/src/brasstacks/repository_pg.py",
+    };
+
+    const DETAIL = {
+      radar: {
+        eyebrow: "Agent 01 · writes",
+        title: "Radar",
+        role: "observe → embed → store",
+        sections: model => [
+          {
+            lede: `Radar observes and never reasons. Each night it pulls from every
+                   source it has, embeds what came back on Bedrock, and hands the rows
+                   to CockroachDB — which decides what is actually new.`,
+            figures: [
+              ["observations", model.corpus.observations ?? 0],
+              ["kinds", (model.kinds || []).length],
+              ["per source, per night", "50"],
+            ],
+          },
+          {
+            label: "Where the signals come from",
+            rows: [
+              ["Corpus", `A committed JSON file replayed as if it were arriving live.
+                          No network call and no key. Ours, and meant to accumulate
+                          forever — <code>retention_hours = None</code>.`],
+              ["Tavily", `<code>POST https://api.tavily.com/search</code>, keyed by
+                          <code>SEARCH_API_KEY</code>. Three standing searches: reviews,
+                          nearby lunch prices, and dining trends for the city. Everything
+                          it returns is stored as <b>kind = trend</b>.`],
+              ["Yelp", `<code>GET https://api.yelp.com/v3/businesses/search</code> to
+                        resolve the business, then <code>…/{id}/reviews</code>, bearer
+                        token from <code>YELP_API_KEY</code>. At most three reviews, newest
+                        first.`],
+            ],
+          },
+          {
+            label: "Why Yelp expires and the rest does not",
+            lede: `Yelp's API terms allow no more than twenty-four hours of storage for
+                   review text, so <code>YELP_RETENTION_HOURS = 24</code> and every night
+                   Radar purges its own older Yelp rows before it writes new ones.`,
+            note: `That number is a licence term, not a tuning knob — it is the one
+                   retention rule in the system that is not ours to choose. Business ids
+                   may be kept indefinitely; the review text may not.`,
+          },
+          {
+            label: "How a duplicate is refused",
+            code: `content_hash = sha256(" ".join(content.split()).casefold())
+
+INSERT INTO observation (…, content_hash, embedding)
+VALUES (…)
+<b>ON CONFLICT (business_id, content_hash) DO NOTHING</b>`,
+            where: "UNIQUE INDEX observation_dedup_idx (business_id, content_hash)",
+            note: `The same review read on twenty consecutive nights is one row. The
+                   database enforces that, not the agent — hashing on normalised,
+                   case-folded text so whitespace and capitalisation cannot smuggle a
+                   copy past it.`,
+          },
+          {
+            label: "What it records about itself",
+            code: `"38 observed; 22 new; 16 already known;
+ 3 expired past their retention window; sources failed: yelp"`,
+            note: `A source that fails is named and the night continues. Only a night
+                   where <b>every</b> source failed and nothing was stored is marked
+                   failed.`,
+            where: CODE_REF.radar,
+          },
+        ],
+      },
+
+      analyst: {
+        eyebrow: "Agent 02 · reads",
+        title: "Analyst",
+        role: "vector search → reason",
+        sections: model => [
+          {
+            lede: `The one agent that would not work without the memory layer. It asks
+                   six concrete questions of everything ever stored, reasons over what
+                   comes back, and files the answer with its receipts.`,
+            figures: [
+              ["queries a night", (model.retrieval?.queries || []).length],
+              ["rows per query", model.retrieval?.perQueryLimit ?? 6],
+              ["finds on record", (model.finds || []).length],
+              ["evidence rows", model.corpus.evidenceRows ?? 0],
+            ],
+          },
+          {
+            label: "Why six questions and not one",
+            lede: `Titan embeddings answer concrete, hypothesis-shaped questions far
+                   better than abstract ones. Measured against this corpus, “Is there
+                   unmet demand we are not serving?” returned <b>0.238</b> and the wrong
+                   cluster; “Should this restaurant open for lunch?” returned
+                   <b>0.583</b> and the right one.`,
+            note: `So the six are fixed in code and issued every night. One open-ended
+                   “what should we do?” is not a prompt-tuning detail we skipped — it is
+                   a worse search, and it retrieves the wrong observations.`,
+          },
+          {
+            label: "The search itself",
+            code: `SELECT id, content, kind, source_name, subject, observed_at,
+       <b>1 - (embedding &lt;=&gt; $1::VECTOR)</b> AS similarity
+FROM observation
+WHERE business_id = $2 AND embedding IS NOT NULL
+<b>ORDER BY embedding &lt;=&gt; $1::VECTOR</b>
+LIMIT 6`,
+            where: "repository_pg.search_observations",
+            note: `<code>&lt;=&gt;</code> is cosine distance, matching the index's
+                   <code>vector_cosine_ops</code>. <code>business_id</code> is the index's
+                   leading column, so a single filter both engages the vector index and
+                   keeps tenants apart. Similarity is reported as <code>1 - distance</code>
+                   so that closer reads as larger.`,
+          },
+          {
+            label: "From 36 rows to the ones it cites",
+            bullets: [
+              `Six queries at six rows each — <b>36 at most</b>, a ceiling from two
+               constants rather than a count.`,
+              `The union is deduplicated by observation, each kept at its <b>highest</b>
+               similarity across the six queries.`,
+              `Re-ranked over the merged set, so rank means position in what the Analyst
+               saw, not position within one query.`,
+              `The model may only cite ids that were actually retrieved; anything else is
+               rejected before the find is written.`,
+            ],
+          },
+          {
+            label: "What the model is told",
+            rows: [
+              ["Business facts", "Everything the owner has told us, from <code>business_fact</code>."],
+              ["Owner rules", "The constraints it must respect, with any spend cap."],
+              ["Recent finds", "The last 20, as <b>do not repeat any of these</b>."],
+              ["Competitors", "Context only — explicitly not citable, because they are not stored observations."],
+              ["Retrieved rows", "Each as <code>id=… [kind, date, similarity 0.74] content</code>."],
+            ],
+          },
+          {
+            label: "Where the reasoning runs",
+            lede: `On the <b>Anthropic API</b>, model <code>claude-opus-5</code> — not on
+                   Bedrock.`,
+            note: `AWS could not grant this account access to any current Claude model on
+                   Bedrock: every one reported <code>agreementAvailability:
+                   NOT_AVAILABLE</code> while region, entitlement and authorisation were
+                   all green. Bedrock still generates every embedding in the index, so it
+                   remains load-bearing for retrieval. A <code>BedrockReasoner</code> is
+                   written and unused, behind the same interface, so this is a config
+                   change if access ever lands.`,
+            where: CODE_REF.analyst,
+          },
+        ],
+      },
+
+      maker: {
+        eyebrow: "Agent 03 · writes",
+        title: "Maker",
+        role: "draft the deliverable",
+        sections: model => [
+          {
+            lede: `The done-for-you half. Maker takes a find the owner has already
+                   accepted and writes the actual thing — then stops, because sending it
+                   is not its decision.`,
+            figures: [
+              ["drafted", model.artifactCount ?? 0],
+              ["preview characters", "240"],
+              ["finds scanned", "20"],
+            ],
+          },
+          {
+            label: "What it produces",
+            rows: [
+              ["Kind", "<code>review_reply</code> — the single artifact type this ships, per the scope cut."],
+              ["Picked from", "The oldest <b>accepted</b> find with no artifact yet."],
+              ["Stored at", "<code>finds/&lt;find-id&gt;/review_reply.md</code> in S3."],
+              ["Also stored", "A 240-character preview on the row itself, so the draft is readable without S3."],
+            ],
+          },
+          {
+            label: "When the upload fails",
+            lede: `The draft is kept. <code>s3_bucket</code> and <code>s3_key</code> are
+                   nullable on purpose, and the row is written either way.`,
+            note: `A draft that exists and is readable but failed to upload is a
+                   legitimate state, not an error to roll back — losing the model's work
+                   because a bucket was unreachable would be the worse outcome. The run
+                   note says which happened: <code>draft saved to s3://…</code>, or
+                   <code>draft saved; it could not be uploaded, so only the preview is
+                   stored</code>.`,
+            where: CODE_REF.maker,
+          },
+          {
+            label: "Drafts, never sent",
+            note: `Nothing Maker writes leaves the system on its own. The owner reads it
+                   and decides. That boundary is why the agent can be trusted with the
+                   owner's voice at all.`,
+          },
+        ],
+      },
+
+      meter: {
+        eyebrow: "Agent 04 · reads",
+        title: "Meter",
+        role: "judge earlier nights",
+        sections: model => [
+          {
+            lede: `The agent that cannot exist without persistent memory. It reads
+                   predictions written by runs that finished weeks ago, compares them to
+                   what happened, and appends a verdict it can never overwrite.`,
+            figures: [
+              ["judged", model.summary.judged ?? 0],
+              ["at or above", model.summary.hitRate == null ? "—" : `${model.summary.hitRate}%`],
+              ["missed", model.summary.miss ?? 0],
+              ["miss threshold", "25%"],
+            ],
+          },
+          {
+            label: "How a later run finds an earlier one's prediction",
+            code: `SELECT f.id, f.title, f.predicted_daily_cents, f.verify_after
+FROM find f
+WHERE f.business_id = $1
+  AND <b>f.verify_after &lt;= $2</b>
+  AND f.status = ANY('{accepted,live}')
+  AND <b>NOT EXISTS (SELECT 1 FROM ledger_entry le WHERE le.find_id = f.id)</b>
+ORDER BY f.verify_after, f.created_at`,
+            note: `The first bold clause is what makes the wait possible. The second is
+                   what stops a find being scored twice — and it is why the ledger can be
+                   append-only rather than something that gets corrected.`,
+          },
+          {
+            label: "The verdict, in order",
+            bullets: [
+              `No measured outcome → <b>estimated</b>, whatever the number says.`,
+              `Actual at or below zero → <b>miss</b>.`,
+              `Nothing was predicted and something arrived → <b>verified</b>.`,
+              `Below <b>25%</b> of the prediction → <b>miss</b>, even though it is positive.`,
+              `Otherwise → <b>verified</b>.`,
+            ],
+            note: `The comparison uses exact rational arithmetic, not floating point.
+                   Money is integer cents everywhere in this system, and a verdict that
+                   flipped on a rounding error would be the worst possible bug to have.`,
+          },
+          {
+            label: "Why every verdict here is currently modelled",
+            lede: `No sales integration is connected, so the outcome source reports
+                   <b>no measured data</b> every time and the first rule fires.`,
+            note: `That is the honest state, and the page says so rather than promoting
+                   estimates to verified. Only <code>verdict = 'verified'</code> money
+                   ever reaches the owner's headline figure — enforced in SQL, not in the
+                   view. Connecting real outcomes is a source swap; the judging is
+                   already written.`,
+            where: CODE_REF.meter,
+          },
+          {
+            label: "One verdict per period",
+            code: `UNIQUE INDEX ledger_period_idx (find_id, period_start, period_end)`,
+            note: `The measurement window is snapshotted onto the verdict when it is
+                   written, so editing a find later cannot retroactively change a
+                   recorded miss.`,
+          },
+        ],
+      },
+
+      ask: {
+        eyebrow: "On request · reads",
+        title: "Ask",
+        role: "read-only SQL over MCP",
+        sections: model => [
+          {
+            lede: `Not part of the nightly loop. The owner asks a question and Claude
+                   answers it by running SQL against the live cluster over CockroachDB's
+                   managed MCP server — the second CockroachDB tool this project uses at
+                   runtime.`,
+            figures: [
+              ["questions", (model.ask?.sessions || []).length],
+              ["statements run", (model.ask?.sessions || []).reduce((n, s) => n + (s.trail || []).length, 0)],
+              ["question limit", `${model.ask?.maxQuestionChars ?? 500} chars`],
+            ],
+          },
+          {
+            label: "How the call is made",
+            code: `client.beta.messages.create(
+    model="claude-opus-5",
+    betas=["mcp-client-2025-11-20"],
+    <b>mcp_servers=[{
+        "type": "url",
+        "name": "cockroach",
+        "url": "https://cockroachlabs.cloud/mcp",
+        "authorization_token": …,
+    }]</b>,
+    tools=[{"type": "mcp_toolset", "mcp_server_name": "cockroach"}],
+    messages=[{"role": "user", "content": question}],
+)`,
+            note: `The SQL executes server-side, between Anthropic and CockroachDB Cloud.
+                   This process never opens a database connection on that path — which is
+                   the point of the managed server, and why the trail it leaves is worth
+                   keeping.`,
+          },
+          {
+            label: "Read-only, twice over",
+            bullets: [
+              `The MCP server is <b>read-only by default</b>, and write consent is never
+               granted.`,
+              `The service account's key is scoped by CockroachDB Cloud RBAC to this
+               cluster alone.`,
+            ],
+            note: `Two independent mechanisms, because one of them being a prompt
+                   instruction would not be a control at all.`,
+          },
+          {
+            label: "What a question can reach",
+            code: `business · observation · find · find_evidence
+ledger_entry · artifact · agent_run`,
+            note: `The schema is given to the model up front so it does not spend tool
+                   calls discovering it. That list is the whole surface a question can
+                   touch.`,
+          },
+          {
+            label: "The receipt",
+            lede: `Every statement is recorded on the run, including the ones that
+                   failed.`,
+            note: `An answer with <b>no</b> tool calls is recorded just as loudly —
+                   <code>answered with no tool calls — nothing was read from the
+                   cluster</code>. That is the case worth exposing: the model replying
+                   from its own knowledge rather than from the business's data.`,
+            where: CODE_REF.ask,
+          },
+        ],
+      },
+
+      core: {
+        eyebrow: "The memory layer",
+        title: "CockroachDB",
+        role: "distributed vector index · the shared store",
+        sections: model => [
+          {
+            lede: `Everything the agents know lives here, and only here. There is no
+                   second vector store, no session cache and no side database — which is
+                   what makes the Meter possible and what the whole product rests on.`,
+            figures: [
+              ["vectors", model.corpus.observations ?? 0],
+              ["dimensions", "1024"],
+              ["evidence rows", model.corpus.evidenceRows ?? 0],
+              ["finds", (model.finds || []).length],
+            ],
+          },
+          {
+            label: "The vector index",
+            code: `embedding <b>VECTOR(1024)</b>
+
+<b>VECTOR INDEX observation_embed_idx (business_id, embedding vector_cosine_ops)</b>`,
+            note: `<code>business_id</code> leads the index deliberately: tenant
+                   isolation happens inside the index rather than as a filter after it,
+                   so one predicate does both jobs. A second vector index sits on
+                   <code>business_fact</code> for profile memory.`,
+          },
+          {
+            label: "Where the vectors come from",
+            rows: [
+              ["Model", "<code>amazon.titan-embed-text-v2:0</code> on Amazon Bedrock."],
+              ["Call", "<code>bedrock-runtime.invoke_model</code> with <code>{inputText, dimensions: 1024}</code>."],
+              ["Why explicit", "Titan v2 also offers 512 and 256. The dimension is asked for rather than assumed, because a default that drifted would fail at INSERT."],
+              ["If it mismatches", "Rejected twice — at config load against the schema, and per call against the returned vector."],
+            ],
+            note: `This is the load-bearing AWS dependency. No embeddings, no retrieval;
+                   no retrieval, no memory.`,
+          },
+          {
+            label: "The tables",
+            rows: [
+              ["observation", "What Radar saw, embedded and deduplicated."],
+              ["find", "The Analyst's proposal, and the prediction that makes the Meter possible."],
+              ["find_evidence", "Which rows backed a find, with similarity and rank — the receipt."],
+              ["ledger_entry", "The Meter's verdicts, append-only."],
+              ["artifact", "The Maker's drafts."],
+              ["agent_run", "One row per agent action, with its note."],
+              ["business_fact · owner_rule", "Profile memory, and the constraints the autopilot obeys."],
+            ],
+          },
+          {
+            label: "Written together or not at all",
+            lede: `A find and its evidence are inserted in one transaction, so a find can
+                   never exist without the retrieval that produced it.`,
+            note: `That is what lets this screen claim retrieval drove the reasoning
+                   rather than merely asserting it — the audit trail cannot be
+                   retrofitted, because there is no code path that writes one without the
+                   other.`,
+            where: CODE_REF.core,
+          },
+        ],
+      },
+    };
+
+    /**
+     * Every panel opens into its own detail view.
+     *
+     * The opening is a FLIP: the dialog is laid out at its final size, then
+     * measured against the card that was clicked and played back from there.
+     * That is what makes it read as the card enlarging rather than as a second
+     * screen arriving over the first — and it is why the tilt is settled before
+     * measuring, since a leaning card reports a skewed rectangle.
+     */
+    let detailOpener = null;
+
+    function bindDetailView(model) {
+      const panel = document.getElementById("detailPanel");
+      const scrim = document.getElementById("detailScrim");
+      if (!panel || panel.dataset.bound) return;
+      panel.dataset.bound = "1";
+
+      document.querySelectorAll(".hud-stage .node, .hud-stage .core").forEach(card => {
+        const key = card.dataset.node || "core";
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-haspopup", "dialog");
+        card.addEventListener("click", () => openDetail(key, model));
+        card.addEventListener("keydown", event => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openDetail(key, model);
+        });
+      });
+
+      document.getElementById("detailClose").addEventListener("click", closeDetail);
+      scrim.addEventListener("click", closeDetail);
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !panel.hidden) closeDetail();
+      });
+    }
+
+    function openDetail(key, model) {
+      const detail = DETAIL[key];
+      const panel = document.getElementById("detailPanel");
+      const scrim = document.getElementById("detailScrim");
+      if (!detail || !panel) return;
+
+      const card = document.querySelector(
+        key === "core" ? ".hud-stage .core" : `[data-node="${key}"]`);
+      // Settle the lean first: a tilted card's rectangle is not where it looks.
+      if (card) {
+        card.classList.remove("is-tilted");
+        ["--rx", "--ry", "--tz"].forEach(prop => card.style.removeProperty(prop));
+      }
+
+      detailOpener = card;
+      document.getElementById("detailEyebrow").textContent = detail.eyebrow;
+      document.getElementById("detailTitle").textContent = detail.title;
+      document.getElementById("detailRole").textContent = detail.role;
+      document.getElementById("detailBody").innerHTML =
+        detail.sections(model).map(renderDetailSection).join("");
+
+      panel.hidden = false;
+      scrim.hidden = false;
+      document.getElementById("detailBody").scrollTop = 0;
+      document.getElementById("detailClose").focus({ preventScroll: true });
+      zoomFrom(card, panel, scrim);
+    }
+
+    function closeDetail() {
+      const panel = document.getElementById("detailPanel");
+      const scrim = document.getElementById("detailScrim");
+      if (!panel || panel.hidden) return;
+
+      const done = () => { panel.hidden = true; scrim.hidden = true; };
+      const shrink = zoomFrom(detailOpener, panel, scrim, true);
+      if (shrink) shrink.addEventListener("finish", done);
+      else done();
+
+      if (detailOpener) detailOpener.focus({ preventScroll: true });
+      detailOpener = null;
+    }
+
+    //: The transform that carries the dialog between the card's rectangle and
+    //  its own. Returns the animation so the caller can wait for it; returns
+    //  null when there is nothing to measure or the viewer asked for stillness.
+    function zoomFrom(card, panel, scrim, reverse = false) {
+      const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (!card || !panel.animate || still) return null;
+
+      const from = card.getBoundingClientRect();
+      const to = panel.getBoundingClientRect();
+      if (!to.width || !to.height) return null;
+
+      const dx = (from.left + from.width / 2) - (to.left + to.width / 2);
+      const dy = (from.top + from.height / 2) - (to.top + to.height / 2);
+      const sx = Math.max(from.width / to.width, .05);
+      const sy = Math.max(from.height / to.height, .05);
+      // `translate: -50% -50%` centres the panel, so the animated transform
+      // composes on top of it rather than replacing it.
+      const shrunk = { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0 };
+      const full = { transform: "translate(0, 0) scale(1, 1)", opacity: 1 };
+      const frames = reverse ? [full, shrunk] : [shrunk, full];
+      const timing = { duration: reverse ? 260 : 400, easing: "cubic-bezier(.22,.72,.2,1)" };
+
+      scrim.animate(reverse ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 1 }], timing);
+      return panel.animate(frames, timing);
+    }
+
+    function renderDetailSection(section) {
+      const parts = [];
+      if (section.label) parts.push(`<h3>${escapeHtml(section.label)}</h3>`);
+      if (section.lede) parts.push(`<p class="detail-lede">${section.lede}</p>`);
+      if (section.figures) {
+        parts.push(`<div class="detail-figs">${section.figures.map(f => `
+          <div class="detail-fig"><b>${escapeHtml(String(f[1]))}</b><span>${escapeHtml(f[0])}</span></div>`).join("")}</div>`);
+      }
+      if (section.rows) {
+        parts.push(`<dl class="detail-rows">${section.rows.map(r => `
+          <div class="detail-row"><dt>${escapeHtml(r[0])}</dt><dd>${r[1]}</dd></div>`).join("")}</dl>`);
+      }
+      if (section.bullets) {
+        parts.push(`<ul class="detail-list">${section.bullets.map(b => `<li>${b}</li>`).join("")}</ul>`);
+      }
+      if (section.code) {
+        parts.push(`<pre class="detail-code">${section.code}</pre>`);
+      }
+      if (section.where) parts.push(`<span class="detail-where">${escapeHtml(section.where)}</span>`);
+      if (section.note) parts.push(`<p class="detail-note">${section.note}</p>`);
+      return `<section class="detail-section">${parts.join("")}</section>`;
     }
 
     function renderNode(agent, model) {
