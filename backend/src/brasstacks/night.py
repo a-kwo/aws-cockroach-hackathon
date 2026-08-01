@@ -73,7 +73,6 @@ def run_night(
     scout: Any | None = None,
     accept_proposals: bool = False,
     model_id: str | None = None,
-    embedding_model_id: str | None = None,
 ) -> NightResult:
     """Run the agents in order: observe, reason, do, measure.
 
@@ -93,7 +92,6 @@ def run_night(
         repo=repo, embedder=embedder, business_id=business_id, sources=sources,
         now=now, business_name=(business or {}).get("name", ""),
         city=(business or {}).get("city"),
-        model_id=embedding_model_id,
     )
 
     analyst = run_analyst(
@@ -218,7 +216,6 @@ def main(argv: list[str] | None = None) -> int:
                 scout=scout,
                 accept_proposals=args.accept_proposals,
                 model_id=settings.reasoning_model_id,
-                embedding_model_id=settings.embedding_model_id,
             )
 
             print(f"\n=== night {index + 1}/{args.nights} — {tonight.isoformat()} ===")

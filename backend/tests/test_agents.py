@@ -198,46 +198,6 @@ class TestAnalyst:
         for query in ANALYST_QUERIES:
             assert query in embedder.embedded
 
-    def test_the_run_note_states_a_retrieval_count_the_site_build_can_read(
-            self, repo, business):
-        """The admin view prints "N retrieved → M cited" straight out of this
-        note, because the count is nowhere else in the schema. That makes the
-        note's wording a contract between two files that never import each
-        other — so it is pinned here, against the real agent's real output.
-
-        If the note is reworded, this fails rather than the number silently
-        blanking on screen.
-        """
-        import build_web
-
-        ids = self._corpus(repo, business)
-        reasoner = FakeReasoner([find_payload(evidence_observation_ids=[ids[0]])])
-
-        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
-                             business_id=business, today=TODAY)
-
-        [run] = [r for r in repo.recent_runs(business, limit=5)
-                 if r.run_id == result.run_id]
-        assert build_web.run_retrieved({"note": run.note}) == result.retrieved
-        assert result.retrieved > 0
-
-    def test_a_failed_analyst_run_still_states_what_it_retrieved(
-            self, repo, business):
-        """The failure note is worded differently from the success note. Both
-        have to parse, or a failed night reads as a night that never searched."""
-        import build_web
-
-        self._corpus(repo, business)
-        reasoner = FakeReasoner([ModelRefusedError("policy")])
-
-        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
-                             business_id=business, today=TODAY)
-
-        [run] = [r for r in repo.recent_runs(business, limit=5)
-                 if r.run_id == result.run_id]
-        assert run.status == "failed"
-        assert build_web.run_retrieved({"note": run.note}) == result.retrieved
-
     def test_writes_a_find_with_retrieved_evidence(self, repo, business):
         ids = self._corpus(repo, business)
         reasoner = FakeReasoner([
@@ -542,39 +502,6 @@ class TestRunNight:
         assert result.analyst.find_id
         assert result.maker.artifact_id
         assert store.puts, "the Maker should have written the draft"
-
-    def test_each_agent_records_only_the_tokens_it_spent(self, repo, business):
-        """One reasoner instance serves the whole night, so usage is drained and
-        reset at each run boundary. Without the reset the Maker's row would
-        carry the Analyst's tokens on top of its own, and a cost panel built on
-        those rows would double-count every night."""
-        from brasstacks.artifacts import FakeArtifactStore
-        from brasstacks.night import run_night
-
-        content = "Nobody ever replies to our reviews."
-        observation_id = repo.insert_observation(
-            business, content=content, kind="review",
-            embedding=FakeEmbedder().embed([content])[0],
-            observed_at=datetime(2026, 7, 20, tzinfo=timezone.utc))
-
-        run_night(
-            repo=repo, embedder=FakeEmbedder(),
-            reasoner=FakeReasoner(
-                [dict(self.FIND, evidence_observation_ids=[observation_id]),
-                 {"title": "Draft replies", "body": "Thank you for telling us."}],
-                usage_per_call=(100, 7)),
-            outcomes=NoOutcomeSource(), business_id=business, today=TODAY,
-            sources=self._signals(), store=FakeArtifactStore(),
-            accept_proposals=True, model_id="claude-opus-5")
-
-        runs = {r.agent: r for r in repo.recent_runs(business, limit=10)}
-        assert (runs["analyst"].input_tokens, runs["analyst"].output_tokens) == (100, 7)
-        assert (runs["maker"].input_tokens, runs["maker"].output_tokens) == (100, 7)
-        assert runs["analyst"].model_id == "claude-opus-5"
-
-        # The Meter reasons in Python, not in a model. Unknown, never zero.
-        assert runs["meter"].input_tokens is None
-        assert runs["meter"].model_id is None
 
     def test_the_maker_is_skipped_when_no_store_is_configured(self, repo, business):
         # S3 being unconfigured must cost us the drafts, not the night.

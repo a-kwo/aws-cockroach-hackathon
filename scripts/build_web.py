@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import re
-from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
 
@@ -38,14 +37,6 @@ OUT_DIR = REPO / "web"
 #: A month of a per-day rate. The product speaks in "a month, every month", and
 #: 30 is the figure the seeded predictions were written against.
 PER_MONTH = 30
-
-#: How much of one action fits on the face of a For You card. The card is a
-#: fixed grid with overflow hidden — long prose does not reflow it, it silently
-#: pushes the price and the Pass/Do it row past the bottom edge — so the limit
-#: lives here, next to the splitter, rather than being guessed at in CSS. Two
-#: bullets of this length sit under a two-line title and a quote and still leave
-#: the footer on screen. The whole `move` stays on the card as its tooltip.
-BULLET_CHARS = 116
 
 #: The concrete hypothesis queries the Analyst issues every night, from
 #: backend/src/brasstacks/agents/analyst.py. Shown in the run receipt so the
@@ -123,29 +114,10 @@ def bullets(move: str) -> list[str]:
         return []
     parts = re.split(r"\s*\((?:\d+|[a-e])\)\s*", text)
     parts = [p for p in (p.strip() for p in parts) if p]
-    if len(parts) == 1:
-        return sentences(text)
-    # An enumerated move usually opens with prose and only *then* counts off:
-    # "Draft the insert. Send it to the owner first. Then order: (a) … (b) …".
-    # Returning that preamble whole made one bullet out of a paragraph, which
-    # is what overran the card. Every part gets the sentence split.
-    return [b for part in parts for b in sentences(part)]
-
-
-#: A step that opens with its own list marker — "1) Draft …", "2. Post …".
-#: Only ")" and "." after a single digit or letter, so "6 covers a night" and
-#: "$38 average check" keep the figure they start with.
-#: "2." also ends a sentence, so the split can leave the marker stranded on its
-#: own — hence the `$`, which turns that fragment into nothing and drops it.
-ENUMERATOR = re.compile(r"^\(?(?:\d|[a-e])[).](\s+|$)", re.I)
-
-
-def sentences(text: str) -> list[str]:
-    # The list already marks each step, so an enumerator left in the prose
-    # numbers the same line twice: "• 1) Draft the sheet."
-    parts = (ENUMERATOR.sub("", p.strip()).strip().rstrip(" ;,")
-             for p in re.split(r"(?<=[.;])\s+", text))
-    return [p for p in parts if p]
+    if len(parts) > 1:
+        return [p.rstrip(" ;,") for p in parts]
+    sentences = re.split(r"(?<=[.;])\s+", text)
+    return [s.strip().rstrip(";") for s in sentences if s.strip()]
 
 
 def month_label(value: str) -> str:
@@ -165,39 +137,6 @@ def run_seconds(row: dict) -> int | None:
         (datetime.fromisoformat(finished) - datetime.fromisoformat(started))
         .total_seconds()
     )
-
-
-#: The Analyst writes its retrieval count into the run note — "41 retrieved;
-#: proposed …" on the happy path, "6 observations retrieved" when the model call
-#: failed. Reading it back needs no column and no migration. Pinned against the
-#: agent's real output by a test in test_agents.py, so a reworded note fails
-#: loudly rather than silently blanking the number on screen.
-RETRIEVED = re.compile(r"^(\d+)\s+(?:observations\s+)?retrieved\b")
-
-
-def run_retrieved(row: dict) -> int | None:
-    """How many observations a run's vector search returned, or None.
-
-    None rather than 0 for a run that never searched — a Radar row reporting
-    "0 retrieved" would claim it queried memory and came back empty-handed.
-    """
-    match = RETRIEVED.match((row.get("note") or "").strip())
-    return int(match.group(1)) if match else None
-
-
-def top_kind_label(evidence: list[dict]) -> str | None:
-    """The commonest kind among the observations a find actually cited.
-
-    Replaces the mock's invented "feature" tag — Competitors / Reviews / Demand
-    — with a label the rows can support. None when a find cites nothing, because
-    a find with no evidence has no source to name.
-    """
-    if not evidence:
-        return None
-    counts = Counter(e["kind"] for e in evidence)
-    # Ties broken by citation order, so the label is stable across builds.
-    kind = max(counts, key=lambda k: (counts[k], -[e["kind"] for e in evidence].index(k)))
-    return KIND_LABEL.get(kind, kind)
 
 
 def when(value: str | None) -> str:
@@ -224,36 +163,17 @@ def build_model(data: dict) -> dict:
         evidence = sorted(f["evidence"], key=lambda e: e["rank"])
         predicted = int(f["predicted_daily_cents"])
         actual = f["actual_daily_cents"]
-        run_id = f.get("run_id")
         finds.append({
             "id": f["id"][:8],
-            # Lineage. `seeded` is derived by the exporter, which is where the
-            # agent that wrote the run is known; the default here is True so an
-            # older fixture with no lineage at all claims Analyst work for
-            # nothing.
-            "runId": run_id[:8] if run_id else None,
-            "seeded": bool(f.get("seeded", True)),
-            # A fixed date, never a relative one: the fixture is a frozen
-            # export, so "3 days ago" is true on build day and fiction after it.
-            "foundAtTxt": when(f.get("created_at")),
-            "topKindLabel": top_kind_label(evidence),
             "emoji": f["emoji"] or "💡",
             "title": " ".join(f["title"].split()),
             "shortTitle": short_title(f["title"]),
             "tinyTitle": short_title(f["title"], 20),
             "move": " ".join((f["move"] or "").split()),
-            # Split, then clamped: a sentence an agent wrote can still run long
-            # enough to overrun a card of fixed height. `move` above keeps the
-            # paragraph whole for the tooltip and the drawer, so nothing is lost
-            # — only the two lines on the face of the card are cut, visibly.
-            "bullets": [clamp(b, BULLET_CHARS) for b in bullets(f["move"])],
+            "bullets": bullets(f["move"]),
             "rationale": " ".join((f["rationale"] or "").split()),
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),
-            # Integer cents as well as the formatted string: the Growth forecast
-            # is the one figure that depends on a runtime choice, so the page
-            # has to be able to sum it. Cents, so the sum stays exact.
-            "predictedMonthly": predicted * PER_MONTH,
             "predictedMonthlyTxt": money(predicted * PER_MONTH),
             "predictedMonthlyShort": short_money(predicted * PER_MONTH),
             "actualDaily": int(actual) if actual is not None else None,
@@ -266,10 +186,6 @@ def build_model(data: dict) -> dict:
             "measuredAt": f["measured_at"],
             "verifyAfter": f["verify_after"],
             "evidenceCount": len(evidence),
-            # The Maker's deliverables, counted where they were written. The
-            # console used to render the Later-jar bucket as "N drafted", which
-            # claimed a draft that does not exist.
-            "artifactCount": len(f.get("artifacts") or []),
             "topSimilarity": round(evidence[0]["similarity"], 3) if evidence else None,
             "evidence": [{
                 "content": " ".join(e["content"].split()),
@@ -380,27 +296,8 @@ def build_model(data: dict) -> dict:
             "finishedAt": r.get("finished_at"),
             "seconds": run_seconds(r),
             "note": r.get("note") or "",
-            "error": r.get("error"),
-            # None, never 0. A run that called no model must be able to say so
-            # — see providers.recorded_tokens.
-            "modelId": r.get("model_id"),
-            "inputTokens": r.get("input_tokens"),
-            "outputTokens": r.get("output_tokens"),
-            "retrieved": run_retrieved(r),
-            "produced": {
-                "observations": r.get("observations") or 0,
-                "finds": r.get("finds") or 0,
-                "artifacts": r.get("artifacts") or 0,
-                "ledgerEntries": r.get("ledger_entries") or 0,
-            },
         } for r in data.get("runs", [])],
-        # The list is capped at export time. Carrying the total is what lets the
-        # panel say it is showing a window rather than the whole record.
-        "runCount": data.get("run_count", len(data.get("runs", []))),
         "statusLine": status_line,
-        # What the Maker has actually drafted. Zero until it runs, and the
-        # console says "none drafted yet" rather than borrowing another count.
-        "artifacts": sum(f["artifactCount"] for f in finds),
         "finds": finds,
         "proposed": [f["id"] for f in proposed],
         "saved": [f["id"] for f in saved],
@@ -425,11 +322,7 @@ def build_model(data: dict) -> dict:
             "reviews": r["reviews"],
         } for r in data["ratings"]],
         "queries": ANALYST_QUERIES,
-        # The cluster's own clock and the SQL that ran, in place of a pulsing
-        # dot. Both may be absent — an older fixture, or a role that cannot read
-        # crdb_internal — and the page says so rather than inventing a stamp.
         "generated": data.get("_generated"),
-        "receipt": data.get("_receipt"),
         "_by_id": list(by_id),
     }
 

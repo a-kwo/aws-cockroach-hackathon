@@ -28,14 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from brasstacks.providers import (
-    Answer,
-    Asker,
-    ProviderError,
-    ToolCall,
-    drain_usage,
-    recorded_tokens,
-)
+from brasstacks.providers import Answer, Asker, ProviderError, ToolCall
 from brasstacks.repository import Repository
 
 #: Prefix on every trail line, so the UI can split the note deterministically
@@ -203,13 +196,9 @@ def run_ask(
         error = f"{type(e).__name__}: {e}"
         # Finishing the run matters more than it looks: a row left 'running'
         # forever makes the audit trail lie about what the agent did.
-        spent_in, spent_out = recorded_tokens(drain_usage(asker))
         repo.finish_run(run_id, status="failed", error=error,
-                        note="no answer returned",
-                        input_tokens=spent_in, output_tokens=spent_out)
+                        note="no answer returned")
         return AskResult(run_id=run_id, answer=None, error=error)
 
-    spent_in, spent_out = recorded_tokens(drain_usage(asker))
-    repo.finish_run(run_id, status="ok", note=_trail_note(answer),
-                    input_tokens=spent_in, output_tokens=spent_out)
+    repo.finish_run(run_id, status="ok", note=_trail_note(answer))
     return AskResult(run_id=run_id, answer=answer)

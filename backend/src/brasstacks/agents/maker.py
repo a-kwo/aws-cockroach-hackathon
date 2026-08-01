@@ -22,12 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from brasstacks.artifacts import ArtifactStore, ArtifactStoreError
-from brasstacks.providers import (
-    ProviderError,
-    Reasoner,
-    drain_usage,
-    recorded_tokens,
-)
+from brasstacks.providers import ProviderError, Reasoner
 from brasstacks.repository import FindSummary, Repository, RepositoryError
 
 #: The one artifact type this ships, per the scope cut in CLAUDE.md.
@@ -135,8 +130,6 @@ def run_maker(
     # failure. Marking the run failed would make the audit trail cry wolf.
     if find is None:
         result = MakerResult(run_id=run_id)
-        # No model call was made, so no token counts are written. Unknown, not
-        # zero — see providers.recorded_tokens.
         repo.finish_run(run_id, status="ok", note=result.note)
         return result
 
@@ -155,15 +148,8 @@ def run_maker(
     except (ProviderError, KeyError, TypeError) as e:
         error = f"{type(e).__name__}: {e}"
         result = MakerResult(run_id=run_id, error=error)
-        spent_in, spent_out = recorded_tokens(drain_usage(reasoner))
-        repo.finish_run(run_id, status="failed", error=error, note=result.note,
-                        input_tokens=spent_in, output_tokens=spent_out)
+        repo.finish_run(run_id, status="failed", error=error, note=result.note)
         return result
-
-    # Drained here rather than at each exit below: the model call is over, and
-    # everything after it is storage. All three remaining paths report the same
-    # cost, which is the true one.
-    spent_in, spent_out = recorded_tokens(drain_usage(reasoner))
 
     # Upload first so the row can record where it landed — but a failure here
     # is survivable, and the draft is kept either way.
@@ -188,8 +174,7 @@ def run_maker(
     except RepositoryError as e:
         error = f"{type(e).__name__}: {e}"
         result = MakerResult(run_id=run_id, error=error)
-        repo.finish_run(run_id, status="failed", error=error, note=result.note,
-                        input_tokens=spent_in, output_tokens=spent_out)
+        repo.finish_run(run_id, status="failed", error=error, note=result.note)
         return result
 
     result = MakerResult(
@@ -197,8 +182,7 @@ def run_maker(
         artifact_id=artifact_id,
         location=f"s3://{location.bucket}/{location.key}" if location else None,
     )
-    repo.finish_run(run_id, status="ok", note=result.note,
-                    input_tokens=spent_in, output_tokens=spent_out)
+    repo.finish_run(run_id, status="ok", note=result.note)
     return result
 
 

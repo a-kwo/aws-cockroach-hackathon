@@ -173,18 +173,15 @@ class PostgresRepository:
             return str(cur.fetchone()[0])
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = None,
-                   note: str | None = None,
-                   input_tokens: int | None = None,
-                   output_tokens: int | None = None) -> None:
+                   note: str | None = None) -> None:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE agent_run
-                SET status = %s, finished_at = clock_timestamp(), error = %s,
-                    note = %s, input_tokens = %s, output_tokens = %s
+                SET status = %s, finished_at = clock_timestamp(), error = %s, note = %s
                 WHERE id = %s
                 """,
-                (status, error, note, input_tokens, output_tokens, run_id),
+                (status, error, note, run_id),
             )
             if cur.rowcount == 0:
                 raise RepositoryError(f"unknown run {run_id}")
@@ -193,8 +190,7 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, agent, status, started_at, finished_at, error, note,
-                       model_id, input_tokens, output_tokens
+                SELECT id, agent, status, started_at, finished_at, error, note
                 FROM agent_run
                 WHERE business_id = %s
                 ORDER BY started_at DESC
@@ -204,8 +200,7 @@ class PostgresRepository:
             )
             return [
                 RunRecord(run_id=str(r[0]), agent=str(r[1]), status=str(r[2]),
-                          started_at=r[3], finished_at=r[4], error=r[5], note=r[6],
-                          model_id=r[7], input_tokens=r[8], output_tokens=r[9])
+                          started_at=r[3], finished_at=r[4], error=r[5], note=r[6])
                 for r in cur.fetchall()
             ]
 
