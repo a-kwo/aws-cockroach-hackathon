@@ -460,6 +460,22 @@ label. Below 900px the arrows are hidden and the rail scrolls horizontally.
   seen rather than computed. The second bar is labelled *Modelled* rather than *Actual*
   when the verdict is an estimate.
 
+## Onboarding
+
+The signup experience is a workspace setup, not a generic account form. It has two short
+steps and a live agent brief that explains how each answer changes the system:
+
+- **Business** defines the Radar search boundary: category, place, and an optional known URL.
+- **Buyers** defines Analyst relevance: buyer segments, core offers, channels, and one goal.
+- **Ready** confirms the exact profile that will scope the first market sweep.
+
+On desktop, the form and agent brief sit side by side. On narrow screens, the form remains
+first and the brief follows it. Required fields are limited to what the agents can use. The
+interface never implies that an account was securely provisioned when only browser storage is
+available; local and connected modes are stated in plain language. A newly created workspace
+starts at zero observations and never borrows the fictional demo tenant's cards, growth, or
+ledger.
+
 ## Do's and Don'ts
 
 ### Do

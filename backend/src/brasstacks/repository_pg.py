@@ -173,15 +173,17 @@ class PostgresRepository:
             return str(cur.fetchone()[0])
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = None,
-                   note: str | None = None) -> None:
+                   note: str | None = None, input_tokens: int | None = None,
+                   output_tokens: int | None = None) -> None:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE agent_run
-                SET status = %s, finished_at = clock_timestamp(), error = %s, note = %s
+                SET status = %s, finished_at = clock_timestamp(), error = %s,
+                    note = %s, input_tokens = %s, output_tokens = %s
                 WHERE id = %s
                 """,
-                (status, error, note, run_id),
+                (status, error, note, input_tokens, output_tokens, run_id),
             )
             if cur.rowcount == 0:
                 raise RepositoryError(f"unknown run {run_id}")
@@ -190,7 +192,8 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, agent, status, started_at, finished_at, error, note
+                SELECT id, agent, status, started_at, finished_at, error, note,
+                       input_tokens, output_tokens
                 FROM agent_run
                 WHERE business_id = %s
                 ORDER BY started_at DESC
@@ -200,7 +203,8 @@ class PostgresRepository:
             )
             return [
                 RunRecord(run_id=str(r[0]), agent=str(r[1]), status=str(r[2]),
-                          started_at=r[3], finished_at=r[4], error=r[5], note=r[6])
+                          started_at=r[3], finished_at=r[4], error=r[5], note=r[6],
+                          input_tokens=r[7], output_tokens=r[8])
                 for r in cur.fetchall()
             ]
 
@@ -364,11 +368,13 @@ class PostgresRepository:
         return find_id
 
     def set_find_status(self, find_id: str, *, status: str,
-                        decided_at: datetime | None = None) -> None:
+                        decided_at: datetime | None = None,
+                        business_id: str | None = None) -> None:
         """Record the owner's decision on a find.
 
-        Only 'accepted' and 'live' are judgeable, so this is the gate between a
-        proposal and something the Meter will hold us to.
+        ``business_id`` scopes browser-originated writes to the configured
+        tenant. Agent-internal callers may omit it because they already operate
+        on repository objects retrieved for that tenant.
         """
         with self._conn.cursor() as cur:
             cur.execute(
@@ -376,11 +382,15 @@ class PostgresRepository:
                 UPDATE find
                 SET status = %s, decided_at = coalesce(%s, clock_timestamp())
                 WHERE id = %s
+                  AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                  AND status IN ('proposed', 'later')
                 """,
-                (status, decided_at, find_id),
+                (status, decided_at, find_id, business_id, business_id),
             )
             if cur.rowcount == 0:
-                raise RepositoryError(f"unknown find {find_id}")
+                raise RepositoryError(
+                    f"unknown, already decided, or inaccessible find {find_id}"
+                )
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         with self._conn.cursor() as cur:

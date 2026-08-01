@@ -115,6 +115,8 @@ class RunRecord:
     finished_at: datetime | None = None
     error: str | None = None
     note: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -165,7 +167,8 @@ class Repository(Protocol):
                   model_id: str | None = ...) -> str: ...
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = ...,
-                   note: str | None = ...) -> None: ...
+                   note: str | None = ..., input_tokens: int | None = ...,
+                   output_tokens: int | None = ...) -> None: ...
 
     def recent_runs(self, business_id: str, *, limit: int) -> list[RunRecord]: ...
 
@@ -192,7 +195,8 @@ class Repository(Protocol):
     ) -> str: ...
 
     def set_find_status(self, find_id: str, *, status: str,
-                        decided_at: datetime | None = ...) -> None: ...
+                        decided_at: datetime | None = ...,
+                        business_id: str | None = ...) -> None: ...
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]: ...
 
@@ -411,14 +415,16 @@ class InMemoryRepository:
         return run_id
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = None,
-                   note: str | None = None) -> None:
+                   note: str | None = None, input_tokens: int | None = None,
+                   output_tokens: int | None = None) -> None:
         existing = self._runs.get(run_id)
         if existing is None:
             raise RepositoryError(f"unknown run {run_id}")
         self._runs[run_id] = RunRecord(
             run_id=run_id, agent=existing.agent, status=status,
             started_at=existing.started_at, finished_at=self._now(),
-            error=error, note=note,
+            error=error, note=note, input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     def recent_runs(self, business_id: str, *, limit: int) -> list[RunRecord]:
@@ -523,9 +529,10 @@ class InMemoryRepository:
         return find_id
 
     def set_find_status(self, find_id: str, *, status: str,
-                        decided_at: datetime | None = None) -> None:
+                        decided_at: datetime | None = None,
+                        business_id: str | None = None) -> None:
         found = self._finds.get(find_id)
-        if found is None:
+        if found is None or (business_id is not None and found.business_id != business_id):
             raise RepositoryError(f"unknown find {find_id}")
         found.status = status
 

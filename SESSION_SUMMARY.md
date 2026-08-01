@@ -249,3 +249,141 @@ Setup gotchas that will otherwise cost a judge time, and belong in the README:
 6. **Feature freeze Aug 14**, record the video, submit Aug 17
 
 Projects lose by building until the deadline and never recording.
+
+---
+
+## 2026-08-01 — decision pipeline consistency fix
+
+- For You decisions now project over the build-time model before Memory Engine derives its stages.
+- **Pass** changes the decision gate from 5 waiting to 4 waiting and increments **passed**; Maker remains at 0 because passed work stops at the decision gate.
+- **Do it** changes the decision gate from 5 waiting to 4 waiting and adds one accepted, undrafted item to Maker.
+- Replaced the ambiguous Owner Decision metric **saved** with **approved** and **passed**. The separate `later` state is shown only as **Saved for later** in the expanded routing details.
+- Connected builds keep successful decision receipts across reloads. The unconnected demo still starts clean.
+- Full offline suite at that milestone: **367 passed, 58 deselected**.
+
+
+---
+
+## 2026-08-01 — live workflow freshness (v6)
+
+- Added a read-only `GET /workflow` Lambda/API Gateway route backed directly by CockroachDB.
+- The static export remains the instant, failure-tolerant first paint; the live response overlays current owner workflow state without rebuilding the site.
+- One startup sync keeps For You aligned with decisions made on another device. Memory Engine then revalidates every 15 seconds only while operators can see it.
+- Current decisions, agent runs, token receipts, Maker artifacts, and Meter verdicts update in place. A failed refresh keeps the last good state and marks it stale.
+- Conditional `ETag` requests return `304 Not Modified` when the workspace has not changed.
+- The workflow read is SQL-only and consumes **zero model tokens**. It returns cited evidence, not embeddings or the full observation corpus.
+- Tenant access is an SSM-configured business allowlist; request parameters cannot enumerate arbitrary businesses.
+- Lifecycle arrays are now re-derived from authoritative rows, so Later, accepted work, Maker queues, and Meter windows cannot drift from the displayed find status.
+- Full offline suite: **386 passed, 58 deselected**. Browser smoke test verified cross-device Pass + Do it, Maker queue routing, and conditional ETag refresh.
+
+---
+
+## 2026-08-01 — Radar statistics clarified (v7)
+
+- Replaced the ambiguous Radar labels **memories** and **signal types** with **market signals stored**, **market channels**, and **newest signal**.
+- The compact owner row now says what Radar actually has and shows the last scan date instead of repeating the same total twice.
+- Expanded Radar groups raw database kinds into operator-friendly channels: Reviews, Competitors, Demand, and optional Owner context/Other.
+- Added an explicit explanation that the number is the total evidence currently stored for the owner, not new recommendations or signals added in the latest scan.
+- Added scan freshness and receipt details: last Radar scan, scan duration, newest stored signal, and the recorded run note/status.
+- Full offline suite: **387 passed, 58 deselected**.
+
+
+---
+
+## 2026-08-01 — Analyst traceability (v8)
+
+- Replaced the ambiguous **6 searches / run** label with an operator-readable Analyst trace.
+- The expanded stage now shows: signals searchable, six market questions, configured or
+  recorded candidate matches, unique context sent to the model, and evidence rows saved.
+- Clarified that these are CockroachDB vector-memory searches, not six internet searches.
+- Every waiting recommendation expands to its rationale, recommended move, exact cited
+  `find_evidence` rows, and its linked Analyst run receipt when present.
+- Added a compact versioned `analyst_trace_v1` receipt to `agent_run.note`, recording per-query
+  hit counts, raw matches, unique matches after deduplication, cited rows, and output find id.
+- Linked `find.run_id` into both the static build and live workflow projection so the operator
+  view uses the exact run that created a recommendation rather than an unrelated latest run.
+- Input/output token usage remains stored on the same `agent_run`. Historical imported finds
+  with no run row now say **No receipt** and explicitly explain that this is not zero tokens.
+- Browser smoke test verified Memory Engine rendering and the expandable Analyst workflow.
+- The structured receipt also stores the exact query text and per-query retrieval limit, and
+  the workflow read keeps run rows referenced by open finds even when they are older than the
+  normal per-agent activity window.
+- Evidence rows now carry observation id, rank, source name, subject, date, and similarity for
+  a complete recommendation-to-memory audit trail.
+- Full offline suite: **396 passed, 58 deselected**.
+
+---
+
+## 2026-08-01 — Owner decision audit trail (v10)
+
+- Replaced the Owner Decision stage's aggregate-only routing list with a newest-first,
+  expandable decision history.
+- Every recorded **Do it** or **Pass** now shows the recommendation, owner account, local
+  decision time, and downstream route in the collapsed row.
+- Expanding a decision reveals the decision, actor account, exact timestamp, routing,
+  receipt source, and full CockroachDB `find` identifier.
+- The static build now preserves `find.decided_at`; the live workflow endpoint already
+  supplies the same field. Historical rows without a receipt say **Time not recorded**
+  rather than inventing one.
+- The decision API now generates one UTC server timestamp, writes it to CockroachDB, and
+  returns that same value to the browser so the audit trail does not depend on a skewed
+  client clock.
+- Unconnected demo decisions are visibly labelled **This browser · demo only**. Connected
+  decisions are labelled as CockroachDB records/live workflow reads.
+- The compact metrics now use the owner's actual button language: **waiting**, **Do it**,
+  and **Pass**.
+- Current actor identity is the business-owner account inferred from the owner workspace.
+  A named human identity will require the planned API Gateway/JWT authentication layer.
+- Full offline suite: **401 passed, 58 deselected**. Browser smoke test verified Pass,
+  timestamp rendering, route visibility, and expandable record details.
+
+---
+
+## 2026-08-01 — Memory Engine visual operations mode (v12)
+
+- Removed the redundant header subtitle and the ambiguous global **Need attention** KPI. Attention remains attached to the exact owner handoff and agent stage where an operator can act.
+- Added an accessible two-way **Operations / Live graph** toggle. Both modes consume the same owner-scoped workspace model and live `/workflow` refresh.
+- Added a multi-owner selector. Every business remains isolated by `business_id`; selecting an owner redraws the five-agent pipeline, stage inspector, market-memory chart, decision chart, and outcome ledger for that owner.
+- Added an animated five-stage flow map for Radar → Analyst → Owner decision → Maker → Meter, including status pulses, moving handoff particles, animated bars, and a reduced-motion fallback.
+- Added live, data-derived charts for portfolio handoffs, owner decisions, market memory, and the outcome ledger. No presentation-only counts are introduced.
+- Each graph node opens a stage inspector; **Open detailed trace** returns to Operations mode and expands the exact owner and agent receipt.
+- Validated at desktop, tablet, and mobile widths with no page-level horizontal overflow.
+- Offline suite: 410 passed, 58 cloud integration tests deselected.
+
+---
+
+## 2026-08-01 — CockroachDB memory and token-efficiency proof (v13)
+
+- Added an above-the-fold **CockroachDB memory advantage** panel to both Memory Engine modes.
+- The selected owner now has a visible retrieval funnel: persistent memories → bounded candidate matches → deduplicated model context → evidence saved with the recommendation.
+- Added owner-scoped KPIs for persistent memories, context kept out, actual Analyst model tokens, and the SQL-only workflow refresh that uses **0 LLM tokens**.
+- Added an animated token-efficiency chart to Live graph mode, derived from the same owner workspace as the operations trace.
+- Actual input/output token usage comes only from the linked `agent_run` provider receipt. Historical imports without that receipt say **Pending live run** and explicitly state that the value is not zero.
+- Context reduction remains labelled as a row-based retrieval metric and is never presented as an invented provider-token saving.
+- The live `/workflow` read is identified separately as a zero-model-token CockroachDB status projection.
+- Validated Operations and Live graph modes at 1920, 1440, 1024, 768, and 390 px with no horizontal overflow or browser console errors.
+- Offline suite: **414 passed, 58 cloud integration tests deselected**.
+
+## 2026-08-01 — Portfolio-scoped memory efficiency KPIs (v14)
+
+The Memory Engine headline KPI strip now aggregates across every owner workspace rather
+than changing with the currently selected business. `Context kept out` is calculated as a
+weighted portfolio reduction: total owner-scoped context bounds divided by total persistent
+memories. The card is explicitly labelled `All owners`. Analyst token usage likewise sums
+the latest recorded owner receipts and states receipt coverage. Detailed retrieval funnels
+remain owner-scoped and are labelled `Selected owner`.
+
+---
+
+## 2026-08-01 onboarding update
+
+The landing page now uses **Sign up** and routes to `web/signup/`. A two-step workspace
+setup captures the minimum owner-scoped agent brief: owner identity, business/category,
+market, optional known URL, buyer segments, core offers, channels, and one priority. The
+right-hand preview explains how the profile narrows Radar and Analyst.
+
+The public/local build stores this profile under `brass-tacks-onboarding-profile-v1` and
+opens an honest first-run workspace with zero inherited signals, recommendations, revenue,
+or outcomes. A configured `ONBOARDING_API_ENDPOINT` can accept the same structured payload,
+but secure authentication and production tenant provisioning remain future work and must not
+be implied by the demo.

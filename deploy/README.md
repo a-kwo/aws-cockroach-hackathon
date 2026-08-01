@@ -1,8 +1,11 @@
 # Deploying Brass Tacks
 
-Two Lambdas: `night` runs the loop on a schedule, `ask` answers owner questions
-over CockroachDB's managed MCP server. Everything else — the board — is a static
-build and needs no runtime.
+Four Lambda entry points share one container image: `night` runs the agent loop
+on a schedule, `ask` answers owner questions over CockroachDB's managed MCP
+server, `decision` persists Do it / Pass, and `workflow` serves current operator
+state. The board still ships a static CockroachDB snapshot for instant first
+paint, then Memory Engine revalidates that snapshot through the read-only
+workflow route while the operator view is open.
 
 Prerequisites: AWS SAM CLI, Docker, and an AWS profile that is **not** root.
 
@@ -94,6 +97,18 @@ put COCKROACH_MCP_TOKEN    '…'          # from step 2
 put BRASSTACKS_BUSINESS_ID '…'          # printed by scripts/seed.py
 ```
 
+For a multi-owner operator portfolio, add a comma-separated allowlist. The live
+workflow endpoint never accepts an arbitrary tenant id from the request:
+
+```bash
+aws ssm put-parameter --type String --overwrite \
+  --name /brasstacks/BRASSTACKS_OPERATOR_BUSINESS_IDS \
+  --value 'owner-uuid-1,owner-uuid-2'
+```
+
+Leave it absent for the single demo tenant; `BRASSTACKS_BUSINESS_ID` is then the
+allowlist automatically.
+
 Two more, not secrets but needed — without them the Ask agent rediscovers the
 cluster and schema on every question (measured: 8 tool calls per question
 instead of 2):
@@ -170,11 +185,11 @@ sam deploy \
   --parameter-overrides ArtifactBucket=<your-bucket>
 ```
 
-`--resolve-image-repos` creates the ECR repositories the two container images
+`--resolve-image-repos` creates the ECR repositories the container functions
 need; `--resolve-s3` handles the deployment bucket. `sam deploy --guided` is the
 interactive equivalent and asks the same questions.
 
-It prints the Ask endpoint URL on completion.
+It prints the Ask, Decision, and Workflow endpoint URLs on completion.
 
 ## 6. Prove it works
 
@@ -187,6 +202,9 @@ aws lambda invoke \
 curl -sS -X POST <AskEndpoint> \
   -H 'Content-Type: application/json' \
   -d '{"question":"how much have I actually made?"}' | jq
+
+# Current operator state, directly from CockroachDB.
+curl -i -sS <WorkflowEndpoint>
 ```
 
 The Ask response carries `trail` — the SQL the agent ran to answer. If `trail` is
@@ -214,5 +232,56 @@ video.
   demo tenant is fictional, so searching for it returns trade-show videos and
   years-old market reports that pollute the memory layer and cost embedding
   spend. Measured on the first live run: 40 of 40 web signals irrelevant.
-- **The Ask endpoint is throttled to 2 rps / burst 5** and bounds the question
-  at 500 characters. It proxies a paid model from a public URL.
+- **The shared HTTP API is throttled to 2 rps / burst 5.** Ask also bounds the
+  question at 500 characters because it proxies a paid model from a public URL.
+
+## Connect For You and live Memory Engine
+
+`Do it` and `Pass` use the `DecisionFunction` HTTP route:
+
+```text
+POST /v1/finds/{find_id}/decision
+{"decision":"approved"}
+```
+
+After `sam deploy`, copy the `DecisionEndpoint` and `WorkflowEndpoint` stack
+outputs and rebuild the site with them:
+
+```bash
+DECISION_API_ENDPOINT="https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/v1" \
+WORKFLOW_API_ENDPOINT="https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com/v1/workflow" \
+  python scripts/build_web.py
+```
+
+Because both routes share the same API, `scripts/build_web.py` also infers
+`$DECISION_API_ENDPOINT/workflow` when `WORKFLOW_API_ENDPOINT` is omitted.
+
+The built `web/app/index.html` then writes decisions to CockroachDB. `Do it`
+changes the find to `accepted`, making it eligible for the Maker on the next
+nightly run. `Pass` changes it to `rejected`. Without the environment variable,
+the UI remains usable in an explicitly labelled demo-only mode and does not
+pretend the decision was persisted.
+
+The app performs one `GET /v1/workflow` sync at startup so For You reflects
+decisions made on another device. Memory Engine then revalidates at the
+server-provided cadence while its tab is visible (15 seconds by default). The
+response includes current find status, agent runs, token receipts, evidence,
+Maker artifacts, and Meter verdicts for the configured owner allowlist. It does
+not return embeddings or the full observation corpus, and it never invokes a
+model: each refresh consumes zero LLM tokens.
+
+The browser sends `If-None-Match` on later reads. An unchanged CockroachDB
+snapshot returns `304 Not Modified`, and polling stops whenever the operator tab
+is hidden or the user leaves Memory Engine. If the endpoint is temporarily
+unavailable, the last good live state remains visible and is marked stale;
+before the first successful read, the build snapshot remains visible instead.
+
+## Production authentication boundary
+
+The submitted demo uses fictional business data and leaves the shared HTTP API
+public, with throttling and a server-side tenant allowlist. The allowlist prevents
+arbitrary `business_id` enumeration, but it is **not user authentication**. Before
+using real owner data, put API Gateway JWT authorization (for example Amazon
+Cognito) in front of `Ask`, `Decision`, and `Workflow`, and derive the permitted
+business ids from authenticated claims rather than from a browser-supplied value.
+Do not put a permanent API secret in the static HTML; anyone can inspect it.

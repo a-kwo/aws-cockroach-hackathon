@@ -58,9 +58,9 @@ def main() -> int:
             """, (settings.business_id,))
 
             finds = rows(cur, """
-                SELECT f.id, f.emoji, f.title, f.rationale, f.move,
+                SELECT f.id, f.run_id, f.emoji, f.title, f.rationale, f.move,
                        f.predicted_daily_cents, f.confidence, f.verify_after,
-                       f.status, f.created_at,
+                       f.status, f.decided_at, f.created_at,
                        le.verdict, le.actual_daily_cents, le.method, le.note,
                        le.measured_at, le.period_start, le.period_end
                 FROM find f
@@ -103,10 +103,36 @@ def main() -> int:
             """, (settings.business_id,))
 
             runs = rows(cur, """
-                SELECT id, agent, status, started_at, finished_at, note
-                FROM agent_run WHERE business_id = %s
-                ORDER BY started_at DESC LIMIT 12
-            """, (settings.business_id,))
+                WITH recent AS (
+                    SELECT id, agent, status, started_at, finished_at, note,
+                           input_tokens, output_tokens, model_id, error
+                    FROM agent_run
+                    WHERE business_id = %s
+                    ORDER BY started_at DESC
+                    LIMIT 12
+                ), referenced AS (
+                    SELECT ar.id, ar.agent, ar.status, ar.started_at,
+                           ar.finished_at, ar.note, ar.input_tokens,
+                           ar.output_tokens, ar.model_id, ar.error
+                    FROM agent_run ar
+                    JOIN find f ON f.run_id = ar.id
+                    WHERE f.business_id = %s
+                      AND f.status IN ('proposed', 'later', 'accepted', 'live')
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM ledger_entry le
+                          WHERE le.find_id = f.id
+                      )
+                )
+                SELECT DISTINCT id, agent, status, started_at, finished_at, note,
+                       input_tokens, output_tokens, model_id, error
+                FROM (
+                    SELECT * FROM recent
+                    UNION ALL
+                    SELECT * FROM referenced
+                ) receipts
+                ORDER BY started_at DESC
+            """, (settings.business_id, settings.business_id))
 
             [corpus] = rows(cur, """
                 SELECT count(*) AS observations,
@@ -164,8 +190,9 @@ def main() -> int:
 
     payload = {
         "_comment": "Exported from the live CockroachDB demo tenant by "
-                    "scripts/export_fixture.py. Replaced by API calls once the "
-                    "API layer exists; the shapes are the contract.",
+                    "scripts/export_fixture.py. Used as the resilient first "
+                    "paint; the live workflow endpoint overlays current state "
+                    "using the same browser contract.",
         "business": business,
         "summary": summary,
         "corpus": corpus,

@@ -114,12 +114,14 @@ multi-tenancy, and the **Mapper** — its job, chat → business profile, is alr
 served by the seeded `business_fact` rows, and it contributes to neither required
 disclosure. Single demo tenant. Maker ships exactly one artifact type.
 
-**Why two Lambdas and not one per agent.** `run_night()` already sequences
-Radar → Analyst → Maker → Meter and is covered by the offline suite. Splitting it
-across four functions would move that ordering into infrastructure, where it is
-less tested, and buy cross-invoke IAM and three new failure modes for nothing. A
-night is single-digit minutes against a fifteen-minute ceiling. Ask is separate
-because it is request-driven rather than scheduled.
+**Why one nightly Lambda rather than one per agent.** `run_night()` already
+sequences Radar → Analyst → Maker → Meter and is covered by the offline suite.
+Splitting that chain across four functions would move ordering into
+infrastructure, where it is less tested, and buy cross-invoke IAM and three new
+failure modes for nothing. A night is single-digit minutes against a
+fifteen-minute ceiling. Ask, Decision, and Workflow are separate entry points
+because they are request-driven; Workflow is read-only and gives Memory Engine
+current CockroachDB state without replacing the static first paint.
 
 ---
 

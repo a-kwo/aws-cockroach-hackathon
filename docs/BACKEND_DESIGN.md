@@ -234,27 +234,27 @@ does not need, and "we added it for the disclosure table" is exactly the kind of
 answer the judging question is designed to catch. `night.py` already sequences these
 three correctly; the Lambda chain is the same order.
 
-### 3.3 The frontend boundary — and why I am not touching it
+### 3.3 The frontend boundary — implemented hybrid model
 
-The other session owns the frontend. `scripts/build_web.py` currently splices live
-cluster data into static HTML at build time, and `backend/tests/test_site_build.py`
-enforces the honesty rules against that output.
+The original recommendation below was superseded once Do it / Pass became a real
+CockroachDB write and the operator view had to reflect work completed later or on
+another device. The shipped boundary is now deliberately hybrid:
 
-**Recommendation: keep the board static; add API Gateway only for Ask.**
+- `scripts/build_web.py` still splices a CockroachDB export into static HTML. That
+  is the immediate, failure-tolerant first paint, and the honesty tests still run
+  against it without a network or cloud account.
+- `POST /finds/{id}/decision` persists the owner decision before the card moves.
+- `GET /workflow` returns a compact, read-only workflow snapshot for a configured
+  business allowlist. Memory Engine fetches it only while the operator view is
+  visible, uses `ETag` revalidation, and keeps the last good state when the route
+  is unavailable.
+- The live response carries current finds, evidence receipts, agent runs, token
+  usage, Maker artifacts, and Meter verdicts. It intentionally does not return
+  embeddings or the full observation corpus.
 
-- The board is read-only by design (`PRODUCT.md`: decisions live in the browser and
-  are discarded on refresh). A live `GET /api/board` buys nothing the static build
-  does not already provide, and it would put the honesty tests on the wrong side of
-  a network call.
-- Ask genuinely cannot be static. It is a live round-trip by definition. That makes
-  API Gateway load-bearing for the one thing that needs it.
-- Blast radius on the other session's work: one `fetch` to one endpoint. Not a
-  rebuild.
-
-This also settles the `docs/DESIGN_SPEC.md` §2.1 endpoints (`GET /api/board`,
-`POST /api/finds/:id/status`) — both are **out of scope**. That spec was superseded
-as a build target and its write path contradicts the read-only demo decision in
-`PRODUCT.md`. No backend work is owed against it.
+This keeps the static build's reproducibility without making it the source of
+truth for current operations. The frontend contract remains the same on both
+paths, so live state is an overlay rather than a second product model.
 
 ### 3.4 Secrets
 
@@ -328,7 +328,8 @@ the entry is compliant.
    (the blog post does not document it — this is the one genuine unknown left, and
    it is a five-minute lookup, not a design risk).
 3. **IAM user.** Retire root credentials before writing deploy code.
-4. **Deploy.** Container images, EventBridge Scheduler, API Gateway → ask-fn.
+4. **Deploy.** Container images, EventBridge Scheduler, and API Gateway routes
+   for Ask, Decision, and the read-only Workflow snapshot.
 5. **Maker + S3**, or amend the disclosure. Decide by 08-07 so the video is filmed
    against whatever is true.
 6. **README + disclosures.** Both required sections depend on 1–5 being settled.

@@ -5,10 +5,9 @@ Description: >
   Brass Tacks — a team of agents that grows a small business overnight and is
   then held to account for it.
 
-  Two functions, not four. run_night() already sequences Radar → Analyst →
-  Maker → Meter and is covered by the offline test suite; splitting that across
-  three Lambdas would move the ordering into infrastructure, where it is less
-  tested, and buy cross-invoke IAM and three new failure modes for nothing.
+  Four Lambda entry points share one image. run_night() still sequences Radar →
+  Analyst → Maker → Meter inside one tested function; the other three are the
+  request-driven Ask, Decision, and read-only Workflow surfaces.
 
   Deploy from the repository root:
     sam build --template deploy/template.yaml
@@ -20,9 +19,10 @@ Parameters:
     Default: /brasstacks
     Description: >
       SSM Parameter Store path holding COCKROACH_DATABASE_URL,
-      ANTHROPIC_API_KEY, COCKROACH_MCP_TOKEN and BRASSTACKS_BUSINESS_ID as
-      SecureString. Secrets live here rather than in Lambda environment
-      variables, where they would be readable from the console.
+      ANTHROPIC_API_KEY, COCKROACH_MCP_TOKEN, BRASSTACKS_BUSINESS_ID, and
+      optionally BRASSTACKS_OPERATOR_BUSINESS_IDS. Secrets live here rather
+      than in Lambda environment variables, where they would be readable from
+      the console.
 
   ArtifactBucket:
     Type: String
@@ -160,6 +160,84 @@ Resources:
             Path: /ask
             Method: POST
 
+  # --------------------------------------------------------------------
+  # Owner decisions from the For You feed
+  # --------------------------------------------------------------------
+  DecisionFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: decision
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.decision.handler"]
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Decide:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /finds/{find_id}/decision
+            Method: POST
+
+  # --------------------------------------------------------------------
+  # Live, read-only owner workflow state for Memory Engine
+  # --------------------------------------------------------------------
+  WorkflowFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: workflow
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.workflow.handler"]
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Workflow:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /workflow
+            Method: GET
+
   AskApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -173,8 +251,9 @@ Resources:
         ThrottlingRateLimit: 2
       CorsConfiguration:
         AllowOrigins: ["*"]
-        AllowHeaders: ["Content-Type"]
-        AllowMethods: ["POST", "OPTIONS"]
+        AllowHeaders: ["Content-Type", "If-None-Match"]
+        AllowMethods: ["GET", "POST", "OPTIONS"]
+        ExposeHeaders: ["ETag"]
 
 Outputs:
   AskEndpoint:
@@ -182,6 +261,14 @@ Outputs:
     # key/value split and rejects.
     Description: 'POST a JSON body {"question": "..."} here. Splice into the built site.'
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/ask
+
+  DecisionEndpoint:
+    Description: Base URL used by the static app for Do it / Pass writes.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1
+
+  WorkflowEndpoint:
+    Description: GET live owner workflow state for the Memory Engine overlay.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
 
   NightFunctionName:
     Description: Invoke manually to prove a night end to end before waiting for 6 AM.

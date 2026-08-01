@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Create a Brass Tacks workspace and teach its agents who your customers are, where you compete, and what your business sells.">
+<meta name="theme-color" content="#f4f1eb">
+<title>Sign up — Brass Tacks</title>
+<style>
+:root {
+  --bg: #f4f1eb;
+  --paper: rgba(255,255,255,.88);
+  --paper-solid: #fffdfa;
+  --ink: #20262b;
+  --ink-2: #3f4b53;
+  --soft: #71808a;
+  --muted: #98a2a8;
+  --line: #dedbd4;
+  --line-soft: rgba(53,61,66,.10);
+  --teal: #2b8172;
+  --teal-soft: #e4f1ee;
+  --plum: #98627a;
+  --plum-soft: #f2e9ed;
+  --gold: #a77325;
+  --gold-soft: #f7ecd8;
+  --violet: #6f6798;
+  --violet-soft: #eeebf7;
+  --danger: #a74945;
+  --danger-soft: #f8e9e7;
+  --shadow: 0 26px 70px rgba(37,43,47,.10), 0 2px 8px rgba(37,43,47,.05);
+  --ease: cubic-bezier(.16,1,.3,1);
+}
+
+* { box-sizing: border-box; }
+html { min-height: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 6% 4%, rgba(43,129,114,.10), transparent 30rem),
+    radial-gradient(circle at 96% 12%, rgba(152,98,122,.10), transparent 32rem),
+    linear-gradient(180deg, #f8f6f2 0%, var(--bg) 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; }
+a { color: inherit; text-decoration: none; }
+button { color: inherit; }
+:focus-visible { outline: 3px solid rgba(43,129,114,.24); outline-offset: 3px; }
+
+.page-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  min-height: 76px;
+  padding: 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid rgba(59,65,68,.08);
+  background: rgba(248,246,242,.72);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+.brand { display: inline-flex; align-items: center; gap: 11px; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 7px rgba(43,129,114,.10); }
+.demo-link { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 15px; border-radius: 12px; color: var(--ink-2); border: 1px solid var(--line); background: rgba(255,255,255,.56); font-size: 13px; font-weight: 700; transition: transform .2s var(--ease), background .2s var(--ease); }
+.demo-link:hover { transform: translateY(-1px); background: #fff; }
+.demo-link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+
+.onboarding {
+  width: min(1260px, calc(100% - 52px));
+  margin: 0 auto;
+  padding: 48px 0 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(350px, .88fr);
+  gap: 28px;
+  align-items: start;
+}
+.form-card, .brief-card {
+  border: 1px solid rgba(77,82,84,.12);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+}
+.form-card { overflow: hidden; border-radius: 30px; }
+.form-head { padding: 34px 38px 28px; border-bottom: 1px solid var(--line-soft); }
+.setup-kicker { display: inline-flex; align-items: center; gap: 8px; color: var(--teal); font-size: 11px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+.setup-kicker i { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 6px var(--teal-soft); }
+.form-head h1 { max-width: 690px; margin: 17px 0 0; font-size: clamp(38px, 4.5vw, 62px); line-height: .99; letter-spacing: -.052em; font-weight: 720; }
+.form-head > p { max-width: 650px; margin: 18px 0 0; color: var(--soft); font-size: 16px; line-height: 1.55; }
+
+.progress { margin-top: 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.progress-step { position: relative; padding-top: 10px; color: var(--muted); font-size: 11px; font-weight: 760; letter-spacing: .06em; text-transform: uppercase; }
+.progress-step::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; border-radius: 99px; background: #e5e2dc; transition: background .35s var(--ease); }
+.progress-step.active { color: var(--ink-2); }
+.progress-step.active::before { background: var(--teal); }
+
+.form-body { padding: 30px 38px 36px; }
+.form-step { display: none; animation: stepIn .45s var(--ease) both; }
+.form-step.active { display: block; }
+@keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.step-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.step-heading h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
+.step-heading p { max-width: 430px; margin: 7px 0 0; color: var(--soft); font-size: 13px; line-height: 1.48; }
+.step-time { flex: 0 0 auto; padding: 8px 11px; border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: 11px; font-weight: 760; }
+
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
+.field { min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field label, .field-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 8px; color: var(--ink-2); font-size: 12px; font-weight: 760; }
+.field-label small, .field label small { color: var(--muted); font-size: 10px; font-weight: 600; }
+.field input, .field select {
+  width: 100%;
+  height: 52px;
+  border: 1px solid #d9d7d1;
+  border-radius: 15px;
+  padding: 0 15px;
+  color: var(--ink);
+  background: rgba(255,255,255,.72);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.field select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, #778087 50%), linear-gradient(135deg, #778087 50%, transparent 50%); background-position: calc(100% - 19px) 23px, calc(100% - 14px) 23px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 38px; }
+.field input::placeholder { color: #a5aaad; }
+.field input:focus, .field select:focus { outline: 0; border-color: rgba(43,129,114,.72); background: #fff; box-shadow: 0 0 0 4px rgba(43,129,114,.10); }
+.field.has-error input, .field.has-error select { border-color: var(--danger); box-shadow: 0 0 0 4px rgba(167,73,69,.08); }
+.field-error { display: none; margin-top: 7px; color: var(--danger); font-size: 11px; font-weight: 680; }
+.field.has-error .field-error { display: block; }
+.field-help { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+.question { padding: 19px 0 22px; border-top: 1px solid var(--line-soft); }
+.question:first-of-type { padding-top: 0; border-top: 0; }
+.question-head { margin-bottom: 12px; }
+.question-head h3 { margin: 0; font-size: 14px; letter-spacing: -.015em; }
+.question-head p { margin: 5px 0 0; color: var(--soft); font-size: 12px; line-height: 1.48; }
+.choice-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice {
+  min-height: 40px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dcd9d3;
+  border-radius: 12px;
+  background: rgba(255,255,255,.64);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: transform .18s var(--ease), border-color .18s, background .18s, color .18s;
+}
+.choice:hover { transform: translateY(-1px); border-color: #c8c4bd; background: #fff; }
+.choice[aria-pressed="true"] { color: var(--teal); border-color: rgba(43,129,114,.34); background: var(--teal-soft); box-shadow: inset 0 0 0 1px rgba(43,129,114,.05); }
+.choice i { width: 6px; height: 6px; border-radius: 50%; background: #c7c5c0; }
+.choice[aria-pressed="true"] i { background: var(--teal); box-shadow: 0 0 0 4px rgba(43,129,114,.11); }
+.choice-limit { margin-top: 9px; color: var(--muted); font-size: 10px; }
+
+.goal-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.goal-card { position: relative; min-height: 92px; padding: 15px; text-align: left; border: 1px solid #dcd9d3; border-radius: 16px; background: rgba(255,255,255,.62); cursor: pointer; transition: transform .18s var(--ease), border-color .18s, background .18s; }
+.goal-card:hover { transform: translateY(-1px); background: #fff; }
+.goal-card[aria-pressed="true"] { border-color: rgba(152,98,122,.38); background: var(--plum-soft); }
+.goal-card strong { display: block; font-size: 13px; }
+.goal-card span { display: block; margin-top: 5px; color: var(--soft); font-size: 11px; line-height: 1.4; }
+.goal-card b { position: absolute; right: 13px; top: 13px; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid #cbc8c2; border-radius: 50%; color: transparent; font-size: 11px; }
+.goal-card[aria-pressed="true"] b { color: #fff; border-color: var(--plum); background: var(--plum); }
+
+.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
+.action-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.action-buttons { margin-left: auto; display: flex; gap: 9px; }
+.button { min-height: 48px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 14px; border: 1px solid transparent; cursor: pointer; font-weight: 750; font-size: 13px; transition: transform .22s var(--ease), box-shadow .22s var(--ease), opacity .22s; }
+.button:hover { transform: translateY(-1px); }
+.button.secondary { border-color: var(--line); background: rgba(255,255,255,.64); }
+.button.primary { color: #fff; background: var(--ink); box-shadow: 0 12px 24px rgba(32,38,43,.14); }
+.button.primary:hover { box-shadow: 0 16px 30px rgba(32,38,43,.19); }
+.button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.button[disabled] { opacity: .58; cursor: wait; transform: none; }
+.submit-error { display: none; margin-top: 16px; padding: 12px 14px; border-radius: 12px; color: var(--danger); background: var(--danger-soft); font-size: 12px; line-height: 1.45; }
+.submit-error.visible { display: block; }
+
+.success { text-align: center; padding: 18px 0 4px; }
+.success-mark { width: 74px; height: 74px; margin: 0 auto; display: grid; place-items: center; border-radius: 24px; color: var(--teal); background: var(--teal-soft); box-shadow: 0 0 0 10px rgba(43,129,114,.05); }
+.success-mark svg { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.success h2 { margin: 26px 0 0; font-size: 34px; letter-spacing: -.045em; }
+.success > p { max-width: 520px; margin: 12px auto 0; color: var(--soft); font-size: 14px; line-height: 1.55; }
+.success-summary { margin: 24px auto 0; max-width: 560px; display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; text-align: left; background: rgba(255,255,255,.64); }
+.success-summary div { min-width: 0; padding: 15px; border-left: 1px solid var(--line-soft); }
+.success-summary div:first-child { border-left: 0; }
+.success-summary span { display: block; color: var(--muted); font-size: 9px; font-weight: 780; letter-spacing: .08em; text-transform: uppercase; }
+.success-summary strong { display: block; margin-top: 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.success-actions { margin-top: 24px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.success-mode { margin-top: 16px; color: var(--muted); font-size: 10px; }
+
+.brief-card { position: sticky; top: 24px; overflow: hidden; border-radius: 30px; }
+.brief-head { padding: 26px 28px 22px; border-bottom: 1px solid var(--line-soft); }
+.brief-eyebrow { color: var(--plum); font-size: 10px; font-weight: 840; letter-spacing: .13em; text-transform: uppercase; }
+.brief-head h2 { margin: 9px 0 0; font-size: 25px; letter-spacing: -.035em; }
+.brief-head p { margin: 7px 0 0; color: var(--soft); font-size: 12px; line-height: 1.5; }
+.agent-scope { padding: 24px 28px 26px; }
+.scope-map { position: relative; padding: 8px 0 4px; display: grid; gap: 10px; }
+.scope-node { position: relative; z-index: 1; min-height: 66px; padding: 12px 14px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 17px; background: rgba(255,255,255,.68); transition: border-color .35s var(--ease), transform .35s var(--ease), background .35s; }
+.scope-node.is-ready { border-color: rgba(43,129,114,.28); background: linear-gradient(90deg, rgba(228,241,238,.9), rgba(255,255,255,.76)); }
+.scope-node.is-ready:hover { transform: translateX(2px); }
+.scope-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: var(--teal); background: var(--teal-soft); }
+.scope-node:nth-child(2) .scope-icon { color: var(--violet); background: var(--violet-soft); }
+.scope-node:nth-child(3) .scope-icon { color: var(--plum); background: var(--plum-soft); }
+.scope-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+.scope-copy { min-width: 0; }
+.scope-copy strong { display: block; font-size: 12px; }
+.scope-copy span { display: block; margin-top: 4px; color: var(--soft); font-size: 10.5px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scope-status { padding: 5px 8px; border-radius: 999px; color: var(--muted); background: #f1efeb; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.scope-node.is-ready .scope-status { color: var(--teal); background: rgba(255,255,255,.72); }
+.scope-line { width: 2px; height: 10px; margin: -10px 0 -10px 20px; background: linear-gradient(var(--teal), rgba(111,103,152,.45)); opacity: .5; }
+
+.brief-section { padding: 20px 28px; border-top: 1px solid var(--line-soft); }
+.brief-section > span { display: block; color: var(--muted); font-size: 9px; font-weight: 820; letter-spacing: .1em; text-transform: uppercase; }
+.brief-sentence { margin: 9px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.55; }
+.brief-pills { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; }
+.brief-pill { max-width: 100%; padding: 7px 9px; border-radius: 9px; color: var(--ink-2); background: #f2f0ec; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brief-pill.placeholder { color: var(--muted); }
+.trust-row { padding: 18px 28px 22px; display: flex; align-items: flex-start; gap: 11px; color: var(--soft); background: rgba(238,235,247,.46); font-size: 10.5px; line-height: 1.5; }
+.trust-row svg { flex: 0 0 auto; width: 18px; height: 18px; color: var(--violet); fill: none; stroke: currentColor; stroke-width: 1.7; }
+.trust-row b { color: var(--ink-2); }
+
+footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-size: 10px; text-align: center; }
+
+@media (max-width: 980px) {
+  .onboarding { width: min(760px, calc(100% - 36px)); grid-template-columns: 1fr; }
+  .brief-card { position: static; }
+  .agent-scope { display: grid; grid-template-columns: 1.25fr .75fr; gap: 22px; }
+  .brief-section { border-top: 0; border-left: 1px solid var(--line-soft); }
+  .trust-row { border-top: 1px solid var(--line-soft); }
+}
+@media (max-width: 680px) {
+  .topbar { min-height: 66px; padding: 0 18px; }
+  .brand { font-size: 10px; }
+  .demo-link { min-height: 36px; padding: 0 11px; font-size: 11px; }
+  .onboarding { width: calc(100% - 20px); padding: 18px 0 34px; gap: 16px; }
+  .form-card, .brief-card { border-radius: 22px; }
+  .form-head { padding: 25px 22px 23px; }
+  .form-head h1 { font-size: 39px; }
+  .form-head > p { font-size: 14px; }
+  .form-body { padding: 24px 22px 26px; }
+  .field-grid, .goal-grid { grid-template-columns: 1fr; }
+  .step-heading { display: block; }
+  .step-time { display: inline-flex; margin-top: 12px; }
+  .form-actions { align-items: stretch; flex-direction: column; }
+  .action-note { order: 2; text-align: center; }
+  .action-buttons { width: 100%; margin: 0; }
+  .action-buttons .button { flex: 1; }
+  .success-summary { grid-template-columns: 1fr; }
+  .success-summary div { border-left: 0; border-top: 1px solid var(--line-soft); }
+  .success-summary div:first-child { border-top: 0; }
+  .agent-scope { display: block; padding: 20px 22px; }
+  .brief-head, .brief-section, .trust-row { padding-left: 22px; padding-right: 22px; }
+  .brief-section { border-left: 0; border-top: 1px solid var(--line-soft); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="page-shell">
+  <header class="topbar">
+    <a class="brand" href="../" aria-label="Brass Tacks home"><span class="brand-dot"></span><span>Brass Tacks</span></a>
+    <a class="demo-link" href="../app/?demo=1"><span>Explore the sample workspace</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
+  </header>
+
+  <main class="onboarding">
+    <section class="form-card" aria-labelledby="signupTitle">
+      <header class="form-head">
+        <span class="setup-kicker"><i aria-hidden="true"></i>Workspace setup</span>
+        <h1 id="signupTitle">Teach the agents what matters.</h1>
+        <p>Give Brass Tacks the minimum context it needs to search the right market, recognize the right buyers, and recommend moves that fit your business.</p>
+        <div class="progress" aria-label="Onboarding progress">
+          <span class="progress-step active" data-progress="1">1 · Business</span>
+          <span class="progress-step" data-progress="2">2 · Buyers</span>
+          <span class="progress-step" data-progress="3">3 · Ready</span>
+        </div>
+      </header>
+
+      <form class="form-body" id="onboardingForm" novalidate>
+        <section class="form-step active" data-step="1" aria-labelledby="businessStepTitle">
+          <div class="step-heading">
+            <div><h2 id="businessStepTitle">Your business</h2><p>This defines the market boundary Radar watches every night.</p></div>
+            <span class="step-time">About 45 seconds</span>
+          </div>
+
+          <div class="field-grid">
+            <div class="field" data-field="ownerName">
+              <label for="ownerName">Your name</label>
+              <input id="ownerName" name="ownerName" type="text" autocomplete="name" placeholder="Maya Chen" maxlength="80" required>
+              <span class="field-error">Enter your name.</span>
+            </div>
+            <div class="field" data-field="email">
+              <label for="email">Work email</label>
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="maya@yourbusiness.com" maxlength="160" required>
+              <span class="field-error">Enter a valid email address.</span>
+            </div>
+            <div class="field wide" data-field="businessName">
+              <label for="businessName">Business name</label>
+              <input id="businessName" name="businessName" type="text" autocomplete="organization" placeholder="Your business" maxlength="120" required>
+              <span class="field-error">Enter your business name.</span>
+            </div>
+            <div class="field" data-field="category">
+              <label for="category">Business type</label>
+              <select id="category" name="category" required>
+                <option value="">Choose one</option>
+                <option value="restaurant_cafe">Restaurant or café</option>
+                <option value="retail">Retail store</option>
+                <option value="salon_wellness">Salon or wellness</option>
+                <option value="professional_services">Professional services</option>
+                <option value="home_services">Home services</option>
+                <option value="fitness">Fitness or studio</option>
+                <option value="hospitality">Hospitality</option>
+                <option value="other">Other local business</option>
+              </select>
+              <span class="field-error">Choose the closest business type.</span>
+            </div>
+            <div class="field" data-field="location">
+              <label for="location">Primary market <small>City, state, or ZIP</small></label>
+              <input id="location" name="location" type="text" autocomplete="address-level2" placeholder="Columbus, OH" maxlength="120" required>
+              <span class="field-error">Enter the market you serve.</span>
+            </div>
+            <div class="field wide" data-field="website">
+              <label for="website">Website or review page <small>Optional</small></label>
+              <input id="website" name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://yourbusiness.com" maxlength="300">
+              <span class="field-error">Enter a full web address beginning with http:// or https://.</span>
+              <p class="field-help">This helps Radar distinguish your business from similarly named competitors.</p>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <span class="action-note">No password yet. This step creates the agent brief.</span>
+            <div class="action-buttons">
+              <button class="button primary" type="button" data-next="2">Continue<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-step" data-step="2" aria-labelledby="buyersStepTitle">
+          <div class="step-heading">
+            <div><h2 id="buyersStepTitle">Your buyers</h2><p>A small amount of context keeps the agents from chasing generic trends that do not fit your customers.</p></div>
+            <span class="step-time">About 60 seconds</span>
+          </div>
+
+          <div class="question" data-question="segments">
+            <div class="question-head"><h3>Who buys from you most often?</h3><p>Choose up to three. Analyst uses these segments to interpret reviews, demand, and nearby competition.</p></div>
+            <div class="choice-grid" role="group" aria-label="Primary buyer segments">
+              <button class="choice" type="button" data-multi="segments" data-value="Local residents" aria-pressed="false"><i></i>Local residents</button>
+              <button class="choice" type="button" data-multi="segments" data-value="Working professionals" aria-pressed="false"><i></i>Working professionals</button>
+              <button class="choice" type="button" data-multi="segments" data-value="Families" aria-pressed="false"><i></i>Families</button>
+              <button class="choice" type="button" data-multi="segments" data-value="Students" aria-pressed="false"><i></i>Students</button>
+              <button class="choice" type="button" data-multi="segments" data-value="Visitors and tourists" aria-pressed="false"><i></i>Visitors and tourists</button>
+              <button class="choice" type="button" data-multi="segments" data-value="Other businesses" aria-pressed="false"><i></i>Other businesses</button>
+            </div>
+            <div class="choice-limit" id="segmentHint">Choose at least one · 0 of 3 selected</div>
+          </div>
+
+          <div class="question">
+            <div class="field wide" data-field="offers">
+              <label for="offers">What do they come to you for? <small>Up to three</small></label>
+              <input id="offers" name="offers" type="text" placeholder="e.g., pasta, private dining, takeout" maxlength="180" required>
+              <span class="field-error">Add at least one product or service.</span>
+              <p class="field-help">Separate products or services with commas.</p>
+            </div>
+          </div>
+
+          <div class="question" data-question="channels">
+            <div class="question-head"><h3>How do customers buy?</h3><p>Select every channel that matters today.</p></div>
+            <div class="choice-grid" role="group" aria-label="Sales channels">
+              <button class="choice" type="button" data-multi="channels" data-value="In person" aria-pressed="false"><i></i>In person</button>
+              <button class="choice" type="button" data-multi="channels" data-value="Online" aria-pressed="false"><i></i>Online</button>
+              <button class="choice" type="button" data-multi="channels" data-value="Phone" aria-pressed="false"><i></i>Phone</button>
+              <button class="choice" type="button" data-multi="channels" data-value="Delivery" aria-pressed="false"><i></i>Delivery</button>
+              <button class="choice" type="button" data-multi="channels" data-value="Appointments" aria-pressed="false"><i></i>Appointments</button>
+            </div>
+          </div>
+
+          <div class="question" data-question="goal">
+            <div class="question-head"><h3>What should Brass Tacks improve first?</h3><p>This sets the ranking priority. You can change it later.</p></div>
+            <div class="goal-grid" role="radiogroup" aria-label="Primary business goal">
+              <button class="goal-card" type="button" role="radio" data-goal="More demand" aria-checked="false" aria-pressed="false"><b>✓</b><strong>More demand</strong><span>Find new reasons and times for buyers to choose you.</span></button>
+              <button class="goal-card" type="button" role="radio" data-goal="Higher spend" aria-checked="false" aria-pressed="false"><b>✓</b><strong>Higher spend</strong><span>Improve pricing, bundles, and mix without guessing.</span></button>
+              <button class="goal-card" type="button" role="radio" data-goal="Repeat customers" aria-checked="false" aria-pressed="false"><b>✓</b><strong>Repeat customers</strong><span>Strengthen loyalty, experience, and retention.</span></button>
+              <button class="goal-card" type="button" role="radio" data-goal="Local advantage" aria-checked="false" aria-pressed="false"><b>✓</b><strong>Local advantage</strong><span>See competitor moves and unmet local demand sooner.</span></button>
+            </div>
+            <div class="choice-limit" id="goalHint">Choose one priority.</div>
+          </div>
+
+          <div class="submit-error" id="submitError" role="alert"></div>
+          <div class="form-actions">
+            <span class="action-note">The owner keeps final approval for every recommendation.</span>
+            <div class="action-buttons">
+              <button class="button secondary" type="button" data-back="1">Back</button>
+              <button class="button primary" id="createWorkspace" type="submit">Create workspace<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-step" data-step="3" aria-labelledby="readyStepTitle">
+          <div class="success">
+            <div class="success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"/></svg></div>
+            <h2 id="readyStepTitle">Your agent brief is ready.</h2>
+            <p id="successCopy">Brass Tacks now knows where to look, who matters, and what outcome to prioritize.</p>
+            <div class="success-summary">
+              <div><span>Business</span><strong id="successBusiness">—</strong></div>
+              <div><span>Market</span><strong id="successMarket">—</strong></div>
+              <div><span>Priority</span><strong id="successGoal">—</strong></div>
+            </div>
+            <div class="success-actions">
+              <a class="button primary" id="openWorkspace" href="../app/?onboarded=1">Open my workspace<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
+              <button class="button secondary" type="button" data-back="2">Edit profile</button>
+            </div>
+            <div class="success-mode" id="successMode"></div>
+          </div>
+        </section>
+      </form>
+    </section>
+
+    <aside class="brief-card" aria-labelledby="briefTitle">
+      <header class="brief-head">
+        <span class="brief-eyebrow">Live agent brief</span>
+        <h2 id="briefTitle">What the agents will understand</h2>
+        <p>Your answers become private, business-scoped memory—not a generic prompt repeated on every run.</p>
+      </header>
+
+      <div class="agent-scope">
+        <div class="scope-map" aria-label="Agent setup flow">
+          <div class="scope-node" id="profileNode">
+            <span class="scope-icon"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-5 8 5v12H4Z"/><path d="M9 20v-6h6v6"/></svg></span>
+            <span class="scope-copy"><strong>Business profile</strong><span id="profileNodeCopy">Waiting for business and location</span></span>
+            <span class="scope-status" id="profileNodeStatus">Set up</span>
+          </div>
+          <div class="scope-line" aria-hidden="true"></div>
+          <div class="scope-node" id="radarNode">
+            <span class="scope-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 18.5 8.5"/><circle cx="12" cy="12" r="2.2"/></svg></span>
+            <span class="scope-copy"><strong>Radar search boundary</strong><span id="radarNodeCopy">Category + local market</span></span>
+            <span class="scope-status" id="radarNodeStatus">Scoped</span>
+          </div>
+          <div class="scope-line" aria-hidden="true"></div>
+          <div class="scope-node" id="analystNode">
+            <span class="scope-icon"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/><path d="M7.5 10.5h6"/></svg></span>
+            <span class="scope-copy"><strong>Analyst relevance</strong><span id="analystNodeCopy">Buyers + offers + goal</span></span>
+            <span class="scope-status" id="analystNodeStatus">Focused</span>
+          </div>
+        </div>
+      </div>
+
+      <section class="brief-section">
+        <span>Search scope</span>
+        <p class="brief-sentence" id="scopeSentence">Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.</p>
+        <div class="brief-pills" id="scopePills"><span class="brief-pill placeholder">Business type</span><span class="brief-pill placeholder">Primary market</span></div>
+      </section>
+
+      <section class="brief-section">
+        <span>Buyer relevance</span>
+        <p class="brief-sentence" id="buyerSentence">Add your primary buyers and offers. Analyst will rank signals against this profile before it recommends a move.</p>
+        <div class="brief-pills" id="buyerPills"><span class="brief-pill placeholder">Buyer segments</span><span class="brief-pill placeholder">Top offers</span></div>
+      </section>
+
+      <div class="trust-row"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.4 7 10 4.2-1.6 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span><b>You keep control.</b> Profile memory is isolated by business owner, and no recommendation is executed until the owner chooses Do it.</span></div>
+    </aside>
+  </main>
+
+  <footer>The public sample workspace uses fictional data. A locally created profile stays in this browser until the secure onboarding API is connected.</footer>
+</div>
+
+<script id="bt-data" type="application/json">{}</script>
+<script>
+const DATA = (() => {
+  try { return JSON.parse(document.getElementById("bt-data").textContent || "{}"); }
+  catch (error) { console.warn("Onboarding data did not parse", error); return {}; }
+})();
+
+const PROFILE_KEY = "brass-tacks-onboarding-profile-v1";
+const DRAFT_KEY = "brass-tacks-onboarding-draft-v1";
+const endpoint = String(DATA.api?.onboardingEndpoint || "").trim();
+const form = document.getElementById("onboardingForm");
+const submitError = document.getElementById("submitError");
+let currentStep = 1;
+let selections = { segments: [], channels: [], goal: "" };
+
+const categoryLabels = {
+  restaurant_cafe: "Restaurant or café",
+  retail: "Retail store",
+  salon_wellness: "Salon or wellness",
+  professional_services: "Professional services",
+  home_services: "Home services",
+  fitness: "Fitness or studio",
+  hospitality: "Hospitality",
+  other: "Local business",
+};
+
+function clean(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
+function fieldValue(id) { return clean(document.getElementById(id)?.value); }
+function splitOffers(value) { return clean(value).split(",").map(clean).filter(Boolean).slice(0, 3); }
+function normalizeWebsite(value) {
+  const raw = clean(value);
+  if (!raw) return null;
+  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const url = new URL(candidate);
+    return url.hostname.includes(".") ? url.href : null;
+  } catch (_) { return null; }
+}
+function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char])); }
+
+function saveDraft() {
+  const draft = {
+    ownerName: fieldValue("ownerName"), email: fieldValue("email"),
+    businessName: fieldValue("businessName"), category: fieldValue("category"),
+    location: fieldValue("location"), website: fieldValue("website"), offers: fieldValue("offers"),
+    segments: selections.segments, channels: selections.channels, goal: selections.goal,
+  };
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (_) {}
+}
+
+function restoreDraft() {
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (_) {}
+  if (!draft || typeof draft !== "object") return;
+  ["ownerName","email","businessName","category","location","website","offers"].forEach(id => {
+    if (draft[id] != null && document.getElementById(id)) document.getElementById(id).value = draft[id];
+  });
+  selections.segments = Array.isArray(draft.segments) ? draft.segments.slice(0,3) : [];
+  selections.channels = Array.isArray(draft.channels) ? draft.channels : [];
+  selections.goal = clean(draft.goal);
+  syncChoices();
+}
+
+function syncChoices() {
+  document.querySelectorAll("[data-multi]").forEach(button => {
+    const group = button.dataset.multi;
+    button.setAttribute("aria-pressed", String(selections[group]?.includes(button.dataset.value)));
+  });
+  document.querySelectorAll("[data-goal]").forEach(button => {
+    const selected = selections.goal === button.dataset.goal;
+    button.setAttribute("aria-pressed", String(selected));
+    button.setAttribute("aria-checked", String(selected));
+  });
+  document.getElementById("segmentHint").textContent = selections.segments.length
+    ? `${selections.segments.length} of 3 selected`
+    : "Choose at least one · 0 of 3 selected";
+  document.getElementById("goalHint").textContent = selections.goal || "Choose one priority.";
+}
+
+function showStep(step) {
+  currentStep = step;
+  document.querySelectorAll(".form-step").forEach(section => section.classList.toggle("active", Number(section.dataset.step) === step));
+  document.querySelectorAll("[data-progress]").forEach(item => item.classList.toggle("active", Number(item.dataset.progress) <= step));
+  document.querySelector(".form-card")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+}
+
+function setFieldError(id, message = "") {
+  const field = document.querySelector(`[data-field="${id}"]`);
+  if (!field) return;
+  const hasError = Boolean(message);
+  field.classList.toggle("has-error", hasError);
+  const error = field.querySelector(".field-error");
+  if (error && message) error.textContent = message;
+}
+
+function validateStep1() {
+  const values = {
+    ownerName: fieldValue("ownerName"), email: fieldValue("email"),
+    businessName: fieldValue("businessName"), category: fieldValue("category"),
+    location: fieldValue("location"), website: fieldValue("website"),
+  };
+  setFieldError("ownerName", values.ownerName ? "" : "Enter your name.");
+  setFieldError("businessName", values.businessName ? "" : "Enter your business name.");
+  setFieldError("category", values.category ? "" : "Choose the closest business type.");
+  setFieldError("location", values.location ? "" : "Enter the market you serve.");
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email);
+  setFieldError("email", emailValid ? "" : "Enter a valid email address.");
+  const websiteValid = !values.website || Boolean(normalizeWebsite(values.website));
+  setFieldError("website", websiteValid ? "" : "Enter a valid website or review page.");
+  return values.ownerName && values.businessName && values.category && values.location && emailValid && websiteValid;
+}
+
+function validateStep2() {
+  const offers = splitOffers(fieldValue("offers"));
+  setFieldError("offers", offers.length ? "" : "Add at least one product or service.");
+  document.querySelector('[data-question="segments"]')?.classList.toggle("has-error", selections.segments.length === 0);
+  document.getElementById("segmentHint").style.color = selections.segments.length ? "" : "var(--danger)";
+  document.querySelector('[data-question="goal"]')?.classList.toggle("has-error", !selections.goal);
+  document.getElementById("goalHint").style.color = selections.goal ? "" : "var(--danger)";
+  return offers.length > 0 && selections.segments.length > 0 && Boolean(selections.goal);
+}
+
+function buildProfile() {
+  const category = fieldValue("category");
+  return {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    owner: { name: fieldValue("ownerName"), email: fieldValue("email") },
+    business: {
+      name: fieldValue("businessName"),
+      category,
+      categoryLabel: categoryLabels[category] || "Local business",
+      location: fieldValue("location"),
+      website: normalizeWebsite(fieldValue("website")),
+    },
+    buyers: {
+      segments: [...selections.segments],
+      offers: splitOffers(fieldValue("offers")),
+      channels: [...selections.channels],
+    },
+    objective: selections.goal,
+    ownerRules: ["Require owner approval before executing any recommendation."],
+    source: endpoint ? "onboarding_api" : "browser_demo",
+  };
+}
+
+function updateBrief() {
+  const business = fieldValue("businessName");
+  const category = fieldValue("category");
+  const categoryLabel = categoryLabels[category] || "your business type";
+  const location = fieldValue("location");
+  const offers = splitOffers(fieldValue("offers"));
+  const profileReady = Boolean(business && category && location);
+  const buyerReady = Boolean(selections.segments.length && offers.length && selections.goal);
+
+  const profileNode = document.getElementById("profileNode");
+  const radarNode = document.getElementById("radarNode");
+  const analystNode = document.getElementById("analystNode");
+  profileNode.classList.toggle("is-ready", profileReady);
+  radarNode.classList.toggle("is-ready", Boolean(category && location));
+  analystNode.classList.toggle("is-ready", buyerReady);
+  document.getElementById("profileNodeStatus").textContent = profileReady ? "Ready" : "Set up";
+  document.getElementById("radarNodeStatus").textContent = category && location ? "Scoped" : "Waiting";
+  document.getElementById("analystNodeStatus").textContent = buyerReady ? "Focused" : "Waiting";
+  document.getElementById("profileNodeCopy").textContent = profileReady ? `${business} · ${location}` : "Waiting for business and location";
+  document.getElementById("radarNodeCopy").textContent = category && location ? `${categoryLabel} around ${location}` : "Category + local market";
+  document.getElementById("analystNodeCopy").textContent = buyerReady ? `${selections.segments[0]} · ${selections.goal}` : "Buyers + offers + goal";
+
+  document.getElementById("scopeSentence").textContent = category && location
+    ? `Radar will monitor ${categoryLabel.toLowerCase()} signals around ${location}, then store only business-scoped market evidence.`
+    : "Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.";
+  document.getElementById("scopePills").innerHTML = [
+    category ? categoryLabel : "Business type",
+    location || "Primary market",
+    fieldValue("website") ? "Known website" : "Website optional",
+  ].map((text,index) => `<span class="brief-pill ${(!category && index===0) || (!location && index===1) ? "placeholder" : ""}">${escapeHtml(text)}</span>`).join("");
+
+  document.getElementById("buyerSentence").textContent = buyerReady
+    ? `Analyst will rank market signals for ${selections.segments.join(", ")} and prioritize ${selections.goal.toLowerCase()} across ${offers.join(", ")}.`
+    : "Add your primary buyers and offers. Analyst will rank signals against this profile before it recommends a move.";
+  const buyerPills = [
+    ...(selections.segments.length ? selections.segments : ["Buyer segments"]),
+    ...(offers.length ? offers : ["Top offers"]),
+    ...(selections.channels.length ? [selections.channels.join(" + ")] : []),
+  ];
+  document.getElementById("buyerPills").innerHTML = buyerPills.map((text,index) => `<span class="brief-pill ${(!selections.segments.length && index===0) || (!offers.length && index===1) ? "placeholder" : ""}">${escapeHtml(text)}</span>`).join("");
+  saveDraft();
+}
+
+async function persistProfile(profile) {
+  if (!endpoint) return { demoOnly: true, profile };
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  let payload = {};
+  try { payload = await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error(payload.error || `Onboarding API returned ${response.status}`);
+  return { ...payload, demoOnly: false };
+}
+
+form.addEventListener("input", event => {
+  if (event.target.matches("input, select")) {
+    setFieldError(event.target.id, "");
+    updateBrief();
+  }
+});
+
+document.addEventListener("click", event => {
+  const next = event.target.closest("[data-next]");
+  if (next) {
+    if (Number(next.dataset.next) === 2 && !validateStep1()) return;
+    showStep(Number(next.dataset.next));
+    return;
+  }
+  const back = event.target.closest("[data-back]");
+  if (back) { showStep(Number(back.dataset.back)); return; }
+
+  const multi = event.target.closest("[data-multi]");
+  if (multi) {
+    const group = multi.dataset.multi;
+    const value = multi.dataset.value;
+    const list = selections[group] || [];
+    const index = list.indexOf(value);
+    if (index >= 0) list.splice(index, 1);
+    else if (group !== "segments" || list.length < 3) list.push(value);
+    selections[group] = list;
+    syncChoices(); updateBrief();
+    return;
+  }
+
+  const goal = event.target.closest("[data-goal]");
+  if (goal) {
+    selections.goal = goal.dataset.goal;
+    syncChoices(); updateBrief();
+  }
+});
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  submitError.classList.remove("visible");
+  if (!validateStep1()) { showStep(1); return; }
+  if (!validateStep2()) return;
+
+  const button = document.getElementById("createWorkspace");
+  button.disabled = true;
+  button.firstChild.textContent = "Creating workspace";
+  const profile = buildProfile();
+
+  try {
+    const receipt = await persistProfile(profile);
+    const stored = {
+      ...profile,
+      business: { ...profile.business, id: receipt.business_id || receipt.businessId || profile.business.id || `local-${Date.now()}` },
+      persisted: !receipt.demoOnly,
+      receipt,
+    };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(stored));
+    localStorage.removeItem(DRAFT_KEY);
+    document.getElementById("successBusiness").textContent = profile.business.name;
+    document.getElementById("successMarket").textContent = profile.business.location;
+    document.getElementById("successGoal").textContent = profile.objective;
+    document.getElementById("successCopy").textContent = receipt.demoOnly
+      ? "Your profile is ready for local testing. The app will use it to create an honest first-run workspace instead of showing another business's recommendations."
+      : "Your profile is stored in CockroachDB as business-scoped memory. Radar can now begin the first market sweep.";
+    document.getElementById("successMode").textContent = receipt.demoOnly
+      ? "Local mode · saved only in this browser until the secure onboarding API is connected."
+      : "Connected mode · business profile saved to CockroachDB.";
+    showStep(3);
+  } catch (error) {
+    submitError.textContent = `Workspace could not be created: ${error.message}`;
+    submitError.classList.add("visible");
+  } finally {
+    button.disabled = false;
+    button.firstChild.textContent = "Create workspace";
+  }
+});
+
+restoreDraft();
+syncChoices();
+updateBrief();
+</script>
+</body>
+</html>

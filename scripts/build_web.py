@@ -7,16 +7,17 @@ Output:
 
     web/index.html        the landing page      (site/landing.html + data)
     web/app/index.html    the dashboard         (site/app.html + data)
+    web/signup/index.html the onboarding flow    (site/signup.html + data)
 
 The templates in `site/` are the product's source. `Product Demo/` holds the
 original mock, which predates this project and stays untouched as the provenance
 artifact — it is design reference, not a build input.
 
-Why a build step rather than a fetch at runtime: there is no API yet, and when
-one lands it will serve exactly the payload this script computes. Making that
-payload the contract now means the API can be dropped in without the pages
-changing. It also means the landing page's numbers come from the cluster, so a
-marketing claim cannot drift from the record it describes.
+Why the build remains even with a live workflow endpoint: it gives the product
+an immediate, failure-tolerant first paint and keeps the public landing claims
+grounded in a reproducible CockroachDB snapshot. Memory Engine then overlays
+current decisions, runs, Maker artifacts, and Meter verdicts from the read-only
+API while an operator is looking at it.
 
 Every money value crossing into the page is integer cents, formatted once here.
 The page never does arithmetic on money.
@@ -25,12 +26,17 @@ The page never does arithmetic on money.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
+import sys
 from datetime import date, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "backend" / "src"))
+from brasstacks.analyst_trace import parse_analyst_trace  # noqa: E402
+
 SITE = REPO / "site"
 #: Anything here is copied to web/assets/ verbatim. The admin console's backdrop
 #: lives here: a painted scene reaches a depth — haze, bloom, a real map — that
@@ -291,6 +297,46 @@ def ask_sessions(runs: list[dict]) -> list[dict]:
     return out
 
 
+def analyst_run_receipt(runs: list[dict]) -> dict | None:
+    """Newest Analyst run, including the structured retrieval and token receipt."""
+    run = next((row for row in runs if row.get("agent") == "analyst"), None)
+    if run is None:
+        return None
+
+    run_id = str(run.get("id") or "")
+    trace = parse_analyst_trace(run.get("note"))
+    query_hits = list(trace.get("query_hits") or []) if trace else []
+    if len(query_hits) < len(ANALYST_QUERIES):
+        query_hits.extend([None] * (len(ANALYST_QUERIES) - len(query_hits)))
+    query_hits = query_hits[:len(ANALYST_QUERIES)]
+    input_tokens = run.get("input_tokens")
+    output_tokens = run.get("output_tokens")
+    return {
+        "runId": run_id or None,
+        "shortRunId": run_id[:8] if run_id else None,
+        "status": run.get("status"),
+        "startedAt": run.get("started_at"),
+        "finishedAt": run.get("finished_at"),
+        "seconds": run_seconds(run),
+        "modelId": run.get("model_id"),
+        "error": run.get("error"),
+        "note": str(run.get("note") or "").splitlines()[0] if run.get("note") else "",
+        "inputTokens": input_tokens,
+        "outputTokens": output_tokens,
+        "totalTokens": (int(input_tokens) + int(output_tokens))
+            if input_tokens is not None and output_tokens is not None else None,
+        "tokensSource": "cluster" if input_tokens is not None else "unrecorded",
+        "traceSource": "cluster" if trace else "legacy",
+        "queryHits": query_hits,
+        "rawHits": trace.get("raw_hits") if trace else None,
+        "uniqueHits": trace.get("unique_hits") if trace else None,
+        "citedHits": trace.get("cited_hits") if trace else None,
+        "findId": trace.get("find_id") if trace else None,
+        "queries": trace.get("queries") if trace else None,
+        "perQueryLimit": trace.get("per_query_limit") if trace else None,
+    }
+
+
 def retrieval_funnel(finds: list[dict]) -> dict:
     """How one night's retrieval narrowed down, stage by stage.
 
@@ -337,8 +383,13 @@ def build_model(data: dict) -> dict:
         evidence = sorted(f["evidence"], key=lambda e: e["rank"])
         predicted = int(f["predicted_daily_cents"])
         actual = f["actual_daily_cents"]
+        run_database_id = str(f.get("run_id") or "")
         finds.append({
             "id": f["id"][:8],
+            "databaseId": f["id"],
+            "runId": run_database_id[:8] if run_database_id else None,
+            "runDatabaseId": run_database_id or None,
+            "origin": "agent_run" if run_database_id else "historical_import",
             "emoji": f["emoji"] or "💡",
             "title": " ".join(f["title"].split()),
             "shortTitle": short_title(f["title"]),
@@ -363,15 +414,21 @@ def build_model(data: dict) -> dict:
             # already in the export and dropped here, which is why one night of
             # agent_run rows looked like the whole history.
             "createdAt": f.get("created_at"),
+            "decidedAt": f.get("decided_at"),
             "periodStart": f.get("period_start"),
             "periodEnd": f.get("period_end"),
             "artifacts": artifacts(f),
             "evidenceCount": len(evidence),
             "topSimilarity": round(evidence[0]["similarity"], 3) if evidence else None,
             "evidence": [{
+                "id": str(e.get("observation_id") or "")[:8] or None,
+                "observationId": str(e.get("observation_id") or "") or None,
+                "rank": int(e.get("rank") or 0),
                 "content": " ".join(e["content"].split()),
                 "kind": e["kind"],
                 "source": SOURCE_LABEL.get(e["kind"], e["kind"]),
+                "sourceName": e.get("source_name"),
+                "subject": e.get("subject"),
                 "when": when(e["observed_at"]),
                 "similarity": round(e["similarity"], 3),
             } for e in evidence],
@@ -437,12 +494,26 @@ def build_model(data: dict) -> dict:
     if measuring:
         bits.append(f"{len(measuring)} still measuring")
     status_line = " · ".join(bits)
+    latest_analyst_run = analyst_run_receipt(data.get("runs", []))
 
     hit = summary["hit_rate"]
+    decision_endpoint = (os.environ.get("DECISION_API_ENDPOINT") or "").rstrip("/")
+    workflow_endpoint = (os.environ.get("WORKFLOW_API_ENDPOINT") or "").rstrip("/")
+    onboarding_endpoint = (os.environ.get("ONBOARDING_API_ENDPOINT") or "").rstrip("/")
+    if not workflow_endpoint and decision_endpoint:
+        workflow_endpoint = f"{decision_endpoint}/workflow"
     return {
+        "api": {
+            "decisionEndpoint": decision_endpoint or None,
+            "workflowEndpoint": workflow_endpoint or None,
+            "onboardingEndpoint": onboarding_endpoint or None,
+        },
         "business": {
+            "id": business.get("id"),
             "name": business["name"],
+            "category": business.get("category"),
             "city": business.get("city"),
+            "region": business.get("region"),
             "goalMonthly": goal_monthly,
             "goalMonthlyTxt": money(goal_monthly),
             "goalNote": business.get("goal_note") or "",
@@ -471,6 +542,7 @@ def build_model(data: dict) -> dict:
         # the list out to look busier than the cluster is.
         "runs": [{
             "id": r["id"][:8],
+            "databaseId": r["id"],
             "agent": r["agent"],
             "status": r["status"],
             "startedAt": r["started_at"],
@@ -479,20 +551,36 @@ def build_model(data: dict) -> dict:
             "note": r.get("note") or "",
             "modelId": r.get("model_id"),
             "error": r.get("error"),
-            # The columns exist and nothing in the codebase ever writes them:
-            # `finish_run` takes no token arguments. Zero would read as a run
-            # that cost nothing, so the page is told the truth instead and can
-            # label the figure as never recorded.
+            # New Analyst and Maker runs write provider usage here. Historical
+            # fixture rows may still be null; null means unavailable, never a
+            # zero-token run.
             "inputTokens": r.get("input_tokens"),
             "outputTokens": r.get("output_tokens"),
             "tokensSource": ("cluster" if r.get("input_tokens") is not None
                              else "unrecorded"),
+            "analystTrace": parse_analyst_trace(r.get("note"))
+                if r.get("agent") == "analyst" else None,
         } for r in data.get("runs", [])],
         "statusLine": status_line,
         "finds": finds,
         "timeline": timeline(finds),
         "artifactCount": sum(len(f["artifacts"]) for f in finds),
         "retrieval": retrieval_funnel(finds),
+        "analyst": {
+            "source": "cluster",
+            "queryCount": len(ANALYST_QUERIES),
+            "perQueryLimit": PER_QUERY_LIMIT,
+            "rawHitCeiling": RAW_HIT_CEILING,
+            "queries": [
+                {
+                    "index": index + 1,
+                    "text": query,
+                    "hits": (latest_analyst_run or {}).get("queryHits", [None] * len(ANALYST_QUERIES))[index],
+                }
+                for index, query in enumerate(ANALYST_QUERIES)
+            ],
+            "latestRun": latest_analyst_run,
+        },
         "ask": {
             "source": "cluster",
             "maxQuestionChars": MAX_QUESTION_CHARS,
@@ -530,11 +618,11 @@ def build_model(data: dict) -> dict:
 
 # ------------------------------------------------------------- placeholders
 #
-# The admin view has to show how the machinery works before every part of that
-# machinery records itself. The Ask agent's question and answer are held in no
-# column; `agent_run` has token fields nothing ever writes. Stand-in data for
-# those is legitimate — the page's job is to show a judge the shape of the
-# system. Stand-in data a reader cannot tell from measured data is not.
+# The operator view has to show how the machinery works before every part of
+# that machinery records itself. Some historical demo rows predate structured
+# run receipts, while Ask examples are not durable business facts. Clearly
+# labelled stand-in explanatory content is legitimate; anything that could be
+# mistaken for measured cluster data is not.
 #
 # So placeholders arrive by one route, after `build_model` has done its work,
 # and that route refuses anything it cannot police. `build_model` stays a pure
@@ -680,14 +768,17 @@ def build() -> None:
             model, json.loads(PLACEHOLDERS.read_text(encoding="utf-8")))
 
     (OUT_DIR / "app").mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / "signup").mkdir(parents=True, exist_ok=True)
     assets = copy_assets()
     (OUT_DIR / "index.html").write_text(
         render(SITE / "landing.html", model), encoding="utf-8")
     (OUT_DIR / "app" / "index.html").write_text(
         render(SITE / "app.html", model), encoding="utf-8")
+    (OUT_DIR / "signup" / "index.html").write_text(
+        render(SITE / "signup.html", model), encoding="utf-8")
 
     s = model["summary"]
-    print("built web/index.html and web/app/index.html")
+    print("built web/index.html, web/signup/index.html and web/app/index.html")
     print(f"  {len(model['proposed'])} waiting · {len(model['saved'])} saved · "
           f"{len(model['measuring'])} measuring · {len(model['judged'])} judged")
     print(f"  {s['verified']}V / {s['miss']}M of {s['judged']} judged "

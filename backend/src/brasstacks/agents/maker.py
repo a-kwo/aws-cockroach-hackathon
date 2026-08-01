@@ -114,6 +114,15 @@ def build_prompt(find: FindSummary, *, business: dict | None = None) -> str:
     ])
 
 
+def _token_receipt(reasoner: Reasoner) -> dict[str, int | None]:
+    """Return recorded model usage without coupling agents to one provider."""
+    usage = getattr(reasoner, "last_usage", None)
+    return {
+        "input_tokens": getattr(usage, "input_tokens", None),
+        "output_tokens": getattr(usage, "output_tokens", None),
+    }
+
+
 def run_maker(
     *,
     repo: Repository,
@@ -148,7 +157,8 @@ def run_maker(
     except (ProviderError, KeyError, TypeError) as e:
         error = f"{type(e).__name__}: {e}"
         result = MakerResult(run_id=run_id, error=error)
-        repo.finish_run(run_id, status="failed", error=error, note=result.note)
+        repo.finish_run(run_id, status="failed", error=error, note=result.note,
+                        **_token_receipt(reasoner))
         return result
 
     # Upload first so the row can record where it landed — but a failure here
@@ -174,7 +184,8 @@ def run_maker(
     except RepositoryError as e:
         error = f"{type(e).__name__}: {e}"
         result = MakerResult(run_id=run_id, error=error)
-        repo.finish_run(run_id, status="failed", error=error, note=result.note)
+        repo.finish_run(run_id, status="failed", error=error, note=result.note,
+                        **_token_receipt(reasoner))
         return result
 
     result = MakerResult(
@@ -182,7 +193,8 @@ def run_maker(
         artifact_id=artifact_id,
         location=f"s3://{location.bucket}/{location.key}" if location else None,
     )
-    repo.finish_run(run_id, status="ok", note=result.note)
+    repo.finish_run(run_id, status="ok", note=result.note,
+                    **_token_receipt(reasoner))
     return result
 
 

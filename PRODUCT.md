@@ -55,8 +55,14 @@ in the same place, never sorted away.
 - Owner rules constrain the agents on every run — standing constraints such as *never
   change prices without asking me first* and *draft everything, nothing sends without
   my OK*. The agent proposes and drafts; the owner decides.
-- The current public demo is read-only: reads come from the live cluster, decisions
-  live in the browser and are discarded on refresh.
+- A new owner begins with a short agent brief: business type, market, core buyers,
+  core offers, channels, and one priority. Those facts scope Radar and enter the
+  Analyst's business context; the first-run product must never inherit another
+  tenant's recommendations or financial record.
+- The unconnected public build remains a repeatable demo. In a connected build,
+  Do it / Pass is persisted to CockroachDB before the card moves, and Memory Engine
+  revalidates current decisions, runs, artifacts, and verdicts through a compact
+  read-only workflow endpoint. The static export remains the first-paint fallback.
 
 ## Capabilities and Constraints
 
@@ -79,9 +85,13 @@ a verdict of verified / estimated / miss written to a permanent ledger.
   cloud account.
 
 **Explicitly undecided.** Pricing, packaging, and whether any category beyond
-restaurants gets a real corpus. Accounts, multi-tenancy and billing are deliberately
-out of scope for this cycle. Whether the product continues after 18 August 2026 is
-undecided — the current cycle is scoped to the submission.
+restaurants gets a real corpus. The onboarding experience and structured agent brief are in
+scope; secure authentication, authenticated tenant provisioning, account administration, and
+billing are not complete in this cycle. The public build therefore labels a new profile as
+browser-local unless an authenticated onboarding endpoint is configured. The Memory Engine
+renderer can normalize multiple exported owner workspaces, but the committed demo contains one
+tenant and does not imply that the account-management product is complete. Whether the product continues
+after 18 August 2026 is undecided — the current cycle is scoped to the submission.
 
 ## Brand Commitments
 
@@ -130,8 +140,10 @@ rather than hidden.
    successes is marketing.
 3. **Every recommendation carries its retrieval trail**, attached to the claim it
    produced rather than filed behind a tab.
-4. **Nothing appears on screen that is not a row in the database.** If the data cannot
-   support a panel, the panel does not exist.
+4. **No operational claim appears without a receipt.** Recommendations, money, tokens,
+   signals, decisions, and outcomes come from stored records. A browser-only onboarding
+   profile may appear only when it is explicitly labelled local and carries no inherited
+   market or financial claims.
 5. **The agent drafts; the owner decides.** Standing owner rules bind every run, and
    the agent says *I don't know* rather than inventing a fact it does not hold.
 

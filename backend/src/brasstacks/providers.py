@@ -56,6 +56,14 @@ class ReasoningError(ProviderError):
     pass
 
 
+@dataclass(frozen=True)
+class ModelUsage:
+    """Token receipt from the most recent model call."""
+
+    input_tokens: int
+    output_tokens: int
+
+
 class ModelRefusedError(ReasoningError):
     """Safety classifiers declined the request.
 
@@ -272,6 +280,7 @@ class AnthropicReasoner:
         self._client = client
         self._model_id = model_id
         self._effort = effort
+        self.last_usage: ModelUsage | None = None
 
     def complete_json(
         self,
@@ -299,6 +308,12 @@ class AnthropicReasoner:
             raise
         except Exception as e:
             raise ReasoningError(f"{type(e).__name__}: {e}") from e
+
+        usage = getattr(message, "usage", None)
+        self.last_usage = ModelUsage(
+            input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+        )
 
         stop_reason = getattr(message, "stop_reason", None)
 
@@ -357,6 +372,7 @@ class FakeReasoner:
     def __init__(self, responses: Sequence[Any]) -> None:
         self._responses = list(responses)
         self.calls: list[dict[str, Any]] = []
+        self.last_usage: ModelUsage | None = None
 
     def complete_json(
         self,

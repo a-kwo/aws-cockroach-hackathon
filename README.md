@@ -23,33 +23,81 @@ python scripts/build_web.py       # renders web/ from the committed fixture
 cd web && python -m http.server 8901
 ```
 
-Then open **http://127.0.0.1:8901** — landing page, with the dashboard at `/app/`.
+Then open **http://127.0.0.1:8901** — landing page, onboarding at `/signup/`,
+and the dashboard at `/app/`.
 
 Worth clicking, in this order:
 
-1. **Ledger** — every call and how it turned out. The espresso row is a published miss:
-   predicted +$12.00/day, actual $0.00.
-2. **Radar** → click a stop → expand **"Read 127 memories · 6 questions asked"**. Those
-   are the real queries the Analyst issues and the real rows the vector search returned,
-   with their cosine similarities.
-3. **Autopilot** → accept a find. The verified figure does not move; only the *predicted*
-   line does. That distinction is the product.
+1. **Sign up** — create a new owner workspace in about two minutes. The minimum agent
+   brief captures who owns the account, what the business sells, where it competes, its
+   primary buyer segments, sales channels, and the first outcome to optimize. The right
+   side previews how those answers narrow Radar and Analyst before any recommendation is
+   allowed to appear. In the public build the profile is stored only in the browser and
+   the resulting workspace starts honestly at zero signals; a configured, authenticated
+   `ONBOARDING_API_ENDPOINT` can persist the same payload later.
+2. **For You** — inspect a recommendation, then choose **Do it** or **Pass**. With the
+   decision API configured, the choice is written back to CockroachDB before the card moves.
+   Memory Engine projects that decision over the first-paint snapshot immediately: **Do it**
+   removes one waiting item and adds one Maker queue item; **Pass** removes one waiting item
+   and records one passed item without entering Maker.
+3. **Memory Engine** — scan the owner-by-stage pipeline: one row per business owner and
+   one column for Radar, Analyst, the decision gate, Maker, and Meter. The highlighted cell
+   is the next handoff. Expand an owner row, then open only the agent or CockroachDB receipt
+   you need. Radar reports **market signals stored**, not recommendations or signals added
+   today; its expanded view groups the raw rows into Reviews, Competitors, and Demand and
+   shows the last scan plus the newest stored signal. Analyst exposes the full narrowing path:
+   stored signals → six concrete vector-memory questions → raw matches → unique context →
+   cited evidence. Every output can be expanded to its rationale, action, exact
+   `find_evidence` rows, and linked `agent_run` receipt. The Owner decision stage also keeps a
+   newest-first decision receipt: recommendation, **Do it** or **Pass**, business-owner actor,
+   local display time, routing outcome, persistence source, and the full CockroachDB find ID.
+   A historical recommendation with no run row says **No receipt** rather than pretending the
+   missing token count is zero. In a connected build, the status chip turns **Live** and the
+   matrix revalidates against CockroachDB while this tab is visible.
+4. **Growth** — every judged move remains visible, including the espresso miss: predicted
+   +$12.00/day, actual $0.00. Verified money never mixes with projected money.
+
+The operator renderer accepts an `ownerWorkspaces` array for a multi-owner portfolio. The
+committed demo fixture contains one fictional owner account, so the UI does not fabricate
+extra tenants merely to make the console look busy.
+
+
+### New owner onboarding
+
+The landing page now routes **Sign up** to `/signup/`. Onboarding is intentionally short and
+creates one structured, tenant-scoped agent brief rather than a long questionnaire:
+
+- owner name and work email
+- business name, category, primary market, and optional known website/review page
+- up to three buyer segments and three core offers
+- current sales channels and one ranking priority
+- the standing rule that every recommendation still requires owner approval
+
+The app reads the profile under `brass-tacks-onboarding-profile-v1` and switches to a true
+first-run state: no Rosa recommendations, no inherited revenue, no fabricated market memory.
+Radar is shown as **Ready to scan**, Analyst as idle, and the next handoff is the first
+owner-scoped market sweep. This local mode exists so the UX can be tested without creating an
+unsafe public tenant-provisioning endpoint. A future authenticated endpoint can be injected at
+build time with `ONBOARDING_API_ENDPOINT`; the signup payload already matches the business
+facts and owner rules the Analyst consumes.
 
 ## Where things live
 
 ```
-site/                the frontend source — landing.html and app.html
-scripts/build_web.py splices live cluster data into both, writes web/
+site/                frontend source — landing.html, signup.html and app.html
+scripts/build_web.py splices the model into all three, writes web/
 web/                 build output (gitignored — never edit, always regenerate)
 
 backend/src/brasstacks/
   agents/radar.py    observe -> embed -> dedup -> store
   agents/analyst.py  retrieve -> reason -> a validated find with its evidence
+  analyst_trace.py   structured query/retrieval/token receipt in agent_run.note
   agents/maker.py    draft the deliverable the find promised, to S3
   agents/meter.py    read prior predictions -> judge -> the ledger
   agents/ask.py      answer the owner by querying the cluster over MCP
   handlers/          the Lambda entry points
-  repository_pg.py   every SQL statement in the project
+  repository_pg.py   transactional SQL used by the agents
+  workflow_snapshot.py read-only operator projection for the live dashboard
   meter.py           verdict logic; finds.py validates model output
 
 deploy/              the SAM template, Dockerfile and deploy runbook
@@ -78,14 +126,67 @@ python scripts/build_web.py                # rebuild the site
 ## Tests
 
 ```bash
-pytest                  # 257 unit tests, offline, no credentials needed
-pytest -m integration   # 46 more, against a live cluster
+pytest                  # 420 tests, offline, no credentials needed
+pytest -m integration   # 58 more, against deployed/live services
 ```
 
 The unit suite must stay green with no cloud account. `backend/tests/test_site_build.py`
 asserts the honesty invariants: only verified money reaches the headline figure, at most
 one projected month, an estimate is never labelled "Actual", and a miss always survives
 into the view model.
+
+
+### Live workflow freshness
+
+The site is still rendered from a CockroachDB export so it has an immediate, resilient first
+paint. In a connected build, that snapshot is no longer the operator view's ceiling:
+
+- `Do it` / `Pass` writes through the Decision API and is projected into the UI immediately.
+- The app performs one read-only Workflow API sync at startup, then Memory Engine revalidates
+  every 15 seconds while its tab remains visible.
+- Decisions from another device, current agent runs, later Maker artifacts, and Meter verdicts
+  are merged into the operator matrix without rebuilding the site.
+- Conditional `ETag` requests return `304` when nothing changed; polling pauses when the tab is
+  hidden or the operator leaves Memory Engine.
+- If the endpoint is down, the last good live state remains visible as stale. Before the first
+  live response, the build snapshot remains the honest fallback.
+
+The endpoint returns the compact workflow receipt, not observation embeddings or the full
+corpus. It is a SQL-only read path and consumes zero model tokens. Tenant access comes from a
+configured business allowlist rather than a request parameter.
+
+### Memory Engine operator views
+
+Memory Engine has two synchronized operator views:
+
+- **Operations** is the traceable owner-by-stage matrix with expandable run, evidence, decision,
+  artifact, and outcome receipts.
+- **Live graph** is the visual portfolio view. Select an owner to redraw the animated
+  Radar → Analyst → Owner decision → Maker → Meter flow and its owner-scoped charts.
+
+Both views consume the same `normalizeOwnerWorkspaces()` projection. When `/workflow` is
+connected, the selected owner, agent status, portfolio handoff load, market-memory mix, owner
+decisions, and outcome ledger refresh from CockroachDB. Without the endpoint, the UI labels the
+data honestly as a build snapshot. Motion is disabled for `prefers-reduced-motion`.
+
+### CockroachDB memory and token-efficiency proof
+
+Memory Engine keeps the competition evidence above the fold for the selected owner:
+
+1. **Persistent memory** — the number of owner-scoped observations searchable in CockroachDB.
+2. **Candidate retrieval** — six concrete vector questions, each with a bounded result set.
+3. **Model context** — the deduplicated rows that actually enter the Analyst prompt.
+4. **Cited evidence** — the smaller set persisted with the recommendation for auditability.
+5. **Actual model usage** — provider-reported input and output tokens stored on the linked
+   `agent_run` row.
+6. **Zero-token operations read** — `/workflow` projects current state directly from
+   CockroachDB through SQL and invokes no LLM.
+
+The UI deliberately labels context reduction as **row-based**. It never converts a memory-row
+percentage into invented token savings. Once a live Analyst run has a linked receipt, the same
+panel shows the actual provider input/output tokens; an older fixture with no receipt says
+**Pending live run**, not zero. Every graph and KPI remains owner-scoped, so a multi-tenant
+operator can compare efficiency without mixing one business's memory with another's.
 
 ## Setup gotchas that will otherwise cost you an hour
 
@@ -111,10 +212,10 @@ into the view model.
 | Service | Role |
 |---|---|
 | Bedrock | Titan Text Embeddings V2 generates every vector in the index. No embeddings, no retrieval, no memory. |
-| Lambda | Two container-image functions: `night` runs the whole loop, `ask` serves the Ask agent. |
+| Lambda | Four container-image entry points: `night` runs the whole loop; `ask`, `decision`, and `workflow` serve the request-driven surfaces. |
 | EventBridge Scheduler | Fires `night` on a cron. This is what makes the loop autonomous rather than a button. |
 | S3 | The Maker's artifacts — the drafted deliverables an owner approves. |
-| API Gateway | An HTTP endpoint in front of `ask`. |
+| API Gateway | Throttled HTTP routes for Ask, Do it / Pass, and the read-only live workflow snapshot. |
 
 Deployed with AWS SAM — see `deploy/` for the template and the runbook.
 

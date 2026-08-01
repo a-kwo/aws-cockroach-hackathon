@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
+from brasstacks.analyst_trace import encode_analyst_trace
 from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
 from brasstacks.providers import Embedder, ProviderError, Reasoner
@@ -96,36 +97,67 @@ class AnalystResult:
     find_id: str | None
     retrieved: int
     queries: tuple[str, ...]
+    raw_retrieved: int = 0
+    query_hits: tuple[int, ...] = ()
     error: str | None = None
 
 
-def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
-              queries: Sequence[str], per_query_limit: int) -> list[Retrieved]:
-    """Union of several concrete searches, best similarity per observation.
+@dataclass(frozen=True)
+class RetrievalReceipt:
+    """What the vector layer returned before and after deduplication."""
 
-    The same review is often relevant to more than one hypothesis. Keeping it once
-    at its highest score avoids both wasting context and over-weighting it in the
-    model's view.
+    hits: tuple[Retrieved, ...]
+    query_hits: tuple[int, ...]
+    raw_hits: int
+
+
+def _retrieve_with_receipt(
+    repo: Repository,
+    embedder: Embedder,
+    business_id: str,
+    queries: Sequence[str],
+    per_query_limit: int,
+) -> RetrievalReceipt:
+    """Union concrete searches and retain the counts needed for an audit trail.
+
+    ``query_hits`` tells an operator what each market question returned.
+    ``raw_hits`` counts repeated matches across all questions. ``hits`` is the
+    deduplicated set that actually enters the prompt.
     """
     best: dict[str, Retrieved] = {}
+    query_hits: list[int] = []
     vectors = embedder.embed(list(queries))
     for vector in vectors:
-        for hit in repo.search_observations(business_id, vector,
-                                            limit=per_query_limit):
+        matches = list(repo.search_observations(
+            business_id, vector, limit=per_query_limit
+        ))
+        query_hits.append(len(matches))
+        for hit in matches:
             existing = best.get(hit.observation_id)
             if existing is None or hit.similarity > existing.similarity:
                 best[hit.observation_id] = hit
 
     ordered = sorted(best.values(), key=lambda r: r.similarity, reverse=True)
     # Re-rank so `rank` reflects position in the merged set, not in one query.
-    return [
+    merged = tuple(
         Retrieved(
             observation_id=r.observation_id, content=r.content, kind=r.kind,
             similarity=r.similarity, rank=rank, observed_at=r.observed_at,
             source_name=r.source_name, subject=r.subject,
         )
         for rank, r in enumerate(ordered)
-    ]
+    )
+    return RetrievalReceipt(
+        hits=merged, query_hits=tuple(query_hits), raw_hits=sum(query_hits)
+    )
+
+
+def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
+              queries: Sequence[str], per_query_limit: int) -> list[Retrieved]:
+    """Compatibility wrapper returning only the deduplicated observations."""
+    return list(_retrieve_with_receipt(
+        repo, embedder, business_id, queries, per_query_limit
+    ).hits)
 
 
 def build_prompt(*, business: dict | None, facts: Sequence[str],
@@ -190,6 +222,39 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
     return "\n".join(lines)
 
 
+def _token_receipt(reasoner: Reasoner) -> dict[str, int | None]:
+    """Return recorded model usage without coupling agents to one provider."""
+    usage = getattr(reasoner, "last_usage", None)
+    return {
+        "input_tokens": getattr(usage, "input_tokens", None),
+        "output_tokens": getattr(usage, "output_tokens", None),
+    }
+
+
+def _run_note(
+    human: str,
+    *,
+    receipt: RetrievalReceipt,
+    cited_hits: int,
+    find_id: str | None,
+    queries: Sequence[str],
+    per_query_limit: int,
+) -> str:
+    """Pair a readable log sentence with a structured operator receipt."""
+    return "\n".join((
+        human,
+        encode_analyst_trace(
+            query_hits=receipt.query_hits,
+            raw_hits=receipt.raw_hits,
+            unique_hits=len(receipt.hits),
+            cited_hits=cited_hits,
+            find_id=find_id,
+            queries=queries,
+            per_query_limit=per_query_limit,
+        ),
+    ))
+
+
 def run_analyst(
     *,
     repo: Repository,
@@ -204,7 +269,10 @@ def run_analyst(
 ) -> AnalystResult:
     run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
 
-    retrieved = _retrieve(repo, embedder, business_id, queries, per_query_limit)
+    retrieval = _retrieve_with_receipt(
+        repo, embedder, business_id, queries, per_query_limit
+    )
+    retrieved = list(retrieval.hits)
 
     # Best-effort, like every outside-world call in this system. Losing tonight's
     # competitor snapshot costs the Analyst context; it must not cost the night.
@@ -218,10 +286,26 @@ def run_analyst(
     if not retrieved:
         # Nothing to reason over. Calling the model anyway would be inviting it
         # to invent a recommendation with no evidence behind it.
-        repo.finish_run(run_id, status="ok",
-                        note="memory is empty; no find proposed")
-        return AnalystResult(run_id=run_id, find_id=None, retrieved=0,
-                             queries=tuple(queries))
+        repo.finish_run(
+            run_id,
+            status="ok",
+            note=_run_note(
+                "memory is empty; no find proposed",
+                receipt=retrieval,
+                cited_hits=0,
+                find_id=None,
+                queries=queries,
+                per_query_limit=per_query_limit,
+            ),
+        )
+        return AnalystResult(
+            run_id=run_id,
+            find_id=None,
+            retrieved=0,
+            queries=tuple(queries),
+            raw_retrieved=retrieval.raw_hits,
+            query_hits=retrieval.query_hits,
+        )
 
     prompt = build_prompt(
         business=repo.get_business(business_id) if hasattr(repo, "get_business") else None,
@@ -242,10 +326,29 @@ def run_analyst(
                           known_observation_ids=similarity_by_id.keys())
     except (ProviderError, InvalidFindError) as e:
         error = f"{type(e).__name__}: {e}"
-        repo.finish_run(run_id, status="failed", error=error,
-                        note=f"{len(retrieved)} observations retrieved")
-        return AnalystResult(run_id=run_id, find_id=None, retrieved=len(retrieved),
-                             queries=tuple(queries), error=error)
+        repo.finish_run(
+            run_id,
+            status="failed",
+            error=error,
+            note=_run_note(
+                f"{len(retrieved)} observations retrieved; no find stored",
+                receipt=retrieval,
+                cited_hits=0,
+                find_id=None,
+                queries=queries,
+                per_query_limit=per_query_limit,
+            ),
+            **_token_receipt(reasoner),
+        )
+        return AnalystResult(
+            run_id=run_id,
+            find_id=None,
+            retrieved=len(retrieved),
+            queries=tuple(queries),
+            raw_retrieved=retrieval.raw_hits,
+            query_hits=retrieval.query_hits,
+            error=error,
+        )
 
     find_id = repo.insert_find_with_evidence(
         business_id,
@@ -267,10 +370,25 @@ def run_analyst(
     )
 
     repo.finish_run(
-        run_id, status="ok",
-        note=(f"{len(retrieved)} retrieved; proposed {find.title!r} at "
-              f"+{find.predicted_daily_cents}c/day, verify after "
-              f"{find.verify_after.isoformat()}"),
+        run_id,
+        status="ok",
+        note=_run_note(
+            f"{len(retrieved)} retrieved; proposed {find.title!r} at "
+            f"+{find.predicted_daily_cents}c/day, verify after "
+            f"{find.verify_after.isoformat()}",
+            receipt=retrieval,
+            cited_hits=len(find.evidence_observation_ids),
+            find_id=find_id,
+            queries=queries,
+            per_query_limit=per_query_limit,
+        ),
+        **_token_receipt(reasoner),
     )
-    return AnalystResult(run_id=run_id, find_id=find_id,
-                         retrieved=len(retrieved), queries=tuple(queries))
+    return AnalystResult(
+        run_id=run_id,
+        find_id=find_id,
+        retrieved=len(retrieved),
+        queries=tuple(queries),
+        raw_retrieved=retrieval.raw_hits,
+        query_hits=retrieval.query_hits,
+    )

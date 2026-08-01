@@ -515,3 +515,38 @@ class TestRunNight:
 
         assert result.maker is None
         assert "maker" not in [r.agent for r in repo.recent_runs(business, limit=10)]
+
+
+def test_analyst_run_records_a_query_by_query_retrieval_receipt(repo, business):
+    """Operators must be able to reconstruct how a recommendation was made.
+
+    A single aggregate ("24 retrieved") is not enough: the receipt records how
+    many rows each market question returned, how many raw matches were merged,
+    how many unique observations entered the prompt, and how many were cited.
+    """
+    from brasstacks.analyst_trace import parse_analyst_trace
+
+    ids = TestAnalyst()._corpus(repo, business)
+    reasoner = FakeReasoner([
+        find_payload(evidence_observation_ids=[ids[0], ids[1]])
+    ])
+
+    result = run_analyst(
+        repo=repo,
+        embedder=FakeEmbedder(),
+        reasoner=reasoner,
+        business_id=business,
+        today=TODAY,
+    )
+
+    [run] = repo.recent_runs(business, limit=1)
+    trace = parse_analyst_trace(run.note)
+
+    assert trace is not None
+    assert len(trace["query_hits"]) == len(ANALYST_QUERIES)
+    assert trace["raw_hits"] == sum(trace["query_hits"])
+    assert trace["unique_hits"] == result.retrieved
+    assert trace["cited_hits"] == 2
+    assert trace["find_id"] == result.find_id
+    assert trace["queries"] == list(ANALYST_QUERIES)
+    assert trace["per_query_limit"] == 6

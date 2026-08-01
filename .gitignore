@@ -73,3 +73,9 @@ dist/
 # Built artifact — regenerate with scripts/build_web.py.
 # The source lives in site/ and is tracked; web/ is output only.
 web/
+JUNK/
+frontend/
+site-2/
+build_web.py
+v8-analyst-preview.png
+v8-analyst-trace-focus.png

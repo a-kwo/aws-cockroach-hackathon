@@ -270,9 +270,66 @@ def test_the_run_receipt_shows_the_queries_the_analyst_actually_runs():
 def test_templates_carry_the_data_placeholder():
     """Both pages are rendered by substituting one JSON block. A template
     missing it would silently ship with no data."""
-    for name in ("app.html", "landing.html"):
+    for name in ("app.html", "landing.html", "signup.html"):
         html = (build_web.SITE / name).read_text(encoding="utf-8")
         assert build_web.DATA_TAG.search(html), name
+
+
+def test_landing_routes_directly_to_the_demo():
+    html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
+    assert 'class="nav-cta" href="app/">Try the demo</a>' in html
+    assert 'href="app/"><span>Show me what I missed</span>' in html
+    assert 'href="app/"><span>Show me my morning move</span>' in html
+    assert 'href="signup/"' not in html
+
+
+def test_signup_collects_the_minimum_agent_scope_without_a_password():
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    for field_id in (
+        "ownerName", "email", "businessName", "category", "location",
+        "website", "offers",
+    ):
+        assert f'id="{field_id}"' in html
+    for dimension in (
+        'data-multi="segments"', 'data-multi="channels"', 'data-goal=',
+    ):
+        assert dimension in html
+    assert 'type="password"' not in html
+    assert "No password yet" in html
+    assert "brass-tacks-onboarding-profile-v1" in html
+
+
+def test_signup_and_app_share_the_same_profile_memory_key():
+    signup = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    app = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    key = "brass-tacks-onboarding-profile-v1"
+    assert key in signup and key in app
+
+
+def test_onboarding_endpoint_reaches_the_built_view_model(monkeypatch, data):
+    monkeypatch.setenv("ONBOARDING_API_ENDPOINT", "https://api.example/v1/onboarding/")
+    model = build_web.build_model(data)
+    assert model["api"]["onboardingEndpoint"] == "https://api.example/v1/onboarding"
+
+
+def test_new_owner_workspace_is_honest_until_radar_runs():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    assert "let posts = onboardingMode ? []" in html
+    assert "renderOnboardingWorkspace" in html
+    assert "first market sweep" in html
+    assert "Your workspace is ready" in html
+    assert "who Radar watches, where it searches" in html
+    assert "Profile ready" in html
+
+
+def test_radar_statistics_use_operator_language():
+    """Radar counts evidence, not recommendations. The compact operator view
+    must say that directly instead of exposing database jargon."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    assert "market signals stored" in html
+    assert "How to read Radar" in html
+    assert "memories ready for retrieval" not in html
+    assert 'label: "signal types"' not in html
 
 
 def test_render_escapes_a_closing_script_tag(data):
@@ -420,9 +477,11 @@ def test_a_fixture_predating_artifacts_still_builds(data):
 
 
 def test_tokens_are_reported_unrecorded_rather_than_zero(data):
-    """`agent_run` has token columns and nothing in the codebase ever writes
-    them. Zero would read as "this run was free"; null plus a stated source
-    reads as what it is."""
+    """Historical runs may predate usage accounting.
+
+    Zero would read as "this run was free"; null plus a stated source reads as
+    what it is, even though new Analyst and Maker runs now write token usage.
+    """
     data["runs"] = [{"id": "r" * 36, "agent": "radar", "status": "ok",
                      "started_at": "2026-07-28T10:00:00+00:00",
                      "finished_at": "2026-07-28T10:01:18+00:00",
@@ -431,6 +490,14 @@ def test_tokens_are_reported_unrecorded_rather_than_zero(data):
     assert run["inputTokens"] is None and run["outputTokens"] is None
     assert run["tokensSource"] == "unrecorded"
     assert run["modelId"] is None and run["error"] is None
+
+
+def test_static_export_keeps_receipts_for_open_finds_without_growing_forever():
+    source = (build_web.REPO / "scripts" / "export_fixture.py").read_text(encoding="utf-8")
+    assert "WITH recent AS" in source
+    assert "JOIN find f ON f.run_id = ar.id" in source
+    assert "f.status IN ('proposed', 'later', 'accepted', 'live')" in source
+    assert "FROM ledger_entry le" in source
 
 
 # ------------------------------------------- placeholders that cannot pass
@@ -824,3 +891,432 @@ def test_the_fit_pass_is_not_scheduled_on_a_frame():
     listener = APP.split('window.addEventListener("resize"')[1].split("});")[0]
     assert "requestAnimationFrame" not in listener
     assert "setTimeout" in listener
+
+# --------------------------------------- operator-first Memory Engine layout
+
+
+def test_business_identity_reaches_the_operator_model(data):
+    """The operator view must distinguish business owners; a display name alone
+    is not a stable tenant key and cannot support a multi-owner pipeline."""
+    model = build_web.build_model(data)
+    assert model["business"]["id"] == "b"
+    assert model["business"]["category"] == "restaurant"
+    assert model["business"]["region"] == "OH"
+
+
+def test_memory_engine_is_an_owner_pipeline_not_a_radial_network():
+    """Operators need rows by owner and columns by workflow stage. The old
+    radial node map hid both the tenant and the sequence of work."""
+    assert 'id="ownerPipelines"' in APP
+    assert 'id="memoryOwnerFilter"' in APP
+    assert 'id="memorySummary"' in APP
+    for stage in ("radar", "analyst", "decision", "maker", "meter"):
+        assert f'data-stage="{stage}"' in APP
+    assert "Decision gate" in APP
+
+
+def test_memory_engine_details_are_progressively_disclosed():
+    """The overview stays scannable; owner, agent, and infrastructure details
+    must be available without rendering every technical receipt at once."""
+    assert 'class="owner-pipeline-details"' in APP
+    assert 'class="agent-accordion"' in APP
+    assert 'id="memorySystemDetails"' in APP
+    assert "toggleOwnerPipeline" in APP
+    assert "toggleAllOwnerPipelines" in APP
+
+
+def test_memory_engine_can_normalize_multiple_owner_workspaces():
+    """The live demo has one tenant, but the renderer must consume an array when
+    the operator API begins returning several business owners."""
+    assert "normalizeOwnerWorkspaces" in APP
+    assert "btData.ownerWorkspaces" in APP
+    assert "buildCurrentOwnerWorkspace" in APP
+
+
+def test_memory_engine_has_operations_and_live_graph_modes():
+    """Operators can switch between the dense audit matrix and a visual live map
+    without losing the same owner-scoped source of truth."""
+    assert 'data-memory-view-mode="workflow"' in APP
+    assert 'data-memory-view-mode="visual"' in APP
+    assert 'id="memoryWorkflowView"' in APP
+    assert 'id="memoryVisualView"' in APP
+    assert "function setMemoryEngineMode" in APP
+    assert "function renderMemoryVisual" in APP
+
+
+def test_memory_visual_mode_is_owner_scoped_and_data_driven():
+    """The graph must select a real owner workspace and derive every node/chart
+    from that owner's live model rather than from presentation-only constants."""
+    for marker in (
+        'id="memoryVisualOwnerList"',
+        'id="memoryVisualPipeline"',
+        'id="visualStageInspector"',
+        'id="visualPortfolioLoad"',
+        'id="visualMemoryChart"',
+        'id="visualDecisionChart"',
+    ):
+        assert marker in APP
+    assert "function memoryVisualOwnerButton" in APP
+    assert "function memoryPortfolioStageCounts" in APP
+    assert "function memorySignalGroups" in APP
+    assert "deriveMemoryStages(model)" in APP
+    assert "normalizeOwnerWorkspaces()" in APP
+
+
+def test_memory_engine_removes_the_redundant_attention_kpi_and_subtitle():
+    """Attention already appears at the exact pipeline handoff; a global card
+    and explanatory subtitle duplicated that signal and crowded the header."""
+    header = APP[APP.index('<header class="engine-header"'):APP.index('</header>', APP.index('<header class="engine-header"'))]
+    assert "Scan every business owner" not in header
+    source = APP[APP.index("function renderPortfolioKpis"):APP.index("function renderMemoryPortfolioSummary")]
+    assert 'label: "Need attention"' not in source
+    assert "repeat(3, minmax(0, 1fr))" in APP
+
+
+def test_memory_visual_animation_has_an_accessible_reduced_motion_path():
+    """Animated flow is useful for live status, but operators who request less
+    motion must receive a stable production interface."""
+    assert "visual-flow-particle" in APP
+    assert "visual-node-enter" in APP
+    reduced = APP[APP.index("@media (prefers-reduced-motion: reduce)"):]
+    assert ".memory-visual-panel" in reduced
+    assert "animation: none" in reduced
+
+
+def test_technical_detail_sections_render_as_collapsible_disclosures():
+    """Deep schema and model receipts remain checkable without dominating the
+    first view of an agent's current work."""
+    source = APP[APP.index("function renderDetailSection"):]
+    source = source[:source.index("function renderNode")]
+    assert "<details" in source
+    assert "<summary" in source
+
+
+def test_memory_engine_projects_feed_decisions_into_the_operator_pipeline():
+    """A Do it / Pass action must change the operator pipeline immediately.
+
+    The exported model is a build-time snapshot, while the decision is a live
+    browser/API event.  Without a decision overlay, For You can remove a card
+    while Memory Engine continues to report the old waiting count.
+    """
+    assert "function withDecisionOverlay" in APP
+    assert "return source.map(workspace => withDecisionOverlay" in APP
+    assert 'decision.status === "approved" ? "accepted" : "rejected"' in APP
+    assert "proposed: orderedIds" in APP
+
+
+def test_owner_decision_metrics_distinguish_pass_from_saved_for_later():
+    """Pass closes a proposal; it is not the product's separate Later state."""
+    source = APP[APP.index('key: "owner", index: "03"'):]
+    source = source[:source.index('key: "maker", index: "04"')]
+    assert 'label: "Pass"' in source
+    assert 'label: "Do it"' in source
+    assert 'label: "saved"' not in source
+    assert "Pass → close and remember" in APP
+
+
+def test_owner_decision_stage_exposes_a_traceable_decision_log():
+    """Operators must see the recommendation, choice, actor, and recorded time.
+
+    A count such as "1 passed" is not an audit trail.  The owner stage needs a
+    compact log that can be expanded to the CockroachDB find identifier and
+    routing result without making the default pipeline noisy.
+    """
+    assert "function memoryOwnerDecisionLogHtml" in APP
+    assert "Decision history · newest first" in APP
+    assert "Business owner" in APP
+    assert "Recorded" in APP
+    assert "CockroachDB record" in APP
+    assert 'class="owner-decision-record' in APP
+    assert "Time not recorded" in APP
+
+
+def test_build_model_keeps_the_owner_decision_timestamp(data):
+    data["finds"][0]["decided_at"] = "2026-08-01T18:03:04+00:00"
+    model = build_web.build_model(data)
+    assert model["finds"][0]["decidedAt"] == "2026-08-01T18:03:04+00:00"
+
+
+def test_browser_prefers_the_server_decision_timestamp():
+    """The receipt shown in Memory Engine should use CockroachDB's write time,
+    not the owner's possibly-skewed browser clock, when the API returned one."""
+    assert "receipt.decided_at" in APP
+    assert "const recordedAt" in APP
+
+
+def test_connected_decisions_survive_a_page_reload():
+    """A CockroachDB-backed decision cannot reappear merely because the page reloaded."""
+    assert "const decisionApiConfigured" in APP
+    assert "decisionApiConfigured ? loadState()" in APP
+    assert "if (!decisionApiConfigured)" in APP
+
+# ---------------------------------------- live Memory Engine workflow endpoint
+
+
+def test_build_model_exposes_the_live_workflow_endpoint(data, monkeypatch):
+    monkeypatch.setenv("DECISION_API_ENDPOINT", "https://api.example/v1")
+    monkeypatch.delenv("WORKFLOW_API_ENDPOINT", raising=False)
+    model = build_web.build_model(data)
+    assert model["api"]["workflowEndpoint"] == "https://api.example/v1/workflow"
+
+    monkeypatch.setenv("WORKFLOW_API_ENDPOINT", "https://ops.example/live")
+    model = build_web.build_model(data)
+    assert model["api"]["workflowEndpoint"] == "https://ops.example/live"
+
+
+def test_memory_engine_revalidates_live_state_without_reloading_the_export():
+    assert "workflowApiConfigured" in APP
+    assert "refreshWorkflowSnapshot" in APP
+    assert '"If-None-Match"' in APP
+    assert 'response.status === 304' in APP
+    assert "liveWorkflowWorkspaces" in APP
+    assert "mergeWorkflowWorkspace" in APP
+    assert "visibilitychange" in APP
+    assert 'data-memory-action="refresh"' in APP
+
+
+def test_live_workflow_refresh_is_polled_only_while_the_operator_view_is_visible():
+    source = APP[APP.index("function scheduleWorkflowRefresh"):]
+    source = source[:source.index("function stopWorkflowRefresh")]
+    assert 'activeView !== "admin"' in source
+    assert "document.hidden" in source
+    assert "setTimeout" in source
+
+
+def test_deploy_template_exposes_the_workflow_read_route():
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+    assert "WorkflowFunction:" in template
+    assert 'Path: /workflow' in template
+    assert 'Method: GET' in template
+    assert "WorkflowEndpoint:" in template
+
+
+def test_live_overlay_rederives_all_lifecycle_buckets_from_rows():
+    """The live row status is authoritative for Later, Maker, and Meter too.
+
+    Filtering only the build-time proposed list hid Later and left accepted
+    decisions out of downstream stages until a fresh export.
+    """
+    source = APP[APP.index("function withDecisionOverlay"):]
+    source = source[:source.index("function workflowWorkspaceId")]
+    for bucket in ("proposed", "saved", "measuring", "earning", "judged"):
+        assert f"{bucket}: orderedIds" in source
+    assert 'find.status === "later"' in source
+    assert '["accepted", "live"].includes(find.status)' in source
+
+
+def test_successful_live_read_can_clear_a_stale_browser_decision():
+    """CockroachDB must outrank localStorage after a tenant reset or reopen."""
+    source = APP[APP.index("function syncPostsAndDecisionsFromWorkflow"):]
+    source = source[:source.index("function workflowAgeLabel")]
+    assert 'if (status === "proposed")' in source
+    assert "delete state.decisions" in source
+    assert "stateChanged = true" in source
+
+
+def test_successful_live_response_is_authoritative_for_owner_accounts():
+    """The build is a network-failure fallback, not a source of phantom tenants."""
+    source = APP[APP.index("function mergeLiveWorkflowWorkspaces"):]
+    source = source[:source.index("function syncPostsAndDecisionsFromWorkflow")]
+    assert "bases.forEach" not in source
+    assert "successful response is authoritative" in source
+
+
+def test_live_merge_never_resurrects_an_absent_active_proposal():
+    """A deleted/reset proposal cannot come back from the first-paint snapshot."""
+    source = APP[APP.index("function mergeWorkflowWorkspace"):]
+    source = source[:source.index("function mergeLiveWorkflowWorkspaces")]
+    assert 'const historical = Boolean(find.verdict) || find.status === "retired"' in source
+    assert "if (historical && !liveIds.has(id))" in source
+
+
+def test_static_model_carries_analyst_trace_and_find_run_link(data):
+    from brasstacks.analyst_trace import encode_analyst_trace
+
+    run_id = "20000000-0000-0000-0000-000000000002"
+    find_id = data["finds"][0]["id"]
+    data["finds"][0]["run_id"] = run_id
+    data["runs"].insert(0, {
+        "id": run_id,
+        "agent": "analyst",
+        "status": "ok",
+        "started_at": "2026-07-29T10:00:00+00:00",
+        "finished_at": "2026-07-29T10:00:12+00:00",
+        "note": "17 retrieved; proposed a move\n" + encode_analyst_trace(
+            query_hits=[6, 4, 3, 2, 1, 1], raw_hits=17,
+            unique_hits=12, cited_hits=5, find_id=find_id,
+        ),
+        "input_tokens": 1900,
+        "output_tokens": 240,
+        "model_id": "claude-test",
+        "error": None,
+    })
+
+    model = build_web.build_model(data)
+    trace = model["analyst"]["latestRun"]
+    first = next(find for find in model["finds"] if find["databaseId"] == find_id)
+
+    assert trace["queryHits"] == [6, 4, 3, 2, 1, 1]
+    assert trace["uniqueHits"] == 12
+    assert trace["inputTokens"] == 1900
+    assert first["runDatabaseId"] == run_id
+
+
+def test_static_model_carries_evidence_provenance_for_the_analyst_trace(data):
+    model = build_web.build_model(data)
+    evidence = next(
+        row
+        for find in model["finds"]
+        for row in find["evidence"]
+    )
+
+    assert evidence["observationId"]
+    assert evidence["id"] == evidence["observationId"][:8]
+    assert isinstance(evidence["rank"], int)
+    assert "sourceName" in evidence
+    assert "subject" in evidence
+
+
+def test_memory_engine_explains_the_analyst_in_plain_language():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "6 market questions" in html
+    assert "How the Analyst arrived here" in html
+    assert "These are CockroachDB memory searches, not six internet searches" in html
+    assert "No Analyst run receipt in this snapshot" in html
+    assert "See the 6 market questions" in html
+    assert "See cited evidence" in html
+    assert "memoryAnalystReceiptForFind" in html
+    assert "This is not zero tokens" in html
+    assert "signals searchable" in html
+
+
+def test_shared_memory_sidebar_uses_the_same_find_scoped_analyst_receipt():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    source = html[html.index("function memoryRetrievalReceipt"):]
+    source = source[:source.index("function renderOwnerMemoryDisclosure")]
+
+    assert "memoryAnalystReceiptForFind(model, selectedFind)" in source
+    assert "No matching Analyst run receipt" in source
+
+
+def test_memory_engine_can_expand_each_analyst_output_to_its_evidence():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "Why this recommendation exists" in html
+    assert "Recommended move" in html
+    assert "Cited market evidence" in html
+    assert 'class="analyst-output-item' in html
+
+# ---------------------------------------- visual Memory Engine mode
+
+
+def test_memory_engine_removes_the_ambiguous_attention_summary_card():
+    """The operator header should not reduce several different handoffs to one
+    unexplained 'Need attention' KPI. Attention remains visible on the owner
+    and agent statuses where the operator can act on it."""
+    source = APP[APP.index("function renderPortfolioKpis") :]
+    source = source[: source.index("function renderMemoryPortfolioSummary")]
+    assert 'label: "Need attention"' not in source
+    assert "Scan every business owner across the same five handoffs" not in APP
+
+
+def test_memory_engine_has_a_workflow_visual_mode_toggle():
+    """Operators can switch between the detailed workflow and a visual status
+    map without leaving Memory Engine or losing the selected owner."""
+    assert 'id="memoryViewToggle"' in APP
+    assert 'data-memory-view-mode="workflow"' in APP
+    assert 'data-memory-view-mode="visual"' in APP
+    assert 'id="memoryWorkflowView"' in APP
+    assert 'id="memoryVisualView"' in APP
+    assert "function setMemoryViewMode" in APP
+
+
+def test_visual_memory_mode_tracks_each_owner_from_the_same_live_model():
+    """The graph may be more visual, but it must derive every owner and stage
+    from the same workspaces and stage function as the traceable table view."""
+    assert 'id="memoryVisualOwnerList"' in APP
+    assert 'id="memoryVisualPipeline"' in APP
+    assert 'id="memoryVisualCharts"' in APP
+    source = APP[APP.index("function renderMemoryVisual") :]
+    source = source[: source.index("function filterOwnerPipelines")]
+    assert "workspaces.map" in source
+    assert "deriveMemoryStages" in source
+    assert "memoryFocus" in source
+    assert "memoryEngineSelectedId" in source
+
+
+def test_visual_memory_mode_contains_real_data_charts_not_decorative_metrics():
+    """The visual workspace should expose the three operator questions: what is
+    waiting, what memory informed it, and what prior work is being measured."""
+    for chart_id in ("visualDecisionChart", "visualMemoryChart", "visualOutcomeChart"):
+        assert f'id="{chart_id}"' in APP
+    for label in ("Owner decisions", "Market memory", "Outcome ledger"):
+        assert label in APP
+    assert "model.kinds" in APP
+    assert "model.summary" in APP
+
+
+def test_visual_memory_animation_has_an_accessible_reduced_motion_path():
+    assert ".visual-flow-particle" in APP
+    reduced = APP[APP.rindex("@media (prefers-reduced-motion: reduce)") :]
+    assert ".visual-flow-particle" in reduced
+    assert "animation: none" in reduced
+
+# ---------------------------------------- CockroachDB memory / token proof
+
+
+def test_memory_engine_prominently_shows_the_memory_to_context_funnel():
+    """The competition proof belongs above the fold, not behind a technical dialog."""
+    assert 'id="memoryEfficiencyHero"' in APP
+    assert "CockroachDB memory advantage" in APP
+    assert "Retrieve first. Reason second." in APP
+    assert "persistent memories" in APP
+    assert "memory rows in context" in APP
+    assert "evidence rows saved" in APP
+    assert "function memoryEfficiencySnapshot" in APP
+
+
+def test_memory_engine_keeps_row_reduction_separate_from_actual_model_tokens():
+    """A retrieval-row reduction is evidence of context selection, not a fabricated
+    provider bill. Actual input/output usage must come from the linked agent_run."""
+    assert "Actual Analyst token receipt" in APP
+    assert "Context reduction is row-based" in APP
+    assert "Exact provider token usage is shown separately" in APP
+    assert "This historical snapshot has no linked Analyst token receipt. It is not zero" in APP
+    source = APP[APP.index("function memoryEfficiencySnapshot") :]
+    source = source[: source.index("function renderMemoryEfficiencyHero")]
+    assert "run.inputTokens" in source
+    assert "run.outputTokens" in source
+    assert 'receiptLabel: hasTokenReceipt' in source
+
+
+def test_portfolio_kpis_aggregate_memory_efficiency_across_all_owners():
+    """The top KPI strip is a portfolio summary, never the currently selected owner.
+
+    Per-owner retrieval details stay in the selected-owner hero and graph, while
+    the headline context-reduction and token figures combine all owner accounts.
+    """
+    assert "function memoryPortfolioEfficiencySnapshot" in APP
+    source = APP[APP.index("function memoryPortfolioEfficiencySnapshot") :]
+    source = source[: source.index("function setMemoryViewMode")]
+    assert "map(memoryEfficiencySnapshot)" in source
+    assert "contextBound / searchable" in source
+    assert 'note: "All owners"' in source
+    assert "tokenReceiptCount" in source
+    assert "Selected owner ·" in APP
+
+
+def test_visual_memory_view_has_an_owner_scoped_token_efficiency_chart():
+    assert 'id="visualTokenChart"' in APP
+    assert "function renderVisualTokenEfficiency" in APP
+    source = APP[APP.index("function renderMemoryVisual") :]
+    source = source[: source.index("function openMemoryOperationsStage")]
+    assert "renderVisualTokenEfficiency(model)" in source
+    assert "renderMemoryEfficiencyHero(workspaces, model)" in source
+
+
+def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
+    assert "0 LLM tokens" in APP
+    assert "/workflow" in APP
+    assert "SQL-only CockroachDB read" in APP
