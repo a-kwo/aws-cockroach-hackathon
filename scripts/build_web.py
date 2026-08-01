@@ -26,12 +26,29 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from datetime import date, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SITE = REPO / "site"
+#: Anything here is copied to web/assets/ verbatim. The admin console's backdrop
+#: lives here: a painted scene reaches a depth — haze, bloom, a real map — that
+#: hand-written vector chrome does not, so the build takes an image over its own
+#: drawn scene when one is supplied.
+ASSETS = SITE / "assets"
+
+#: Preferred first. The two modern formats are a fraction of the size at this
+#: resolution, and the backdrop is the largest thing the page loads.
+BACKDROP_FORMATS = (".avif", ".webp", ".png", ".jpg", ".jpeg")
+BACKDROP_NAME = "hud-backdrop"
 FIXTURE = REPO / "db" / "fixtures" / "demo.json"
+#: Stand-in data for the parts of the machinery that do not record themselves
+#: yet. Deliberately a separate file: `export_fixture.py` rebuilds demo.json
+#: from scratch on every run, so anything hand-added there is deleted the next
+#: time someone exports, and demo.json's own comment claims the whole file came
+#: from the live cluster.
+PLACEHOLDERS = REPO / "db" / "fixtures" / "admin_placeholder.json"
 OUT_DIR = REPO / "web"
 
 #: A month of a per-day rate. The product speaks in "a month, every month", and
@@ -48,6 +65,36 @@ ANALYST_QUERIES = [
     "What are nearby competing restaurants charging, and what have they changed recently?",
     "What do the lowest-rated reviews complain about, and is it something the owner can fix?",
     "What local trends or nearby developments could change demand in the next few months?",
+]
+
+#: Rows the Analyst pulls back per hypothesis query, from
+#: `analyst.DEFAULT_PER_QUERY_LIMIT`. Kept in sync by a test, like the queries.
+PER_QUERY_LIMIT = 6
+
+#: The most observations one night's retrieval can put in front of the model:
+#: every query, filled. A product of two constants, not a measurement — the page
+#: has to say so, or a judge reads 36 as something that was counted.
+RAW_HIT_CEILING = len(ANALYST_QUERIES) * PER_QUERY_LIMIT
+
+#: The prefix `ask._trail_note` puts on each stored SQL line, from
+#: `ask.TRAIL_PREFIX`. The API strips it before the browser ever sees it.
+TRAIL_PREFIX = "sql> "
+
+#: What `ask._trail_note` writes when the model answered without touching the
+#: cluster. Worth showing rather than hiding: it is the one case where the
+#: answer did not come from the memory layer at all.
+NO_TOOL_CALLS = "answered with no tool calls"
+
+#: The question length the Ask handler accepts, from
+#: `handlers.ask.MAX_QUESTION_CHARS`, so the page's input agrees with the API.
+MAX_QUESTION_CHARS = 500
+
+#: The tables the Ask agent is told about up front, from `ask.SCHEMA_HINT`. On
+#: the page this is the disclosure of what a question can reach — the service
+#: account is read-only, and this is the whole surface.
+ASK_TABLES = [
+    "business", "observation", "find", "find_evidence",
+    "ledger_entry", "artifact", "agent_run",
 ]
 
 KIND_LABEL = {
@@ -146,6 +193,133 @@ def when(value: str | None) -> str:
         datetime.fromisoformat(value).strftime("%d %b").lstrip("0")
 
 
+def artifacts(row: dict) -> list[dict]:
+    """The Maker's drafts for one find.
+
+    `stored` is not the same question as "did the Maker succeed". A failed S3
+    upload leaves the draft in the database with no bucket or key, and the Maker
+    deliberately keeps it rather than losing the work — so an unstored draft is
+    still a draft, and the admin view must not report the find as undrafted.
+
+    The key is absent rather than empty on the committed fixture, which was
+    exported before `export_fixture.py` learned to attach artifacts.
+    """
+    out = []
+    for a in row.get("artifacts") or []:
+        bucket, key = a.get("s3_bucket"), a.get("s3_key")
+        out.append({
+            "id": a["id"][:8],
+            "kind": a["kind"],
+            "title": " ".join((a.get("title") or "").split()),
+            "preview": " ".join((a.get("preview") or "").split()),
+            "createdAt": a.get("created_at"),
+            "stored": bool(bucket and key),
+            "location": f"s3://{bucket}/{key}" if bucket and key else None,
+        })
+    return out
+
+
+def timeline(finds: list[dict]) -> list[dict]:
+    """The operational history, folded out of stamps the cluster actually stored.
+
+    Two event kinds, one column each: the Analyst proposed a find
+    (`created_at`), the Meter judged it (`measured_at`). Nothing is interpolated
+    between them, so a gap is a stretch where nothing was recorded and the page
+    is free to say so.
+
+    `verify_after` is deliberately not here. It is a commitment rather than
+    something that happened, and most of the seeded finds are due after the
+    export was taken — admitting it as an event put dates in the future at the
+    top of a log of the past. It stays on the find, where the page reads it as
+    one end of a span.
+
+    This exists because the run list alone under-tells the story: the seeded
+    cluster holds a single agent_run row, while the finds it produced span
+    twelve proposal dates and eight measurement dates. Those are the same
+    nights; only one of them was written down as a run.
+    """
+    events = []
+    for f in finds:
+        if f["createdAt"]:
+            events.append({"kind": "proposed", "at": f["createdAt"], "findId": f["id"],
+                           "title": f["shortTitle"], "amount": f["predictedDailyTxt"]})
+        if f["measuredAt"] and f["verdict"]:
+            events.append({"kind": "measured", "at": f["measuredAt"], "findId": f["id"],
+                           "title": f["shortTitle"], "amount": f["actualDailyTxt"],
+                           "verdict": f["verdict"]})
+    # Newest first, and stable within a day so two events sharing a date keep
+    # the order the finds came in rather than shuffling between builds.
+    return sorted(events, key=lambda e: e["at"], reverse=True)
+
+
+def parse_trail(note: str | None) -> list[str]:
+    """Recover the SQL the Ask agent ran, from the note its run stored.
+
+    The inverse of `ask._trail_note`, and pinned to it by a test rather than to
+    a copy of its format.
+    """
+    if not note:
+        return []
+    return [line[len(TRAIL_PREFIX):] for line in note.splitlines()
+            if line.startswith(TRAIL_PREFIX)]
+
+
+def ask_sessions(runs: list[dict]) -> list[dict]:
+    """Every Ask run, as the receipt it already left behind.
+
+    This needs no new column: `agent_run.note` holds the trail, and the exporter
+    already selects it. The two fields that are missing — the question and the
+    answer — are held nowhere in the schema, so they arrive as declared
+    placeholders rather than being invented here.
+
+    Shaped to match what `handlers/ask.py` returns to the browser, so pointing
+    the panel at a live endpoint later changes the source and not the renderer.
+    """
+    out = []
+    for r in runs:
+        if r.get("agent") != "ask":
+            continue
+        trail = parse_trail(r.get("note"))
+        out.append({
+            "runId": r["id"][:8],
+            "askedAt": r.get("started_at"),
+            "seconds": run_seconds(r),
+            "status": r.get("status"),
+            "queriedTheCluster": bool(trail),
+            "trail": trail,
+        })
+    return out
+
+
+def retrieval_funnel(finds: list[dict]) -> dict:
+    """How one night's retrieval narrowed down, stage by stage.
+
+    Each stage carries where its number came from, because they genuinely
+    differ: the first two are arithmetic on constants, the last is a row count,
+    and the middle one was never written down. Labelling them all the same way
+    would be the page's biggest lie — it is the difference between "the Analyst
+    considered 36 observations" and "the Analyst could have considered at most
+    36 observations".
+    """
+    return {
+        "source": "derived",
+        "queries": ANALYST_QUERIES,
+        "perQueryLimit": PER_QUERY_LIMIT,
+        "byFind": {f["id"]: [
+            {"key": "queries", "label": "hypothesis queries",
+             "n": len(ANALYST_QUERIES), "source": "code"},
+            {"key": "raw", "label": f"rows retrieved, ceiling",
+             "n": RAW_HIT_CEILING, "source": "code"},
+            # The Analyst records this in its own run note ("N retrieved; …"),
+            # so it becomes real the moment an analyst run exists in the export.
+            {"key": "deduped", "label": "unique after dedup",
+             "n": None, "source": "unrecorded"},
+            {"key": "cited", "label": "cited as evidence",
+             "n": f["evidenceCount"], "source": "cluster"},
+        ] for f in finds},
+    }
+
+
 # ---------------------------------------------------------------- view model
 
 
@@ -185,6 +359,13 @@ def build_model(data: dict) -> dict:
             "note": f["note"],
             "measuredAt": f["measured_at"],
             "verifyAfter": f["verify_after"],
+            # The three stamps the admin timeline is folded out of. They were
+            # already in the export and dropped here, which is why one night of
+            # agent_run rows looked like the whole history.
+            "createdAt": f.get("created_at"),
+            "periodStart": f.get("period_start"),
+            "periodEnd": f.get("period_end"),
+            "artifacts": artifacts(f),
             "evidenceCount": len(evidence),
             "topSimilarity": round(evidence[0]["similarity"], 3) if evidence else None,
             "evidence": [{
@@ -296,9 +477,28 @@ def build_model(data: dict) -> dict:
             "finishedAt": r.get("finished_at"),
             "seconds": run_seconds(r),
             "note": r.get("note") or "",
+            "modelId": r.get("model_id"),
+            "error": r.get("error"),
+            # The columns exist and nothing in the codebase ever writes them:
+            # `finish_run` takes no token arguments. Zero would read as a run
+            # that cost nothing, so the page is told the truth instead and can
+            # label the figure as never recorded.
+            "inputTokens": r.get("input_tokens"),
+            "outputTokens": r.get("output_tokens"),
+            "tokensSource": ("cluster" if r.get("input_tokens") is not None
+                             else "unrecorded"),
         } for r in data.get("runs", [])],
         "statusLine": status_line,
         "finds": finds,
+        "timeline": timeline(finds),
+        "artifactCount": sum(len(f["artifacts"]) for f in finds),
+        "retrieval": retrieval_funnel(finds),
+        "ask": {
+            "source": "cluster",
+            "maxQuestionChars": MAX_QUESTION_CHARS,
+            "tables": ASK_TABLES,
+            "sessions": ask_sessions(data.get("runs", [])),
+        },
         "proposed": [f["id"] for f in proposed],
         "saved": [f["id"] for f in saved],
         "measuring": [f["id"] for f in measuring],
@@ -322,9 +522,132 @@ def build_model(data: dict) -> dict:
             "reviews": r["reviews"],
         } for r in data["ratings"]],
         "queries": ANALYST_QUERIES,
+        "backdrop": find_backdrop(ASSETS),
         "generated": data.get("_generated"),
         "_by_id": list(by_id),
     }
+
+
+# ------------------------------------------------------------- placeholders
+#
+# The admin view has to show how the machinery works before every part of that
+# machinery records itself. The Ask agent's question and answer are held in no
+# column; `agent_run` has token fields nothing ever writes. Stand-in data for
+# those is legitimate — the page's job is to show a judge the shape of the
+# system. Stand-in data a reader cannot tell from measured data is not.
+#
+# So placeholders arrive by one route, after `build_model` has done its work,
+# and that route refuses anything it cannot police. `build_model` stays a pure
+# function of the cluster export and never learns this concept exists.
+
+
+class PlaceholderError(RuntimeError):
+    """A placeholder tried to become indistinguishable from a measurement."""
+
+
+#: Keys the honesty tests guard and the page labels as cluster rows. A
+#: placeholder that could write here could put an invented month on the growth
+#: chart or an extra night in the run list, which is exactly what
+#: `test_admin_run_list_is_not_padded` exists to stop.
+GUARDED_KEYS = frozenset({
+    "runs", "finds", "summary", "months", "ratings", "kinds", "corpus",
+    "proposed", "saved", "measuring", "earning", "judged",
+})
+
+#: Placeholders may fake operational figures and never financial ones. Every
+#: honesty rule in CLAUDE.md is a claim about the owner's money, so drawing the
+#: line at money makes those rules hold even if a panel ships without its badge.
+MONEY_KEY = re.compile(r"(cents|daily|monthly|txt)$", re.I)
+
+#: And the same rule for prose. A stand-in answer reading "the patio night
+#: brought in $19/day" states an earning as plainly as a column would; being
+#: inside a sentence does not make it less of a claim about the owner's money.
+#: SQL text is exempt — `predicted_daily_cents` in a SELECT is a column name the
+#: agent really queried, not a figure the page is asserting.
+MONEY_PROSE = re.compile(r"[$£€]\s*\d")
+
+
+def _reject_money(node, block: str, path: str = "") -> None:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if MONEY_KEY.search(key):
+                raise PlaceholderError(
+                    f"placeholder block {block!r} carries money at "
+                    f"{path}{key!r} — placeholders may state how the machinery "
+                    f"ran, never what it earned")
+            _reject_money(value, block, f"{path}{key}.")
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            _reject_money(value, block, f"{path}{i}.")
+    elif isinstance(node, str) and MONEY_PROSE.search(node):
+        raise PlaceholderError(
+            f"placeholder block {block!r} quotes money in prose at "
+            f"{path.rstrip('.')!r} — placeholders may state how the machinery "
+            f"ran, never what it earned")
+
+
+def merge_placeholders(model: dict, placeholders: dict) -> dict:
+    """Fold declared stand-in blocks into a built model.
+
+    Each block states its own `source`, inline, rather than living under a
+    `placeholder` bucket — so wiring the real thing later means filling the
+    block and flipping one word, with no key moving and no renderer rewritten.
+    That is the whole point of the envelope.
+    """
+    blocks = {k: v for k, v in placeholders.items() if not k.startswith("_")}
+    for name, block in blocks.items():
+        if name in GUARDED_KEYS:
+            raise PlaceholderError(
+                f"{name!r} is a guarded key: it holds rows the page presents as "
+                f"the cluster's own, so a placeholder may not write it")
+        if not isinstance(block, dict) or "source" not in block:
+            raise PlaceholderError(
+                f"placeholder block {name!r} declares no source; a block that "
+                f"does not say where it came from cannot be marked on the page")
+        _reject_money(block, name)
+        # Shallow, so a block that is partly real keeps its real fields: `ask`
+        # already carries the question limit and table list the handler
+        # publishes, and only its sessions are a stand-in. The declared source
+        # still wins, so a panel is badged by its weakest part.
+        base = model.get(name)
+        model[name] = {**base, **block} if isinstance(base, dict) else block
+
+    model["provenance"] = {
+        "fixture": FIXTURE.name,
+        "blocks": {k: v["source"] for k, v in model.items()
+                   if isinstance(v, dict) and "source" in v},
+    }
+    return model
+
+
+def find_backdrop(assets: Path) -> str | None:
+    """The console backdrop image, as the app page would reference it.
+
+    Returns a path relative to `web/app/`, which is where the only page that
+    uses it is written — hence the `../`. None when nothing has been supplied,
+    which is the state of a fresh clone and is not an error: the admin view
+    falls back to the scene it draws itself.
+    """
+    for suffix in BACKDROP_FORMATS:
+        candidate = assets / f"{BACKDROP_NAME}{suffix}"
+        if candidate.is_file():
+            return f"../assets/{candidate.name}"
+    return None
+
+
+def copy_assets() -> int:
+    """Mirror site/assets into web/assets, replacing whatever was there.
+
+    Replaced rather than merged so a renamed or deleted source file does not
+    linger in the output and keep being served.
+    """
+    if not ASSETS.is_dir():
+        return 0
+    out = OUT_DIR / "assets"
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(ASSETS, out,
+                    ignore=shutil.ignore_patterns("*.md", ".gitkeep"))
+    return sum(1 for path in out.rglob("*") if path.is_file())
 
 
 # ---------------------------------------------------------------- rendering
@@ -352,8 +675,12 @@ def build() -> None:
 
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
     model = build_model(data)
+    if PLACEHOLDERS.exists():
+        model = merge_placeholders(
+            model, json.loads(PLACEHOLDERS.read_text(encoding="utf-8")))
 
     (OUT_DIR / "app").mkdir(parents=True, exist_ok=True)
+    assets = copy_assets()
     (OUT_DIR / "index.html").write_text(
         render(SITE / "landing.html", model), encoding="utf-8")
     (OUT_DIR / "app" / "index.html").write_text(
@@ -369,6 +696,8 @@ def build() -> None:
           f"({sum(1 for m in model['months'] if m['projected'])} projected)")
     print(f"  {model['corpus']['evidenceRows']} evidence rows across "
           f"{len(model['finds'])} finds")
+    print(f"  {assets} asset file(s) · console backdrop: "
+          f"{model['backdrop'] or 'none — drawing the scene instead'}")
 
 
 if __name__ == "__main__":
