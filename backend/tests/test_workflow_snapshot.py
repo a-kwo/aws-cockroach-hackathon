@@ -6,11 +6,17 @@ from pathlib import Path
 from brasstacks.workflow_snapshot import build_workspace, parse_retrieved_count
 
 
-FIXTURE = Path(__file__).resolve().parents[2] / "db" / "fixtures" / "demo.json"
+#: A frozen sample, not the shipped fixture. db/fixtures/demo.json is
+#: regenerated from whichever business the live cluster holds, so its contents
+#: are not a fact about this code — and every honest export broke this file:
+#: once when the tenant was renamed, and again when a fresh tenant exported with
+#: zero finds and IndexError'd four tests at finds[0]. See the sample's own
+#: comment for what it was captured from.
+SAMPLE = Path(__file__).resolve().parent / "data" / "workspace_sample.json"
 
 
 def demo_data() -> dict:
-    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+    return json.loads(SAMPLE.read_text(encoding="utf-8"))
 
 
 def test_build_workspace_returns_the_live_operator_contract():

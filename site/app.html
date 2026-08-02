@@ -12450,6 +12450,45 @@
       window.location.href = "../login/";
     }
 
+    //  Asking the agents for a first night from the board, for an owner who
+    //  signed up before the onboarding button existed or who closed the tab
+    //  before pressing it. Same endpoint, same guards: it runs for the signed-in
+    //  business only, and refuses to start a second run.
+    const RUN_ENDPOINT = String(btData.api?.runEndpoint || "").trim();
+
+    async function startFirstNight(button, note) {
+      const session = readSession();
+      if (!RUN_ENDPOINT || !session) {
+        if (note) note.textContent = "Sign in again to start a night.";
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "Waking the agents";
+      try {
+        const response = await fetch(RUN_ENDPOINT, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 202 || response.status === 200) {
+          button.textContent = "Working…";
+          if (note) {
+            note.textContent = payload.status === "running"
+              ? "A night is already running. This page will fill in as it finishes."
+              : "Started. Refresh in a minute or two — the agents are reading your market now.";
+          }
+          return;
+        }
+        button.disabled = false;
+        button.textContent = "Start my first night";
+        if (note) note.textContent = payload.error || `Could not start (${response.status}).`;
+      } catch (e) {
+        button.disabled = false;
+        button.textContent = "Start my first night";
+        if (note) note.textContent = "Could not reach the server.";
+      }
+    }
+
     //  The board is a signed-in surface now. It used to render the committed
     //  snapshot to anyone, which was a fine public demo while there was one
     //  seeded tenant — and became a liability the moment businesses signed
@@ -13107,7 +13146,28 @@
       queueCount.textContent = pending.length ? `${currentIndex + 1} of ${pending.length}` : "0 of 0";
 
       if (!pending.length) {
-        queueContent.innerHTML = `
+        //  Two very different empty states wore the same words. A business that
+        //  has never had a night is not "caught up" — nothing has ever looked
+        //  at it, and "All caught up" tells the owner the agents ran and found
+        //  nothing worth saying. It also left them with no way forward: the
+        //  only trigger was a button at the end of onboarding they had already
+        //  walked past.
+        const neverRan = !(btData.finds || []).length
+          && !(btData.runs || []).length;
+
+        queueContent.innerHTML = neverRan ? `
+          <section class="queue-empty" aria-label="No night has run yet" data-enter>
+            <div>
+              <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
+              <h2>The agents haven't looked yet</h2>
+              <p>Radar will read your market, the Analyst will reason over what it finds, and you'll get your first moves. It takes about a minute and a half.</p>
+              <div class="empty-actions">
+                <button class="empty-primary" type="button" data-start-night>Start my first night</button>
+              </div>
+              <p class="empty-note" id="firstNightNote"></p>
+            </div>
+          </section>
+        ` : `
           <section class="queue-empty" aria-label="No posts need a decision" data-enter>
             <div>
               <div class="empty-icon" aria-hidden="true">${icons.approved}</div>
@@ -16274,6 +16334,10 @@ ledger_entry · artifact · agent_run`,
     restartDemoButton.addEventListener("click", restartDemo);
 
     function bindDynamicActions() {
+      document.querySelectorAll("[data-start-night]").forEach(button => {
+        button.onclick = () => startFirstNight(
+          button, document.getElementById("firstNightNote"));
+      });
       document.querySelectorAll("[data-open-post]").forEach(button => {
         button.onclick = () => openDrawer(button.dataset.openPost);
       });

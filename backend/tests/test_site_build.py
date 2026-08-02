@@ -1431,3 +1431,33 @@ def test_the_board_requires_a_session():
 
     assert "if (!readSession()) {" in html
     assert 'window.location.replace("../login/")' in html
+
+
+def test_a_business_with_no_night_is_not_told_it_is_caught_up():
+    """Two different empty states wore the same words.
+
+    "All caught up" tells the owner the agents ran and found nothing worth
+    saying. For a business that has never had a night, nothing has ever looked
+    at it — and the only trigger was a button at the end of onboarding they had
+    already walked past, so the board was a dead end.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "The agents haven't looked yet" in html
+    assert "data-start-night" in html
+    # The distinction is made from the data, not from a flag someone can forget
+    # to set: no finds AND no runs means nothing has ever looked.
+    assert "const neverRan = !(btData.finds || []).length" in html
+    assert "!(btData.runs || []).length" in html
+
+
+def test_the_board_can_start_a_night_for_the_signed_in_business():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "runEndpoint" in html
+    assert "startFirstNight" in html
+    # Same guard as everywhere else: the tenant comes from the session, so the
+    # request carries no business id to spend someone else's money against.
+    start = html.split("async function startFirstNight", 1)[1][:900]
+    assert "authHeaders(" in start
+    assert "business_id" not in start
