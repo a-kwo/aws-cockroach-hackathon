@@ -465,6 +465,47 @@ Resources:
             Path: /run
             Method: POST
 
+  # --------------------------------------------------------------------
+  # The operator view. The one read that crosses tenant boundaries.
+  # --------------------------------------------------------------------
+  AdminFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: admin
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.admin.handler"]
+      # Reads every active tenant in one set of queries, so it is given more
+      # room than the single-tenant workflow endpoint.
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Workspaces:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /admin/workspaces
+            Method: GET
+
   AskApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -619,6 +660,12 @@ Outputs:
   WorkflowEndpoint:
     Description: GET live owner workflow state for the Memory Engine overlay.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
+
+  AdminWorkspacesEndpoint:
+    Description: >
+      Every active tenant, for an operator. Requires a session whose account
+      has is_admin; an ordinary owner's valid session gets a 403.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/admin/workspaces
 
   RunEndpoint:
     Description: >

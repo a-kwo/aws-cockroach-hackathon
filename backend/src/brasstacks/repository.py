@@ -382,6 +382,7 @@ class InMemoryRepository:
         self._accounts[username] = {
             "id": account_id, "business_id": business_id,
             "username": username, "password_hash": password_hash,
+            "is_admin": False,
         }
         return account_id
 
@@ -405,8 +406,13 @@ class InMemoryRepository:
         session = self._sessions.get(token_hash)
         if session is None or session["expires_at"] <= now:
             return None
+        account = next(
+            (a for a in self._accounts.values()
+             if a["id"] == session["account_id"]), {})
         return {"account_id": session["account_id"],
-                "business_id": session["business_id"]}
+                "business_id": session["business_id"],
+                # From the account, so revoking admin takes effect at once.
+                "is_admin": bool(account.get("is_admin"))}
 
     def find_account(self, username: str) -> dict[str, Any] | None:
         """None rather than raising: the login handler must do the same work
@@ -431,6 +437,11 @@ class InMemoryRepository:
 
     def delete_session(self, token_hash: str) -> None:
         self._sessions.pop(token_hash, None)
+
+    def set_account_admin(self, username: str, *, is_admin: bool) -> None:
+        if username not in self._accounts:
+            raise RepositoryError(f"unknown account {username!r}")
+        self._accounts[username]["is_admin"] = is_admin
 
     def set_business_status(self, business_id: str, *, status: str) -> None:
         if business_id not in self._businesses:

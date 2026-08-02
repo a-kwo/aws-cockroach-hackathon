@@ -110,3 +110,31 @@ class TestActiveBusinesses:
             repo.create_business(name=f"B{i}", category="restaurant")
 
         assert len(repo.active_business_ids(limit=3)) == 3
+
+
+class TestSessionsWithoutABusiness:
+    """An operator account has no business, and neither does an owner between
+    /register and finishing onboarding. Both must resolve to nothing rather than
+    to the string "None", which is truthy and would be queried as a tenant id."""
+
+    def test_a_session_with_no_business_resolves_to_none(self, repo):
+        account = repo.create_account(None, username="admin",
+                                      password_hash=hash_password("x"))
+        token, fingerprint, expires = issue_session_token(now=NOW)
+        repo.create_session(fingerprint, business_id=None,
+                            account_id=account, expires_at=expires)
+
+        resolved = repo.business_for_session(fingerprint, now=NOW)
+
+        assert resolved is None
+        assert resolved != "None"
+
+    def test_the_account_lookup_agrees(self, repo):
+        account = repo.create_account(None, username="admin",
+                                      password_hash=hash_password("x"))
+        token, fingerprint, expires = issue_session_token(now=NOW)
+        repo.create_session(fingerprint, business_id=None,
+                            account_id=account, expires_at=expires)
+
+        assert repo.account_for_session(fingerprint, now=NOW)["business_id"] is None
+        assert repo.find_account("admin")["business_id"] is None

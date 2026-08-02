@@ -12599,6 +12599,20 @@
       window.location.href = "../";
     }
 
+    //  The Memory Engine crosses tenant boundaries — it is the operator view,
+    //  not a customer one. Hiding the tab is cosmetic and deliberately so:
+    //  /admin/workspaces checks the account on every request, so a curious
+    //  owner who unhides this in devtools gets a 403 and nothing else.
+    (function gateOperatorView() {
+      const session = readSession();
+      if (session && session.isAdmin) return;
+      document.querySelectorAll('[data-view="admin"]').forEach(tab => {
+        tab.remove();
+      });
+      const view = document.getElementById("view-admin");
+      if (view) view.remove();
+    })();
+
     //  Sign out, and show who is signed in. The board is one tenant's, and
     //  without a way off it a second business cannot be onboarded on this
     //  machine until the session expires two weeks later.

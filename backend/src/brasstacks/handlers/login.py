@@ -101,6 +101,10 @@ def login(event: Any, *, repo: Any, now: datetime | None = None) -> dict[str, An
         "token": token,
         "business_id": account["business_id"],
         "expires_at": expires_at.isoformat(),
+        # So the page knows whether to offer the operator view at all. Purely
+        # cosmetic — /admin/workspaces checks the account itself on every
+        # request, because a hidden tab is not a gate.
+        "is_admin": bool(account.get("is_admin")),
     })
 
 

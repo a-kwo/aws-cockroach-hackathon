@@ -208,6 +208,10 @@ form.addEventListener("submit", async event => {
       token: payload.token,
       businessId: payload.business_id,
       expiresAt: payload.expires_at,
+      //  Decides whether the board offers the operator view. Not a
+      //  permission — the server re-checks the account on every admin
+      //  request, so editing this in devtools buys a 403.
+      isAdmin: Boolean(payload.is_admin),
     }));
     window.location.href = "../app/";
   } catch (e) {

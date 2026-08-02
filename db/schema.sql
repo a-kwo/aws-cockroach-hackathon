@@ -302,6 +302,11 @@ ALTER TABLE find ADD COLUMN IF NOT EXISTS summary STRING;
 ALTER TABLE owner_account ALTER COLUMN business_id DROP NOT NULL;
 ALTER TABLE owner_session ALTER COLUMN business_id DROP NOT NULL;
 
+-- The operator. Not a role system: there is one privilege in this product and
+-- it is "may read every tenant", which is the Memory Engine's whole job. A
+-- boolean is the honest shape until there is a second privilege to name.
+ALTER TABLE owner_account ADD COLUMN IF NOT EXISTS is_admin BOOL NOT NULL DEFAULT false;
+
 -- Whether the agents work for this business tonight. Every active tenant costs
 -- a Tavily search, ~50 embeddings and a Claude call per night, so this is a
 -- spend control as much as a lifecycle flag. Defaults to active: a business

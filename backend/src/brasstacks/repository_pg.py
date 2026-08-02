@@ -127,8 +127,10 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT account_id, business_id FROM owner_session
-                WHERE token_hash = %s AND expires_at > %s
+                SELECT s.account_id, s.business_id, a.is_admin
+                FROM owner_session s
+                JOIN owner_account a ON a.id = s.account_id
+                WHERE s.token_hash = %s AND s.expires_at > %s
                 """,
                 (token_hash, now),
             )
@@ -136,7 +138,11 @@ class PostgresRepository:
         if row is None:
             return None
         return {"account_id": str(row[0]),
-                "business_id": str(row[1]) if row[1] else None}
+                "business_id": str(row[1]) if row[1] else None,
+                # Read from the account, never from the session row: revoking
+                # admin must take effect on the next request, not in two weeks
+                # when the session happens to expire.
+                "is_admin": bool(row[2])}
 
     def find_account(self, username: str) -> dict[str, Any] | None:
         """None rather than raising: the login handler must do the same work
@@ -144,7 +150,7 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, business_id, username, password_hash
+                SELECT id, business_id, username, password_hash, is_admin
                 FROM owner_account WHERE username = %s
                 """,
                 (username,),
@@ -156,7 +162,8 @@ class PostgresRepository:
         # downstream and land in a URL as a business id.
         return {"id": str(row[0]),
                 "business_id": str(row[1]) if row[1] else None,
-                "username": row[2], "password_hash": row[3]}
+                "username": row[2], "password_hash": row[3],
+                "is_admin": bool(row[4])}
 
     def create_session(self, token_hash: str, *, business_id: str,
                        account_id: str, expires_at: datetime) -> None:
@@ -184,7 +191,11 @@ class PostgresRepository:
                 (token_hash, now),
             )
             row = cur.fetchone()
-        return str(row[0]) if row else None
+        # `row` is a truthy (None,) when the session exists but has no business
+        # — an operator account, or an owner between /register and onboarding.
+        # str(None) is "None", which sails through every truthiness check
+        # downstream and ends up queried as a business id.
+        return str(row[0]) if row and row[0] else None
 
     def delete_session(self, token_hash: str) -> None:
         with self._conn.cursor() as cur:
