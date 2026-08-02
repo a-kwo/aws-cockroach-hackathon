@@ -1922,7 +1922,7 @@ def test_mobile_for_you_uses_native_scroll_snap_instead_of_pointer_drag():
     diagonal finger movement jump back or stutter.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    css = html.split('<style id="native-mobile-scroll-snap-v20">', 1)[1].split(
+    css = html.split('<style id="mobile-feed-production-v22">', 1)[1].split(
         "</style>", 1
     )[0]
 

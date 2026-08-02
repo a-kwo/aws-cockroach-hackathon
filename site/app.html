@@ -12262,6 +12262,138 @@
     }
   </style>
 
+
+  <style id="mobile-feed-production-v22">
+    /* Production mobile contract: one native horizontal scroller, one vertical
+       reading surface, no clamp and no competing transform animation. */
+    @media (max-width: 900px) {
+      body.autopilot-mode,
+      body.autopilot-mode .app {
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        overflow: hidden !important;
+      }
+
+      body.autopilot-mode .workspace,
+      body.autopilot-mode #view-autopilot,
+      body.autopilot-mode .autopilot-inner,
+      body.autopilot-mode #queueContent,
+      body.autopilot-mode .deck,
+      body.autopilot-mode .feed-stage {
+        min-height: 0 !important;
+        height: 100% !important;
+      }
+
+      body.autopilot-mode .autopilot-inner,
+      body.autopilot-mode .deck { padding: 0 !important; gap: 0 !important; }
+
+      body.autopilot-mode .feed-stage {
+        display: flex !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x mandatory !important;
+        scroll-behavior: auto !important;
+        touch-action: pan-x pan-y pinch-zoom !important;
+        overscroll-behavior-x: contain !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        contain: none !important;
+      }
+      body.autopilot-mode .feed-stage::-webkit-scrollbar { display: none; }
+
+      body.autopilot-mode .feed-card,
+      body.autopilot-mode .feed-card[class*="is-"] {
+        position: relative !important;
+        inset: auto !important;
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 100% !important;
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+        pointer-events: auto !important;
+        scroll-snap-align: start !important;
+        scroll-snap-stop: normal !important;
+      }
+
+      body.autopilot-mode .post-surface {
+        height: 100% !important;
+        min-height: 0 !important;
+        display: grid !important;
+        grid-template-rows: minmax(0, 1fr) auto !important;
+        border-radius: 0 !important;
+      }
+
+      body.autopilot-mode .post-body {
+        min-height: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        touch-action: pan-x pan-y pinch-zoom !important;
+        padding: 18px 18px 34px !important;
+        scrollbar-width: none;
+      }
+      body.autopilot-mode .post-body::-webkit-scrollbar { display: none; }
+
+      body.autopilot-mode .post-copy,
+      body.autopilot-mode .feed-card[data-fit] .post-copy {
+        min-height: max-content !important;
+        height: auto !important;
+        overflow: visible !important;
+        flex: 0 0 auto !important;
+        gap: 14px !important;
+      }
+
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title,
+      body.autopilot-mode .signal-text,
+      body.autopilot-mode .feed-card[data-fit] .signal-text,
+      body.autopilot-mode .recommendation-steps li {
+        display: block !important;
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: normal !important;
+        -webkit-line-clamp: unset !important;
+        -webkit-box-orient: initial !important;
+        padding-bottom: 0 !important;
+      }
+
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title {
+        font-size: clamp(28px, 8.8vw, 39px) !important;
+        line-height: 1.16 !important;
+      }
+
+      body.autopilot-mode .signal-summary { display: none !important; }
+      body.autopilot-mode .signal-full { display: block !important; }
+      body.autopilot-mode .signal-text {
+        font-size: 16px !important;
+        line-height: 1.58 !important;
+      }
+
+      body.autopilot-mode .recommendation-steps .step-overflow { display: list-item !important; }
+      body.autopilot-mode .recommendation-steps .step-more { display: none !important; }
+      body.autopilot-mode .recommendation-steps li { display: list-item !important; }
+
+      body.autopilot-mode .post-footer {
+        position: relative !important;
+        z-index: 5;
+        flex: 0 0 auto !important;
+        padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+      }
+
+      body.autopilot-mode .post-art,
+      body.autopilot-mode .post-copy::after { display: none !important; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -12885,7 +13017,7 @@
       return `${days} day${days === 1 ? "" : "s"} ago`;
     }
 
-    function findToPost(find) {
+    function findToPost(find, { serverVerified = false } = {}) {
       const featureKey = postCategory(find);
       const styles = {
         competitors: { feature: "Competitors", accent: "#4f5f8f", accentRgb: "79, 95, 143" },
@@ -12896,6 +13028,7 @@
       return {
         id: find.id,
         databaseId: find.databaseId || find.id,
+        serverVerified,
         feature: style.feature,
         featureKey,
         title: find.title,
@@ -12924,7 +13057,7 @@
       const proposed = finds.filter(find => proposedIds.size
         ? proposedIds.has(find.id)
         : find.status === "proposed");
-      return proposed.map(findToPost);
+      return proposed.map(find => findToPost(find, { serverVerified: false }));
     }
 
     // Built exports use CockroachDB findings as the single source of truth.
@@ -13392,7 +13525,7 @@
       const currentFinds = (workspace.finds || []).filter(find =>
         !find.verdict && ["proposed", "accepted", "live", "rejected", "later"].includes(String(find.status || ""))
       );
-      posts = currentFinds.map(findToPost);
+      posts = currentFinds.map(find => findToPost(find, { serverVerified: true }));
 
       const nextLiveDecisions = {};
       let stateChanged = false;
@@ -13993,9 +14126,9 @@
       const offset = (index - currentIndex + count) % count;
       const positionClass = positionFor(offset, count);
       const decisionSyncPending = decisionApiConfigured && workflowApiConfigured &&
-        workflowRefreshState !== "live";
+        (workflowRefreshState !== "live" || !post.serverVerified);
       const decisionDisabled = decisionSyncPending
-        ? ' disabled aria-busy="true" title="Checking the latest decision status"'
+        ? ' disabled aria-busy="true" title="Waiting for the live owner-specific recommendation"'
         : "";
 
       return `
@@ -14126,7 +14259,10 @@
       const stage = document.getElementById("feedStage");
       if (stage && usesNativeMobileFeed()) {
         currentIndex = next;
-        applyCardPositions(true);
+        updateFeedChrome(pending.length);
+        stage.querySelectorAll(".feed-card").forEach((card, cardIndex) => {
+          card.setAttribute("aria-hidden", cardIndex === next ? "false" : "true");
+        });
         stage.scrollTo({
           left: next * Math.max(1, stage.clientWidth),
           top: 0,
@@ -14222,7 +14358,10 @@
         window.clearTimeout(settleTimer);
         const next = indexFromScroll();
         currentIndex = next;
-        applyCardPositions(true);
+        updateFeedChrome(cardCount());
+        stage.querySelectorAll(".feed-card").forEach((card, index) => {
+          card.setAttribute("aria-hidden", index === next ? "false" : "true");
+        });
         const destination = next * Math.max(1, stage.clientWidth);
         if (Math.abs(stage.scrollLeft - destination) > 1) {
           stage.scrollTo({
@@ -14579,6 +14718,11 @@
 
       const post = posts.find(item => item.id === postId);
       if (!post) return;
+      if (decisionApiConfigured && workflowApiConfigured && !post.serverVerified) {
+        showToast("This recommendation is still loading from your live workspace.", "rejected");
+        await refreshWorkflowSnapshot({ force: true, silent: true });
+        return;
+      }
       const card = document.querySelector(`.feed-card[data-post-id="${postId}"]`);
       isAnimating = true;
       document.querySelectorAll(`[data-decide][data-post-id="${postId}"]`).forEach(button => {

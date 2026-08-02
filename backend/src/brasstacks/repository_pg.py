@@ -127,7 +127,7 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT s.account_id, s.business_id, a.is_admin
+                SELECT s.account_id, COALESCE(a.business_id, s.business_id), a.is_admin
                 FROM owner_session s
                 JOIN owner_account a ON a.id = s.account_id
                 WHERE s.token_hash = %s AND s.expires_at > %s
@@ -185,8 +185,10 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT business_id FROM owner_session
-                WHERE token_hash = %s AND expires_at > %s
+                SELECT COALESCE(a.business_id, s.business_id)
+                FROM owner_session s
+                JOIN owner_account a ON a.id = s.account_id
+                WHERE s.token_hash = %s AND s.expires_at > %s
                 """,
                 (token_hash, now),
             )
