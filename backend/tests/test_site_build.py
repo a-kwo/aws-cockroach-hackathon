@@ -1794,3 +1794,23 @@ def test_invented_cards_are_never_a_fallback_for_an_empty_deck():
     assert "(sampleWorkspaceMode ? demoPosts : [])" in html
     # The unguarded fallback must not come back.
     assert "memoryPosts.length ? memoryPosts : demoPosts" not in html
+
+
+def test_an_operator_reads_the_cross_tenant_endpoint():
+    """/workflow resolves its tenant from the caller's session, and an operator
+    owns none — so it answered 401 and the Memory Engine fell back to the
+    committed snapshot, showing exactly one business. The admin endpoint was
+    deployed and returning every tenant correctly; nothing was pointed at it."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "const workflowApiEndpoint = OPERATOR_SESSION" in html
+    assert 'btData.api?.adminEndpoint' in html
+    assert 'btData.api?.workflowEndpoint' in html
+
+
+def test_the_admin_endpoint_is_built_into_the_page():
+    """Without it the operator's board has nowhere to read from."""
+    source = (build_web.REPO / "scripts" / "build_web.py").read_text(encoding="utf-8")
+
+    assert '"adminEndpoint": admin_endpoint or None' in source
+    assert 'ADMIN_API_ENDPOINT' in source

@@ -12812,7 +12812,16 @@
     }
 
     const decisionApiConfigured = Boolean(String(btData.api?.decisionEndpoint || "").trim());
-    const workflowApiEndpoint = String(btData.api?.workflowEndpoint || "").trim();
+    //  An operator reads across tenants and owns none, so /workflow — which
+    //  resolves its tenant from the caller's session — answers 401 for them.
+    //  /admin/workspaces returns every active business instead, and its payload
+    //  carries the same `workspaces` array the rest of this file expects.
+    //
+    //  This is why the Memory Engine showed one tenant: the endpoint was
+    //  deployed and correct, and nothing was pointed at it.
+    const workflowApiEndpoint = OPERATOR_SESSION
+      ? String(btData.api?.adminEndpoint || "").trim()
+      : String(btData.api?.workflowEndpoint || "").trim();
     const workflowApiConfigured = Boolean(workflowApiEndpoint) && !onboardingMode;
     let liveWorkflowWorkspaces = null;
     let workflowEtag = null;
