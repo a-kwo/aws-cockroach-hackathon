@@ -12,17 +12,17 @@ nothing. A night takes single-digit minutes against a fifteen-minute ceiling.
 
 from __future__ import annotations
 
+import os
 from datetime import date, datetime, time, timezone
 from typing import Any
 
 from brasstacks.artifacts import build_artifact_store
 from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
-from brasstacks.night import CORPUS_PATH, run_night
+from brasstacks.night import build_night_sources, run_night
 from brasstacks.outcomes import NoOutcomeSource
 from brasstacks.providers import build_embedder, build_reasoner
 from brasstacks.secrets import hydrate_environment
-from brasstacks.signals import CorpusSignalSource
 
 
 def summarise(result: Any) -> dict[str, Any]:
@@ -77,10 +77,14 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             outcomes=NoOutcomeSource(),
             business_id=settings.business_id,
             today=today,
-            # The committed corpus only. Live web search is opt-in even
-            # locally, because the demo tenant is fictional and searching for
-            # it returns noise that pollutes the memory layer.
-            sources=[CorpusSignalSource(CORPUS_PATH, anchor=anchor)],
+            # Live web signal for a real tenant; the committed corpus only if
+            # BRASSTACKS_USE_CORPUS is set. Tenants sign themselves up now, and
+            # db/seed/observations.json is fiction — importing it as a real
+            # business's memory would have every find citing invented evidence.
+            sources=build_night_sources(
+                settings, anchor,
+                use_corpus=bool(os.environ.get("BRASSTACKS_USE_CORPUS")),
+            ),
             model_id=settings.reasoning_model_id,
         )
 

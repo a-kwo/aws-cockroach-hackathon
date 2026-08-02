@@ -123,6 +123,33 @@ def run_night(
                        maker=maker)
 
 
+def build_night_sources(settings: Any, anchor: datetime, *,
+                        use_corpus: bool = False) -> list[SignalSource]:
+    """What a **deployed** night is allowed to observe.
+
+    The opposite polarity to `_build_sources` below, and deliberately so. That
+    one serves the local harness against the seeded demo tenant, where the
+    committed corpus is the point. This one serves real businesses that signed
+    themselves up, where the corpus is 127 hand-written reviews about a
+    restaurant that does not exist.
+
+    Feeding those to a real tenant would fill its memory with invented
+    customers, and every find reasoned from them would cite fabricated
+    evidence — the one thing PRODUCT.md says must never happen.
+
+    So: live web signal when a key is configured, and the fiction only when
+    something explicitly asks for it. When neither is available the night
+    observes nothing, which is honest. It is not a reason to fall back to
+    someone else's imaginary reviews.
+    """
+    sources: list[SignalSource] = []
+    if getattr(settings, "search_api_key", None):
+        sources.append(TavilySignalSource(api_key=settings.search_api_key))
+    if use_corpus:
+        sources.append(CorpusSignalSource(CORPUS_PATH, anchor=anchor))
+    return sources
+
+
 def _build_sources(settings: Settings, anchor: datetime, *,
                    include_web: bool, include_yelp: bool = False) -> list[SignalSource]:
     """The committed corpus, plus live web search only when explicitly asked for.

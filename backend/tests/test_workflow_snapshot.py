@@ -14,13 +14,21 @@ def demo_data() -> dict:
 
 
 def test_build_workspace_returns_the_live_operator_contract():
-    workspace = build_workspace(demo_data())
+    """The contract, not the tenant.
+
+    This asserted `name == "Rosa's Trattoria"`, 127 observations and 7 judged
+    finds — all facts about one seeded demo, none about the shape the operator
+    view depends on. The fixture is regenerated from whichever business the
+    cluster holds, so pinning its contents made every real export a test
+    failure. What matters is that the keys exist and agree with each other.
+    """
+    data = demo_data()
+    workspace = build_workspace(data)
 
     assert workspace["source"] == "live"
     assert workspace["business"]["id"]
-    assert workspace["business"]["name"] == "Rosa's Trattoria"
-    assert workspace["corpus"]["observations"] == 127
-    assert workspace["summary"]["judged"] == 7
+    assert workspace["business"]["name"] == data["business"]["name"]
+    assert workspace["corpus"]["observations"] == data["corpus"]["observations"]
     assert workspace["artifactCount"] == sum(
         len(find.get("artifacts") or []) for find in workspace["finds"]
     )
@@ -141,7 +149,19 @@ def test_workspace_exposes_an_exact_analyst_run_trace():
 
 
 def test_workspace_marks_historical_find_without_run_receipt_honestly():
-    workspace = build_workspace(demo_data())
+    """A find with no agent run behind it must say so.
+
+    Constructed rather than read out of the fixture. The invariant is about
+    finds that carry no run receipt — seeded history, imports — and the shipped
+    fixture only contains one while the demo tenant is seeded. Once a real
+    business runs a real night, every find has a receipt and this stopped being
+    exercised at all, which is worse than it failing.
+    """
+    data = demo_data()
+    data["finds"] = [dict(data["finds"][0], run_id=None)]
+    data["runs"] = []
+
+    workspace = build_workspace(data)
     first = workspace["finds"][0]
 
     assert first["runDatabaseId"] is None

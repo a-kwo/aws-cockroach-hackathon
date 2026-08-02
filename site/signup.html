@@ -304,7 +304,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <input id="businessName" name="businessName" type="text" autocomplete="organization" placeholder="Your business" maxlength="120" required>
               <span class="field-error">Enter your business name.</span>
             </div>
-            <div class="field" data-field="category">
+            <div class="field wide" data-field="category">
               <label for="category">Business type</label>
               <select id="category" name="category" required>
                 <option value="">Choose one</option>
@@ -319,10 +319,15 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               </select>
               <span class="field-error">Choose the closest business type.</span>
             </div>
-            <div class="field" data-field="location">
-              <label for="location">Primary market <small>City, state, or ZIP</small></label>
-              <input id="location" name="location" type="text" autocomplete="address-level2" placeholder="Columbus, OH" maxlength="120" required>
-              <span class="field-error">Enter the market you serve.</span>
+            <!-- Its own line, and a street address rather than a "market".
+                 This is geocoded to the coordinates the competitor scan
+                 searches around, so "Columbus, OH" pointed the agents at the
+                 middle of downtown instead of at the business. -->
+            <div class="field wide" data-field="location">
+              <label for="location">Street address</label>
+              <input id="location" name="location" type="text" autocomplete="street-address" placeholder="Business address" maxlength="200" required>
+              <span class="field-error">Enter the street address.</span>
+              <p class="field-help">Radar looks for competitors around this address, so the more exact it is, the more useful they are. Do not repeat the business name here.</p>
             </div>
             <div class="field wide" data-field="website">
               <label for="website">Website or review page <small>Optional</small></label>
@@ -416,7 +421,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
             <p id="successCopy">Brass Tacks now knows where to look, who matters, and what outcome to prioritize.</p>
             <div class="success-summary">
               <div><span>Business</span><strong id="successBusiness">—</strong></div>
-              <div><span>Market</span><strong id="successMarket">—</strong></div>
+              <div><span>Address</span><strong id="successMarket">—</strong></div>
               <div><span>Priority</span><strong id="successGoal">—</strong></div>
             </div>
             <div class="success-actions">
@@ -461,7 +466,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
       <section class="brief-section">
         <span>Search scope</span>
         <p class="brief-sentence" id="scopeSentence">Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.</p>
-        <div class="brief-pills" id="scopePills"><span class="brief-pill placeholder">Business type</span><span class="brief-pill placeholder">Primary market</span></div>
+        <div class="brief-pills" id="scopePills"><span class="brief-pill placeholder">Business type</span><span class="brief-pill placeholder">Street address</span></div>
       </section>
 
       <section class="brief-section">
@@ -581,7 +586,7 @@ function validateStep1() {
   setFieldError("ownerName", values.ownerName ? "" : "Enter your name.");
   setFieldError("businessName", values.businessName ? "" : "Enter your business name.");
   setFieldError("category", values.category ? "" : "Choose the closest business type.");
-  setFieldError("location", values.location ? "" : "Enter the market you serve.");
+  setFieldError("location", values.location ? "" : "Enter the street address.");
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email);
   setFieldError("email", emailValid ? "" : "Enter a valid email address.");
   const websiteValid = !values.website || Boolean(normalizeWebsite(values.website));
@@ -653,7 +658,7 @@ function updateBrief() {
     : "Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.";
   document.getElementById("scopePills").innerHTML = [
     category ? categoryLabel : "Business type",
-    location || "Primary market",
+    location || "Street address",
     fieldValue("website") ? "Known website" : "Website optional",
   ].map((text,index) => `<span class="brief-pill ${(!category && index===0) || (!location && index===1) ? "placeholder" : ""}">${escapeHtml(text)}</span>`).join("");
 

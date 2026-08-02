@@ -22,7 +22,28 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+#: Places Text Search, **not** the Geocoding API. Two reasons, one practical and
+#: one on the merits: Geocoding is a separate Google product that needs enabling
+#: on the Cloud project independently of Places (discovered the hard way — it
+#: returns REQUEST_DENIED with a 200), and Text Search resolves the *business*
+#: rather than an address, so the coordinates are where the business actually
+#: is rather than where the owner's typing landed.
+GEOCODE_URL = "https://places.googleapis.com/v1/places:searchText"
+
+#: Only what is needed. Same billing rule as the competitor scout: the mask
+#: decides the SKU.
+GEOCODE_FIELD_MASK = ",".join([
+    "places.id",
+    "places.displayName",
+    "places.formattedAddress",
+    "places.location",
+])
+
+#: Must be a value in the `fact_source` ENUM in db/schema.sql. Facts gathered at
+#: signup are the owner telling us directly — the same category as a chat, in a
+#: different interface. Pinned against the schema by a test, because
+#: InMemoryRepository accepts any string and the first deploy did not.
+FACT_SOURCE = "owner_chat"
 
 
 @dataclass(frozen=True)
@@ -31,6 +52,12 @@ class GeocodeResult:
     longitude: float
     #: Google's canonical form of the address, for showing back to the owner.
     formatted: str | None = None
+    #: What Google thought the business was. Text Search is fuzzy — "Asaka"
+    #: matches "OSAKA TON KATSU" — so the owner needs to see what was matched
+    #: rather than trust that it was right.
+    matched_name: str | None = None
+    #: The one Places field the licence permits storing.
+    place_id: str | None = None
 
 
 @runtime_checkable
@@ -57,24 +84,33 @@ class PlacesGeocoder:
 
             client = httpx.Client(timeout=15.0)
 
-        response = client.get(
-            GEOCODE_URL, params={"address": address, "key": self._api_key})
+        response = client.post(
+            GEOCODE_URL,
+            headers={
+                "X-Goog-Api-Key": self._api_key,
+                "X-Goog-FieldMask": GEOCODE_FIELD_MASK,
+                "Content-Type": "application/json",
+            },
+            json={"textQuery": address, "maxResultCount": 1},
+        )
         response.raise_for_status()
         payload = response.json()
 
-        results = payload.get("results") or []
-        if not results:
+        places = payload.get("places") or []
+        if not places:
             return None
 
-        location = ((results[0].get("geometry") or {}).get("location") or {})
-        latitude, longitude = location.get("lat"), location.get("lng")
+        location = places[0].get("location") or {}
+        latitude, longitude = location.get("latitude"), location.get("longitude")
         if latitude is None or longitude is None:
             return None
 
         return GeocodeResult(
             latitude=float(latitude),
             longitude=float(longitude),
-            formatted=results[0].get("formatted_address"),
+            formatted=places[0].get("formattedAddress"),
+            matched_name=((places[0].get("displayName") or {}).get("text")),
+            place_id=places[0].get("id"),
         )
 
 
@@ -163,6 +199,8 @@ def validate(profile: dict) -> str | None:
 
 
 __all__ = [
+    "FACT_SOURCE",
+    "GEOCODE_FIELD_MASK",
     "GEOCODE_URL",
     "GeocodeResult",
     "Geocoder",

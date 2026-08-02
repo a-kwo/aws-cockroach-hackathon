@@ -20,6 +20,7 @@ from typing import Any
 
 from brasstacks.config import Settings
 from brasstacks.onboarding import (
+    FACT_SOURCE,
     PlacesGeocoder,
     build_profile_facts,
     geocode_or_none,
@@ -85,12 +86,20 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
         return respond(400, {"error": problem})
 
     business = profile["business"]
-    located = geocode_or_none(geocoder, str(business.get("location") or ""))
+
+    # Name and address together. Text Search resolves a business far better
+    # given both — the address alone lands on a building, the name alone is
+    # ambiguous across a metro. The form collects them separately, so joining
+    # them is this layer's job.
+    name = str(business["name"]).strip()
+    address = str(business.get("location") or "").strip()
+    query = f"{name}, {address}" if address else name
+    located = geocode_or_none(geocoder, query)
 
     business_id = repo.create_business(
-        name=str(business["name"]).strip(),
+        name=name,
         category=str(business["category"]).strip(),
-        city=str(business.get("location") or "").strip() or None,
+        city=address or None,
         latitude=located.latitude if located else None,
         longitude=located.longitude if located else None,
     )
@@ -100,7 +109,7 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
         vectors = embedder.embed(facts)
         for fact, vector in zip(facts, vectors):
             repo.insert_business_fact(business_id, fact=fact,
-                                      source="onboarding", embedding=vector)
+                                      source=FACT_SOURCE, embedding=vector)
 
     rules = [str(r).strip() for r in (profile.get("ownerRules") or []) if str(r).strip()]
     for rule in (rules or list(DEFAULT_OWNER_RULES)):
@@ -110,8 +119,10 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
         "business_id": business_id,
         "facts_stored": len(facts),
         # Echoed so the form can show the owner what the agents will actually
-        # search around, rather than what they typed.
+        # search around, rather than what they typed. Text Search is fuzzy, so
+        # this is how a wrong match becomes visible instead of silent.
         "located": located.formatted if located else None,
+        "matched": located.matched_name if located else None,
     })
 
 
@@ -127,7 +138,12 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     geocoder = (PlacesGeocoder(api_key=settings.google_maps_api_key)
                 if settings.google_maps_api_key else None)
 
-    with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+    # Deliberately NOT autocommit, unlike every other handler here. Signup is
+    # several writes that only mean something together: the first live attempt
+    # created the business, failed inserting a fact, and left an orphan tenant
+    # with no facts and no rules behind. psycopg commits when this block exits
+    # cleanly and rolls back if anything raises through it.
+    with psycopg.connect(settings.cockroach_url) as conn:
         return onboard(
             event,
             repo=PostgresRepository(conn),

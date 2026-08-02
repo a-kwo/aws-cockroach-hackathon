@@ -20,9 +20,13 @@ import json
 
 import pytest
 
+from datetime import datetime, timezone
+
 from brasstacks.handlers.ask import parse_question, respond
 from brasstacks.handlers.night import summarise
 from brasstacks.secrets import hydrate_environment
+
+ANCHOR = datetime(2026, 8, 1, 2, tzinfo=timezone.utc)
 
 
 # --------------------------------------------------------------------------
@@ -122,6 +126,53 @@ class TestSummarise:
 
         assert out["analyst"]["error"] == "ModelRefusedError: declined"
         assert out["maker"] is None
+
+
+# --------------------------------------------------------------------------
+# What the deployed night is allowed to observe
+# --------------------------------------------------------------------------
+
+class TestNightSources:
+    """The committed corpus is fiction, and tenants are now real.
+
+    db/seed/observations.json is 127 hand-written reviews about a restaurant
+    that does not exist. Feeding those to a real business would fill its memory
+    with invented customers and invented complaints, and every find reasoned
+    from them would cite evidence that was made up. The polarity that was right
+    for a seeded demo is wrong now: real signal by default, fiction only when
+    someone explicitly asks for it.
+    """
+
+    class Cfg:
+        search_api_key = "tvly-key"
+
+    def _names(self, sources):
+        return [getattr(s, "name", type(s).__name__) for s in sources]
+
+    def test_a_real_tenant_gets_live_web_signal_and_no_fiction(self):
+        from brasstacks.night import build_night_sources
+
+        sources = build_night_sources(self.Cfg(), ANCHOR)
+
+        assert self._names(sources) == ["web"]
+
+    def test_the_fictional_corpus_must_be_asked_for_by_name(self):
+        from brasstacks.night import build_night_sources
+
+        sources = build_night_sources(self.Cfg(), ANCHOR, use_corpus=True)
+
+        assert "corpus" in self._names(sources)
+
+    def test_no_search_key_means_no_sources_rather_than_fiction(self):
+        # The failure mode to avoid: falling back to the corpus because nothing
+        # else is configured. A night that observes nothing is honest; a night
+        # that observes someone else's invented reviews is not.
+        from brasstacks.night import build_night_sources
+
+        class NoKey:
+            search_api_key = None
+
+        assert build_night_sources(NoKey(), ANCHOR) == []
 
 
 # --------------------------------------------------------------------------

@@ -24,11 +24,12 @@ from brasstacks.onboarding import (
 )
 
 GEOCODE_BODY = {
-    "results": [{
-        "geometry": {"location": {"lat": 39.9612, "lng": -82.9988}},
-        "formatted_address": "1 Capitol Sq, Columbus, OH 43215, USA",
+    "places": [{
+        "id": "ChIJ_asaka",
+        "formattedAddress": "1 Capitol Sq, Columbus, OH 43215, USA",
+        "location": {"latitude": 39.9612, "longitude": -82.9988},
+        "displayName": {"text": "Asaka"},
     }],
-    "status": "OK",
 }
 
 
@@ -37,10 +38,10 @@ class StubHttp:
         self._body, self._fail = body, fail
         self.calls: list[dict] = []
 
-    def get(self, url, **kwargs):
+    def post(self, url, **kwargs):
         self.calls.append({"url": url, **kwargs})
         if self._fail:
-            raise RuntimeError("geocoding is down")
+            raise RuntimeError("places is down")
         return StubResponse(self._body)
 
 
@@ -64,22 +65,26 @@ class TestGeocoder:
         http = StubHttp()
         geocoder = PlacesGeocoder(api_key="k", client=http)
 
-        result = geocoder.locate("Downtown Columbus, OH")
+        result = geocoder.locate("Asaka, Columbus OH")
 
         assert result == GeocodeResult(
             latitude=39.9612, longitude=-82.9988,
-            formatted="1 Capitol Sq, Columbus, OH 43215, USA")
+            formatted="1 Capitol Sq, Columbus, OH 43215, USA",
+            matched_name="Asaka", place_id="ChIJ_asaka")
 
-    def test_sends_the_address_and_the_key(self):
+    def test_uses_text_search_rather_than_the_geocoding_api(self):
+        # The Geocoding API is a separate Google product and is not enabled on
+        # this project; Places is. Text Search also finds the *business* rather
+        # than an address, so the coordinates are the business's own.
         http = StubHttp()
-        PlacesGeocoder(api_key="k", client=http).locate("Columbus, OH")
+        PlacesGeocoder(api_key="k", client=http).locate("Asaka, Columbus OH")
 
         assert http.calls[0]["url"] == GEOCODE_URL
-        assert http.calls[0]["params"]["address"] == "Columbus, OH"
-        assert http.calls[0]["params"]["key"] == "k"
+        assert http.calls[0]["json"]["textQuery"] == "Asaka, Columbus OH"
+        assert http.calls[0]["headers"]["X-Goog-Api-Key"] == "k"
 
     def test_an_address_google_cannot_place_is_not_a_crash(self):
-        http = StubHttp(body={"results": [], "status": "ZERO_RESULTS"})
+        http = StubHttp(body={"places": []})
 
         assert PlacesGeocoder(api_key="k", client=http).locate("asdfgh") is None
 
@@ -98,6 +103,34 @@ class TestGeocoder:
 # ---------------------------------------------------------------------------
 # The profile, turned into retrievable memory
 # ---------------------------------------------------------------------------
+
+class TestFactSourceMatchesTheSchema:
+    """The gap that let a 500 reach production.
+
+    `business_fact.source` is a database ENUM. InMemoryRepository stores any
+    string happily, so the whole unit suite passed while the deployed function
+    failed on `invalid input value for enum fact_source: "onboarding"`. Reading
+    the enum out of schema.sql is the only version of this test that could have
+    caught it.
+    """
+
+    def _schema_enum(self):
+        import re
+        from pathlib import Path
+
+        from brasstacks.config import REPO_ROOT
+
+        sql = (Path(REPO_ROOT) / "db" / "schema.sql").read_text(encoding="utf-8")
+        block = re.search(
+            r"CREATE TYPE IF NOT EXISTS fact_source AS ENUM\s*\((.*?)\)",
+            sql, re.S).group(1)
+        return set(re.findall(r"'([a-z_]+)'", block))
+
+    def test_the_source_we_write_is_a_value_the_database_accepts(self):
+        from brasstacks.onboarding import FACT_SOURCE
+
+        assert FACT_SOURCE in self._schema_enum()
+
 
 class TestProfileFacts:
     PROFILE = {
@@ -210,6 +243,22 @@ class TestHandler:
         assert any("discount" in r.rule for r in repo.get_owner_rules(
             list(repo._businesses)[0]))
 
+    def test_the_business_is_located_by_name_and_address_together(self):
+        # Text Search resolves a business best when given both. The address
+        # alone lands on a building; the name alone is ambiguous. Now that the
+        # form has them as separate fields, the query joins them here rather
+        # than relying on the owner to type both into one box.
+        seen = []
+
+        class Spy:
+            def locate(self, address):
+                seen.append(address)
+                return None
+
+        self._call(an_event(self.PROFILE), geocoder=Spy())
+
+        assert seen == ["Nonna's, Columbus, OH"]
+
     def test_a_geocoded_address_lands_on_the_business(self):
         from brasstacks.repository import InMemoryRepository
 
@@ -252,6 +301,20 @@ class TestHandler:
         response = self._call({"body": "not json"})
 
         assert response["statusCode"] == 400
+
+    def test_a_failed_write_is_not_swallowed_into_a_half_built_tenant(self):
+        # The handler runs inside a transaction, so a database error must
+        # propagate for the rollback to happen. Swallowing it here would leave
+        # a business row with no facts and no rules -- which is exactly what
+        # the first live signup left behind.
+        from brasstacks.repository import InMemoryRepository
+
+        class Breaks(InMemoryRepository):
+            def insert_business_fact(self, *a, **k):
+                raise RuntimeError("invalid input value for enum fact_source")
+
+        with pytest.raises(RuntimeError):
+            self._call(an_event(self.PROFILE), repo=Breaks())
 
     def test_the_response_allows_the_hosted_site_to_read_it(self):
         # The board is served from CloudFront and the API from API Gateway, so
