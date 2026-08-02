@@ -147,6 +147,10 @@ Resources:
       Timeout: 120
       Policies:
         - Statement:
+            - Sid: ConversationMemoryEmbedding
+              Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
             - Sid: ReadSecrets
               Effect: Allow
               Action:
@@ -174,6 +178,12 @@ Resources:
             ApiId: !Ref AskApi
             Path: /ask
             Method: POST
+        AskHistory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /ask
+            Method: GET
 
   # --------------------------------------------------------------------
   # Owner decisions from the For You feed

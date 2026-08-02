@@ -28,7 +28,7 @@ from brasstacks.analyst_trace import encode_analyst_trace
 from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
 from brasstacks.providers import Embedder, ProviderError, Reasoner
-from brasstacks.repository import EvidenceRef, Repository, Retrieved
+from brasstacks.repository import ChatMessage, EvidenceRef, Repository, Retrieved
 
 #: Concrete hypotheses, one per line of business inquiry. Each is phrased the way
 #: a customer or competitor would describe the situation, because that is what
@@ -50,6 +50,10 @@ DEFAULT_PER_QUERY_LIMIT = 6
 #: proposals. At 12 the accepted moves filled the window on their own and fresh
 #: proposals stopped being visible; the repeats then came from the other side.
 RECENT_FINDS_SHOWN = 20
+
+#: A bounded continuity window from Ask. Complete conversation history remains
+#: in CockroachDB; only the newest owner messages enter a nightly prompt.
+RECENT_OWNER_MESSAGES_SHOWN = 4
 
 #: How many moves a night may propose. Three because the deck shows a small
 #: number well and because the Analyst's later suggestions get noticeably
@@ -99,10 +103,18 @@ FINDS_SCHEMA = {
     "additionalProperties": False,
 }
 
-SYSTEM_PROMPT = """You are the Analyst for Brass Tacks, which finds revenue \
-opportunities for small businesses and is then held to account for them.
+SYSTEM_PROMPT = """You are the Analyst for Brass Tacks. Your single goal is \
+to turn each owner's accumulated market evidence and owner conversation memory \
+into the highest-value, measurable, executable growth moves delivered through \
+the For You feed — and then let Meter hold those predictions to account.
 
-You will be given what is known about one business and a set of observations \
+You work closely with Ask. Ask stores the owner's questions, priorities, \
+constraints and preferences in CockroachDB. Treat those owner messages as \
+authoritative context about what this owner wants and can execute, while \
+treating customer, competitor and demand observations as the market evidence \
+that supports a move.
+
+You will be given what is known about one business and a compact set of rows \
 retrieved from its memory. Propose THREE distinct moves, best first.
 
 Three is the expectation, not a ceiling to aim under. The owner sees a deck and \
@@ -118,10 +130,11 @@ to reach three.
 Writing, which matters as much as the reasoning here. The owner reads these on \
 a card, between other jobs:
 - `title`: under 60 characters. What to do, not why.
-- `summary`: ONE sentence, under 180 characters, in plain language. This is the \
-only prose most owners will read. Lead with the opportunity, not the evidence.
-- `rationale`: your full argument, for the owner who taps through for it. \
-Reference observation ids here, never in the title or summary.
+- `summary`: ONE sentence, under 180 characters, in plain language. It is the \
+compact fallback for notifications and receipts. Lead with the opportunity.
+- `rationale`: your complete owner-facing argument. It is shown consistently in \
+the scrollable For You card on desktop and mobile. Reference observation ids \
+here, never in the title or summary.
 - `move`: the steps to take. Write them as separate short sentences, one action \
 each, so they can be shown as a checklist. No numbered lists inside a paragraph.
 
@@ -134,7 +147,9 @@ a public miss.
 genuinely support the move. Citing something unrelated is worse than citing less.
 - Prefer a move the owner can actually execute. Do not propose fixing things \
 outside their control, such as public parking supply.
-- Respect the owner's rules exactly as written.
+- Respect the owner's rules exactly as written. Owner chat is also a strong \
+signal of priorities and constraints, but it is not external proof of demand; \
+combine it with market observations before making a revenue claim.
 - verify_after_days is how long until the effect could be measured. Use 7 to 30 \
 for operational changes, longer for anything seasonal.
 - Do NOT propose something already on the recent-finds list. If the obvious move \
@@ -165,6 +180,9 @@ class RetrievalReceipt:
     hits: tuple[Retrieved, ...]
     query_hits: tuple[int, ...]
     raw_hits: int
+    # Reused for one owner-memory search. This adds no embedding model call:
+    # the centroid is derived from the six market-query vectors already paid for.
+    query_vectors: tuple[tuple[float, ...], ...] = ()
 
 
 def _retrieve_with_receipt(
@@ -204,9 +222,65 @@ def _retrieve_with_receipt(
         for rank, r in enumerate(ordered)
     )
     return RetrievalReceipt(
-        hits=merged, query_hits=tuple(query_hits), raw_hits=sum(query_hits)
+        hits=merged,
+        query_hits=tuple(query_hits),
+        raw_hits=sum(query_hits),
+        query_vectors=tuple(tuple(float(value) for value in vector) for vector in vectors),
     )
 
+
+
+
+def _owner_memory_context(
+    repo: Repository,
+    business_id: str,
+    query_vectors: Sequence[Sequence[float]],
+) -> list[ChatMessage]:
+    """Retrieve a bounded owner-context slice without another embedding call.
+
+    Ask stores complete conversation history. The Analyst reuses the centroid of
+    its six existing market-query vectors to select semantically relevant owner
+    statements, then fills any remaining room with the newest owner messages.
+    Market evidence retrieval remains separate, so an owner's belief can shape
+    feasibility without becoming proof of demand.
+    """
+    if not hasattr(repo, "recent_chat_messages"):
+        return []
+
+    semantic: list[ChatMessage] = []
+    if query_vectors:
+        width = len(query_vectors[0])
+        if width and all(len(vector) == width for vector in query_vectors):
+            centroid = [
+                sum(float(vector[index]) for vector in query_vectors) / len(query_vectors)
+                for index in range(width)
+            ]
+            try:
+                semantic = list(repo.search_chat_messages(
+                    business_id, centroid, limit=RECENT_OWNER_MESSAGES_SHOWN
+                ))
+            except (AttributeError, NotImplementedError):
+                semantic = []
+
+    recent = [
+        message for message in repo.recent_chat_messages(
+            business_id, limit=RECENT_OWNER_MESSAGES_SHOWN * 2
+        )
+        if message.role == "user"
+    ]
+
+    selected: list[ChatMessage] = []
+    seen: set[str] = set()
+    # Relevance first, then newest continuity. The prompt remains strictly
+    # bounded even if the owner has years of stored conversation.
+    for message in [*semantic, *reversed(recent)]:
+        if message.message_id in seen:
+            continue
+        seen.add(message.message_id)
+        selected.append(message)
+        if len(selected) >= RECENT_OWNER_MESSAGES_SHOWN:
+            break
+    return selected
 
 def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
               queries: Sequence[str], per_query_limit: int) -> list[Retrieved]:
@@ -219,7 +293,8 @@ def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
 def build_prompt(*, business: dict | None, facts: Sequence[str],
                  rules: Sequence, retrieved: Sequence[Retrieved],
                  today: date, recent_finds: Sequence = (),
-                 competitors: Sequence = ()) -> str:
+                 competitors: Sequence = (),
+                 owner_messages: Sequence = ()) -> str:
     name = (business or {}).get("name", "this business")
     city = (business or {}).get("city")
     goal = (business or {}).get("goal_monthly_cents")
@@ -231,6 +306,18 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
 
     lines.append("\nWhat the owner has told us:")
     lines.extend(f"- {fact}" for fact in facts) if facts else lines.append("- (nothing yet)")
+
+    if owner_messages:
+        lines.append("\nRecent owner conversation memory from Ask:")
+        for message in owner_messages:
+            content = " ".join(str(message.content).split())
+            if len(content) > 240:
+                content = content[:239].rstrip() + "…"
+            lines.append(f"- {content}")
+        lines.append(
+            "Use these as owner priorities and constraints. Do not treat them "
+            "as external customer or market evidence."
+        )
 
     lines.append("\nThe owner's rules, which you must respect:")
     if rules:
@@ -274,7 +361,10 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
             f"similarity {hit.similarity:.2f}] {hit.content}"
         )
 
-    lines.append("\nPropose one move, as JSON matching the schema.")
+    lines.append(
+        "\nPropose three distinct moves, best first, as JSON matching the schema. "
+        "Return fewer only when the evidence genuinely cannot support three."
+    )
     return "\n".join(lines)
 
 
@@ -295,6 +385,7 @@ def _run_note(
     find_id: str | None,
     queries: Sequence[str],
     per_query_limit: int,
+    owner_memory_ids: Sequence[str] = (),
 ) -> str:
     """Pair a readable log sentence with a structured operator receipt."""
     return "\n".join((
@@ -307,6 +398,7 @@ def _run_note(
             find_id=find_id,
             queries=queries,
             per_query_limit=per_query_limit,
+            owner_memory_ids=owner_memory_ids,
         ),
     ))
 
@@ -358,6 +450,10 @@ def run_analyst(
             query_hits=retrieval.query_hits,
         )
 
+    owner_memory_messages = _owner_memory_context(
+        repo, business_id, retrieval.query_vectors
+    )
+
     prompt = build_prompt(
         business=repo.get_business(business_id) if hasattr(repo, "get_business") else None,
         facts=repo.get_business_facts(business_id),
@@ -366,6 +462,7 @@ def run_analyst(
         today=today,
         recent_finds=repo.recent_finds(business_id, limit=RECENT_FINDS_SHOWN),
         competitors=competitors,
+        owner_messages=owner_memory_messages,
     )
 
     similarity_by_id = {r.observation_id: r.similarity for r in retrieved}
@@ -397,6 +494,7 @@ def run_analyst(
                 find_id=None,
                 queries=queries,
                 per_query_limit=per_query_limit,
+                owner_memory_ids=[message.message_id for message in owner_memory_messages],
             ),
             **_token_receipt(reasoner),
         )
@@ -448,6 +546,7 @@ def run_analyst(
             find_id=find_id,
             queries=queries,
             per_query_limit=per_query_limit,
+            owner_memory_ids=[message.message_id for message in owner_memory_messages],
         ),
         **_token_receipt(reasoner),
     )

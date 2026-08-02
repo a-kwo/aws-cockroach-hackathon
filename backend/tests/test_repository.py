@@ -719,6 +719,72 @@ class TestRecentFindsPriority:
 
 
 # ---------------------------------------------------------------------------
+# Owner conversation memory — durable, searchable, and tenant-scoped
+# ---------------------------------------------------------------------------
+
+class TestConversationMemory:
+    def test_chat_round_trips_without_inflating_market_signal_counts(self, repo, business):
+        moment = _dt(TODAY)
+        owner_id = repo.insert_chat_message(
+            business, role="user", content="Never discount the tasting menu",
+            created_at=moment, embedding=DESSERT, find_id="find-1")
+        assistant_id = repo.insert_chat_message(
+            business, role="assistant", content="I will treat that as a guardrail.",
+            created_at=moment, find_id="find-1")
+
+        messages = repo.recent_chat_messages(business, limit=10, find_id="find-1")
+        assert [message.message_id for message in messages] == [owner_id, assistant_id]
+        assert [message.role for message in messages] == ["user", "assistant"]
+        assert repo.count_chat_messages(business) == 2
+        assert repo.count_observations(business) == 0
+
+    def test_semantic_chat_retrieval_searches_owner_messages_only(self, repo, business):
+        moment = _dt(TODAY)
+        relevant_id = repo.insert_chat_message(
+            business, role="user", content="Weekend staffing is capped at four people",
+            created_at=moment, embedding=DESSERT)
+        repo.insert_chat_message(
+            business, role="assistant", content="Understood.",
+            created_at=moment, embedding=DESSERT)
+        repo.insert_chat_message(
+            business, role="user", content="Parking is not a priority",
+            created_at=moment, embedding=PARKING)
+
+        matches = repo.search_chat_messages(business, DESSERT, limit=5)
+        assert matches[0].message_id == relevant_id
+        assert all(message.role == "user" for message in matches)
+
+    def test_chat_memory_never_crosses_businesses(self, repo, business):
+        other = repo.create_business(name="Other", category="restaurant")
+        repo.insert_chat_message(
+            other, role="user", content="Our private constraint",
+            created_at=_dt(TODAY), embedding=DESSERT)
+
+        assert repo.recent_chat_messages(business, limit=10) == []
+        assert repo.search_chat_messages(business, DESSERT, limit=10) == []
+        assert repo.count_chat_messages(business) == 0
+
+    def test_find_context_is_tenant_scoped(self, repo, business):
+        observation_id = repo.insert_observation(
+            business, content="Guests ask for group packages", kind="review",
+            embedding=DESSERT, observed_at=_dt(TODAY))
+        find_id = repo.insert_find_with_evidence(
+            business, title="Offer a group package", summary="Package the group meal.",
+            rationale="Reviews show repeated group demand.",
+            move="Set one package price. Publish it.", emoji="↗",
+            predicted_daily_cents=2200, confidence=.72,
+            verify_after=TODAY + timedelta(days=14),
+            evidence=[EvidenceRef(observation_id, .88)])
+        other = repo.create_business(name="Other", category="restaurant")
+
+        context = repo.get_find_context(business, find_id)
+        assert context is not None
+        assert context.title == "Offer a group package"
+        assert context.confidence == pytest.approx(.72)
+        assert repo.get_find_context(other, find_id) is None
+
+
+# ---------------------------------------------------------------------------
 # Artifacts — the done-for-you deliverable, and where it lives
 # ---------------------------------------------------------------------------
 

@@ -379,10 +379,10 @@ class FakeReasoner:
     simulate a failure.
     """
 
-    def __init__(self, responses: Sequence[Any]) -> None:
+    def __init__(self, responses: Sequence[Any], *, usage: ModelUsage | None = None) -> None:
         self._responses = list(responses)
         self.calls: list[dict[str, Any]] = []
-        self.last_usage: ModelUsage | None = None
+        self.last_usage: ModelUsage | None = usage
 
     def complete_json(
         self,
@@ -474,6 +474,7 @@ class McpAsker:
         self._mcp_token = mcp_token
         self._server_name = server_name
         self._effort = effort
+        self.last_usage: ModelUsage | None = None
 
     def ask(
         self,
@@ -482,6 +483,9 @@ class McpAsker:
         question: str,
         max_tokens: int = DEFAULT_ASK_MAX_TOKENS,
     ) -> Answer:
+        # A failed request must not expose the previous successful turn's token
+        # receipt as though it belonged to this one.
+        self.last_usage = None
         extra: dict[str, Any] = {}
         if self._effort is not None:
             extra["output_config"] = {"effort": self._effort}
@@ -512,6 +516,11 @@ class McpAsker:
         except Exception as e:
             raise ReasoningError(f"{type(e).__name__}: {e}") from e
 
+        usage = getattr(message, "usage", None)
+        self.last_usage = None if usage is None else ModelUsage(
+            input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+        )
         stop_reason = getattr(message, "stop_reason", None)
 
         if stop_reason == "refusal":
@@ -554,9 +563,15 @@ class FakeAsker:
     code made more model calls than the test intended.
     """
 
-    def __init__(self, responses: Sequence[Any]) -> None:
+    def __init__(
+        self,
+        responses: Sequence[Any],
+        *,
+        usage: ModelUsage | None = None,
+    ) -> None:
         self._responses = list(responses)
         self.calls: list[dict[str, Any]] = []
+        self.last_usage: ModelUsage | None = usage
 
     def ask(
         self,

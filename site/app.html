@@ -12394,6 +12394,279 @@
     }
   </style>
 
+
+  <style id="consistent-feed-chat-growth-v23">
+    /* One recommendation, one body of content. Viewport changes the reading
+       mechanics only; desktop and mobile render the same rationale and every
+       action step. */
+    body.autopilot-mode .post-surface {
+      min-height: 0 !important;
+      grid-template-rows: minmax(0, 1fr) auto !important;
+    }
+    body.autopilot-mode .post-body {
+      min-height: 0 !important;
+      align-items: flex-start !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      overscroll-behavior-y: contain;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(var(--accent-rgb), .38) transparent;
+      scroll-padding-block: 24px;
+    }
+    body.autopilot-mode .post-body::-webkit-scrollbar { width: 7px; }
+    body.autopilot-mode .post-body::-webkit-scrollbar-track { background: transparent; }
+    body.autopilot-mode .post-body::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: rgba(var(--accent-rgb), .34);
+      background-clip: padding-box;
+    }
+    body.autopilot-mode .post-copy,
+    body.autopilot-mode .feed-card[data-fit] .post-copy {
+      width: 100% !important;
+      max-width: none !important;
+      min-height: max-content !important;
+      height: auto !important;
+      overflow: visible !important;
+      gap: clamp(15px, 2.1vh, 23px) !important;
+    }
+    body.autopilot-mode .post-copy::after { display: none !important; }
+    body.autopilot-mode .post-copy h2,
+    body.autopilot-mode .post-copy h2.post-title,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title,
+    body.autopilot-mode .signal-text,
+    body.autopilot-mode .feed-card[data-fit] .signal-text,
+    body.autopilot-mode .recommendation-steps li {
+      display: block !important;
+      max-height: none !important;
+      overflow: visible !important;
+      padding-bottom: 0 !important;
+      -webkit-line-clamp: unset !important;
+      -webkit-box-orient: initial !important;
+      text-overflow: clip !important;
+    }
+    body.autopilot-mode .post-copy h2,
+    body.autopilot-mode .post-copy h2.post-title,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+      line-height: 1.18 !important;
+    }
+    body.autopilot-mode .signal-text,
+    body.autopilot-mode .feed-card[data-fit] .signal-text {
+      line-height: 1.52 !important;
+    }
+    body.autopilot-mode .recommendation-steps {
+      display: grid !important;
+      gap: 10px !important;
+      margin: 0 !important;
+    }
+    body.autopilot-mode .recommendation-steps li {
+      line-height: 1.44 !important;
+    }
+    body.autopilot-mode .post-footer {
+      position: relative;
+      z-index: 9;
+      box-shadow: 0 -12px 34px rgba(28, 34, 35, .07);
+    }
+
+    /* The first Growth chart is a process projection, not invented revenue.
+       It gives a new owner a useful visual while the verified ledger is empty. */
+    .growth-projection {
+      position: relative;
+      min-height: 190px;
+      display: grid;
+      align-content: center;
+      overflow: hidden;
+      padding: 18px 8px 6px;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 82% 18%, rgba(47,116,104,.12), transparent 31%),
+        linear-gradient(145deg, rgba(255,255,255,.86), rgba(243,245,241,.82));
+    }
+    .growth-projection-badge {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border: 1px solid rgba(47,116,104,.18);
+      border-radius: 999px;
+      background: rgba(255,255,255,.78);
+      color: #2f7468;
+      font-size: 9px;
+      font-weight: 760;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .growth-projection-badge::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2f7468;
+      content: "";
+      box-shadow: 0 0 0 5px rgba(47,116,104,.09);
+    }
+    .growth-projection svg {
+      width: 100%;
+      height: 112px;
+      overflow: visible;
+    }
+    .growth-projection-path {
+      fill: none;
+      stroke: url(#growthProjectionGradient);
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 8 10;
+      animation: growth-projection-flow 3.2s linear infinite;
+    }
+    .growth-projection-node {
+      fill: #fff;
+      stroke-width: 4;
+      filter: drop-shadow(0 6px 9px rgba(31,38,42,.11));
+    }
+    .growth-projection-labels {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: -2px;
+      color: #5d686d;
+      text-align: center;
+      font-size: 10px;
+      line-height: 1.25;
+    }
+    .growth-projection-labels strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #20272b;
+      font-size: 11px;
+    }
+    @keyframes growth-projection-flow { to { stroke-dashoffset: -36; } }
+
+    /* Real Ask conversation. The drawer keeps the recommendation context above
+       a durable, owner-scoped conversation thread. */
+    #detailDrawer .drawer-chat-panel {
+      display: grid;
+      gap: 12px;
+      padding: 17px;
+      border: 1px solid rgba(var(--drawer-accent-rgb, 95,95,95), .18);
+      border-radius: 20px;
+      background: rgba(255,255,255,.68);
+    }
+    #detailDrawer .drawer-chat-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    #detailDrawer .drawer-chat-head strong {
+      display: block;
+      color: var(--theme-ink);
+      font-size: 14px;
+    }
+    #detailDrawer .drawer-chat-head span {
+      display: block;
+      margin-top: 3px;
+      color: var(--theme-copy);
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+    #detailDrawer .memory-chip {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(47,116,104,.09);
+      color: #2f7468;
+      font-size: 8.5px;
+      font-weight: 780;
+      letter-spacing: .055em;
+      text-transform: uppercase;
+    }
+    #detailDrawer .drawer-chat-thread { display: grid; gap: 10px; }
+    #detailDrawer .chat-empty {
+      margin: 0;
+      padding: 12px 13px;
+      border-radius: 14px;
+      background: rgba(31,38,42,.04);
+      color: #6d777c;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    #detailDrawer .chat-message {
+      max-width: 88%;
+      display: grid;
+      gap: 5px;
+      padding: 11px 13px;
+      border-radius: 16px;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    #detailDrawer .chat-message.owner {
+      justify-self: end;
+      border-bottom-right-radius: 5px;
+      background: var(--drawer-accent);
+      color: #fff;
+    }
+    #detailDrawer .chat-message.agent {
+      justify-self: start;
+      border: 1px solid rgba(31,38,42,.08);
+      border-bottom-left-radius: 5px;
+      background: #fff;
+      color: var(--theme-ink);
+      box-shadow: 0 8px 22px rgba(31,38,42,.055);
+    }
+    #detailDrawer .chat-message.is-loading { color: #6d777c; }
+    #detailDrawer .chat-message.is-error {
+      border-color: rgba(172,67,61,.2);
+      background: rgba(172,67,61,.07);
+      color: #9c3f3a;
+    }
+    #detailDrawer .chat-receipt {
+      max-width: 92%;
+      justify-self: start;
+      color: #69757a;
+      font-size: 9.5px;
+      line-height: 1.45;
+    }
+    #detailDrawer .chat-receipt summary {
+      cursor: pointer;
+      color: #2f7468;
+      font-weight: 720;
+    }
+    #detailDrawer .chat-receipt div { margin-top: 6px; }
+    #detailDrawer .drawer-composer.is-busy { opacity: .72; }
+    #detailDrawer .drawer-composer input:disabled,
+    #detailDrawer .drawer-composer button:disabled { cursor: wait; }
+
+    @media (max-width: 900px) {
+      body.autopilot-mode .post-body {
+        padding-bottom: 42px !important;
+      }
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+        font-size: clamp(29px, 8.8vw, 42px) !important;
+      }
+      #detailDrawer .drawer-chat-panel { padding: 15px; }
+      #detailDrawer .chat-message { max-width: 94%; font-size: 13px; }
+      .growth-projection { min-height: 170px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .growth-projection-path,
+      .memory-engine .visual-flow-particle,
+      .memory-engine .visual-current-pulse,
+      .memory-engine .visual-stage-pulse {
+        animation: none !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -12760,7 +13033,7 @@
         </header>
         <div class="drawer-body" id="drawerBody"></div>
         <form class="drawer-composer" id="drawerForm">
-          <input id="drawerInput" type="text" autocomplete="off" placeholder="Ask about this recommendation…" />
+          <input id="drawerInput" type="text" autocomplete="off" maxlength="500" placeholder="Ask about this recommendation…" />
           <button class="send-button" type="submit" aria-label="Send message">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
               <path d="M4 12l15-7-5 14-3-6-7-1z" />
@@ -12778,7 +13051,7 @@
 
   <script id="bt-data" type="application/json">
   {
-    "api": {"decisionEndpoint": null},
+    "api": {"decisionEndpoint": null, "workflowEndpoint": null, "askEndpoint": null},
     "app": {
       "name": "Brass Tacks",
       "business": "Northstar Coffee",
@@ -13032,10 +13305,10 @@
         feature: style.feature,
         featureKey,
         title: find.title,
-        // The card face. The rationale is the agent's full argument and
-        // runs to a paragraph; it lives behind the details button.
-        signal: find.summary || find.rationale,
-        fullSignal: find.rationale || find.summary,
+        // One recommendation has one canonical explanation on every device.
+        // The viewport changes the reading surface, never the content.
+        signal: find.rationale || find.summary || "",
+        fullSignal: find.rationale || find.summary || "",
         recommendation: find.move,
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],
@@ -13253,6 +13526,9 @@
       ? String(btData.api?.adminEndpoint || "").trim()
       : String(btData.api?.workflowEndpoint || "").trim();
     const workflowApiConfigured = Boolean(workflowApiEndpoint) && !onboardingMode;
+    const decisionApiBase = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
+    const ASK_ENDPOINT = String(btData.api?.askEndpoint || (decisionApiBase ? `${decisionApiBase}/ask` : "")).trim();
+    const askApiConfigured = Boolean(ASK_ENDPOINT) && !onboardingMode;
     let liveWorkflowWorkspaces = null;
     let workflowEtag = null;
     let workflowLastUpdatedAt = null;
@@ -13292,6 +13568,7 @@
     let pointerId = null;
     let isAnimating = false;
     let openPostId = null;
+    let drawerHistoryRequest = 0;
     let swipeTimer;
     let decisionTimer;
     let toastTimer;
@@ -13333,25 +13610,15 @@
       return `+$${value.toLocaleString("en-US")}`;
     }
 
-    //  A real agent writes the move as a paragraph of numbered steps. Rendered
-    //  literally that fills the card and overflows it — which is what happened
-    //  the first time real prose reached this deck. build_web.bullets() has
-    //  already split it into one line per action; the card shows the first few
-    //  and says how many it is not showing, rather than truncating silently.
-    const STEPS_ON_CARD = 3;
-
+    // One canonical action list is rendered on every viewport. Desktop and
+    // mobile may scroll differently, but neither hides steps or substitutes a
+    // shorter version.
     function renderSteps(post) {
       const steps = (post.steps || []).filter(Boolean);
       if (!steps.length) return `<strong>${escapeHtml(post.recommendation || "")}</strong>`;
-      const rest = Math.max(0, steps.length - STEPS_ON_CARD);
-      const items = steps.map((step, index) => index < STEPS_ON_CARD
-        ? `<li>${escapeHtml(step)}</li>`
-        : `<li class="step-overflow">${escapeHtml(step)}</li>`
-      ).join("");
-      const more = rest > 0
-        ? `<li class="step-more">+${rest} more step${rest === 1 ? "" : "s"} in the details</li>`
-        : "";
-      return `<ul class="recommendation-steps">${items}${more}</ul>`;
+      return `<ul class="recommendation-steps">${steps.map(step =>
+        `<li>${escapeHtml(step)}</li>`
+      ).join("")}</ul>`;
     }
 
     function getDecision(postId) {
@@ -14066,15 +14333,10 @@
     const FIT_STEPS = 4;
 
     function fitFeedCards() {
-      document.querySelectorAll(".feed-card").forEach(card => {
-        const copy = card.querySelector(".post-copy");
-        // A hidden view measures as zero-height; leave the last good fit alone
-        // and re-run on the way back in rather than shrink every card to spite.
-        if (!copy || copy.clientHeight < 40) return;
-        for (let step = 0; step < FIT_STEPS; step += 1) {
-          card.dataset.fit = String(step);
-          if (!copyOverflows(copy)) break;
-        }
+      // Full content is scrollable now. Remove legacy fit levels rather than
+      // shrinking type differently based on viewport or line wrapping.
+      document.querySelectorAll(".feed-card[data-fit]").forEach(card => {
+        card.removeAttribute("data-fit");
       });
     }
 
@@ -14161,7 +14423,7 @@
                   </button>
                 </div>
                 <h2 class="post-title">${post.title}</h2>
-                <p class="signal-text"><span class="signal-summary">${escapeHtml(post.signal || "")}</span><span class="signal-full">${escapeHtml(post.fullSignal || post.signal || "")}</span></p>
+                <p class="signal-text">${escapeHtml(post.fullSignal || post.signal || "")}</p>
                 <div class="recommendation">
                   <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
                   <span class="recommendation-copy">
@@ -14832,16 +15094,53 @@
      *      pending find it depends on. Approving a card does not touch these bars —
      *      the verified record is not something the interface can move.
      */
+    function renderGrowthProjectionPlaceholder(panel, frame) {
+      panel.hidden = false;
+      if (frame) frame.classList.remove("no-chart");
+
+      const approved = getApprovedPosts().length;
+      document.getElementById("growthChartSub").textContent = "No measured growth yet";
+      document.getElementById("chartPlot").innerHTML = `
+        <div class="growth-projection" role="img" aria-label="Growth process preview: approve a move, Maker ships it, then Meter verifies the result">
+          <span class="growth-projection-badge">Process preview</span>
+          <svg width="680" height="118" viewBox="0 0 680 118" aria-hidden="true">
+            <defs>
+              <linearGradient id="growthProjectionGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#8a5f72"/>
+                <stop offset="52%" stop-color="#6577a6"/>
+                <stop offset="100%" stop-color="#2f7468"/>
+              </linearGradient>
+            </defs>
+            <path class="growth-projection-path" d="M74 85 C 180 87, 220 59, 326 62 S 495 26, 606 33"/>
+            <circle class="growth-projection-node" cx="74" cy="85" r="13" stroke="#8a5f72"/>
+            <circle class="growth-projection-node" cx="326" cy="62" r="13" stroke="#6577a6"/>
+            <circle class="growth-projection-node" cx="606" cy="33" r="13" stroke="#2f7468"/>
+          </svg>
+          <div class="growth-projection-labels" aria-hidden="true">
+            <span><strong>1 · Approve</strong>Choose a move</span>
+            <span><strong>2 · Launch</strong>Maker prepares it</span>
+            <span><strong>3 · Verify</strong>Meter records impact</span>
+          </div>
+        </div>`;
+
+      const note = document.getElementById("chartNote");
+      note.innerHTML = approved
+        ? `<b>${approved} approved move${approved === 1 ? "" : "s"} in progress</b><span>The verified growth line appears after Meter completes a measurement window.</span>`
+        : `<b>Your verified growth line starts with the first approved move.</b><span>No revenue is projected or claimed here.</span>`;
+      note.hidden = false;
+      document.getElementById("chartTable").innerHTML = `
+        <p>There are not yet enough measured monthly results to draw a growth chart. The process is approve, launch, then verify.</p>`;
+      lastDrawnMonths = null;
+      lastDrawnWidth = 0;
+    }
+
     function renderRevenueChart() {
       const panel = document.getElementById("growthChart");
       const months = (onboardingMode ? [] : (btData.months || [])).filter(m => m && typeof m.cents === "number");
 
-      // A panel the database cannot support is deleted, not filled with a shape.
-      // The wrapper collapses to a single column when there is no chart beside it.
       const frame = panel.closest(".growth-panel");
       if (months.length < 2) {
-        panel.hidden = true;
-        if (frame) frame.classList.add("no-chart");
+        renderGrowthProjectionPlaceholder(panel, frame);
         return;
       }
       panel.hidden = false;
@@ -15484,6 +15783,9 @@
         citedHits: trace.cited_hits ?? run.citedHits ?? find?.evidenceCount ?? null,
         queries: trace.queries || run.queries || null,
         perQueryLimit: trace.per_query_limit ?? run.perQueryLimit ?? null,
+        ownerMemoryIds: Array.isArray(trace.owner_memory_ids)
+          ? trace.owner_memory_ids
+          : (Array.isArray(run.ownerMemoryIds) ? run.ownerMemoryIds : []),
       };
     }
 
@@ -15872,7 +16174,16 @@
       const analystConfig = memoryAnalystConfiguration(model, analystRun);
       const analystTokenTotal = analystRun?.totalTokens ?? null;
       const analystEfficiency = memoryEfficiencySnapshot(model);
+      const ownerMemoryCount = Array.isArray(analystRun?.ownerMemoryIds)
+        ? analystRun.ownerMemoryIds.length
+        : 0;
       const analystDetails = [
+        memoryDetailSection("Analyst goal", `
+          <p class="stage-note"><b>Turn market evidence and owner memory into the highest-value, measurable, executable growth moves delivered through For You.</b> Owner conversations supply goals, preferences, and constraints; only citable market observations support market and revenue claims.</p>
+          <div class="retrieval-mini-grid" style="margin-top:10px">
+            <div class="memory-mini-stat"><b>${escapeHtml(String(ownerMemoryCount))}</b><span>owner-memory rows linked to this run</span></div>
+            <div class="memory-mini-stat"><b>${escapeHtml(String(proposed.length))}</b><span>moves waiting in For You</span></div>
+          </div>`),
         memoryAnalystTraceHtml(model, topFind),
         memoryDetailSection("Current outputs · recommendations waiting for the owner", memoryAnalystOutputsHtml(model, proposed)),
         memoryAnalystQueriesHtml(model, topFind),
@@ -15940,10 +16251,10 @@
           technicalKey: "radar",
         },
         {
-          key: "analyst", index: "02", name: "Analyst", role: "Retrieve · reason · propose",
+          key: "analyst", index: "02", name: "Analyst", role: "Market + owner memory → growth moves",
           ...analystState,
           current: memoryRunIsRunning(analystState.run)
-            ? `Searching business-scoped memory and preparing one recommendation.`
+            ? `Searching business-scoped memory and preparing up to three distinct recommendations.`
             : proposed.length
               ? `${memoryPlural(proposed.length, "recommendation")} ready. Open this stage to trace memory → evidence → recommendation.`
               : `No new recommendation is waiting.`,
@@ -16284,19 +16595,26 @@
     function renderAskDisclosure(model) {
       const sessions = model.ask?.sessions || [];
       const statements = sessions.reduce((sum, session) => sum + (session.trail || []).length, 0);
+      const conversationMessages = Number(model.corpus?.conversationMessages || 0);
+      const retrievedMessages = sessions.reduce((sum, session) =>
+        sum + Number(session.recentMessagesUsed || 0) + Number(session.relevantMessagesUsed || 0), 0);
+      const recordedTokens = sessions.reduce((sum, session) =>
+        sum + (session.totalTokens == null ? 0 : Number(session.totalTokens || 0)), 0);
       document.getElementById("askDisclosure").innerHTML = `
         <summary>
           <span class="disclosure-icon ask">${MEMORY_UI_ICONS.ask}</span>
-          <span class="disclosure-copy"><strong>Ask · on demand</strong><span>Read-only SQL over MCP, outside the nightly pipeline.</span></span>
+          <span class="disclosure-copy"><strong>Ask · owner memory</strong><span>Stores conversations, retrieves compact context, and shares owner intent with Analyst.</span></span>
           <span class="disclosure-count">${memoryPlural(sessions.length, "question")}</span>
           <span class="disclosure-chevron">${MEMORY_UI_ICONS.chevron}</span>
         </summary>
         <div class="disclosure-body">
           <div class="ask-summary-grid">
-            <div><b>${escapeHtml(String(sessions.length))}</b><span>questions recorded</span></div>
-            <div><b>${escapeHtml(String(statements))}</b><span>SQL statements run</span></div>
+            <div><b>${escapeHtml(String(conversationMessages))}</b><span>conversation messages stored</span></div>
+            <div><b>${escapeHtml(String(retrievedMessages))}</b><span>memory references retrieved</span></div>
+            <div><b>${escapeHtml(recordedTokens ? recordedTokens.toLocaleString("en-US") : "—")}</b><span>recorded model tokens</span></div>
+            <div><b>${escapeHtml(String(statements))}</b><span>live SQL statements run</span></div>
           </div>
-          <p class="stage-note" style="margin-top:10px">Ask does not advance the five-stage workflow. It answers an operator or owner by reading the same business-scoped memory.</p>
+          <p class="stage-note" style="margin-top:10px"><b>Memory pattern:</b> the complete owner conversation stays in CockroachDB. Each turn retrieves only a small recent + semantically relevant set for the prompt, while current business claims are verified through read-only MCP queries. Goals and constraints learned here become available to future Analyst runs.</p>
           <div class="stage-actions"><button class="stage-technical" type="button" data-technical-detail="ask">${MEMORY_UI_ICONS.code}Technical implementation</button></div>
         </div>`;
     }
@@ -17404,13 +17722,13 @@ ledger_entry · artifact · agent_run`,
         <div class="detail-stack">
           <section class="detail-section">
             <div class="detail-section-label">Signal</div>
-            <h3>${post.signal}</h3>
+            <h3>${escapeHtml(post.fullSignal || post.signal || "")}</h3>
             <p>Found ${post.sourceTime} through ${post.feature.toLowerCase()} monitoring.</p>
           </section>
 
           <section class="detail-section">
             <div class="detail-section-label">Recommendation</div>
-            <h3>${post.recommendation}</h3>
+            <div class="drawer-recommendation-list">${renderSteps(post)}</div>
             <p>${status === "pending" ? "Nothing changes until you choose Do it." : status === "approved" ? "This idea is now in Where it came from." : "You passed on this recommendation."}</p>
           </section>
         </div>
@@ -17423,6 +17741,16 @@ ledger_entry · artifact · agent_run`,
           <strong>${formatMoney(post.amount)}</strong>
         </div>
 
+        <section class="drawer-chat-panel" aria-label="Conversation with Brass Tacks">
+          <header class="drawer-chat-head">
+            <div><strong>Ask Brass Tacks</strong><span>Answers from this owner's CockroachDB memory. Relevant chat is retrieved; the complete history stays stored.</span></div>
+            <span class="memory-chip">Memory on</span>
+          </header>
+          <div class="drawer-chat-thread" id="drawerChatThread" aria-live="polite">
+            <p class="chat-empty">Loading conversation memory…</p>
+          </div>
+        </section>
+
         ${status === "pending" ? `
           <div class="drawer-actions">
             <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">${icons.rejected}<span>Pass</span></button>
@@ -17431,9 +17759,13 @@ ledger_entry · artifact · agent_run`,
         ` : ""}
       `;
       bindDynamicActions();
+      loadDrawerChat(post);
     }
 
     function closeDrawer() {
+      // Invalidate any in-flight conversation-history request so a slow
+      // response cannot repopulate a drawer after the owner has closed it.
+      drawerHistoryRequest += 1;
       detailDrawer.classList.remove("open");
       drawerScrim.classList.remove("open");
       detailDrawer.setAttribute("aria-hidden", "true");
@@ -17442,17 +17774,129 @@ ledger_entry · artifact · agent_run`,
     document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
     drawerScrim.addEventListener("click", closeDrawer);
 
-    document.getElementById("drawerForm").addEventListener("submit", event => {
+    function drawerThread() {
+      return document.getElementById("drawerChatThread");
+    }
+
+    function appendDrawerMessage(role, text, options = {}) {
+      const thread = drawerThread();
+      if (!thread) return null;
+      thread.querySelector(".chat-empty")?.remove();
+      const message = document.createElement("div");
+      message.className = `chat-message ${role === "user" ? "owner" : "agent"}${options.loading ? " is-loading" : ""}${options.error ? " is-error" : ""}`;
+      message.textContent = text;
+      if (options.id) message.id = options.id;
+      thread.appendChild(message);
+      drawerBody.scrollTop = drawerBody.scrollHeight;
+      return message;
+    }
+
+    function appendChatReceipt(payload) {
+      const thread = drawerThread();
+      if (!thread) return;
+      const memory = payload?.memory || {};
+      const tokens = payload?.tokens || {};
+      const trail = Array.isArray(payload?.trail) ? payload.trail : [];
+      const receipt = document.createElement("details");
+      receipt.className = "chat-receipt";
+      const total = Number.isFinite(Number(tokens.total)) ? Number(tokens.total).toLocaleString("en-US") : "not recorded";
+      const contextRows = Number(memory.contextMessages || 0);
+      const storedThisTurn = Number(memory.storedThisTurn || 0);
+      const storageLine = memory.stored
+        ? "Both sides of this turn were stored for future Ask and Analyst runs."
+        : storedThisTurn === 1
+          ? "Your question was stored, but the answer memory write needs a retry."
+          : "This turn was not stored.";
+      receipt.innerHTML = `
+        <summary>CockroachDB memory receipt · ${contextRows} prior message${contextRows === 1 ? "" : "s"} retrieved · ${escapeHtml(String(total))} model tokens</summary>
+        <div>
+          ${storageLine}
+          ${trail.length ? `<br>${trail.length} read-only MCP quer${trail.length === 1 ? "y" : "ies"} executed.` : "<br>No MCP query was recorded."}
+          ${tokens.input != null ? `<br>Input ${Number(tokens.input).toLocaleString("en-US")} · output ${Number(tokens.output || 0).toLocaleString("en-US")}.` : ""}
+        </div>`;
+      thread.appendChild(receipt);
+    }
+
+    async function loadDrawerChat(post) {
+      const requestId = ++drawerHistoryRequest;
+      const thread = drawerThread();
+      if (!thread) return;
+      if (!askApiConfigured) {
+        thread.innerHTML = `<p class="chat-empty">Chat is not connected in this build. Deploy the Ask endpoint and rebuild the frontend.</p>`;
+        return;
+      }
+      const session = readSession();
+      if (!session) {
+        thread.innerHTML = `<p class="chat-empty">Sign in again to use business memory.</p>`;
+        return;
+      }
+      const findId = post.databaseId || post.id;
+      try {
+        const response = await fetch(`${ASK_ENDPOINT}?find_id=${encodeURIComponent(findId)}`, {
+          headers: authHeaders({ "Accept": "application/json" }),
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (requestId !== drawerHistoryRequest || openPostId !== post.id) return;
+        if (!response.ok) throw new Error(payload.error || `Could not load conversation (${response.status})`);
+        const messages = Array.isArray(payload.messages) ? payload.messages : [];
+        thread.innerHTML = "";
+        if (!messages.length) {
+          thread.innerHTML = `<p class="chat-empty">Ask about the recommendation, a business constraint, or what to do next. Your question and the answer will become owner-scoped memory.</p>`;
+          return;
+        }
+        messages.forEach(message => appendDrawerMessage(message.role === "user" ? "user" : "assistant", message.content || ""));
+      } catch (error) {
+        if (requestId !== drawerHistoryRequest) return;
+        thread.innerHTML = `<p class="chat-empty">${escapeHtml(error.message || "Conversation memory is temporarily unavailable.")}</p>`;
+      }
+    }
+
+    document.getElementById("drawerForm").addEventListener("submit", async event => {
       event.preventDefault();
+      const form = event.currentTarget;
       const input = document.getElementById("drawerInput");
       const text = input.value.trim();
-      if (!text) return;
-      const reply = document.createElement("section");
-      reply.className = "detail-card";
-      reply.innerHTML = `<div class="detail-card-label">Your question</div><h3>${escapeHtml(text)}</h3><p>The production app would answer using the evidence for this recommendation.</p>`;
-      drawerBody.appendChild(reply);
+      const post = posts.find(item => item.id === openPostId);
+      if (!text || !post || form.classList.contains("is-busy")) return;
+      if (!askApiConfigured) {
+        appendDrawerMessage("assistant", "Chat is not connected in this build.", { error: true });
+        return;
+      }
+
+      appendDrawerMessage("user", text);
       input.value = "";
-      drawerBody.scrollTop = drawerBody.scrollHeight;
+      form.classList.add("is-busy");
+      input.disabled = true;
+      form.querySelector("button")?.setAttribute("disabled", "");
+      const loadingId = `chat-loading-${Date.now()}`;
+      appendDrawerMessage("assistant", "Searching this owner's CockroachDB memory…", { loading: true, id: loadingId });
+
+      try {
+        const response = await fetch(ASK_ENDPOINT, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
+          body: JSON.stringify({
+            question: text,
+            find_id: post.databaseId || post.id,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        document.getElementById(loadingId)?.remove();
+        if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
+        appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
+        appendChatReceipt(payload);
+        if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
+      } catch (error) {
+        document.getElementById(loadingId)?.remove();
+        appendDrawerMessage("assistant", error.message || "Ask is temporarily unavailable.", { error: true });
+      } finally {
+        form.classList.remove("is-busy");
+        input.disabled = false;
+        form.querySelector("button")?.removeAttribute("disabled");
+        input.focus();
+        drawerBody.scrollTop = drawerBody.scrollHeight;
+      }
     });
 
     function escapeHtml(value) {
@@ -17906,20 +18350,27 @@ ledger_entry · artifact · agent_run`,
     function renderOwnerAskDisclosure(model) {
       const sessions = model.ask?.sessions || [];
       const statements = sessions.reduce((sum, session) => sum + (session.trail || []).length, 0);
+      const conversationMessages = Number(model.corpus?.conversationMessages || 0);
+      const retrievedMessages = sessions.reduce((sum, session) =>
+        sum + Number(session.recentMessagesUsed || 0) + Number(session.relevantMessagesUsed || 0), 0);
+      const recordedTokens = sessions.reduce((sum, session) =>
+        sum + (session.totalTokens == null ? 0 : Number(session.totalTokens || 0)), 0);
       return `
         <details class="owner-memory-disclosure">
           <summary>
             <span class="owner-memory-icon ask">${MEMORY_UI_ICONS.ask}</span>
-            <span class="owner-memory-copy"><strong>Ask · on demand</strong><span>Read-only MCP queries, outside the nightly pipeline.</span></span>
+            <span class="owner-memory-copy"><strong>Ask · owner memory</strong><span>Durable conversation history, compact retrieval, and Analyst collaboration.</span></span>
             <span class="owner-memory-count">${escapeHtml(memoryPlural(sessions.length, "question"))}</span>
             <span class="owner-memory-chevron">${MEMORY_UI_ICONS.chevron}</span>
           </summary>
           <div class="owner-memory-body">
             <div class="retrieval-mini-grid">
-              <div class="memory-mini-stat"><b>${escapeHtml(String(sessions.length))}</b><span>questions recorded</span></div>
-              <div class="memory-mini-stat"><b>${escapeHtml(String(statements))}</b><span>SQL statements run</span></div>
+              <div class="memory-mini-stat"><b>${escapeHtml(String(conversationMessages))}</b><span>conversation messages stored</span></div>
+              <div class="memory-mini-stat"><b>${escapeHtml(String(retrievedMessages))}</b><span>memory references retrieved</span></div>
+              <div class="memory-mini-stat"><b>${escapeHtml(recordedTokens ? recordedTokens.toLocaleString("en-US") : "—")}</b><span>recorded model tokens</span></div>
+              <div class="memory-mini-stat"><b>${escapeHtml(String(statements))}</b><span>live SQL statements run</span></div>
             </div>
-            <p class="stage-note" style="margin-top:9px">Ask reads the same business-scoped memory but does not move work from Radar to Meter.</p>
+            <p class="stage-note" style="margin-top:9px">Each owner turn is stored in CockroachDB. Ask retrieves only the most recent and semantically relevant messages, verifies live facts through MCP, and makes owner goals and constraints available to future Analyst runs.</p>
             <div class="stage-actions"><button class="stage-technical" type="button" data-technical-detail="ask">${MEMORY_UI_ICONS.code}Technical implementation</button></div>
           </div>
         </details>`;

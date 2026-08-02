@@ -135,9 +135,18 @@ def main() -> int:
             """, (settings.business_id, settings.business_id))
 
             [corpus] = rows(cur, """
-                SELECT count(*) AS observations,
-                       min(observed_at) AS earliest,
-                       max(observed_at) AS latest
+                SELECT count(*) FILTER (
+                           WHERE coalesce(source_name, '') NOT IN ('owner_chat', 'ask_agent')
+                       ) AS observations,
+                       count(*) FILTER (
+                           WHERE source_name IN ('owner_chat', 'ask_agent')
+                       ) AS conversation_messages,
+                       min(observed_at) FILTER (
+                           WHERE coalesce(source_name, '') NOT IN ('owner_chat', 'ask_agent')
+                       ) AS earliest,
+                       max(observed_at) FILTER (
+                           WHERE coalesce(source_name, '') NOT IN ('owner_chat', 'ask_agent')
+                       ) AS latest
                 FROM observation WHERE business_id = %s
             """, (settings.business_id,))
 
@@ -157,7 +166,9 @@ def main() -> int:
 
             kinds = rows(cur, """
                 SELECT kind, count(*) AS count
-                FROM observation WHERE business_id = %s
+                FROM observation
+                WHERE business_id = %s
+                  AND coalesce(source_name, '') NOT IN ('owner_chat', 'ask_agent')
                 GROUP BY 1 ORDER BY 2 DESC
             """, (settings.business_id,))
 

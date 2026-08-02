@@ -86,6 +86,40 @@ class FindSummary:
     created_at: datetime
 
 
+#: Owner conversations share the existing observation vector index, while
+#: remaining distinct from market signals in counts and Analyst retrieval.
+CHAT_OWNER_SOURCE = "owner_chat"
+CHAT_ASSISTANT_SOURCE = "ask_agent"
+CHAT_SOURCES = frozenset({CHAT_OWNER_SOURCE, CHAT_ASSISTANT_SOURCE})
+
+
+@dataclass(frozen=True)
+class ChatMessage:
+    """One durable message in the owner/Brass Tacks conversation."""
+
+    message_id: str
+    role: str
+    content: str
+    created_at: datetime
+    find_id: str | None = None
+    similarity: float | None = None
+
+
+@dataclass(frozen=True)
+class FindContext:
+    """Compact recommendation context for a tenant-scoped Ask turn."""
+
+    find_id: str
+    title: str
+    summary: str | None
+    rationale: str
+    move: str
+    status: str
+    predicted_daily_cents: int
+    confidence: float
+    verify_after: date
+
+
 @dataclass(frozen=True)
 class StoredArtifact:
     """A done-for-you deliverable produced against one find.
@@ -152,6 +186,8 @@ class Repository(Protocol):
                         latitude: float | None = ...,
                         longitude: float | None = ...) -> str: ...
 
+    def get_business(self, business_id: str) -> dict[str, Any] | None: ...
+
     def insert_business_fact(self, business_id: str, *, fact: str, source: str,
                              embedding: Sequence[float],
                              confidence: float = ...) -> str: ...
@@ -187,6 +223,24 @@ class Repository(Protocol):
 
     def search_observations(self, business_id: str, query_embedding: Sequence[float],
                             *, limit: int) -> list[Retrieved]: ...
+
+    def insert_chat_message(
+        self, business_id: str, *, role: str, content: str, created_at: datetime,
+        embedding: Sequence[float] | None = ..., find_id: str | None = ...,
+        run_id: str | None = ...,
+    ) -> str: ...
+
+    def recent_chat_messages(
+        self, business_id: str, *, limit: int, find_id: str | None = ...,
+    ) -> list[ChatMessage]: ...
+
+    def search_chat_messages(
+        self, business_id: str, query_embedding: Sequence[float], *, limit: int,
+    ) -> list[ChatMessage]: ...
+
+    def count_chat_messages(self, business_id: str) -> int: ...
+
+    def get_find_context(self, business_id: str, find_id: str) -> FindContext | None: ...
 
     def insert_find_with_evidence(
         self, business_id: str, *, title: str, rationale: str, move: str,
@@ -273,7 +327,7 @@ class _Observation:
     business_id: str
     content: str
     kind: str
-    embedding: list[float]
+    embedding: list[float] | None
     observed_at: datetime
     content_hash: str
     source_name: str | None = None
@@ -343,6 +397,7 @@ class InMemoryRepository:
         self._facts: dict[str, dict[str, Any]] = {}
         self._rules: dict[str, dict[str, Any]] = {}
         self._runs: dict[str, RunRecord] = {}
+        self._run_business: dict[str, str] = {}
         self._observations: list[_Observation] = []
         self._finds: dict[str, _Find] = {}
         self._artifacts: list[_Artifact] = []
@@ -372,6 +427,12 @@ class InMemoryRepository:
             "latitude": latitude, "longitude": longitude,
         }
         return business_id
+
+    def get_business(self, business_id: str) -> dict[str, Any] | None:
+        business = self._businesses.get(business_id)
+        if business is None:
+            return None
+        return {"id": business_id, **dict(business)}
 
     # -- owners ----------------------------------------------------------
     def create_account(self, business_id: str | None, *, username: str,
@@ -410,7 +471,9 @@ class InMemoryRepository:
             (a for a in self._accounts.values()
              if a["id"] == session["account_id"]), {})
         return {"account_id": session["account_id"],
-                "business_id": session["business_id"],
+                # The account is authoritative. A business can be attached after
+                # the session was created during two-step onboarding.
+                "business_id": account.get("business_id") or session["business_id"],
                 # From the account, so revoking admin takes effect at once.
                 "is_admin": bool(account.get("is_admin"))}
 
@@ -510,6 +573,7 @@ class InMemoryRepository:
         self._runs[run_id] = RunRecord(
             run_id=run_id, agent=agent, status="running", started_at=self._now(),
         )
+        self._run_business[run_id] = business_id
         return run_id
 
     def finish_run(self, run_id: str, *, status: str, error: str | None = None,
@@ -526,7 +590,11 @@ class InMemoryRepository:
         )
 
     def recent_runs(self, business_id: str, *, limit: int) -> list[RunRecord]:
-        runs = sorted(self._runs.values(), key=lambda r: r.started_at, reverse=True)
+        runs = [
+            run for run_id, run in self._runs.items()
+            if self._run_business.get(run_id) == business_id
+        ]
+        runs.sort(key=lambda r: r.started_at, reverse=True)
         return runs[:limit]
 
     # -- observations ----------------------------------------------------
@@ -569,13 +637,19 @@ class InMemoryRepository:
         return len(doomed)
 
     def count_observations(self, business_id: str) -> int:
-        return sum(1 for o in self._observations if o.business_id == business_id)
+        return sum(
+            1 for o in self._observations
+            if o.business_id == business_id and o.source_name not in CHAT_SOURCES
+        )
 
     def search_observations(self, business_id: str, query_embedding: Sequence[float],
                             *, limit: int) -> list[Retrieved]:
         scored = [
             (cosine_similarity(query_embedding, o.embedding), o)
-            for o in self._observations if o.business_id == business_id
+            for o in self._observations
+            if o.business_id == business_id
+            and o.source_name not in CHAT_SOURCES
+            and o.embedding is not None
         ]
         scored.sort(key=lambda pair: pair[0], reverse=True)
         return [
@@ -586,6 +660,91 @@ class InMemoryRepository:
             )
             for rank, (similarity, o) in enumerate(scored[:limit])
         ]
+
+    # -- owner conversation memory --------------------------------------
+    def insert_chat_message(
+        self, business_id: str, *, role: str, content: str, created_at: datetime,
+        embedding: Sequence[float] | None = None, find_id: str | None = None,
+        run_id: str | None = None,
+    ) -> str:
+        if role not in {"user", "assistant"}:
+            raise RepositoryError("chat role must be 'user' or 'assistant'")
+        message_id = str(uuid.uuid4())
+        source_name = CHAT_OWNER_SOURCE if role == "user" else CHAT_ASSISTANT_SOURCE
+        digest = content_hash(f"chat:{message_id}:{role}:{find_id or ''}:{content}")
+        self._observations.append(_Observation(
+            observation_id=message_id, business_id=business_id,
+            content=content, kind="owner_upload",
+            embedding=list(embedding) if embedding is not None else None,
+            observed_at=created_at, content_hash=digest,
+            source_name=source_name, subject=find_id, run_id=run_id,
+        ))
+        return message_id
+
+    def recent_chat_messages(
+        self, business_id: str, *, limit: int, find_id: str | None = None,
+    ) -> list[ChatMessage]:
+        rows = [
+            o for o in self._observations
+            if o.business_id == business_id
+            and o.source_name in CHAT_SOURCES
+            and (find_id is None or o.subject == find_id)
+        ]
+        # Ask stores the owner and assistant rows in the same turn. If their
+        # timestamps tie, put the assistant first in the descending query so
+        # reversing the window returns the natural owner -> assistant order.
+        rows.sort(
+            key=lambda o: (
+                o.observed_at,
+                o.source_name == CHAT_ASSISTANT_SOURCE,
+            ),
+            reverse=True,
+        )
+        rows = list(reversed(rows[:limit]))
+        return [
+            ChatMessage(
+                message_id=o.observation_id,
+                role="user" if o.source_name == CHAT_OWNER_SOURCE else "assistant",
+                content=o.content, created_at=o.observed_at, find_id=o.subject,
+            )
+            for o in rows
+        ]
+
+    def search_chat_messages(
+        self, business_id: str, query_embedding: Sequence[float], *, limit: int,
+    ) -> list[ChatMessage]:
+        scored = [
+            (cosine_similarity(query_embedding, o.embedding), o)
+            for o in self._observations
+            if o.business_id == business_id
+            and o.source_name == CHAT_OWNER_SOURCE
+            and o.embedding is not None
+        ]
+        scored.sort(key=lambda pair: pair[0], reverse=True)
+        return [
+            ChatMessage(
+                message_id=o.observation_id, role="user", content=o.content,
+                created_at=o.observed_at, find_id=o.subject, similarity=similarity,
+            )
+            for similarity, o in scored[:limit]
+        ]
+
+    def count_chat_messages(self, business_id: str) -> int:
+        return sum(
+            1 for o in self._observations
+            if o.business_id == business_id and o.source_name in CHAT_SOURCES
+        )
+
+    def get_find_context(self, business_id: str, find_id: str) -> FindContext | None:
+        found = self._finds.get(find_id)
+        if found is None or found.business_id != business_id:
+            return None
+        return FindContext(
+            find_id=found.find_id, title=found.title, summary=found.summary,
+            rationale=found.rationale, move=found.move, status=found.status,
+            predicted_daily_cents=found.predicted_daily_cents,
+            confidence=found.confidence, verify_after=found.verify_after,
+        )
 
     # -- finds -----------------------------------------------------------
     def insert_find_with_evidence(

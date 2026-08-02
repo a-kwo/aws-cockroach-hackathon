@@ -231,6 +231,36 @@ class TestAnalyst:
         assert "Tiramisu is priced at $7.00" in prompt
         assert "Never change prices without asking" in prompt
 
+    def test_ask_memory_reaches_the_analyst_without_an_extra_embedding_call(self, repo, business):
+        from brasstacks.analyst_trace import parse_analyst_trace
+
+        self._corpus(repo, business)
+        embedder = FakeEmbedder()
+        vectors = embedder.embed(list(ANALYST_QUERIES))
+        centroid = [
+            sum(vector[index] for vector in vectors) / len(vectors)
+            for index in range(len(vectors[0]))
+        ]
+        memory_id = repo.insert_chat_message(
+            business, role="user",
+            content="I cannot add weekend headcount; prefer prep changes.",
+            created_at=NOW, embedding=centroid)
+        # Ignore the vectors prepared for fixture setup; the run itself should
+        # still embed exactly the six established market questions and reuse
+        # their centroid for owner-memory retrieval.
+        embedder.embedded.clear()
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=embedder, reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        prompt = reasoner.calls[0]["user"]
+        assert "I cannot add weekend headcount" in prompt
+        assert len(embedder.embedded) == len(ANALYST_QUERIES)
+        [run] = repo.recent_runs(business, limit=1)
+        trace = parse_analyst_trace(run.note)
+        assert memory_id in trace["owner_memory_ids"]
+
     def test_the_prompt_carries_retrieved_observations_with_ids(self, repo, business):
         # The model can only cite what it was shown, and it must cite by id.
         ids = self._corpus(repo, business)

@@ -24,12 +24,13 @@ from uuid import UUID
 from brasstacks.agents.analyst import ANALYST_QUERIES, DEFAULT_PER_QUERY_LIMIT
 from brasstacks.agents.ask import TRAIL_PREFIX
 from brasstacks.analyst_trace import parse_analyst_trace
+from brasstacks.ask_trace import parse_ask_trace
 
 PER_MONTH = 30
 RAW_HIT_CEILING = len(ANALYST_QUERIES) * DEFAULT_PER_QUERY_LIMIT
 MAX_QUESTION_CHARS = 500
 ASK_TABLES = (
-    "business", "observation", "find", "find_evidence",
+    "business", "business_fact", "owner_rule", "observation", "find", "find_evidence",
     "ledger_entry", "artifact", "agent_run",
 )
 
@@ -176,14 +177,31 @@ def _ask_sessions(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if run.get("agent") != "ask":
             continue
         trail = _parse_trail(run.get("note"))
+        trace = parse_ask_trace(run.get("note"))
         run_id = str(run.get("id") or "")
+        input_tokens = run.get("input_tokens")
+        output_tokens = run.get("output_tokens")
         sessions.append({
             "runId": run_id[:8],
+            "databaseRunId": run_id or None,
             "askedAt": _iso(run.get("started_at")),
             "seconds": run_seconds(run),
             "status": run.get("status"),
-            "queriedTheCluster": bool(trail),
+            "question": trace.get("question") if trace else None,
+            "answer": trace.get("answer") if trace else None,
+            "findId": trace.get("find_id") if trace else None,
+            "recentMessagesUsed": len(trace.get("recent_message_ids", [])) if trace else None,
+            "relevantMessagesUsed": len(trace.get("relevant_message_ids", [])) if trace else None,
+            "storedMessages": len(trace.get("stored_message_ids", [])) if trace else None,
+            "queriedTheCluster": (
+                bool(trace.get("queried_the_cluster")) if trace else bool(trail)
+            ),
+            "traceSource": "cluster" if trace else "legacy",
             "trail": trail,
+            "inputTokens": input_tokens,
+            "outputTokens": output_tokens,
+            "totalTokens": (_int(input_tokens) + _int(output_tokens))
+                if input_tokens is not None or output_tokens is not None else None,
         })
     return sessions
 
@@ -252,6 +270,7 @@ def _analyst_run_receipt(raw_runs: list[dict[str, Any]]) -> dict[str, Any] | Non
         "findId": trace.get("find_id") if trace else None,
         "queries": trace.get("queries") if trace else None,
         "perQueryLimit": trace.get("per_query_limit") if trace else None,
+        "ownerMemoryIds": trace.get("owner_memory_ids") if trace else None,
     }
 
 
@@ -440,6 +459,7 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
         },
         "corpus": {
             "observations": _int(raw_corpus.get("observations")),
+            "conversationMessages": _int(raw_corpus.get("conversation_messages")),
             "evidenceRows": sum(found["evidenceCount"] for found in finds),
             "earliest": _iso(raw_corpus.get("earliest")),
             "latest": _iso(raw_corpus.get("latest")),
@@ -587,8 +607,19 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         """, (*ids, runs_per_agent))
 
         corpus = _rows(cursor, f"""
-            SELECT b.id AS business_id, count(o.id) AS observations,
-                   min(o.observed_at) AS earliest, max(o.observed_at) AS latest
+            SELECT b.id AS business_id,
+                   count(o.id) FILTER (
+                       WHERE coalesce(o.source_name, '') NOT IN ('owner_chat', 'ask_agent')
+                   ) AS observations,
+                   count(o.id) FILTER (
+                       WHERE o.source_name IN ('owner_chat', 'ask_agent')
+                   ) AS conversation_messages,
+                   min(o.observed_at) FILTER (
+                       WHERE coalesce(o.source_name, '') NOT IN ('owner_chat', 'ask_agent')
+                   ) AS earliest,
+                   max(o.observed_at) FILTER (
+                       WHERE coalesce(o.source_name, '') NOT IN ('owner_chat', 'ask_agent')
+                   ) AS latest
             FROM business b
             LEFT JOIN observation o ON o.business_id = b.id
             WHERE b.id IN ({placeholders})
@@ -599,6 +630,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             SELECT business_id, kind, count(*) AS count
             FROM observation
             WHERE business_id IN ({placeholders})
+              AND coalesce(source_name, '') NOT IN ('owner_chat', 'ask_agent')
             GROUP BY business_id, kind
             ORDER BY business_id, count DESC
         """, ids)
@@ -662,7 +694,8 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
                 "hit_rate": verified / judged if judged else None,
             },
             "corpus": corpus_by_business.get(business_id, {
-                "observations": 0, "earliest": None, "latest": None,
+                "observations": 0, "conversation_messages": 0,
+                "earliest": None, "latest": None,
             }),
             "finds": raw_finds,
             "runs": [

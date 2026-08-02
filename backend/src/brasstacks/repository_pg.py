@@ -18,9 +18,13 @@ from typing import Any
 import psycopg
 
 from brasstacks.repository import (
+    CHAT_ASSISTANT_SOURCE,
+    CHAT_OWNER_SOURCE,
     JUDGEABLE_STATUSES,
+    ChatMessage,
     DueFind,
     EvidenceRef,
+    FindContext,
     FindSummary,
     LedgerSummary,
     OwnerRule,
@@ -389,8 +393,12 @@ class PostgresRepository:
     def count_observations(self, business_id: str) -> int:
         with self._conn.cursor() as cur:
             cur.execute(
-                "SELECT count(*) FROM observation WHERE business_id = %s",
-                (business_id,),
+                """
+                SELECT count(*) FROM observation
+                WHERE business_id = %s
+                  AND coalesce(source_name, '') NOT IN (%s, %s)
+                """,
+                (business_id, CHAT_OWNER_SOURCE, CHAT_ASSISTANT_SOURCE),
             )
             return int(cur.fetchone()[0])
 
@@ -439,10 +447,12 @@ class PostgresRepository:
                        1 - (embedding <=> %s::VECTOR) AS similarity
                 FROM observation
                 WHERE business_id = %s AND embedding IS NOT NULL
+                  AND coalesce(source_name, '') NOT IN (%s, %s)
                 ORDER BY embedding <=> %s::VECTOR
                 LIMIT %s
                 """,
-                (literal, business_id, literal, limit),
+                (literal, business_id, CHAT_OWNER_SOURCE,
+                 CHAT_ASSISTANT_SOURCE, literal, limit),
             )
             rows = cur.fetchall()
 
@@ -454,6 +464,123 @@ class PostgresRepository:
             )
             for rank, r in enumerate(rows)
         ]
+
+    # -- owner conversation memory --------------------------------------
+    def insert_chat_message(
+        self, business_id: str, *, role: str, content: str, created_at: datetime,
+        embedding: Sequence[float] | None = None, find_id: str | None = None,
+        run_id: str | None = None,
+    ) -> str:
+        if role not in {"user", "assistant"}:
+            raise RepositoryError("chat role must be 'user' or 'assistant'")
+        source_name = CHAT_OWNER_SOURCE if role == "user" else CHAT_ASSISTANT_SOURCE
+        # A conversation is chronological. The same sentence repeated later is
+        # a second memory, so include a fresh id in the dedup hash.
+        import uuid
+        marker = str(uuid.uuid4())
+        digest = content_hash(f"chat:{marker}:{role}:{find_id or ''}:{content}")
+        vector = _vector_literal(embedding) if embedding is not None else None
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO observation (
+                    business_id, run_id, kind, content, source_name, subject,
+                    observed_at, content_hash, embedding
+                )
+                VALUES (%s, %s, 'owner_upload', %s, %s, %s, %s, %s, %s::VECTOR)
+                RETURNING id
+                """,
+                (business_id, run_id, content, source_name, find_id, created_at,
+                 digest, vector),
+            )
+            return str(cur.fetchone()[0])
+
+    def recent_chat_messages(
+        self, business_id: str, *, limit: int, find_id: str | None = None,
+    ) -> list[ChatMessage]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, source_name, content, observed_at, subject
+                FROM observation
+                WHERE business_id = %s
+                  AND source_name IN (%s, %s)
+                  AND (%s::STRING IS NULL OR subject = %s)
+                ORDER BY observed_at DESC,
+                         CASE WHEN source_name = %s THEN 0 ELSE 1 END
+                LIMIT %s
+                """,
+                (business_id, CHAT_OWNER_SOURCE, CHAT_ASSISTANT_SOURCE,
+                 find_id, find_id, CHAT_ASSISTANT_SOURCE, limit),
+            )
+            rows = list(reversed(cur.fetchall()))
+        return [
+            ChatMessage(
+                message_id=str(row[0]),
+                role="user" if row[1] == CHAT_OWNER_SOURCE else "assistant",
+                content=row[2], created_at=row[3], find_id=row[4],
+            )
+            for row in rows
+        ]
+
+    def search_chat_messages(
+        self, business_id: str, query_embedding: Sequence[float], *, limit: int,
+    ) -> list[ChatMessage]:
+        literal = _vector_literal(query_embedding)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, content, observed_at, subject,
+                       1 - (embedding <=> %s::VECTOR) AS similarity
+                FROM observation
+                WHERE business_id = %s
+                  AND source_name = %s
+                  AND embedding IS NOT NULL
+                ORDER BY embedding <=> %s::VECTOR
+                LIMIT %s
+                """,
+                (literal, business_id, CHAT_OWNER_SOURCE, literal, limit),
+            )
+            rows = cur.fetchall()
+        return [
+            ChatMessage(
+                message_id=str(row[0]), role="user", content=row[1],
+                created_at=row[2], find_id=row[3], similarity=float(row[4]),
+            )
+            for row in rows
+        ]
+
+    def count_chat_messages(self, business_id: str) -> int:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT count(*) FROM observation
+                WHERE business_id = %s AND source_name IN (%s, %s)
+                """,
+                (business_id, CHAT_OWNER_SOURCE, CHAT_ASSISTANT_SOURCE),
+            )
+            return int(cur.fetchone()[0])
+
+    def get_find_context(self, business_id: str, find_id: str) -> FindContext | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, summary, rationale, move, status,
+                       predicted_daily_cents, confidence, verify_after
+                FROM find
+                WHERE id = %s AND business_id = %s
+                """,
+                (find_id, business_id),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return FindContext(
+            find_id=str(row[0]), title=row[1], summary=row[2], rationale=row[3],
+            move=row[4] or "", status=str(row[5]),
+            predicted_daily_cents=int(row[6]), confidence=float(row[7]),
+            verify_after=row[8],
+        )
 
     # -- finds -----------------------------------------------------------
     def insert_find_with_evidence(

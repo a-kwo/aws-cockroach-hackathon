@@ -1891,27 +1891,66 @@ def test_growth_momentum_heading_is_not_visible():
     assert 'id="growthChartHeading" class="sr-only">Growth history</h2>' in html
 
 
-def test_mobile_card_contains_the_full_reason_and_every_action_step():
-    """The phone card can scroll, so it must not replace content with '+N more'.
-
-    Desktop keeps the compact summary, but the DOM retains the full rationale
-    and every action. Mobile CSS reveals those complete versions before the
-    owner chooses Do it or Pass.
-    """
+def test_every_viewport_renders_the_same_full_reason_and_action_list():
+    """Device width changes reading mechanics, never recommendation content."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    css = html.split('<style id="native-swipe-mobile-v19">', 1)[1].split(
+    parity_css = html.split('<style id="consistent-feed-chat-growth-v23">', 1)[1].split(
         "</style>", 1
     )[0]
-    mobile = css.split("@media (max-width: 640px)", 1)[1]
+    card = html.split('class="signal-text"', 1)[1][:300]
+    steps = html.split("function renderSteps(post)", 1)[1].split(
+        "function getDecision", 1
+    )[0]
 
-    assert "fullSignal: find.rationale || find.summary" in html
-    assert 'class="signal-summary"' in html
-    assert 'class="signal-full"' in html
-    assert 'class="step-overflow"' in html
-    assert ".signal-full" in mobile and "display: block" in mobile
-    assert ".signal-summary" in mobile and "display: none" in mobile
-    assert ".step-overflow" in mobile and "display: list-item" in mobile
-    assert ".step-more" in mobile and "display: none" in mobile
+    assert "signal: find.rationale || find.summary" in html
+    assert "post.fullSignal || post.signal" in card
+    assert 'class="signal-summary"' not in card
+    assert 'class="signal-full"' not in card
+    assert ".slice(" not in steps
+    assert "step-overflow" not in steps
+    assert "step-more" not in steps
+    assert "overflow-y: auto !important" in parity_css
+    assert "-webkit-line-clamp: unset !important" in parity_css
+    assert "body.autopilot-mode .recommendation-steps li" in parity_css
+
+
+def test_empty_growth_history_shows_an_honest_process_projection():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("function renderGrowthProjectionPlaceholder", 1)[1].split(
+        "function renderRevenueChart", 1
+    )[0]
+
+    assert "No measured growth yet" in block
+    assert "Approve" in block and "Launch" in block and "Verify" in block
+    assert "No revenue is projected or claimed here" in block
+    assert "growth-projection" in block
+    assert "Your momentum" not in html
+
+
+def test_drawer_chat_calls_authenticated_ask_and_has_no_fake_answer():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    chat = html.split("async function loadDrawerChat", 1)[1].split(
+        "function escapeHtml", 1
+    )[0]
+
+    assert "fetch(`${ASK_ENDPOINT}?find_id=" in chat
+    assert "fetch(ASK_ENDPOINT" in chat
+    assert "authHeaders" in chat
+    assert "question: text" in chat
+    assert "find_id: post.databaseId || post.id" in chat
+    assert "CockroachDB memory receipt" in html
+    assert "The production app would answer" not in html
+
+
+def test_build_infers_the_ask_endpoint_from_the_shared_api(monkeypatch, data):
+    monkeypatch.setenv("DECISION_API_ENDPOINT", "https://example.execute-api.us-east-1.amazonaws.com/v1")
+    monkeypatch.delenv("ASK_API_ENDPOINT", raising=False)
+
+    model = build_web.build_model(data)
+
+    assert model["api"]["askEndpoint"] == (
+        "https://example.execute-api.us-east-1.amazonaws.com/v1/ask"
+    )
 
 
 def test_mobile_for_you_uses_native_scroll_snap_instead_of_pointer_drag():
@@ -1944,3 +1983,27 @@ def test_decision_buttons_wait_for_the_authenticated_live_workflow():
     assert "Never write a UUID from an unverified build snapshot" in html
     assert "await refreshWorkflowSnapshot({ force: true, silent: true })" in html
     assert "This move was already decided or is no longer available. Feed refreshed." in html
+
+
+def test_memory_engine_makes_ask_memory_and_analyst_collaboration_explicit():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "Ask · owner memory" in html
+    assert "conversation messages stored" in html
+    assert "memory references retrieved" in html
+    assert "Goals and constraints learned here become available to future Analyst runs" in html
+    assert "Turn market evidence and owner memory into the highest-value, measurable, executable growth moves" in html
+    assert "owner-memory rows linked to this run" in html
+    assert "Market + owner memory → growth moves" in html
+
+
+def test_ask_lambda_can_embed_questions_and_return_durable_history():
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+    ask_block = template.split("AskFunction:", 1)[1].split("DecisionFunction:", 1)[0]
+
+    assert "ConversationMemoryEmbedding" in ask_block
+    assert "bedrock:InvokeModel" in ask_block
+    assert "AskHistory:" in ask_block
+    assert "Path: /ask" in ask_block
+    assert "Method: GET" in ask_block
+    assert "Method: POST" in ask_block

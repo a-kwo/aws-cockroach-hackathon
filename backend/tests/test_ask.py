@@ -64,10 +64,15 @@ def tool_result(tool_use_id, *, is_error=False):
 
 
 class StubMessage:
-    def __init__(self, content, stop_reason="end_turn", stop_details=None):
+    def __init__(self, content, stop_reason="end_turn", stop_details=None,
+                 input_tokens=0, output_tokens=0):
         self.content = content
         self.stop_reason = stop_reason
         self.stop_details = stop_details
+        self.usage = type("Usage", (), {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+        })()
 
 
 class _StubBetaMessages:
@@ -279,6 +284,16 @@ class TestFailureModes:
             asker.ask(system="s", question="q")
 
 
+def test_mcp_asker_records_the_provider_token_receipt():
+    asker, _ = an_asker(StubMessage(
+        [text_block("Stored answer")], input_tokens=321, output_tokens=45))
+
+    asker.ask(system="s", question="q")
+
+    assert asker.last_usage.input_tokens == 321
+    assert asker.last_usage.output_tokens == 45
+
+
 # --------------------------------------------------------------------------
 # FakeAsker — the reason the suite runs offline
 # --------------------------------------------------------------------------
@@ -378,6 +393,32 @@ class TestRunAsk:
         assert not result.answer.queried_the_cluster
         assert "no tool calls" in repo.recent_runs(business_id, limit=1)[0].note
 
+    def test_receipt_links_the_owner_memories_used_for_the_turn(self):
+        from brasstacks.ask_trace import parse_ask_trace
+        from brasstacks.providers import ModelUsage
+
+        repo = InMemoryRepository()
+        business_id = a_business(repo)
+        fake = FakeAsker([Answer(text="Use the staffing cap.", tool_calls=())])
+        fake.last_usage = ModelUsage(input_tokens=220, output_tokens=31)
+
+        result = run_ask(
+            repo=repo, asker=fake, business_id=business_id,
+            question="compact model question", owner_question="Can we do this?",
+            find_id="find-1", recent_message_ids=["recent-1"],
+            relevant_message_ids=["semantic-1"], stored_message_ids=["owner-1"],
+        )
+
+        run = repo.recent_runs(business_id, limit=1)[0]
+        trace = parse_ask_trace(run.note)
+        assert trace["question"] == "Can we do this?"
+        assert trace["recent_message_ids"] == ["recent-1"]
+        assert trace["relevant_message_ids"] == ["semantic-1"]
+        assert trace["stored_message_ids"] == ["owner-1"]
+        assert result.input_tokens == 220
+        assert run.input_tokens == 220
+        assert run.output_tokens == 31
+
     def test_the_system_prompt_forbids_answering_from_model_knowledge(self):
         # PRODUCT.md voice commitment: it says "I don't know" rather than
         # inventing a number. That has to be in the prompt, not just the docs.
@@ -439,3 +480,22 @@ class TestAskSystemPrompt:
         # Without a configured id it must still work — just slower, by
         # discovering the cluster itself.
         assert ask_system_prompt(cluster_id=None) == ASK_SYSTEM_PROMPT
+
+
+def test_ask_trace_keeps_bounded_previews_instead_of_duplicating_full_chat():
+    from brasstacks.ask_trace import encode_ask_trace, parse_ask_trace
+
+    note = encode_ask_trace(
+        question="q" * 900,
+        answer="a" * 1800,
+        find_id=None,
+        recent_message_ids=[],
+        relevant_message_ids=[],
+        queried_the_cluster=True,
+    )
+    trace = parse_ask_trace(note)
+
+    assert len(trace["question"]) == 500
+    assert trace["question"].endswith("…")
+    assert len(trace["answer"]) == 1000
+    assert trace["answer"].endswith("…")

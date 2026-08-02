@@ -34,6 +34,7 @@ def encode_analyst_trace(
     find_id: str | None,
     queries: Sequence[str] | None = None,
     per_query_limit: int | None = None,
+    owner_memory_ids: Sequence[str] = (),
 ) -> str:
     """Encode one compact, versioned Analyst run receipt.
 
@@ -64,6 +65,8 @@ def encode_analyst_trace(
         payload["queries"] = [str(query) for query in queries]
     if per_query_limit is not None:
         payload["per_query_limit"] = _non_negative(per_query_limit, "per_query_limit")
+    if owner_memory_ids:
+        payload["owner_memory_ids"] = [str(value) for value in owner_memory_ids]
 
     return TRACE_PREFIX + json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
@@ -98,6 +101,10 @@ def parse_analyst_trace(note: str | None) -> dict[str, Any] | None:
                 result["queries"] = [str(query) for query in payload["queries"]]
             if payload.get("per_query_limit") is not None:
                 result["per_query_limit"] = int(payload["per_query_limit"])
+            if isinstance(payload.get("owner_memory_ids"), list):
+                result["owner_memory_ids"] = [
+                    str(value) for value in payload["owner_memory_ids"]
+                ]
             return result
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return None
