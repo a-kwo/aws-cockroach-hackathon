@@ -69,8 +69,16 @@ class TestRegister:
 
         assert PASSWORD not in json.dumps(response)
 
-    def test_a_short_password_creates_nothing(self, repo):
-        response = call(repo, username="sam", password="short")
+    def test_a_short_password_is_accepted(self, repo):
+        # No minimum, by the owner's decision on 2026-08-02. See
+        # test_auth.TestPasswordRules for what that trades away.
+        response = call(repo, username="sam", password="a")
+
+        assert response["statusCode"] == 201
+        assert repo.find_account("sam") is not None
+
+    def test_an_empty_password_creates_nothing(self, repo):
+        response = call(repo, username="sam", password="")
 
         assert response["statusCode"] == 400
         assert repo._accounts == {}

@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from brasstacks.auth import (
+    MAX_PASSWORD_CHARS,
     SESSION_TTL,
     AuthError,
     hash_password,
@@ -94,19 +95,36 @@ class TestUsernameRules:
 
 
 class TestPasswordRules:
-    def test_a_short_password_is_refused(self):
-        with pytest.raises(AuthError, match="12"):
-            validate_password("short")
+    """No minimum length, by the owner's decision on 2026-08-02.
 
-    def test_the_rule_is_length_not_character_classes(self):
-        # Length is what actually helps. Forcing a symbol produces Password1!
-        # and a sticky note, which is worse than a long ordinary phrase.
-        assert validate_password("a long enough passphrase")
+    This asserted a 12-character floor. Removing it is recorded here rather than
+    deleted quietly, because it is a real weakening: a one-character password now
+    reaches an account holding a business's revenue figures, and scrypt's cost
+    per guess buys nothing against a search space that small.
+    """
+
+    def test_any_non_empty_password_is_accepted(self):
+        for password in ("a", "hunter2", "correct horse battery staple"):
+            assert validate_password(password) == password
+
+    def test_an_empty_password_is_still_refused(self):
+        # Not a strength rule — an empty string is the absence of a password,
+        # and accepting it would mean an account anyone can open.
+        for empty in ("", None):
+            with pytest.raises(AuthError):
+                validate_password(empty)
 
     def test_a_password_is_not_silently_truncated(self):
-        long_one = "x" * 400
+        # The maximum stays: scrypt will hash a megabyte and take its time, so
+        # this bounds what one signup can make the function spend.
         with pytest.raises(AuthError):
-            validate_password(long_one)
+            validate_password("x" * (MAX_PASSWORD_CHARS + 1))
+
+    def test_a_one_character_password_still_hashes_and_verifies(self):
+        stored = hash_password("a")
+
+        assert verify_password("a", stored)
+        assert not verify_password("b", stored)
 
 
 class TestSessions:

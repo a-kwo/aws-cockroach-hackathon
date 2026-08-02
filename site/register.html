@@ -141,9 +141,9 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
         <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" placeholder="How you'll sign in" maxlength="64" required>
       </div>
       <div class="field">
-        <label for="password">Password <small>12+ characters</small></label>
+        <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="new-password" placeholder="A phrase you'll remember" maxlength="256" required>
-        <p class="note">A long ordinary phrase beats a short complicated one. There is no password reset yet, so pick something you will not lose.</p>
+        <p class="note">There is no password reset yet, so pick something you will not lose.</p>
       </div>
       <div class="field">
         <label for="inviteCode">Invite code</label>
@@ -191,10 +191,6 @@ form.addEventListener("submit", async event => {
   //  checks again -- this is convenience, not the boundary.
   if (!/^[a-z0-9._-]{2,64}$/.test(username)) {
     fail("Username can use letters, numbers, dots, dashes and underscores.");
-    return;
-  }
-  if (password.length < 12) {
-    fail("Use at least 12 characters. Length matters more than punctuation.");
     return;
   }
   if (!endpoint) {

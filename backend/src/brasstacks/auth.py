@@ -46,11 +46,15 @@ TOKEN_BYTES = 32
 
 SESSION_TTL = timedelta(days=14)
 
-#: Length beats character classes. Forcing a symbol produces "Password1!" and a
-#: sticky note; a long ordinary phrase is stronger and people actually use it.
-MIN_PASSWORD_CHARS = 12
-#: scrypt happily hashes a megabyte and takes its time doing so. Bounded so a
-#: signup cannot be used to make the function burn CPU.
+#: No minimum length, by the owner's decision on 2026-08-02. A password must be
+#: non-empty and nothing more. Recorded rather than silently dropped: it means a
+#: one-character password is accepted on an account holding a business's revenue
+#: figures, and scrypt's cost per guess does not help against a space that small.
+#: Reinstating a floor is one constant and one branch.
+#:
+#: The maximum is not a strength rule and stays. scrypt will happily hash a
+#: megabyte and take its time doing it, so this bounds what a signup can make
+#: the function spend.
 MAX_PASSWORD_CHARS = 256
 
 MIN_USERNAME_CHARS = 2
@@ -132,11 +136,8 @@ def validate_username(username: str) -> str:
 
 
 def validate_password(password: str) -> str:
-    if not isinstance(password, str) or len(password) < MIN_PASSWORD_CHARS:
-        raise AuthError(
-            f"password must be at least {MIN_PASSWORD_CHARS} characters — "
-            "length matters far more than punctuation"
-        )
+    if not isinstance(password, str) or not password:
+        raise AuthError("a password is required")
     if len(password) > MAX_PASSWORD_CHARS:
         raise AuthError(f"password must be under {MAX_PASSWORD_CHARS} characters")
     return password
@@ -166,7 +167,6 @@ def issue_session_token(*, now: datetime) -> tuple[str, str, datetime]:
 
 __all__ = [
     "MAX_PASSWORD_CHARS",
-    "MIN_PASSWORD_CHARS",
     "SESSION_TTL",
     "AuthError",
     "hash_password",
