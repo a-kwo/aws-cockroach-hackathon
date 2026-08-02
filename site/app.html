@@ -3473,7 +3473,7 @@
       body.autopilot-mode .view-inner { width:calc(100% - 14px); }
       body.autopilot-mode .feed-navigation { right:-2px; }
     }
-    @media (max-width: 640px) {
+    @media (max-width: 900px) {
       body.autopilot-mode .app { grid-template-rows:58px minmax(0,1fr); min-height:620px; }
       body.autopilot-mode .view-inner { width:100%; }
       body.autopilot-mode .autopilot-inner { padding:0; }
@@ -12199,26 +12199,28 @@
     }
   </style>
 
-  <style id="native-mobile-scroll-snap-v20">
+  <style id="native-mobile-scroll-snap-v21">
     /* Phones use the browser's native compositor-driven horizontal scroller.
        The desktop card stack keeps the richer pointer animation, while mobile
        gets the same physics as the platform itself: no pointer-capture race,
        no diagonal-gesture snap-back, and no JavaScript frame loop fighting the
        vertically scrollable recommendation body. */
-    @media (max-width: 700px) {
+    @media (max-width: 900px) {
       body.autopilot-mode .feed-stage {
         display: flex !important;
         gap: 0 !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
         scroll-snap-type: x mandatory;
-        scroll-behavior: smooth;
+        scroll-behavior: auto;
         scroll-padding-inline: 0;
         overscroll-behavior-x: contain;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         perspective: none !important;
         touch-action: pan-x pan-y pinch-zoom !important;
+        scroll-anchor: none;
+        contain: layout paint;
       }
 
       body.autopilot-mode .feed-stage::-webkit-scrollbar { display: none; }
@@ -12255,6 +12257,7 @@
 
       body.autopilot-mode .post-body {
         touch-action: pan-x pan-y pinch-zoom !important;
+        overscroll-behavior-inline: contain;
       }
     }
   </style>
@@ -14067,7 +14070,7 @@
      * which gives CSS a real start and end state to interpolate between.
      */
     const PREFERS_REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const MOBILE_NATIVE_FEED_QUERY = window.matchMedia("(max-width: 700px)");
+    const MOBILE_NATIVE_FEED_QUERY = window.matchMedia("(max-width: 900px)");
     const FEED_SWIPE_DURATION = PREFERS_REDUCED_MOTION.matches ? 1 : 460;
 
     function usesNativeMobileFeed() {
