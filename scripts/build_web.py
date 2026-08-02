@@ -536,6 +536,9 @@ def build_model(data: dict) -> dict:
     login_endpoint = (os.environ.get("LOGIN_API_ENDPOINT") or "").rstrip("/")
     if not login_endpoint and decision_endpoint:
         login_endpoint = f"{decision_endpoint}/login"
+    register_endpoint = (os.environ.get("REGISTER_API_ENDPOINT") or "").rstrip("/")
+    if not register_endpoint and decision_endpoint:
+        register_endpoint = f"{decision_endpoint}/register"
     if not workflow_endpoint and decision_endpoint:
         workflow_endpoint = f"{decision_endpoint}/workflow"
     return {
@@ -544,6 +547,7 @@ def build_model(data: dict) -> dict:
             "workflowEndpoint": workflow_endpoint or None,
             "onboardingEndpoint": onboarding_endpoint or None,
             "loginEndpoint": login_endpoint or None,
+            "registerEndpoint": register_endpoint or None,
         },
         "business": {
             "id": business.get("id"),
@@ -807,6 +811,7 @@ def build() -> None:
     (OUT_DIR / "app").mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "signup").mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "login").mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / "register").mkdir(parents=True, exist_ok=True)
     assets = copy_assets()
     (OUT_DIR / "index.html").write_text(
         render(SITE / "landing.html", model), encoding="utf-8")
@@ -816,9 +821,11 @@ def build() -> None:
         render(SITE / "signup.html", model), encoding="utf-8")
     (OUT_DIR / "login" / "index.html").write_text(
         render(SITE / "login.html", model), encoding="utf-8")
+    (OUT_DIR / "register" / "index.html").write_text(
+        render(SITE / "register.html", model), encoding="utf-8")
 
     s = model["summary"]
-    print("built web/{index,login/index,signup/index,app/index}.html")
+    print("built web/{index,register/index,login/index,signup/index,app/index}.html")
     print(f"  {len(model['proposed'])} waiting · {len(model['saved'])} saved · "
           f"{len(model['measuring'])} measuring · {len(model['judged'])} judged")
     print(f"  {s['verified']}V / {s['miss']}M of {s['judged']} judged "

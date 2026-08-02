@@ -18,13 +18,11 @@ import json
 import os
 from typing import Any
 
-from brasstacks.auth import (
-    AuthError,
-    hash_password,
-    validate_password,
-    validate_username,
-)
+from datetime import datetime, timezone
+
+from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
+from brasstacks.handlers.login import bearer_token
 from brasstacks.onboarding import (
     FACT_SOURCE,
     PlacesGeocoder,
@@ -70,7 +68,8 @@ def parse_body(event: Any) -> dict:
 
 
 def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
-            invite_code: str | None = None) -> dict[str, Any]:
+            invite_code: str | None = None,
+            now: datetime | None = None) -> dict[str, Any]:
     """The whole of signup, with its dependencies handed in.
 
     Separated from `handler` so the logic is testable without AWS, a database
@@ -81,26 +80,24 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
     except ValueError as e:
         return respond(400, {"error": str(e)})
 
-    # Before anything is created. A rejected signup must leave no trace.
-    if invite_code:
-        supplied = str(profile.get("inviteCode") or "").strip()
-        if supplied != invite_code:
-            return respond(403, {"error": "an invite code is required"})
+    # The session from /register. The invite code was checked there, and this
+    # endpoint is unreachable without having passed it — re-checking would only
+    # ask the browser to keep the code around for a second page.
+    token = bearer_token(event)
+    account = repo.account_for_session(
+        token_fingerprint(token), now=now or datetime.now(timezone.utc)
+    ) if token else None
+    if account is None:
+        return respond(401, {"error": "sign in first"})
+
+    if account.get("business_id"):
+        # One business per account. Without this, reloading the finished form
+        # would quietly create a second tenant and orphan the first.
+        return respond(409, {"error": "this account already has a workspace"})
 
     problem = validate(profile)
     if problem:
         return respond(400, {"error": problem})
-
-    # Credentials before anything is created, so a rejected signup leaves no
-    # business row behind and no half-built tenant to wonder about later.
-    try:
-        username = validate_username(str(profile.get("username") or ""))
-        password = validate_password(profile.get("password"))
-    except AuthError as e:
-        return respond(400, {"error": str(e)})
-
-    if repo.find_account(username) is not None:
-        return respond(409, {"error": f"the username {username!r} is taken"})
 
     business = profile["business"]
 
@@ -132,14 +129,14 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
     for rule in (rules or list(DEFAULT_OWNER_RULES)):
         repo.insert_owner_rule(business_id, rule=rule)
 
-    # Last, so a failure anywhere above rolls back rather than leaving an
-    # account pointing at a business with no profile behind it.
-    repo.create_account(business_id, username=username,
-                        password_hash=hash_password(password))
+    # Last, so a failure anywhere above rolls back rather than pointing the
+    # owner's account at a business with no profile behind it. This also moves
+    # their live session onto the new business, so they are already signed in
+    # to it when the board loads.
+    repo.attach_business(account["account_id"], business_id=business_id)
 
     return respond(201, {
         "business_id": business_id,
-        "username": username,
         "facts_stored": len(facts),
         # Echoed so the form can show the owner what the agents will actually
         # search around, rather than what they typed. Text Search is fuzzy, so

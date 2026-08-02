@@ -255,7 +255,11 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
 -- for it would be inventing a permissions model too.
 CREATE TABLE IF NOT EXISTS owner_account (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  -- Nullable, and that is the point: signup is two steps, and the account
+  -- exists from the first one. Carrying the password across a page navigation
+  -- instead would mean putting it in sessionStorage or a URL, and a password in
+  -- browser storage is the thing this design exists to avoid.
+  business_id   UUID REFERENCES business(id) ON DELETE CASCADE,
   -- Stored casefolded. Usernames that differ only by case are the same person
   -- as far as anyone typing one is concerned, and letting both exist is a
   -- support problem disguised as a feature.
@@ -273,7 +277,9 @@ CREATE TABLE IF NOT EXISTS owner_account (
 -- that read access to this table is not enough to impersonate an owner.
 CREATE TABLE IF NOT EXISTS owner_session (
   token_hash    STRING PRIMARY KEY,
-  business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  -- Nullable for the same reason as owner_account.business_id: the owner is
+  -- signed in from the credentials page, before the business exists.
+  business_id   UUID REFERENCES business(id) ON DELETE CASCADE,
   account_id    UUID NOT NULL REFERENCES owner_account(id) ON DELETE CASCADE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   expires_at    TIMESTAMPTZ NOT NULL,
@@ -290,6 +296,11 @@ CREATE TABLE IF NOT EXISTS owner_session (
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE find ADD COLUMN IF NOT EXISTS summary STRING;
+
+-- An account is created before its business (see owner_account above). Clusters
+-- provisioned when this was NOT NULL need the constraint dropped.
+ALTER TABLE owner_account ALTER COLUMN business_id DROP NOT NULL;
+ALTER TABLE owner_session ALTER COLUMN business_id DROP NOT NULL;
 
 -- Whether the agents work for this business tonight. Every active tenant costs
 -- a Tavily search, ~50 embeddings and a Claude call per night, so this is a

@@ -90,7 +90,7 @@ class PostgresRepository:
         return {k: (str(v) if k == "id" else v) for k, v in zip(keys, row)}
 
     # -- owners ----------------------------------------------------------
-    def create_account(self, business_id: str, *, username: str,
+    def create_account(self, business_id: str | None, *, username: str,
                        password_hash: str) -> str:
         with self._conn.cursor() as cur:
             cur.execute(
@@ -109,6 +109,35 @@ class PostgresRepository:
             )
             return str(cur.fetchone()[0])
 
+    def attach_business(self, account_id: str, *, business_id: str) -> None:
+        """Point an account at the business it just created, and its sessions
+        with it — the owner is already signed in when the business appears."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "UPDATE owner_account SET business_id = %s WHERE id = %s",
+                (business_id, account_id))
+            if cur.rowcount == 0:
+                raise RepositoryError(f"unknown account {account_id}")
+            cur.execute(
+                "UPDATE owner_session SET business_id = %s WHERE account_id = %s",
+                (business_id, account_id))
+
+    def account_for_session(self, token_hash: str, *,
+                            now: datetime) -> dict[str, Any] | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT account_id, business_id FROM owner_session
+                WHERE token_hash = %s AND expires_at > %s
+                """,
+                (token_hash, now),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"account_id": str(row[0]),
+                "business_id": str(row[1]) if row[1] else None}
+
     def find_account(self, username: str) -> dict[str, Any] | None:
         """None rather than raising: the login handler must do the same work
         whether or not the user exists."""
@@ -123,7 +152,10 @@ class PostgresRepository:
             row = cur.fetchone()
         if row is None:
             return None
-        return {"id": str(row[0]), "business_id": str(row[1]),
+        # str(None) is "None", which would sail through every truthiness check
+        # downstream and land in a URL as a business id.
+        return {"id": str(row[0]),
+                "business_id": str(row[1]) if row[1] else None,
                 "username": row[2], "password_hash": row[3]}
 
     def create_session(self, token_hash: str, *, business_id: str,

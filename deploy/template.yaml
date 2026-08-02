@@ -332,7 +332,47 @@ Resources:
             Method: POST
 
   # --------------------------------------------------------------------
-  # Signup — the only endpoint that lets a stranger write to the database
+  # Signup step one: the account. Gated by the invite code, because this is
+  # the endpoint a stranger can reach.
+  # --------------------------------------------------------------------
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: register
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.register.handler"]
+      Timeout: 15
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Register:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /register
+            Method: POST
+
+  # --------------------------------------------------------------------
+  # Signup step two: the business profile, for an account that already exists
   # --------------------------------------------------------------------
   OnboardingFunction:
     Type: AWS::Serverless::Function
@@ -530,6 +570,12 @@ Outputs:
   WorkflowEndpoint:
     Description: GET live owner workflow state for the Memory Engine overlay.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
+
+  RegisterEndpoint:
+    Description: >
+      Signup step one. POST {"username","password","inviteCode"}; returns a
+      session token the onboarding endpoint then requires.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/register
 
   LoginEndpoint:
     Description: >

@@ -335,30 +335,6 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <span class="field-error">Enter a full web address beginning with http:// or https://.</span>
               <p class="field-help">This helps Radar distinguish your business from similarly named competitors.</p>
             </div>
-            <!-- The login. Created with the business, in one transaction, so
-                 there is never a workspace nobody can reach. -->
-            <div class="field" data-field="username">
-              <label for="username">Username</label>
-              <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" placeholder="How you'll sign in" maxlength="64" required>
-              <span class="field-error">Letters, numbers, dots, dashes and underscores. At least 2 characters.</span>
-            </div>
-            <div class="field" data-field="password">
-              <label for="password">Password <small>12+ characters</small></label>
-              <input id="password" name="password" type="password" autocomplete="new-password" placeholder="A phrase you'll remember" maxlength="256" required>
-              <span class="field-error">Use at least 12 characters.</span>
-              <!-- Length, not punctuation. Forcing a symbol produces
-                   Password1! and a sticky note. -->
-              <p class="field-help">A long ordinary phrase beats a short complicated one. There is no password reset yet, so pick something you will not lose.</p>
-            </div>
-            <!-- Not a login. Creating a workspace embeds the profile through
-                 Bedrock and writes rows, so the endpoint cannot be open to
-                 anyone who finds the URL in a public repository. -->
-            <div class="field wide" data-field="inviteCode">
-              <label for="inviteCode">Invite code</label>
-              <input id="inviteCode" name="inviteCode" type="text" autocomplete="off" spellcheck="false" placeholder="Ask whoever sent you here" maxlength="80">
-              <span class="field-error">That invite code was not accepted.</span>
-              <p class="field-help">Creating a workspace runs live models against your market, so signup is invite-only while this is a demo.</p>
-            </div>
           </div>
 
           <div class="form-actions">
@@ -505,6 +481,21 @@ const DATA = (() => {
 })();
 
 const PROFILE_KEY = "brass-tacks-onboarding-profile-v1";
+//  Written by /register. Without it there is no account to attach a business
+//  to, and the API answers 401 — so send the owner back rather than let them
+//  fill in three steps and lose the lot.
+const SESSION_KEY = "brass-tacks-session-v1";
+
+function currentSession() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (!raw || !raw.token) return null;
+    if (raw.expiresAt && Date.parse(raw.expiresAt) <= Date.now()) return null;
+    return raw;
+  } catch (_) { return null; }
+}
+
+if (!currentSession()) window.location.replace("../register/");
 const DRAFT_KEY = "brass-tacks-onboarding-draft-v1";
 const endpoint = String(DATA.api?.onboardingEndpoint || "").trim();
 const form = document.getElementById("onboardingForm");
@@ -597,7 +588,6 @@ function validateStep1() {
     ownerName: fieldValue("ownerName"), email: fieldValue("email"),
     businessName: fieldValue("businessName"), category: fieldValue("category"),
     location: fieldValue("location"), website: fieldValue("website"),
-    username: fieldValue("username"), password: fieldValue("password"),
   };
   setFieldError("ownerName", values.ownerName ? "" : "Enter your name.");
   setFieldError("businessName", values.businessName ? "" : "Enter your business name.");
@@ -607,13 +597,7 @@ function validateStep1() {
   setFieldError("email", emailValid ? "" : "Enter a valid email address.");
   const websiteValid = !values.website || Boolean(normalizeWebsite(values.website));
   setFieldError("website", websiteValid ? "" : "Enter a valid website or review page.");
-  // Mirrors brasstacks.auth: same rules, checked here so the owner finds out
-  // before a round trip rather than after one.
-  const usernameValid = /^[a-z0-9._-]{2,64}$/.test(values.username.trim().toLowerCase());
-  setFieldError("username", usernameValid ? "" : "Letters, numbers, dots, dashes and underscores. At least 2 characters.");
-  const passwordValid = values.password.length >= 12 && values.password.length <= 256;
-  setFieldError("password", passwordValid ? "" : "Use at least 12 characters.");
-  return values.ownerName && values.businessName && values.category && values.location && emailValid && websiteValid && usernameValid && passwordValid;
+  return values.ownerName && values.businessName && values.category && values.location && emailValid && websiteValid;
 }
 
 function validateStep2() {
@@ -631,13 +615,6 @@ function buildProfile() {
   return {
     version: 1,
     createdAt: new Date().toISOString(),
-    // Checked by the onboarding Lambda before anything is created, so a wrong
-    // code leaves no half-built tenant behind.
-    inviteCode: fieldValue("inviteCode"),
-    // Sent once, to create the account. Never stored in localStorage with the
-    // rest of the profile -- see the strip below.
-    username: fieldValue("username").trim().toLowerCase(),
-    password: fieldValue("password"),
     owner: { name: fieldValue("ownerName"), email: fieldValue("email") },
     business: {
       name: fieldValue("businessName"),
@@ -702,9 +679,15 @@ function updateBrief() {
 
 async function persistProfile(profile) {
   if (!endpoint) return { demoOnly: true, profile };
+  const session = currentSession();
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      //  The account created on the credentials page. The business is attached
+      //  to whoever this token belongs to.
+      ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
+    },
     body: JSON.stringify(profile),
   });
   let payload = {};
@@ -767,9 +750,8 @@ form.addEventListener("submit", async event => {
     // into localStorage would leave it sitting in plaintext in the browser for
     // anyone with the devtools console — strip the credentials out explicitly
     // rather than relying on nobody adding a field here later.
-    const { password, inviteCode, ...safe } = profile;
     const stored = {
-      ...safe,
+      ...profile,
       business: { ...profile.business, id: receipt.business_id || receipt.businessId || profile.business.id || `local-${Date.now()}` },
       persisted: !receipt.demoOnly,
       receipt,

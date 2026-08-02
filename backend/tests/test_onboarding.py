@@ -12,8 +12,11 @@ signup, from a URL printed in a public repository.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 import pytest
+
+NOW = datetime(2026, 8, 2, 12, tzinfo=timezone.utc)
 
 from brasstacks.onboarding import (
     GEOCODE_URL,
@@ -134,8 +137,6 @@ class TestFactSourceMatchesTheSchema:
 
 class TestProfileFacts:
     PROFILE = {
-        "username": "sam",
-        "password": "a long enough passphrase",
         "owner": {"name": "Sam", "email": "sam@example.com"},
         "business": {"name": "Nonna's", "category": "restaurant",
                      "categoryLabel": "Restaurant or café",
@@ -204,16 +205,26 @@ class TestHandler:
     PROFILE = TestProfileFacts.PROFILE
 
     def _call(self, event, repo=None, geocoder=None):
+        """Onboarding is step two now: it requires the session /register issued."""
+        from brasstacks.auth import hash_password, issue_session_token
         from brasstacks.handlers import onboarding
         from brasstacks.providers import FakeEmbedder
         from brasstacks.repository import InMemoryRepository
 
+        repo = repo if repo is not None else InMemoryRepository()
+        account = repo.create_account(None, username="sam",
+                                      password_hash=hash_password("x" * 20))
+        token, fingerprint, expires = issue_session_token(now=NOW)
+        repo.create_session(fingerprint, business_id=None,
+                            account_id=account, expires_at=expires)
+        event = dict(event)
+        event["headers"] = {"Authorization": f"Bearer {token}"}
         return onboarding.onboard(
             event,
-            repo=repo if repo is not None else InMemoryRepository(),
+            repo=repo,
             embedder=FakeEmbedder(),
             geocoder=geocoder,
-            invite_code="let-me-in",
+            now=NOW,
         )
 
     def test_creates_the_business_and_returns_its_id(self):
@@ -273,24 +284,6 @@ class TestHandler:
         assert stored["latitude"] == 39.9612
         assert stored["longitude"] == -82.9988
 
-    def test_a_wrong_invite_code_creates_nothing(self):
-        from brasstacks.repository import InMemoryRepository
-
-        repo = InMemoryRepository()
-        response = self._call(an_event(self.PROFILE, code="guess"), repo=repo)
-
-        assert response["statusCode"] == 403
-        assert repo._businesses == {}
-
-    def test_a_missing_invite_code_creates_nothing(self):
-        from brasstacks.repository import InMemoryRepository
-
-        repo = InMemoryRepository()
-        response = self._call(an_event(self.PROFILE, code=None), repo=repo)
-
-        assert response["statusCode"] == 403
-        assert repo._businesses == {}
-
     def test_a_business_with_no_name_is_rejected(self):
         thin = dict(self.PROFILE,
                     business=dict(self.PROFILE["business"], name="  "))
@@ -326,67 +319,71 @@ class TestHandler:
         assert response["headers"]["Access-Control-Allow-Origin"] == "*"
 
 
-class TestSignupCredentials:
-    """Signup creates the login. Without it a tenant exists that nobody can reach."""
+class TestOnboardingRequiresASession:
+    """Step two of signup. Reachable only by someone /register signed in."""
 
-    PROFILE = TestHandler.PROFILE
+    PROFILE = TestProfileFacts.PROFILE
 
-    def _call(self, event, repo=None):
+    def _bare(self, event, repo):
         from brasstacks.handlers import onboarding
         from brasstacks.providers import FakeEmbedder
-        from brasstacks.repository import InMemoryRepository
 
-        return onboarding.onboard(
-            event,
-            repo=repo if repo is not None else InMemoryRepository(),
-            embedder=FakeEmbedder(),
-            invite_code="let-me-in",
-        )
+        return onboarding.onboard(event, repo=repo, embedder=FakeEmbedder(),
+                                  now=NOW)
 
-    def test_the_owner_can_log_in_afterwards(self):
-        from brasstacks.auth import verify_password
+    def test_no_token_creates_nothing(self):
         from brasstacks.repository import InMemoryRepository
 
         repo = InMemoryRepository()
-        self._call(an_event(self.PROFILE), repo=repo)
+        response = self._bare(an_event(self.PROFILE), repo)
 
-        account = repo.find_account("sam")
-        assert account is not None
-        assert verify_password("a long enough passphrase", account["password_hash"])
-
-    def test_the_password_is_never_stored_as_typed(self):
-        from brasstacks.repository import InMemoryRepository
-
-        repo = InMemoryRepository()
-        self._call(an_event(self.PROFILE), repo=repo)
-
-        assert "a long enough passphrase" not in json.dumps(repo._accounts)
-
-    def test_a_short_password_creates_nothing(self):
-        from brasstacks.repository import InMemoryRepository
-
-        repo = InMemoryRepository()
-        thin = dict(self.PROFILE, password="short")
-        response = self._call(an_event(thin), repo=repo)
-
-        assert response["statusCode"] == 400
+        assert response["statusCode"] == 401
         assert repo._businesses == {}
 
-    def test_a_taken_username_creates_nothing(self):
-        from brasstacks.auth import hash_password
+    def test_an_unknown_token_creates_nothing(self):
         from brasstacks.repository import InMemoryRepository
 
         repo = InMemoryRepository()
-        other = repo.create_business(name="Other", category="restaurant")
-        repo.create_account(other, username="sam", password_hash=hash_password("x" * 20))
-        before = len(repo._businesses)
+        event = dict(an_event(self.PROFILE))
+        event["headers"] = {"Authorization": "Bearer not-a-real-token"}
 
-        response = self._call(an_event(self.PROFILE), repo=repo)
+        assert self._bare(event, repo)["statusCode"] == 401
+        assert repo._businesses == {}
 
-        assert response["statusCode"] == 409
-        assert len(repo._businesses) == before
+    def test_the_business_is_attached_to_the_signed_in_account(self):
+        from brasstacks.auth import hash_password, issue_session_token
+        from brasstacks.repository import InMemoryRepository
 
-    def test_the_password_never_comes_back_in_the_response(self):
-        response = self._call(an_event(self.PROFILE))
+        repo = InMemoryRepository()
+        account = repo.create_account(None, username="sam",
+                                      password_hash=hash_password("x" * 20))
+        token, fingerprint, expires = issue_session_token(now=NOW)
+        repo.create_session(fingerprint, business_id=None,
+                            account_id=account, expires_at=expires)
+        event = dict(an_event(self.PROFILE))
+        event["headers"] = {"Authorization": f"Bearer {token}"}
 
-        assert "a long enough passphrase" not in json.dumps(response)
+        body = json.loads(self._bare(event, repo)["body"])
+
+        assert repo.find_account("sam")["business_id"] == body["business_id"]
+        # The live session moves with it, so the board loads signed in.
+        assert repo.business_for_session(fingerprint, now=NOW) == body["business_id"]
+
+    def test_a_second_workspace_on_one_account_is_refused(self):
+        # Reloading the finished form would otherwise create a second tenant
+        # and orphan the first.
+        from brasstacks.auth import hash_password, issue_session_token
+        from brasstacks.repository import InMemoryRepository
+
+        repo = InMemoryRepository()
+        existing = repo.create_business(name="Already", category="restaurant")
+        account = repo.create_account(existing, username="sam",
+                                      password_hash=hash_password("x" * 20))
+        token, fingerprint, expires = issue_session_token(now=NOW)
+        repo.create_session(fingerprint, business_id=existing,
+                            account_id=account, expires_at=expires)
+        event = dict(an_event(self.PROFILE))
+        event["headers"] = {"Authorization": f"Bearer {token}"}
+
+        assert self._bare(event, repo)["statusCode"] == 409
+        assert len(repo._businesses) == 1

@@ -374,7 +374,7 @@ class InMemoryRepository:
         return business_id
 
     # -- owners ----------------------------------------------------------
-    def create_account(self, business_id: str, *, username: str,
+    def create_account(self, business_id: str | None, *, username: str,
                        password_hash: str) -> str:
         if username in self._accounts:
             raise RepositoryError(f"username {username!r} is already taken")
@@ -384,6 +384,29 @@ class InMemoryRepository:
             "username": username, "password_hash": password_hash,
         }
         return account_id
+
+    def attach_business(self, account_id: str, *, business_id: str) -> None:
+        """Point an account at the business it just created.
+
+        Separate from create_account because signup is two steps: the account
+        exists from the credentials page, the business from the profile page.
+        """
+        for row in self._accounts.values():
+            if row["id"] == account_id:
+                row["business_id"] = business_id
+                for session in self._sessions.values():
+                    if session["account_id"] == account_id:
+                        session["business_id"] = business_id
+                return
+        raise RepositoryError(f"unknown account {account_id}")
+
+    def account_for_session(self, token_hash: str, *,
+                            now: datetime) -> dict[str, Any] | None:
+        session = self._sessions.get(token_hash)
+        if session is None or session["expires_at"] <= now:
+            return None
+        return {"account_id": session["account_id"],
+                "business_id": session["business_id"]}
 
     def find_account(self, username: str) -> dict[str, Any] | None:
         """None rather than raising: the login handler must do the same work

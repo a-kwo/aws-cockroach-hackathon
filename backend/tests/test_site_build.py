@@ -270,7 +270,8 @@ def test_the_run_receipt_shows_the_queries_the_analyst_actually_runs():
 def test_templates_carry_the_data_placeholder():
     """Both pages are rendered by substituting one JSON block. A template
     missing it would silently ship with no data."""
-    for name in ("app.html", "landing.html", "signup.html", "login.html"):
+    for name in ("app.html", "landing.html", "signup.html", "login.html",
+                 "register.html"):
         html = (build_web.SITE / name).read_text(encoding="utf-8")
         assert build_web.DATA_TAG.search(html), name
 
@@ -283,7 +284,7 @@ def test_landing_routes_directly_to_the_demo():
     and that was the point of the assertion this replaces.
     """
     html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
-    assert 'class="nav-cta" href="signup/">Sign up</a>' in html
+    assert 'class="nav-cta" href="register/">Sign up</a>' in html
     assert 'href="app/"><span>Show me what I missed</span>' in html
     assert 'href="app/"><span>Show me my morning move</span>' in html
 
@@ -1338,26 +1339,52 @@ def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
 # Credentials
 # ---------------------------------------------------------------------------
 
-def test_signup_collects_a_username_and_password():
-    """Without these the deployed onboarding handler returns 400 and no
-    workspace is ever created, so the form and the API must agree."""
-    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
-    for field_id in ("username", "password"):
+def test_the_credentials_page_creates_the_account():
+    """Signup is two pages, and this is why.
+
+    Both fields lived on the profile form until 2026-08-02. Splitting the flow
+    the obvious way — credentials on page one, profile on page two — would have
+    meant carrying the password across a navigation in sessionStorage, i.e. a
+    plaintext credential in browser storage for as long as the owner takes to
+    fill in a form. Creating the account on page one avoids the question: the
+    password is posted once and the owner arrives at the profile holding a
+    session token instead.
+    """
+    html = (build_web.SITE / "register.html").read_text(encoding="utf-8")
+    for field_id in ("username", "password", "inviteCode"):
         assert f'id="{field_id}"' in html, field_id
-    assert 'type="password"' in html
     assert 'autocomplete="new-password"' in html
+    assert "registerEndpoint" in html
+    assert 'window.location.href = "../signup/"' in html
 
 
-def test_the_password_is_never_written_to_local_storage():
-    """The page saves the profile to localStorage so the app can show it back.
-    Spreading the whole profile in would leave the password sitting in
-    plaintext in the browser — it is stripped explicitly, and this pins that."""
+def test_the_profile_page_no_longer_touches_the_password():
     html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
 
-    assert "const { password, inviteCode, ...safe } = profile;" in html
-    assert "...safe," in html
-    # The unguarded form is what this replaced; it must not come back.
-    assert "const stored = {\n      ...profile," not in html
+    assert 'id="password"' not in html
+    assert 'type="password"' not in html
+    assert 'id="inviteCode"' not in html
+
+
+def test_the_profile_page_requires_a_session():
+    """Without one the API answers 401, so filling in three steps first would
+    lose the lot."""
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+
+    assert 'if (!currentSession()) window.location.replace("../register/");' in html
+    assert "Bearer ${session.token}" in html
+
+
+def test_no_page_writes_a_password_to_local_storage():
+    """The profile page spreads the whole profile into localStorage. That was a
+    plaintext-password hazard while the form collected one; now it cannot be,
+    because the field is gone. Pinned so re-adding it is a test failure."""
+    for name in ("signup.html", "register.html", "login.html"):
+        html = (build_web.SITE / name).read_text(encoding="utf-8")
+        body = html.split("localStorage.setItem", 1)
+        if len(body) < 2:
+            continue
+        assert 'id="password"' not in html or "password:" not in body[1][:300], name
 
 
 def test_the_login_page_posts_to_the_login_endpoint():
