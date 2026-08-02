@@ -1445,10 +1445,34 @@ def test_a_business_with_no_night_is_not_told_it_is_caught_up():
 
     assert "The agents haven't looked yet" in html
     assert "data-start-night" in html
-    # The distinction is made from the data, not from a flag someone can forget
-    # to set: no finds AND no runs means nothing has ever looked.
-    assert "const neverRan = !(btData.finds || []).length" in html
-    assert "!(btData.runs || []).length" in html
+    # From the data, not a flag someone can forget to set: no finds and no runs
+    # means nothing has ever looked.
+    assert "const neverRan = !myFinds.length && !myRuns.length;" in html
+
+
+def test_the_empty_state_asks_about_the_signed_in_tenant():
+    """btData is the committed snapshot and belongs to whichever tenant was
+    exported last. Reading it here told a brand-new business it was "All caught
+    up" — on somebody else's three finds — seconds after its owner pressed the
+    button. The live workspace is the only honest source."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "const mine = liveMine || btData;" in html
+    assert "liveWorkflowWorkspaces[0]" in html
+    # The old form must not come back.
+    assert "const neverRan = !(btData.finds || []).length" not in html
+
+
+def test_a_night_in_progress_says_so():
+    """A night takes 60-90 seconds and the board polls every 15. Without this
+    the owner pressed the button, saw a terminal-sounding message, and
+    reasonably concluded nothing had happened."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "The agents are working" in html
+    assert 'myRuns.some(run => String(run.status) === "running")' in html
+    # Same animated ellipsis the trigger button uses.
+    assert 'class="working-dots"' in html
 
 
 def test_the_board_can_start_a_night_for_the_signed_in_business():

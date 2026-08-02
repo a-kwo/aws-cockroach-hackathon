@@ -13386,10 +13386,34 @@
         //  nothing worth saying. It also left them with no way forward: the
         //  only trigger was a button at the end of onboarding they had already
         //  walked past.
-        const neverRan = !(btData.finds || []).length
-          && !(btData.runs || []).length;
+        //  Whose emptiness is this? btData is the committed snapshot and
+        //  belongs to whichever tenant was exported last, so reading it here
+        //  told a brand-new business it was "All caught up" on somebody else's
+        //  three finds. The signed-in tenant's own live workspace is the only
+        //  honest source; the snapshot is the fallback for a first paint that
+        //  has not heard back yet.
+        const liveMine = Array.isArray(liveWorkflowWorkspaces) && liveWorkflowWorkspaces.length
+          ? liveWorkflowWorkspaces[0]
+          : null;
+        const mine = liveMine || btData;
+        const myFinds = mine.finds || [];
+        const myRuns = mine.runs || [];
 
-        queueContent.innerHTML = neverRan ? `
+        //  A night takes 60-90 seconds and the board polls every 15. Without
+        //  this the owner pressed the button, saw a terminal-sounding message,
+        //  and reasonably concluded nothing had happened.
+        const working = myRuns.some(run => String(run.status) === "running");
+        const neverRan = !myFinds.length && !myRuns.length;
+
+        queueContent.innerHTML = working ? `
+          <section class="queue-empty" aria-label="The agents are working" data-enter>
+            <div>
+              <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
+              <h2>The agents are working<span class="working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></h2>
+              <p>Radar is reading your market and the Analyst is reasoning over what it finds. This page updates itself — it usually takes a minute or two.</p>
+            </div>
+          </section>
+        ` : neverRan ? `
           <section class="queue-empty" aria-label="No night has run yet" data-enter>
             <div>
               <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
