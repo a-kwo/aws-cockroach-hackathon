@@ -12421,6 +12421,35 @@
     let posts = onboardingMode ? [] : (memoryPosts.length ? memoryPosts : demoPosts);
 
     const STORAGE_KEY = "brass-tacks-decision-lens-v1";
+    //  The signed-in owner, if there is one. The board still renders without a
+    //  session -- the static snapshot is the public demo, and the README leads
+    //  with "see it in 30 seconds with no credentials" -- but a session is what
+    //  makes the live overlay and any write belong to a specific business.
+    const SESSION_KEY = "brass-tacks-session-v1";
+
+    function readSession() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+        if (!raw || !raw.token) return null;
+        //  Expired locally is still expired: skip the round trip and the 401.
+        if (raw.expiresAt && Date.parse(raw.expiresAt) <= Date.now()) {
+          localStorage.removeItem(SESSION_KEY);
+          return null;
+        }
+        return raw;
+      } catch (_) { return null; }
+    }
+
+    function authHeaders(base) {
+      const session = readSession();
+      return session ? { ...base, Authorization: `Bearer ${session.token}` } : { ...base };
+    }
+
+    function endSession() {
+      localStorage.removeItem(SESSION_KEY);
+      window.location.href = "../login/";
+    }
+
     const decisionApiConfigured = Boolean(String(btData.api?.decisionEndpoint || "").trim());
     const workflowApiEndpoint = String(btData.api?.workflowEndpoint || "").trim();
     const workflowApiConfigured = Boolean(workflowApiEndpoint) && !onboardingMode;
@@ -12840,7 +12869,7 @@
         try {
           response = await fetch(workflowApiEndpoint, {
             method: "GET",
-            headers,
+            headers: authHeaders(headers),
             signal: controller.signal,
           });
         } finally {
@@ -13441,7 +13470,7 @@
       if (!base) return { demoOnly: true };
       const response = await fetch(`${base}/finds/${encodeURIComponent(post.databaseId || post.id)}/decision`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ decision: status })
       });
       let payload = {};

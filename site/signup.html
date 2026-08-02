@@ -335,6 +335,21 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <span class="field-error">Enter a full web address beginning with http:// or https://.</span>
               <p class="field-help">This helps Radar distinguish your business from similarly named competitors.</p>
             </div>
+            <!-- The login. Created with the business, in one transaction, so
+                 there is never a workspace nobody can reach. -->
+            <div class="field" data-field="username">
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" placeholder="How you'll sign in" maxlength="64" required>
+              <span class="field-error">Letters, numbers, dots, dashes and underscores. At least 2 characters.</span>
+            </div>
+            <div class="field" data-field="password">
+              <label for="password">Password <small>12+ characters</small></label>
+              <input id="password" name="password" type="password" autocomplete="new-password" placeholder="A phrase you'll remember" maxlength="256" required>
+              <span class="field-error">Use at least 12 characters.</span>
+              <!-- Length, not punctuation. Forcing a symbol produces
+                   Password1! and a sticky note. -->
+              <p class="field-help">A long ordinary phrase beats a short complicated one. There is no password reset yet, so pick something you will not lose.</p>
+            </div>
             <!-- Not a login. Creating a workspace embeds the profile through
                  Bedrock and writes rows, so the endpoint cannot be open to
                  anyone who finds the URL in a public repository. -->
@@ -582,6 +597,7 @@ function validateStep1() {
     ownerName: fieldValue("ownerName"), email: fieldValue("email"),
     businessName: fieldValue("businessName"), category: fieldValue("category"),
     location: fieldValue("location"), website: fieldValue("website"),
+    username: fieldValue("username"), password: fieldValue("password"),
   };
   setFieldError("ownerName", values.ownerName ? "" : "Enter your name.");
   setFieldError("businessName", values.businessName ? "" : "Enter your business name.");
@@ -591,7 +607,13 @@ function validateStep1() {
   setFieldError("email", emailValid ? "" : "Enter a valid email address.");
   const websiteValid = !values.website || Boolean(normalizeWebsite(values.website));
   setFieldError("website", websiteValid ? "" : "Enter a valid website or review page.");
-  return values.ownerName && values.businessName && values.category && values.location && emailValid && websiteValid;
+  // Mirrors brasstacks.auth: same rules, checked here so the owner finds out
+  // before a round trip rather than after one.
+  const usernameValid = /^[a-z0-9._-]{2,64}$/.test(values.username.trim().toLowerCase());
+  setFieldError("username", usernameValid ? "" : "Letters, numbers, dots, dashes and underscores. At least 2 characters.");
+  const passwordValid = values.password.length >= 12 && values.password.length <= 256;
+  setFieldError("password", passwordValid ? "" : "Use at least 12 characters.");
+  return values.ownerName && values.businessName && values.category && values.location && emailValid && websiteValid && usernameValid && passwordValid;
 }
 
 function validateStep2() {
@@ -612,6 +634,10 @@ function buildProfile() {
     // Checked by the onboarding Lambda before anything is created, so a wrong
     // code leaves no half-built tenant behind.
     inviteCode: fieldValue("inviteCode"),
+    // Sent once, to create the account. Never stored in localStorage with the
+    // rest of the profile -- see the strip below.
+    username: fieldValue("username").trim().toLowerCase(),
+    password: fieldValue("password"),
     owner: { name: fieldValue("ownerName"), email: fieldValue("email") },
     business: {
       name: fieldValue("businessName"),
@@ -737,8 +763,13 @@ form.addEventListener("submit", async event => {
 
   try {
     const receipt = await persistProfile(profile);
+    // The password is sent once and never kept. Spreading `profile` wholesale
+    // into localStorage would leave it sitting in plaintext in the browser for
+    // anyone with the devtools console — strip the credentials out explicitly
+    // rather than relying on nobody adding a field here later.
+    const { password, inviteCode, ...safe } = profile;
     const stored = {
-      ...profile,
+      ...safe,
       business: { ...profile.business, id: receipt.business_id || receipt.businessId || profile.business.id || `local-${Date.now()}` },
       persisted: !receipt.demoOnly,
       receipt,

@@ -270,7 +270,7 @@ def test_the_run_receipt_shows_the_queries_the_analyst_actually_runs():
 def test_templates_carry_the_data_placeholder():
     """Both pages are rendered by substituting one JSON block. A template
     missing it would silently ship with no data."""
-    for name in ("app.html", "landing.html", "signup.html"):
+    for name in ("app.html", "landing.html", "signup.html", "login.html"):
         html = (build_web.SITE / name).read_text(encoding="utf-8")
         assert build_web.DATA_TAG.search(html), name
 
@@ -288,7 +288,16 @@ def test_landing_routes_directly_to_the_demo():
     assert 'href="app/"><span>Show me my morning move</span>' in html
 
 
-def test_signup_collects_the_minimum_agent_scope_without_a_password():
+def test_signup_collects_the_agent_scope():
+    """This asserted `'type="password"' not in html` and "No password yet".
+
+    That was correct while the product had one seeded tenant and no accounts:
+    a signup that took a password would have been collecting a credential it
+    had nowhere to store and nothing to protect. Accounts landed on 2026-08-02,
+    so the absence it pinned is now the bug — a workspace no one can sign into.
+    The scope fields it also guarded are unaffected and stay here; the password
+    assertions moved to test_signup_collects_a_username_and_password.
+    """
     html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
     for field_id in (
         "ownerName", "email", "businessName", "category", "location",
@@ -299,8 +308,6 @@ def test_signup_collects_the_minimum_agent_scope_without_a_password():
         'data-multi="segments"', 'data-multi="channels"', 'data-goal=',
     ):
         assert dimension in html
-    assert 'type="password"' not in html
-    assert "No password yet" in html
     assert "brass-tacks-onboarding-profile-v1" in html
 
 
@@ -1325,3 +1332,66 @@ def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
     assert "0 LLM tokens" in APP
     assert "/workflow" in APP
     assert "SQL-only CockroachDB read" in APP
+
+
+# ---------------------------------------------------------------------------
+# Credentials
+# ---------------------------------------------------------------------------
+
+def test_signup_collects_a_username_and_password():
+    """Without these the deployed onboarding handler returns 400 and no
+    workspace is ever created, so the form and the API must agree."""
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    for field_id in ("username", "password"):
+        assert f'id="{field_id}"' in html, field_id
+    assert 'type="password"' in html
+    assert 'autocomplete="new-password"' in html
+
+
+def test_the_password_is_never_written_to_local_storage():
+    """The page saves the profile to localStorage so the app can show it back.
+    Spreading the whole profile in would leave the password sitting in
+    plaintext in the browser — it is stripped explicitly, and this pins that."""
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+
+    assert "const { password, inviteCode, ...safe } = profile;" in html
+    assert "...safe," in html
+    # The unguarded form is what this replaced; it must not come back.
+    assert "const stored = {\n      ...profile," not in html
+
+
+def test_the_login_page_posts_to_the_login_endpoint():
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+
+    assert "loginEndpoint" in html
+    assert 'autocomplete="current-password"' in html
+    # One message for both failures, matching the API. Naming which half was
+    # wrong would tell anyone probing it which usernames exist.
+    assert "payload.error" in html
+
+
+def test_the_login_page_stores_only_the_session():
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+    stored = html.split("localStorage.setItem(SESSION_KEY", 1)[1][:220]
+
+    assert "token:" in stored
+    assert "businessId:" in stored
+    assert "password" not in stored
+
+
+def test_the_board_sends_the_session_token():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "authHeaders(headers)" in html          # the live read
+    assert 'authHeaders({ "Content-Type": "application/json" })' in html  # the write
+    assert "Bearer ${session.token}" in html
+
+
+def test_the_board_still_renders_without_a_session():
+    """The public demo must keep working with no credentials — the README leads
+    with it. A session adds the live overlay; it is not a gate."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "window.location.href = \"../login/\"" in html   # available on sign-out
+    # ...but not fired on load. A redirect guard would break the public demo.
+    assert "if (!readSession()) window.location" not in html

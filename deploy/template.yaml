@@ -254,6 +254,84 @@ Resources:
             Method: GET
 
   # --------------------------------------------------------------------
+  # Login — unauthenticated by definition, and the way into every tenant
+  # --------------------------------------------------------------------
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: login
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.login.handler"]
+      # scrypt at n=16384 is deliberately slow — that is the point — and a cold
+      # start pays for the SSM read on top. Ten seconds is generous for one
+      # hash; a login that takes longer than this has a different problem.
+      Timeout: 15
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        LogIn:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /login
+            Method: POST
+
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: logout
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.login.logout_handler"]
+      Timeout: 15
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        LogOut:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /logout
+            Method: POST
+
+  # --------------------------------------------------------------------
   # Signup — the only endpoint that lets a stranger write to the database
   # --------------------------------------------------------------------
   OnboardingFunction:
@@ -311,7 +389,10 @@ Resources:
         ThrottlingRateLimit: 2
       CorsConfiguration:
         AllowOrigins: ["*"]
-        AllowHeaders: ["Content-Type", "If-None-Match"]
+        # Authorization carries the session token. Without it here the browser
+        # drops the header on the preflight and every authenticated call fails
+        # in the page while working perfectly in curl.
+        AllowHeaders: ["Content-Type", "If-None-Match", "Authorization"]
         AllowMethods: ["GET", "POST", "OPTIONS"]
         ExposeHeaders: ["ETag"]
 
@@ -449,6 +530,12 @@ Outputs:
   WorkflowEndpoint:
     Description: GET live owner workflow state for the Memory Engine overlay.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
+
+  LoginEndpoint:
+    Description: >
+      POST {"username": "...", "password": "..."} here. Returns a session token
+      to send as `Authorization: Bearer`. POST /logout ends it.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/login
 
   OnboardingEndpoint:
     Description: >
