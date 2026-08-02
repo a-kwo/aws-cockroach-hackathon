@@ -255,6 +255,33 @@ def _analyst_run_receipt(raw_runs: list[dict[str, Any]]) -> dict[str, Any] | Non
     }
 
 
+#: Mirrors brasstacks.finds.SUMMARY_MAX_CHARS and build_web.card_summary. The
+#: card has the same amount of room whichever path filled it.
+SUMMARY_MAX_CHARS = 180
+
+
+def card_summary(raw_find: dict) -> str:
+    """One sentence for the card face, from the model or from the rationale.
+
+    A find written before the Analyst produced summaries still has to render, so
+    the rationale's first sentence is the fallback — done once here rather than
+    in the page.
+    """
+    text = " ".join((raw_find.get("summary") or "").split())
+    if not text:
+        rationale = " ".join((raw_find.get("rationale") or "").split())
+        first, _, _ = rationale.partition(". ")
+        text = first.strip()
+        if text and not text.endswith("."):
+            text += "."
+    if len(text) <= SUMMARY_MAX_CHARS:
+        return text
+    cut = text[:SUMMARY_MAX_CHARS - 1]
+    if " " in cut:
+        cut = cut[:cut.rindex(" ")]
+    return cut.rstrip(",;:") + "…"
+
+
 def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
     """Shape one business's current rows for the operator UI.
 
@@ -298,6 +325,11 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             "tinyTitle": short_title(raw_find.get("title") or "", 20),
             "move": " ".join((raw_find.get("move") or "").split()),
             "bullets": bullets(raw_find.get("move")),
+            # The card face. Absent on rows written before the field existed,
+            # and the live read did not select it at all until 2026-08-02 —
+            # which is why the board fell back to the full rationale and the
+            # deck overflowed again.
+            "summary": card_summary(raw_find),
             "rationale": " ".join((raw_find.get("rationale") or "").split()),
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),
@@ -490,7 +522,8 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         """, ids)
 
         finds = _rows(cursor, f"""
-            SELECT business_id, id, run_id, emoji, title, rationale, move,
+            SELECT business_id, id, run_id, emoji, title, summary,
+                   rationale, move,
                    predicted_daily_cents, confidence, verify_after, status,
                    decided_at, created_at
             FROM find

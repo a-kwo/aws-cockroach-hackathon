@@ -35,6 +35,16 @@
     }
 
     * { box-sizing: border-box; }
+    /* An inline <svg> carrying a viewBox and no width/height has no intrinsic
+       size, so it falls back to the replaced-element default of 300x150. Every
+       icon here is sized by its container's own rule — but a tab switch
+       rebuilds the panel with innerHTML, and for the frame between insertion
+       and that rule matching, the icon paints at 300x150. That is the giant
+       zig-zag arrow (the `demand` icon) flashing across the view on every
+       switch. A viewBox gives the element an intrinsic aspect ratio, so capping
+       width alone constrains both axes. Lowest possible specificity, so every
+       `.thing svg { width: … }` rule still wins. */
+    svg { max-width: 100%; }
 
     html, body { min-height: 100%; }
 
@@ -447,6 +457,16 @@
       font-size: clamp(15px, 1.5vw, 18px);
       line-height: 1.55;
       font-weight: 520;
+      /* The card is a fixed shape and agent prose is not. Everything above the
+         footer is bounded here so a long summary, or a find written before
+         summaries existed and falling back to its rationale, can never push
+         the price and the Do it / Pass buttons off the bottom. Belt and
+         braces: the model is asked for one sentence, card_summary cuts at 180
+         characters, and this clamps whatever still arrives. */
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .recommendation {
@@ -503,6 +523,46 @@
       line-height: 1.45;
       font-weight: 620;
     }
+    /* Kept in the markup for failures only. Empty it takes no space, so the
+       happy path has nothing under the button. */
+    .empty-note:empty { display: none; }
+    .empty-note { margin: 14px 0 0; color: var(--muted, #8b96a3); font-size: 12px; line-height: 1.5; }
+
+    /* Two lines of title, never three. A four-line title and a three-line
+       summary is the whole card before the move has been shown. */
+    .post-title {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    /* The move list is already capped at three items in renderSteps(); this
+       stops one very long step doing the same damage a paragraph would. */
+    .recommendation-steps li {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .working-dots { display: inline-block; margin-left: 1px; }
+    .working-dots i {
+      display: inline-block;
+      font-style: normal;
+      opacity: .25;
+      animation: workingDot 1.4s infinite;
+    }
+    .working-dots i:nth-child(2) { animation-delay: .2s; }
+    .working-dots i:nth-child(3) { animation-delay: .4s; }
+    @keyframes workingDot {
+      0%, 60%, 100% { opacity: .25; }
+      30%           { opacity: 1; }
+    }
+    /* A viewer who asked for less motion gets a plain, static ellipsis. */
+    @media (prefers-reduced-motion: reduce) {
+      .working-dots i { animation: none; opacity: .7; }
+    }
+
     .recommendation-steps li { margin-top: 5px; }
     .recommendation-steps li:first-child { margin-top: 0; }
     .recommendation-steps .step-more {
@@ -11804,6 +11864,66 @@
       .memory-engine .metric-help::after { position: fixed; left: 18px; right: 18px; bottom: 22px; width: auto; }
       .memory-engine .metric-help::before { display: none; }
     }
+
+    /* ------------------------------------------------------------------
+       The recommendation card must fit. Last in the file on purpose.
+       ------------------------------------------------------------------
+       The deck is a fixed stage — height:min(680px, 100dvh - 126px) — and
+       `.post-body` clips what does not fit. Agent prose has no such limit, so
+       a long title and a paragraph summary got sheared through the middle of
+       their glyphs, and twice the price and the Do it / Pass buttons ended up
+       underneath the move list.
+
+       Line clamps alone did not fix it: they bounded each block to N lines,
+       but the SUM of those blocks still exceeded the stage, so the parent
+       clipped the lot. The budget itself had to come down. The title was
+       clamp(46px, 6vw, 66px) — two lines of that is 130px of a ~640px card
+       before anything else is drawn.
+
+       These selectors carry `body.autopilot-mode` so they outrank the earlier
+       autopilot rules on specificity, and sit last so order cannot betray them
+       either. Both mattered: `.post-title` (0,1,0) was already losing to
+       `body.autopilot-mode .post-copy h2` (0,2,2). */
+
+    body.autopilot-mode .post-copy h2,
+    body.autopilot-mode .post-copy h2.post-title {
+      font-size: clamp(28px, 3.2vw, 40px);
+      line-height: 1.06;
+      letter-spacing: -.035em;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    body.autopilot-mode .signal-text {
+      /* Two lines, not three. The model is asked for one sentence under 180
+         characters; this is what happens when it writes more, or when a find
+         predating the summary field falls back to its rationale. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    body.autopilot-mode .recommendation-steps li {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* The safety valve. Every number above is a guess about how much text fits
+       in a viewport I cannot see, and a short window or a long word will
+       eventually beat it. A card that scrolls a little is recoverable; one
+       that shears its own text through the middle is not — and `min-height:0`
+       is what lets a flex/grid child actually shrink rather than overflow its
+       track. */
+    body.autopilot-mode .post-copy {
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
   </style>
 
 </head>
@@ -11812,7 +11932,7 @@
     <header class="topbar">
       <div class="brand" aria-label="Brass Tacks home">
         <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M7 7h10v10H7z" />
             <path d="M4 12h3M17 12h3M12 4v3M12 17v3" />
           </svg>
@@ -11825,19 +11945,19 @@
 
       <nav class="view-switcher" aria-label="Primary views">
         <button class="view-tab active" type="button" data-view="autopilot">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path d="M5 5h14v14H5z" /><path d="M8 9h8M8 13h5M8 17h3" />
           </svg>
           <span>For You</span>
         </button>
         <button class="view-tab" type="button" data-view="growth">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path d="M5 18V11M12 18V6M19 18V9" /><path d="M4 19h16" />
           </svg>
           <span>Growth</span>
         </button>
         <button class="view-tab" type="button" data-view="admin">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <circle cx="12" cy="12" r="2.6" /><circle cx="5" cy="6" r="1.9" /><circle cx="19" cy="6" r="1.9" />
             <circle cx="5" cy="18" r="1.9" /><circle cx="19" cy="18" r="1.9" />
             <path d="M6.6 7.2l3.7 3.3M17.4 7.2l-3.7 3.3M6.6 16.8l3.7-3.3M17.4 16.8l-3.7-3.3" />
@@ -11852,10 +11972,20 @@
           <span id="topStatusText">5 left</span>
         </div>
         <button class="restart-button" type="button" id="restartDemo" aria-label="Restart demo" title="Restart demo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path d="M20 11a8 8 0 1 0-2.34 5.66" /><path d="M20 5v6h-6" />
           </svg>
           <span>Restart</span>
+        </button>
+        <!-- The only way out of a signed-in board. Without it the session
+             lives for fourteen days and the machine is stuck on one tenant,
+             which makes onboarding a second business impossible to test. -->
+        <button class="restart-button" type="button" id="signOut" aria-label="Sign out" title="Sign out">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+            <path d="M10 17l-5-5 5-5" /><path d="M5 12h10" />
+          </svg>
+          <span id="signOutLabel">Sign out</span>
         </button>
       </div>
     </header>
@@ -11913,10 +12043,10 @@
               </div>
               <div class="growth-swipe-arrows">
                 <button class="growth-swipe-arrow" type="button" data-growth-nav="-1" aria-label="Show this month" disabled>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
                 </button>
                 <button class="growth-swipe-arrow" type="button" data-growth-nav="1" aria-label="Show your progress chart">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </div>
@@ -11990,11 +12120,11 @@
             <div class="engine-header-meta">
               <div class="engine-view-toggle" id="memoryViewToggle" role="group" aria-label="Memory Engine view">
                 <button class="is-active" type="button" data-memory-view="operations" data-memory-view-mode="workflow" aria-pressed="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="7" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="7" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
                   Operations
                 </button>
                 <button type="button" data-memory-view="visual" data-memory-view-mode="visual" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="6" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="m7 10.5 3-3M14 7.5l3 3M17 13.5l-3 3M10 16.5l-3-3"/></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="6" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="m7 10.5 3-3M14 7.5l3 3M17 13.5l-3 3M10 16.5l-3-3"/></svg>
                   Live graph
                 </button>
               </div>
@@ -12003,7 +12133,7 @@
                 <i aria-hidden="true"></i><span>Build snapshot</span>
               </span>
               <button class="engine-refresh" type="button" data-memory-action="refresh" aria-label="Refresh live workflow state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 5v6h-6"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 5v6h-6"/></svg>
                 Refresh
               </button>
               <span id="adminStamp"></span>
@@ -12022,15 +12152,15 @@
               </div>
               <div class="portfolio-controls">
                 <label class="owner-search" for="memoryOwnerFilter">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/></svg>
                   <input id="memoryOwnerFilter" type="search" autocomplete="off" placeholder="Search owner accounts" aria-label="Search owner accounts" />
                 </label>
                 <button class="portfolio-button" type="button" data-memory-action="expand-all">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
                   Expand all
                 </button>
                 <button class="portfolio-button" type="button" data-memory-action="collapse-all">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 9H4V4M15 9h5V4M9 15H4v5M15 15h5v5"/></svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 9H4V4M15 9h5V4M9 15H4v5M15 15h5v5"/></svg>
                   Collapse all
                 </button>
               </div>
@@ -12047,31 +12177,31 @@
               <div class="owner-pipeline-table" role="table" aria-label="Business owner agent workflow">
                 <div class="owner-pipeline-grid owner-pipeline-header" role="row">
                   <div role="columnheader">
-                    <span class="pipeline-column-icon owner-column-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></span>
+                    <span class="pipeline-column-icon owner-column-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></span>
                     <span class="pipeline-column-copy"><strong>Business owner</strong><small>Account and current handoff</small></span>
                   </div>
                   <div role="columnheader" data-stage="radar">
-                    <span class="pipeline-column-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 18.5 8.5"/><circle cx="12" cy="12" r="2.2"/></svg></span>
+                    <span class="pipeline-column-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 18.5 8.5"/><circle cx="12" cy="12" r="2.2"/></svg></span>
                     <span class="pipeline-column-copy"><strong>Radar</strong><small>Observe and store</small></span>
-                    <span class="pipeline-column-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
+                    <span class="pipeline-column-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
                   </div>
                   <div role="columnheader" data-stage="analyst">
-                    <span class="pipeline-column-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/></svg></span>
+                    <span class="pipeline-column-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/></svg></span>
                     <span class="pipeline-column-copy"><strong>Analyst</strong><small>Retrieve and propose</small></span>
-                    <span class="pipeline-column-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
+                    <span class="pipeline-column-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
                   </div>
                   <div role="columnheader" data-stage="decision">
-                    <span class="pipeline-column-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span>
+                    <span class="pipeline-column-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span>
                     <span class="pipeline-column-copy"><strong>Decision gate</strong><small>Do it or Pass</small></span>
-                    <span class="pipeline-column-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
+                    <span class="pipeline-column-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
                   </div>
                   <div role="columnheader" data-stage="maker">
-                    <span class="pipeline-column-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3.5h9l5 5V20H5z"/><path d="M14 3.5v5h5M8.5 13h7"/></svg></span>
+                    <span class="pipeline-column-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3.5h9l5 5V20H5z"/><path d="M14 3.5v5h5M8.5 13h7"/></svg></span>
                     <span class="pipeline-column-copy"><strong>Maker</strong><small>Draft approved work</small></span>
-                    <span class="pipeline-column-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
+                    <span class="pipeline-column-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span>
                   </div>
                   <div role="columnheader" data-stage="meter">
-                    <span class="pipeline-column-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20h16M7 20v-6M12 20V5M17 20v-9"/></svg></span>
+                    <span class="pipeline-column-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20h16M7 20v-6M12 20V5M17 20v-9"/></svg></span>
                     <span class="pipeline-column-copy"><strong>Meter</strong><small>Measure and learn</small></span>
                   </div>
                   <div aria-hidden="true"></div>
@@ -12120,13 +12250,13 @@
 
           <details class="memory-system-details" id="memorySystemDetails" data-enter>
             <summary>
-              <span class="system-summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v12c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/></svg></span>
+              <span class="system-summary-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v12c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/></svg></span>
               <span class="system-summary-copy">
                 <strong>System memory and operator guidance</strong>
                 <span>Tenant isolation, persistent records, and how to read this pipeline.</span>
               </span>
               <span class="system-summary-metrics" id="memorySystemMetrics"></span>
-              <span class="system-summary-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg></span>
+              <span class="system-summary-chevron"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg></span>
             </summary>
             <div class="memory-system-body" id="memorySystemBody"></div>
           </details>
@@ -12142,7 +12272,7 @@
                 <p class="detail-role" id="detailRole"></p>
               </div>
               <button class="detail-close" id="detailClose" type="button" aria-label="Close details">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
               </button>
             </header>
             <div class="detail-body" id="detailBody"></div>
@@ -12164,7 +12294,7 @@
         <form class="drawer-composer" id="drawerForm">
           <input id="drawerInput" type="text" autocomplete="off" placeholder="Ask about this recommendation…" />
           <button class="send-button" type="submit" aria-label="Send message">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
               <path d="M4 12l15-7-5 14-3-6-7-1z" />
             </svg>
           </button>
@@ -12211,27 +12341,27 @@
   <script>
     const icons = {
       competitors: `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
           <path d="M4 8h16v11H4z" /><path d="M3 8l2-4h14l2 4M8 12h3M14 12h3" />
         </svg>`,
       reviews: `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
           <path d="M12 3.5l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.52 6.9 19.2l.97-5.68L3.75 9.5l5.7-.83L12 3.5z" />
         </svg>`,
       demand: `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
           <path d="M4 17l5-5 3 3 7-8" /><path d="M15 7h4v4" />
         </svg>`,
       action: `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <path d="M5 12h12" /><path d="M13 8l4 4-4 4" />
         </svg>`,
       approved: `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <path d="M5 12.5l4.2 4.2L19 7" />
         </svg>`,
       rejected: `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>`
     };
@@ -12450,6 +12580,29 @@
       window.location.href = "../login/";
     }
 
+    //  Sign out, and show who is signed in. The board is one tenant's, and
+    //  without a way off it a second business cannot be onboarded on this
+    //  machine until the session expires two weeks later.
+    (function wireSignOut() {
+      const button = document.getElementById("signOut");
+      if (!button) return;
+      button.addEventListener("click", () => {
+        //  Best-effort: tell the server to forget the session too, but do not
+        //  make signing out depend on the network. The token is gone locally
+        //  either way, and a session nobody holds is harmless.
+        const session = readSession();
+        const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
+        if (session && base) {
+          fetch(`${base}/logout`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.token}` },
+            keepalive: true,
+          }).catch(() => {});
+        }
+        endSession();
+      });
+    })();
+
     //  Asking the agents for a first night from the board, for an owner who
     //  signed up before the onboarding button existed or who closed the tab
     //  before pressing it. Same endpoint, same guards: it runs for the signed-in
@@ -12471,12 +12624,11 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (response.status === 202 || response.status === 200) {
-          button.textContent = "Working…";
-          if (note) {
-            note.textContent = payload.status === "running"
-              ? "A night is already running. This page will fill in as it finishes."
-              : "Started. Refresh in a minute or two — the agents are reading your market now.";
-          }
+          // No status line under it. The animated label is the status: a
+          // paragraph explaining that something started, under a button that
+          // visibly says it is working, is the same fact told twice.
+          button.innerHTML = `Working<span class="working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>`;
+          button.setAttribute("aria-label", "Working");
           return;
         }
         button.disabled = false;
@@ -13192,13 +13344,13 @@
 
           <nav class="feed-navigation" aria-label="Browse Autopilot posts" data-enter>
             <button class="nav-arrow" type="button" id="previousPost" aria-label="Previous post">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
             <div class="feed-dots" id="feedDots">
               ${pending.map((post, index) => `<button class="feed-dot ${index === currentIndex ? "active" : ""}" type="button" data-feed-index="${index}" aria-label="Show post ${index + 1}"></button>`).join("")}
             </div>
             <button class="nav-arrow" type="button" id="nextPost" aria-label="Next post">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
             </button>
           </nav>
         </div>
@@ -13321,10 +13473,10 @@
                     <span class="context-copy"><strong>${post.feature}</strong><small>${post.sourceTime}</small></span>
                   </div>
                   <button class="details-button top-details-button" type="button" data-open-post="${post.id}" aria-label="Open details for ${post.title}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
                   </button>
                 </div>
-                <h2>${post.title}</h2>
+                <h2 class="post-title">${post.title}</h2>
                 <p class="signal-text">${post.signal}</p>
                 <div class="recommendation">
                   <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
@@ -13903,7 +14055,7 @@
     const NETWORK = [
       {
         key: "radar", name: "Radar", role: "observe → embed → store", flow: "write",
-        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 8"/><circle cx="12" cy="12" r="2.6"/></svg>`,
+        glyph: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 12 19 8"/><circle cx="12" cy="12" r="2.6"/></svg>`,
         stats: m => [
           ["observations", m.corpus.observations ?? 0],
           ["kinds", (m.kinds || []).length],
@@ -13916,7 +14068,7 @@
       },
       {
         key: "analyst", name: "Analyst", role: "vector search → reason", flow: "read",
-        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4 21 21"/></svg>`,
+        glyph: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4 21 21"/></svg>`,
         stats: m => {
           const run = (m.runs || []).find(item => item.agent === "analyst");
           const totalTokens = run && run.inputTokens != null
@@ -13948,7 +14100,7 @@
       },
       {
         key: "maker", name: "Maker", role: "draft the deliverable", flow: "write",
-        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 13.5h7M8.5 17h4"/></svg>`,
+        glyph: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 13.5h7M8.5 17h4"/></svg>`,
         //: `artifactCount`, not the Later jar — the node used to read the count
         //  of saved finds and call them drafts, which they are not.
         stats: m => [["drafted", m.artifactCount ?? 0]],
@@ -13964,7 +14116,7 @@
       },
       {
         key: "meter", name: "Meter", role: "judge earlier nights", flow: "read",
-        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19h16"/><path d="M7 19v-6M12 19V6M17 19v-9"/></svg>`,
+        glyph: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19h16"/><path d="M7 19v-6M12 19V6M17 19v-9"/></svg>`,
         stats: m => [
           ["judged", m.summary.judged ?? 0],
           ["at or above", m.summary.hitRate == null ? "—" : `${m.summary.hitRate}%`],
@@ -13982,7 +14134,7 @@
       },
       {
         key: "ask", name: "Ask", role: "read-only SQL over MCP", flow: "read", detached: true,
-        glyph: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.3-1 .9-1 1.7v.5"/><path d="M12 17.5h.01"/><circle cx="12" cy="12" r="9"/></svg>`,
+        glyph: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.3-1 .9-1 1.7v.5"/><path d="M12 17.5h.01"/><circle cx="12" cy="12" r="9"/></svg>`,
         stats: m => {
           const sessions = m.ask?.sessions || [];
           const ran = sessions.reduce((n, s) => n + (s.trail || []).length, 0);
@@ -13993,25 +14145,25 @@
     ];
 
     const MEMORY_UI_ICONS = {
-      accounts: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-      attention: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>`,
-      running: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.34 5.66"/><path d="M4 17v-5h5"/></svg>`,
-      memory: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>`,
-      filter: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7L4 5Z"/><path d="M8 8h8"/></svg>`,
-      tokens: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="4"/><circle cx="16" cy="16" r="4"/><path d="m11 11 2 2M6.5 8h3M14.5 16h3"/></svg>`,
-      zero: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Z"/><path d="m7.5 16.5 9-9"/></svg>`,
-      radar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 18.5 8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5v2M20.5 12h-2M12 20.5v-2M3.5 12h2"/></svg>`,
-      analyst: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/><path d="M7.5 10.5h6M10.5 7.5v6"/></svg>`,
-      owner: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/><path d="m16.5 13.5 1.6 1.6 3.4-3.4"/></svg>`,
-      maker: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3.5h9l5 5V20H5z"/><path d="M14 3.5v5h5M8.5 13h7M8.5 16.5h5"/></svg>`,
-      meter: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20h16M7 20v-6M12 20V5M17 20v-9"/><path d="m6 9 5-4 4 3 4-5"/></svg>`,
-      ask: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.3-1 .9-1 1.7v.5"/><path d="M12 17.5h.01"/><circle cx="12" cy="12" r="9"/></svg>`,
-      activity: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M22 18V3"/><path d="M2 21h20"/></svg>`,
-      chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg>`,
-      expand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>`,
-      collapse: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 9H4V4M15 9h5V4M9 15H4v5M15 15h5v5"/></svg>`,
-      arrow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg>`,
-      code: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/></svg>`,
+      accounts: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      attention: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4M12 17h.01"/></svg>`,
+      running: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 12a8 8 0 1 1 2.34 5.66"/><path d="M4 17v-5h5"/></svg>`,
+      memory: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>`,
+      filter: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7L4 5Z"/><path d="M8 8h8"/></svg>`,
+      tokens: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="4"/><circle cx="16" cy="16" r="4"/><path d="m11 11 2 2M6.5 8h3M14.5 16h3"/></svg>`,
+      zero: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Z"/><path d="m7.5 16.5 9-9"/></svg>`,
+      radar: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 18.5 8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5v2M20.5 12h-2M12 20.5v-2M3.5 12h2"/></svg>`,
+      analyst: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 5.1 5.1"/><path d="M7.5 10.5h6M10.5 7.5v6"/></svg>`,
+      owner: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/><path d="m16.5 13.5 1.6 1.6 3.4-3.4"/></svg>`,
+      maker: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3.5h9l5 5V20H5z"/><path d="M14 3.5v5h5M8.5 13h7M8.5 16.5h5"/></svg>`,
+      meter: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20h16M7 20v-6M12 20V5M17 20v-9"/><path d="m6 9 5-4 4 3 4-5"/></svg>`,
+      ask: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.3-1 .9-1 1.7v.5"/><path d="M12 17.5h.01"/><circle cx="12" cy="12" r="9"/></svg>`,
+      activity: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M22 18V3"/><path d="M2 21h20"/></svg>`,
+      chevron: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg>`,
+      expand: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>`,
+      collapse: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 9H4V4M15 9h5V4M9 15H4v5M15 15h5v5"/></svg>`,
+      arrow: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg>`,
+      code: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/></svg>`,
     };
 
     const MEMORY_STAGE_ATTRIBUTES = {
@@ -15899,7 +16051,7 @@ ledger_entry · artifact · agent_run`,
 
       host.innerHTML = `
         <div class="node-dial" aria-hidden="true">
-          <svg viewBox="0 0 62 62">
+          <svg width="62" height="62" viewBox="0 0 62 62">
             <circle class="ring" cx="31" cy="31" r="27"/>
             <circle class="ring" cx="31" cy="31" r="21" opacity=".6"/>
             <circle class="arc" cx="31" cy="31" r="27" stroke-dasharray="42 128"/>

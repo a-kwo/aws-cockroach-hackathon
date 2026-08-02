@@ -1461,3 +1461,83 @@ def test_the_board_can_start_a_night_for_the_signed_in_business():
     start = html.split("async function startFirstNight", 1)[1][:900]
     assert "authHeaders(" in start
     assert "business_id" not in start
+
+
+# ---------------------------------------------------------------------------
+# The card is a fixed shape; agent prose is not
+# ---------------------------------------------------------------------------
+
+def test_the_card_bounds_every_axis_that_can_overflow():
+    """A find overflowed the card twice, and the second time the price and the
+    Do it / Pass buttons ended up underneath the move list.
+
+    CLAUDE.md records the first occurrence as the reason main was reverted
+    rather than the card retuned. The model is asked for one short sentence and
+    card_summary cuts at 180 characters, but neither is enforcement — a find
+    written before summaries existed falls back to its rationale, which runs to
+    a paragraph. This is the enforcement.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    for selector in (".signal-text", ".post-title", ".recommendation-steps li"):
+        block = html.split(selector + " {", 1)
+        assert len(block) == 2, f"{selector} rule is missing"
+        rule = block[1].split("}", 1)[0]
+        assert "-webkit-line-clamp" in rule, selector
+        assert "overflow: hidden" in rule, selector
+
+
+def test_the_live_read_carries_the_summary():
+    """The card falls back to the full rationale without it, which is exactly
+    how the deck overflowed after the board started reading live data."""
+    source = (build_web.REPO / "backend" / "src" / "brasstacks"
+              / "workflow_snapshot.py").read_text(encoding="utf-8")
+
+    assert "emoji, title, summary," in source, "the SQL must select it"
+    assert '"summary": card_summary(raw_find)' in source, "and the mapping must expose it"
+
+
+def test_every_path_to_the_card_uses_the_same_summary_limit():
+    """Three files compute this. They have to agree, or the same find renders
+    at different lengths depending on whether the board is reading the
+    committed snapshot or the live cluster."""
+    from brasstacks import finds as finds_module
+    from brasstacks import workflow_snapshot
+
+    assert (build_web.SUMMARY_MAX_CHARS
+            == finds_module.SUMMARY_MAX_CHARS
+            == workflow_snapshot.SUMMARY_MAX_CHARS)
+
+
+def test_inline_icons_cannot_paint_at_their_unsized_default():
+    """A tab switch rebuilds the panel with innerHTML. An <svg> with a viewBox
+    and no width/height has no intrinsic size and falls back to the
+    replaced-element default of 300x150 for the frame before its container's
+    sizing rule matches — a giant zig-zag arrow (the `demand` icon: a zig-zag
+    path plus an arrow head) flashing across the view on every switch.
+
+    `svg { max-width: 100% }` was not enough on its own: the container is wide
+    mid-transition, so 100% of it is still enormous. An intrinsic size is what
+    actually bounds it, and a presentation attribute is the weakest possible
+    source, so every `.thing svg { width: 17px }` rule still wins.
+    """
+    import re
+
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "svg { max-width: 100%; }" in html
+    unsized = re.findall(r"<svg (?!width=)[^>]*viewBox=", html)
+    assert not unsized, f"{len(unsized)} inline svg(s) have no intrinsic size"
+
+
+def test_the_board_offers_a_way_to_sign_out():
+    """Without one the session lives fourteen days and the machine is stuck on
+    one tenant — which makes onboarding a second business impossible to test,
+    and leaves a shared computer signed in to somebody's revenue figures."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'id="signOut"' in html
+    assert "endSession()" in html
+    # Best effort at the server too, but signing out must not depend on it.
+    assert "/logout" in html
+    assert "keepalive: true" in html
