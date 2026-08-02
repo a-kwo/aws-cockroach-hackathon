@@ -11935,6 +11935,24 @@
       line-height: 1.5;
     }
 
+    /* Belt and braces on the clipping, because line-height is a guess about a
+       typeface's descender depth and this is the fourth attempt at it.
+
+       A -webkit-box with overflow:hidden clips at the PADDING box, not the
+       content box, so padding-bottom buys the last line room for its tails
+       without revealing any part of the next one — the line count still caps
+       the height. Whatever the fitted line-height turns out to be, y, g and p
+       now have somewhere to go. */
+    body.autopilot-mode .post-copy h2,
+    body.autopilot-mode .post-copy h2.post-title,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title,
+    body.autopilot-mode .signal-text,
+    body.autopilot-mode .feed-card[data-fit] .signal-text,
+    body.autopilot-mode .recommendation-steps li {
+      padding-bottom: .14em;
+    }
+
     /* The safety valve. Every number above is a guess about how much text fits
        in a viewport I cannot see, and a short window or a long word will
        eventually beat it. A card that scrolls a little is recoverable; one
@@ -12615,7 +12633,18 @@
     // Built exports use CockroachDB findings as the single source of truth.
     // The five demo records remain only so the unbuilt HTML template is usable.
     const memoryPosts = postsFromMemory();
-    let posts = onboardingMode ? [] : (memoryPosts.length ? memoryPosts : demoPosts);
+    //  Invented cards are shown ONLY when someone explicitly asks for samples
+    //  with ?demo=1. They used to be the fallback for an empty deck, which was
+    //  survivable while the page always had a seeded tenant behind it — and
+    //  became a lie the moment the snapshot could legitimately be empty. A real
+    //  owner who signed up ten minutes ago was shown Oak & Pine's $6.50 combo
+    //  as though the agents had found it for them.
+    //
+    //  CLAUDE.md: nothing appears on the deck that is not a row in CockroachDB.
+    //  An empty deck is empty; the empty state explains why.
+    let posts = onboardingMode
+      ? []
+      : (memoryPosts.length ? memoryPosts : (sampleWorkspaceMode ? demoPosts : []));
 
     const STORAGE_KEY = "brass-tacks-decision-lens-v1";
     //  The signed-in owner, if there is one. The board still renders without a

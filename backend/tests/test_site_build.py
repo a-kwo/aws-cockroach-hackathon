@@ -327,7 +327,11 @@ def test_onboarding_endpoint_reaches_the_built_view_model(monkeypatch, data):
 
 def test_new_owner_workspace_is_honest_until_radar_runs():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    assert "let posts = onboardingMode ? []" in html
+    # Formatting-independent: an onboarding workspace shows no posts. The
+    # assertion used to pin the whole line on one row, which broke when the
+    # invented-card fallback was removed and the expression wrapped.
+    assert "let posts = onboardingMode" in html
+    assert "? []" in html
     assert "renderOnboardingWorkspace" in html
     assert "first market sweep" in html
     assert "Your workspace is ready" in html
@@ -1755,3 +1759,38 @@ def test_an_anonymous_visitor_still_sees_the_snapshot():
     block = html.split("const btData = (() => {", 1)[1].split("})();", 1)[0]
 
     assert "if (!signedInAs || !snapshotOf || signedInAs === snapshotOf) return snapshot;" in block
+
+
+def test_clamped_text_has_descender_room_independent_of_line_height():
+    """line-height is a guess about a typeface's descender depth, and it took
+    four attempts to get right — the fit-level rules kept overriding it.
+
+    A -webkit-box with overflow:hidden clips at the padding box, not the content
+    box, so padding-bottom gives the last line room for its tails without
+    revealing any part of the next one: the line count still caps the height.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("Belt and braces on the clipping", 1)[1].split("}", 1)[0]
+
+    assert "padding-bottom" in block
+    for selector in ("post-copy h2", "signal-text", "recommendation-steps li"):
+        assert selector in block, selector
+
+
+def test_invented_cards_are_never_a_fallback_for_an_empty_deck():
+    """The deck fell back to hardcoded demoPosts — "Oak & Pine launched a $6.50
+    drink-and-snack combo" — whenever it had no real finds to show.
+
+    That was survivable while the page always had a seeded tenant behind it. It
+    became a lie once the snapshot could legitimately be empty: an owner who
+    signed up ten minutes ago was shown a competitor's invented promotion as
+    though the agents had found it for them.
+
+    CLAUDE.md is unambiguous — nothing appears on the deck that is not a row in
+    CockroachDB. Samples require ?demo=1, which is a deliberate request for them.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "(sampleWorkspaceMode ? demoPosts : [])" in html
+    # The unguarded fallback must not come back.
+    assert "memoryPosts.length ? memoryPosts : demoPosts" not in html
