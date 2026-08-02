@@ -12612,6 +12612,8 @@
     //  This runs before viewTabs is captured further down, so a removed tab
     //  never enters the array and its click handler is never bound.
     const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);
+    //  Read by code that asks "which view am I on" before any switch happens.
+    const INITIAL_VIEW = OPERATOR_SESSION ? "admin" : "autopilot";
 
     (function gateViewsToTheAudience() {
       const hidden = OPERATOR_SESSION
@@ -12632,6 +12634,27 @@
         //  It also carries no `.active` class, so it is display:none anyway.
         document.querySelectorAll(`[data-view="${name}"]`).forEach(tab => tab.remove());
       });
+
+      if (!OPERATOR_SESSION) return;
+
+      //  The starting view is decided by the markup — #view-autopilot ships
+      //  with `.active` — and switchView's guard only fires once something
+      //  calls it. Without this an operator landed on a recommendation card,
+      //  for a business they do not own, and had to click Memory Engine.
+      //
+      //  Set here rather than by calling switchView(), which is not defined
+      //  yet at this point in the file, and which does entrance animations and
+      //  card-fitting an operator has no use for.
+      document.querySelectorAll(".view").forEach(view => {
+        view.classList.toggle("active", view.id === "view-admin");
+      });
+      document.querySelectorAll(".view-tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.view === "admin");
+      });
+      //  The topbar is a sibling of the views, so the console's dark treatment
+      //  is driven from body. Same three classes switchView manages.
+      document.body.classList.add("console-mode");
+      document.body.classList.remove("autopilot-mode", "growth-mode");
     })();
 
     //  Sign out, and show who is signed in. The board is one tenant's, and
@@ -12727,7 +12750,7 @@
     }
     let state = decisionApiConfigured ? loadState() : { decisions: {} };
     let currentIndex = 0;
-    let activeView = "autopilot";
+    let activeView = INITIAL_VIEW;
     let dragStartX = null;
     let dragStartY = null;
     let dragDeltaX = 0;

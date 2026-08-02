@@ -1615,3 +1615,20 @@ def test_gating_removes_the_tab_but_never_the_view():
     # And the elements the rest of the file depends on are still declared.
     for element_id in ("view-autopilot", "view-growth", "view-admin"):
         assert f'id="{element_id}"' in html, element_id
+
+
+def test_an_operator_lands_on_the_console():
+    """The starting view is decided by the markup — #view-autopilot ships with
+    `.active` — and switchView's guard only fires once something calls it.
+    Without setting it here an operator landed on a recommendation card for a
+    business they do not own, and had to click Memory Engine themselves."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    gate = html.split("function gateViewsToTheAudience", 1)[1][:2200]
+
+    assert 'view.id === "view-admin"' in gate
+    assert 'tab.dataset.view === "admin"' in gate
+    assert 'document.body.classList.add("console-mode")' in gate
+    # And the module's own record of where it is agrees from the start.
+    assert 'const INITIAL_VIEW = OPERATOR_SESSION ? "admin" : "autopilot";' in html
+    assert "let activeView = INITIAL_VIEW;" in html
+    assert 'let activeView = "autopilot";' not in html
