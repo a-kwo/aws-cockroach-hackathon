@@ -2078,7 +2078,9 @@ def test_maker_starts_on_approval_and_has_a_zero_token_reconciliation_sweep():
     assert 'Command: ["brasstacks.handlers.maker.handler"]' in maker
     assert "rate(5 minutes)" in template
     assert "MakerSweepState" in maker
-    assert "ReservedConcurrentExecutions: 1" in maker
+    # Reserved concurrency is intentionally omitted because some AWS accounts
+    # cannot allocate it while preserving the required unreserved concurrency.
+    assert "ReservedConcurrentExecutions" not in maker
     assert "BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction" in decision
     assert "BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction" in ask
     assert "lambda:InvokeFunction" in decision
