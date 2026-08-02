@@ -550,3 +550,36 @@ def test_analyst_run_records_a_query_by_query_retrieval_receipt(repo, business):
     assert trace["find_id"] == result.find_id
     assert trace["queries"] == list(ANALYST_QUERIES)
     assert trace["per_query_limit"] == 6
+
+
+class TestFindsSchemaIsAcceptedByTheProvider:
+    """Schema keywords the API rejects, pinned.
+
+    The Anthropic structured-output endpoint refuses `maxItems` on an array and
+    fails the whole request with a 400 — which costs a night, since the Analyst
+    only discovers it after retrieval has already run. The cap is enforced in
+    code instead, where it cannot break a request.
+    """
+
+    UNSUPPORTED = ("maxItems", "minItems", "maxLength", "minLength",
+                   "pattern", "format")
+
+    def _walk(self, node, path="finds_schema"):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in self.UNSUPPORTED:
+                    yield f"{path}.{key}"
+                yield from self._walk(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                yield from self._walk(value, f"{path}[{i}]")
+
+    def test_the_schema_uses_no_keyword_the_api_rejects(self):
+        from brasstacks.agents.analyst import FINDS_SCHEMA
+
+        assert list(self._walk(FINDS_SCHEMA)) == []
+
+    def test_the_cap_is_enforced_in_code_instead(self):
+        from brasstacks.agents.analyst import MAX_FINDS_PER_NIGHT
+
+        assert MAX_FINDS_PER_NIGHT == 3

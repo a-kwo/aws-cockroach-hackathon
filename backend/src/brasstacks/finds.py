@@ -45,6 +45,10 @@ class ParsedFind:
 
     emoji: str
     title: str
+    #: One sentence, for the card face. The rationale is the full argument and
+    #: runs to a paragraph; a paragraph on a card is what made the first real
+    #: deck unreadable.
+    summary: str
     rationale: str
     move: str
     predicted_daily_cents: int
@@ -74,6 +78,40 @@ def _require_text(payload: Mapping[str, Any], field: str) -> str:
             f"{field} must be a non-empty string, got {value!r}"
         )
     return repair_escapes(value.strip())
+
+
+#: The card face. Long enough for a real sentence, short enough that three of
+#: them fit on a deck without the owner scrolling a card to learn what it says.
+SUMMARY_MAX_CHARS = 180
+
+
+def _summary(payload: Mapping[str, Any], rationale: str) -> str:
+    """One sentence for the card, from the model or from the rationale.
+
+    Optional rather than required: a row written before this field existed, or
+    a model that skips it, must still render a card rather than fail the night.
+    Falling back to the rationale's first sentence is what the page would have
+    had to do anyway, done once here instead of in every renderer.
+    """
+    value = payload.get("summary")
+    text = value.strip() if isinstance(value, str) and value.strip() else ""
+    if not text:
+        # First sentence of the argument. Not perfect, but it is the model's
+        # own opening line and reads as a summary far more often than not.
+        first, _, _ = rationale.partition(". ")
+        text = first.strip()
+        if text and not text.endswith("."):
+            text += "."
+
+    text = " ".join(repair_escapes(text).split())
+    if len(text) <= SUMMARY_MAX_CHARS:
+        return text
+
+    # Cut at a word boundary; a summary ending mid-word reads as a bug.
+    cut = text[:SUMMARY_MAX_CHARS - 1]
+    if " " in cut:
+        cut = cut[:cut.rindex(" ")]
+    return cut.rstrip(",;:") + "…"
 
 
 def _require_cents(payload: Mapping[str, Any]) -> int:
@@ -183,10 +221,13 @@ def parse_find(
     if not isinstance(emoji, str) or not emoji.strip():
         emoji = DEFAULT_EMOJI
 
+    rationale = _require_text(payload, "rationale")
+
     return ParsedFind(
         emoji=emoji.strip(),
         title=_require_text(payload, "title"),
-        rationale=_require_text(payload, "rationale"),
+        summary=_summary(payload, rationale),
+        rationale=rationale,
         move=_require_text(payload, "move"),
         predicted_daily_cents=_require_cents(payload),
         confidence=_require_confidence(payload),

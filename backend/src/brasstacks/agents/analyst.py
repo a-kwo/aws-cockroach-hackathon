@@ -51,20 +51,51 @@ DEFAULT_PER_QUERY_LIMIT = 6
 #: proposals stopped being visible; the repeats then came from the other side.
 RECENT_FINDS_SHOWN = 20
 
+#: How many moves a night may propose. Three because the deck shows a small
+#: number well and because the Analyst's later suggestions get noticeably
+#: thinner — asking for ten would buy seven restatements of the first.
+MAX_FINDS_PER_NIGHT = 3
+
+_FIND_PROPERTIES = {
+    "emoji": {"type": "string"},
+    "title": {"type": "string"},
+    "summary": {"type": "string"},
+    "rationale": {"type": "string"},
+    "move": {"type": "string"},
+    "predicted_daily_cents": {"type": "integer"},
+    "confidence": {"type": "number"},
+    "verify_after_days": {"type": "integer"},
+    "evidence_observation_ids": {"type": "array", "items": {"type": "string"}},
+}
+
 FIND_SCHEMA = {
     "type": "object",
+    "properties": dict(_FIND_PROPERTIES),
+    "required": ["title", "summary", "rationale", "move",
+                 "predicted_daily_cents", "confidence", "verify_after_days",
+                 "evidence_observation_ids"],
+    "additionalProperties": False,
+}
+
+#: A night proposes several moves, so the model returns a list. Kept as an
+#: object with one key rather than a bare array: some providers will not accept
+#: an array at the top level of a response schema.
+#:
+#: No `minItems`/`maxItems`. The Anthropic structured-output endpoint rejects
+#: them outright — "For 'array' type, property 'maxItems' is not supported" —
+#: and the 400 costs a whole night, because the Analyst only hits it after
+#: retrieval has already run and been paid for. The count is bounded by the
+#: prompt and enforced by slicing in code, where it cannot break a request.
+#: Pinned by test_agents.TestFindsSchemaIsAcceptedByTheProvider.
+FINDS_SCHEMA = {
+    "type": "object",
     "properties": {
-        "emoji": {"type": "string"},
-        "title": {"type": "string"},
-        "rationale": {"type": "string"},
-        "move": {"type": "string"},
-        "predicted_daily_cents": {"type": "integer"},
-        "confidence": {"type": "number"},
-        "verify_after_days": {"type": "integer"},
-        "evidence_observation_ids": {"type": "array", "items": {"type": "string"}},
+        "finds": {
+            "type": "array",
+            "items": FIND_SCHEMA,
+        },
     },
-    "required": ["title", "rationale", "move", "predicted_daily_cents",
-                 "confidence", "verify_after_days", "evidence_observation_ids"],
+    "required": ["finds"],
     "additionalProperties": False,
 }
 
@@ -72,7 +103,27 @@ SYSTEM_PROMPT = """You are the Analyst for Brass Tacks, which finds revenue \
 opportunities for small businesses and is then held to account for them.
 
 You will be given what is known about one business and a set of observations \
-retrieved from its memory. Propose exactly one move.
+retrieved from its memory. Propose THREE distinct moves, best first.
+
+Three is the expectation, not a ceiling to aim under. The owner sees a deck and \
+one card is a thin morning. Look across different parts of the business — what \
+they sell and at what price, how they are found, what the listings say, what the \
+room and the hours allow, what nearby rivals leave uncontested — and you will \
+almost always find three.
+
+Each move must stand on its own. Three angles on the same idea is one move, not \
+three. Return fewer only when the memory genuinely supports fewer, and never pad \
+to reach three.
+
+Writing, which matters as much as the reasoning here. The owner reads these on \
+a card, between other jobs:
+- `title`: under 60 characters. What to do, not why.
+- `summary`: ONE sentence, under 180 characters, in plain language. This is the \
+only prose most owners will read. Lead with the opportunity, not the evidence.
+- `rationale`: your full argument, for the owner who taps through for it. \
+Reference observation ids here, never in the title or summary.
+- `move`: the steps to take. Write them as separate short sentences, one action \
+each, so they can be shown as a checklist. No numbered lists inside a paragraph.
 
 Hard requirements:
 - Money is INTEGER CENTS PER DAY. $23/day is 2300. Never dollars, never a month.
@@ -94,12 +145,17 @@ thing to propose again."""
 @dataclass(frozen=True)
 class AnalystResult:
     run_id: str
+    #: The first find of the night. Kept alongside `find_ids` because a night
+    #: that proposes three moves still has one headline, and every caller that
+    #: predates multiple finds asks for exactly this.
     find_id: str | None
     retrieved: int
     queries: tuple[str, ...]
     raw_retrieved: int = 0
     query_hits: tuple[int, ...] = ()
     error: str | None = None
+    #: Every find stored tonight, in the order the Analyst ranked them.
+    find_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -316,9 +372,18 @@ def run_analyst(
 
     try:
         payload = reasoner.complete_json(system=SYSTEM_PROMPT, user=prompt,
-                                         schema=FIND_SCHEMA)
-        find = parse_find(payload, today=today,
-                          known_observation_ids=similarity_by_id.keys())
+                                         schema=FINDS_SCHEMA)
+        # A provider that ignores the wrapper and returns a bare find is still
+        # a usable night — treat it as a list of one rather than failing.
+        proposals = payload.get("finds") if isinstance(payload, dict) else None
+        if not isinstance(proposals, list) or not proposals:
+            proposals = [payload]
+        finds = [
+            parse_find(item, today=today,
+                       known_observation_ids=similarity_by_id.keys())
+            for item in proposals[:MAX_FINDS_PER_NIGHT]
+        ]
+        find = finds[0]
     except (ProviderError, InvalidFindError) as e:
         error = f"{type(e).__name__}: {e}"
         repo.finish_run(
@@ -345,34 +410,41 @@ def run_analyst(
             error=error,
         )
 
-    find_id = repo.insert_find_with_evidence(
-        business_id,
-        emoji=find.emoji,
-        title=find.title,
-        rationale=find.rationale,
-        move=find.move,
-        predicted_daily_cents=find.predicted_daily_cents,
-        confidence=find.confidence,
-        verify_after=find.verify_after,
-        # A fresh find is a proposal, not a decision. The owner holds the leash,
-        # and only an accepted find is ever judged.
-        status="proposed",
-        run_id=run_id,
-        evidence=[
-            EvidenceRef(observation_id, similarity_by_id[observation_id])
-            for observation_id in find.evidence_observation_ids
-        ],
-    )
+    find_ids = [
+        repo.insert_find_with_evidence(
+            business_id,
+            emoji=proposal.emoji,
+            title=proposal.title,
+            summary=proposal.summary,
+            rationale=proposal.rationale,
+            move=proposal.move,
+            predicted_daily_cents=proposal.predicted_daily_cents,
+            confidence=proposal.confidence,
+            verify_after=proposal.verify_after,
+            # A fresh find is a proposal, not a decision. The owner holds the
+            # leash, and only an accepted find is ever judged.
+            status="proposed",
+            run_id=run_id,
+            evidence=[
+                EvidenceRef(observation_id, similarity_by_id[observation_id])
+                for observation_id in proposal.evidence_observation_ids
+            ],
+        )
+        for proposal in finds
+    ]
+    find_id = find_ids[0]
 
     repo.finish_run(
         run_id,
         status="ok",
         note=_run_note(
-            f"{len(retrieved)} retrieved; proposed {find.title!r} at "
-            f"+{find.predicted_daily_cents}c/day, verify after "
-            f"{find.verify_after.isoformat()}",
+            f"{len(retrieved)} retrieved; proposed {len(finds)} move(s), "
+            f"led by {find.title!r} at +{find.predicted_daily_cents}c/day, "
+            f"verify after {find.verify_after.isoformat()}",
             receipt=retrieval,
-            cited_hits=len(find.evidence_observation_ids),
+            # Across every find of the night: the receipt is about what the
+            # retrieval earned, and a second find citing more of it counts.
+            cited_hits=sum(len(p.evidence_observation_ids) for p in finds),
             find_id=find_id,
             queries=queries,
             per_query_limit=per_query_limit,
@@ -386,4 +458,5 @@ def run_analyst(
         queries=tuple(queries),
         raw_retrieved=retrieval.raw_hits,
         query_hits=retrieval.query_hits,
+        find_ids=tuple(find_ids),
     )

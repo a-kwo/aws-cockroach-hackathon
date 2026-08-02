@@ -12,7 +12,7 @@ from datetime import date
 
 import pytest
 
-from brasstacks.finds import InvalidFindError, parse_find
+from brasstacks.finds import SUMMARY_MAX_CHARS, InvalidFindError, parse_find
 
 TODAY = date(2026, 7, 28)
 KNOWN_IDS = ("obs-1", "obs-2", "obs-3")
@@ -231,3 +231,56 @@ class TestRequiredText:
         del p["emoji"]
         find = parse_find(p, today=TODAY, known_observation_ids=KNOWN_IDS)
         assert find.emoji == "💡"
+
+
+# ---------------------------------------------------------------------------
+# The card face: a short summary, so the rationale can stay long
+# ---------------------------------------------------------------------------
+
+class TestSummary:
+    """The deck shows one sentence; the argument lives behind the affordance.
+
+    Real agent prose runs to a paragraph. Putting a paragraph on a card built
+    for the mock's short strings is what made the first real deck unreadable,
+    and CLAUDE.md records that it was the reason main got reverted rather than
+    the card retuned. The fix belongs at both ends: the model writes a short
+    summary, and the card shows that instead of the rationale.
+    """
+
+    def _payload(self, **over):
+        base = {
+            "title": "Sell the party platters as a catering offer",
+            "summary": "The $155 platters are the highest-ticket item and the "
+                       "website never shows them.",
+            "rationale": "A long paragraph of argument. " * 12,
+            "move": "Put them on the front page.",
+            "predicted_daily_cents": 1200,
+            "confidence": 0.45,
+            "verify_after_days": 30,
+            "evidence_observation_ids": ["obs-1"],
+        }
+        base.update(over)
+        return base
+
+    def test_a_summary_survives_parsing(self):
+        find = parse_find(self._payload(), today=TODAY,
+                          known_observation_ids=["obs-1"])
+
+        assert find.summary.startswith("The $155 platters")
+
+    def test_a_missing_summary_falls_back_to_the_first_sentence(self):
+        # Optional rather than required: an older row, or a model that skips
+        # the field, must still render a card rather than crash the night.
+        payload = self._payload()
+        del payload["summary"]
+
+        find = parse_find(payload, today=TODAY, known_observation_ids=["obs-1"])
+
+        assert find.summary == "A long paragraph of argument."
+
+    def test_an_overlong_summary_is_cut_at_a_word(self):
+        find = parse_find(self._payload(summary="word " * 80), today=TODAY,
+                          known_observation_ids=["obs-1"])
+
+        assert len(find.summary) <= SUMMARY_MAX_CHARS
+        assert not find.summary.endswith("wor…"), "cut mid-word"

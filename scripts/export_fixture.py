@@ -58,7 +58,7 @@ def main() -> int:
             """, (settings.business_id,))
 
             finds = rows(cur, """
-                SELECT f.id, f.run_id, f.emoji, f.title, f.rationale, f.move,
+                SELECT f.id, f.run_id, f.emoji, f.title, f.summary, f.rationale, f.move,
                        f.predicted_daily_cents, f.confidence, f.verify_after,
                        f.status, f.decided_at, f.created_at,
                        le.verdict, le.actual_daily_cents, le.method, le.note,

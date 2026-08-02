@@ -492,6 +492,27 @@
       line-height: 1.4;
       font-weight: 690;
     }
+    /* One line per action. A real agent writes the move as a paragraph of
+       numbered steps, and rendering that as prose is what overflowed the
+       card. */
+    .recommendation-steps {
+      margin: 0;
+      padding: 0 0 0 18px;
+      color: var(--ink-soft);
+      font-size: clamp(13px, 1.25vw, 15px);
+      line-height: 1.45;
+      font-weight: 620;
+    }
+    .recommendation-steps li { margin-top: 5px; }
+    .recommendation-steps li:first-child { margin-top: 0; }
+    .recommendation-steps .step-more {
+      list-style: none;
+      margin-left: -18px;
+      margin-top: 8px;
+      color: var(--muted, #8b96a3);
+      font-size: 12px;
+      font-weight: 600;
+    }
 
     .post-footer {
       min-height: 92px;
@@ -12367,8 +12388,12 @@
         feature: style.feature,
         featureKey,
         title: find.title,
-        signal: find.rationale,
+        // The card face. The rationale is the agent's full argument and
+        // runs to a paragraph; it lives behind the details button.
+        signal: find.summary || find.rationale,
         recommendation: find.move,
+        // One line per concrete action, already split by build_web.
+        steps: Array.isArray(find.bullets) ? find.bullets : [],
         amount: Math.max(0, Math.round((Number(find.predictedDaily) || 0) * 30 / 100)),
         sourceTime: relativeTime(find.createdAt),
         highlightLabel: "Evidence used",
@@ -12465,6 +12490,25 @@
 
     function formatMoney(value) {
       return `+$${value.toLocaleString("en-US")}`;
+    }
+
+    //  A real agent writes the move as a paragraph of numbered steps. Rendered
+    //  literally that fills the card and overflows it — which is what happened
+    //  the first time real prose reached this deck. build_web.bullets() has
+    //  already split it into one line per action; the card shows the first few
+    //  and says how many it is not showing, rather than truncating silently.
+    const STEPS_ON_CARD = 3;
+
+    function renderSteps(post) {
+      const steps = (post.steps || []).filter(Boolean);
+      if (!steps.length) return `<strong>${escapeHtml(post.recommendation || "")}</strong>`;
+      const shown = steps.slice(0, STEPS_ON_CARD);
+      const rest = steps.length - shown.length;
+      const items = shown.map(step => `<li>${escapeHtml(step)}</li>`).join("");
+      const more = rest > 0
+        ? `<li class="step-more">+${rest} more step${rest === 1 ? "" : "s"} in the details</li>`
+        : "";
+      return `<ul class="recommendation-steps">${items}${more}</ul>`;
     }
 
     function getDecision(postId) {
@@ -13188,7 +13232,7 @@
                   <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
                   <span class="recommendation-copy">
                     <span>Try this</span>
-                    <strong>${post.recommendation}</strong>
+                    ${renderSteps(post)}
                   </span>
                 </div>
               </div>

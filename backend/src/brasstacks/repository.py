@@ -192,6 +192,7 @@ class Repository(Protocol):
         self, business_id: str, *, title: str, rationale: str, move: str,
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
+        summary: str | None = ...,
         status: str = ..., run_id: str | None = ...,
         created_at: datetime | None = ..., decided_at: datetime | None = ...,
     ) -> str: ...
@@ -296,6 +297,8 @@ class _Find:
     status: str
     created_at: datetime
     run_id: str | None = None
+    #: One sentence for the card face; the rationale is the full argument.
+    summary: str | None = None
     evidence: list[StoredEvidence] = field(default_factory=list)
 
 
@@ -499,6 +502,7 @@ class InMemoryRepository:
         self, business_id: str, *, title: str, rationale: str, move: str,
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
+        summary: str | None = None,
         status: str = "proposed", run_id: str | None = None,
         created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
@@ -520,7 +524,7 @@ class InMemoryRepository:
         find_id = str(uuid.uuid4())
         self._finds[find_id] = _Find(
             find_id=find_id, business_id=business_id, title=title,
-            rationale=rationale, move=move, emoji=emoji,
+            summary=summary, rationale=rationale, move=move, emoji=emoji,
             predicted_daily_cents=predicted_daily_cents, confidence=confidence,
             verify_after=verify_after, status=status,
             created_at=created_at if created_at is not None else self._now(),

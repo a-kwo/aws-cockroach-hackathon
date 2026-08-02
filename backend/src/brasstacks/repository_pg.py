@@ -318,6 +318,7 @@ class PostgresRepository:
         self, business_id: str, *, title: str, rationale: str, move: str,
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
+        summary: str | None = None,
         status: str = "proposed", run_id: str | None = None,
         created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
@@ -343,15 +344,17 @@ class PostgresRepository:
                     cur.execute(
                         """
                         INSERT INTO find (
-                            business_id, run_id, emoji, title, rationale, move,
+                            business_id, run_id, emoji, title, summary,
+                            rationale, move,
                             predicted_daily_cents, confidence, verify_after,
                             status, created_at, decided_at
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                                 coalesce(%s, clock_timestamp()), %s)
                         RETURNING id
                         """,
-                        (business_id, run_id, emoji, title, rationale, move,
+                        (business_id, run_id, emoji, title, summary,
+                         rationale, move,
                          predicted_daily_cents, confidence, verify_after, status,
                          created_at, decided_at),
                     )

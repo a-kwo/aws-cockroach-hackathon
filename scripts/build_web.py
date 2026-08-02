@@ -153,6 +153,35 @@ def short_title(title: str, limit: int = 34) -> str:
     return clamp(title, limit)
 
 
+#: Mirrors brasstacks.finds.SUMMARY_MAX_CHARS. The Analyst is asked to stay
+#: under it, but a find written before the field existed is summarised here
+#: instead, and the card has the same amount of room either way.
+SUMMARY_MAX_CHARS = 180
+
+
+def card_summary(find: dict) -> str:
+    """One sentence for the card face.
+
+    The rationale is the agent's full argument and runs to a paragraph. Putting
+    that on the card is what made the first real deck unreadable — CLAUDE.md
+    records it as the reason main was reverted rather than the card retuned.
+    The argument is still one tap away; it is just not the first thing read.
+    """
+    text = " ".join((find.get("summary") or "").split())
+    if not text:
+        rationale = " ".join((find.get("rationale") or "").split())
+        first, _, _ = rationale.partition(". ")
+        text = first.strip()
+        if text and not text.endswith("."):
+            text += "."
+    if len(text) <= SUMMARY_MAX_CHARS:
+        return text
+    cut = text[:SUMMARY_MAX_CHARS - 1]
+    if " " in cut:
+        cut = cut[:cut.rindex(" ")]
+    return cut.rstrip(",;:") + "…"
+
+
 def bullets(move: str) -> list[str]:
     """Split an agent paragraph into the concrete actions it contains.
 
@@ -396,6 +425,10 @@ def build_model(data: dict) -> dict:
             "tinyTitle": short_title(f["title"], 20),
             "move": " ".join((f["move"] or "").split()),
             "bullets": bullets(f["move"]),
+            # The card face. Falls back to the rationale's first sentence for
+            # rows written before the Analyst produced summaries, so an older
+            # export still renders rather than showing an empty card.
+            "summary": card_summary(f),
             "rationale": " ".join((f["rationale"] or "").split()),
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),

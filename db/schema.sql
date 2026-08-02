@@ -168,6 +168,11 @@ CREATE TABLE IF NOT EXISTS find (
 
   emoji                 STRING,
   title                 STRING NOT NULL,     -- 'Tiramisu -> $9'
+  -- One sentence, for the card face. The rationale is the agent's full
+  -- argument and runs to a paragraph; putting that on a card built for the
+  -- mock's short strings is what made the deck unreadable the first time real
+  -- agent prose reached it.
+  summary               STRING,
   rationale             STRING NOT NULL,     -- why the agent believes it
   move                  STRING,              -- what we will actually do
 
@@ -240,5 +245,14 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
   UNIQUE INDEX ledger_period_idx (find_id, period_start, period_end),
   INDEX (business_id, measured_at DESC)
 );
+
+-- ---------------------------------------------------------------------------
+-- Additive migrations for clusters provisioned before a column existed.
+-- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, and
+-- deleting a tenant's rows does not drop the table. These run last, so every
+-- table they name has certainly been created above.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE find ADD COLUMN IF NOT EXISTS summary STRING;
 
 COMMIT;
