@@ -12577,7 +12577,14 @@
 
     function endSession() {
       localStorage.removeItem(SESSION_KEY);
-      window.location.href = "../login/";
+      //  The landing page, not the login screen. Signing out is often the
+      //  start of onboarding a different business, and dropping someone on a
+      //  form asking for the credentials they just abandoned is a dead end —
+      //  the landing page offers both Sign up and Sign in.
+      //
+      //  Distinct from the guard on line ~12570, which sends an unauthenticated
+      //  visitor to /login/: that one already knows they wanted the board.
+      window.location.href = "../";
     }
 
     //  Sign out, and show who is signed in. The board is one tenant's, and

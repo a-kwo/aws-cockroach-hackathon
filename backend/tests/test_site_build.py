@@ -1538,6 +1538,12 @@ def test_the_board_offers_a_way_to_sign_out():
 
     assert 'id="signOut"' in html
     assert "endSession()" in html
+    # Landing, not login: signing out is often the start of onboarding a
+    # different business, and a form asking for the credentials just abandoned
+    # is a dead end. The board's own guard still sends an unauthenticated
+    # visitor to /login/ — see test_the_board_requires_a_session.
+    after = html.split("function endSession()", 1)[1][:900]
+    assert 'window.location.href = "../";' in after
     # Best effort at the server too, but signing out must not depend on it.
     assert "/logout" in html
     assert "keepalive: true" in html
