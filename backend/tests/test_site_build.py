@@ -1567,3 +1567,29 @@ def test_the_welcome_screen_shows_once_not_forever():
     assert "onboardingProfile && justOnboarded && !sampleWorkspaceMode" in html
     # The old form must not come back.
     assert "Boolean(onboardingProfile && !sampleWorkspaceMode)" not in html
+
+
+def test_each_audience_sees_only_its_own_views():
+    """An owner and an operator are two products sharing one page.
+
+    The operator owns no business, so For You and Growth would be empty for
+    them — their session carries no tenant and the workflow endpoint answers
+    401 by design. An owner must never see the Memory Engine, which reads
+    across tenants.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);" in html
+    assert 'OPERATOR_SESSION\n        ? ["autopilot", "growth"]' in html
+    assert ': ["admin"];' in html
+    # Several call sites ask for "autopilot" by name; one guard inside
+    # switchView beats four at the call sites, and cannot be forgotten at a fifth.
+    assert 'if (OPERATOR_SESSION) viewName = "admin";' in html
+
+
+def test_removing_a_tab_happens_before_handlers_are_bound():
+    """viewTabs is captured into a static array. Removing a tab afterwards
+    would leave its click handler bound to a detached node."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert html.index("gateViewsToTheAudience") < html.index("const viewTabs =")

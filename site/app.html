@@ -12603,14 +12603,25 @@
     //  not a customer one. Hiding the tab is cosmetic and deliberately so:
     //  /admin/workspaces checks the account on every request, so a curious
     //  owner who unhides this in devtools gets a 403 and nothing else.
-    (function gateOperatorView() {
-      const session = readSession();
-      if (session && session.isAdmin) return;
-      document.querySelectorAll('[data-view="admin"]').forEach(tab => {
-        tab.remove();
+    //  Two audiences, two products, no overlap. An owner gets For You and
+    //  Growth and never sees the Memory Engine; an operator gets the Memory
+    //  Engine and nothing else, because they own no business and the owner
+    //  views would be empty for them anyway -- their session has no tenant, so
+    //  the workflow endpoint answers 401 by design.
+    //
+    //  This runs before viewTabs is captured further down, so a removed tab
+    //  never enters the array and its click handler is never bound.
+    const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);
+
+    (function gateViewsToTheAudience() {
+      const remove = OPERATOR_SESSION
+        ? ["autopilot", "growth"]
+        : ["admin"];
+      remove.forEach(name => {
+        document.querySelectorAll(`[data-view="${name}"]`).forEach(tab => tab.remove());
+        const view = document.getElementById(`view-${name}`);
+        if (view) view.remove();
       });
-      const view = document.getElementById("view-admin");
-      if (view) view.remove();
     })();
 
     //  Sign out, and show who is signed in. The board is one tenant's, and
@@ -13184,6 +13195,11 @@
     }
 
     function switchView(viewName) {
+      //  An operator has no autopilot or growth view to switch to — those were
+      //  removed above — and several call sites ask for "autopilot" by name on
+      //  init and after a decision. Redirecting here is one guard instead of
+      //  four, and it cannot be forgotten at a future fifth call site.
+      if (OPERATOR_SESSION) viewName = "admin";
       activeView = viewName;
       viewTabs.forEach(tab => tab.classList.toggle("active", tab.dataset.view === viewName));
       views.forEach(view => view.classList.toggle("active", view.id === `view-${viewName}`));
