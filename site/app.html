@@ -11888,7 +11888,11 @@
     body.autopilot-mode .post-copy h2,
     body.autopilot-mode .post-copy h2.post-title {
       font-size: clamp(28px, 3.2vw, 40px);
-      line-height: 1.06;
+      /* Not 1.06. A -webkit-box's height is lines x line-height, and overflow
+         is hidden, so anything a glyph extends below its line box is cut —
+         the descender on "birthdays" was sheared off. This is the smallest
+         value that clears descenders in this face at this size. */
+      line-height: 1.18;
       letter-spacing: -.035em;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -13171,6 +13175,10 @@
         if (!Number.isFinite(workflowLastUpdatedAt)) workflowLastUpdatedAt = Date.now();
         workflowRefreshState = "live";
         syncPostsAndDecisionsFromWorkflow(liveWorkflowWorkspaces);
+        //  The topbar was set during the first paint, from the committed
+        //  snapshot. Now that the signed-in tenant has actually answered, say
+        //  their name instead of the exported one's.
+        setBrandBusiness();
         renderLiveWorkflowViews();
         updateWorkflowLiveStatus();
         return true;
@@ -13295,9 +13303,18 @@
 
     viewTabs.forEach(tab => tab.addEventListener("click", () => switchView(tab.dataset.view)));
 
-    function setBrandBusiness(model = btData) {
+    function setBrandBusiness(model = null) {
       const label = document.getElementById("brandBusinessName");
       if (!label) return;
+      //  Defaulted to btData, the committed snapshot — so the topbar named
+      //  whichever tenant was exported last. Signed in as one business, it
+      //  read another's name under the logo. Same fault as the empty state:
+      //  the snapshot is a first paint, not an identity.
+      if (model === null) {
+        model = (Array.isArray(liveWorkflowWorkspaces) && liveWorkflowWorkspaces.length)
+          ? liveWorkflowWorkspaces[0]
+          : btData;
+      }
       if (onboardingMode) {
         label.textContent = onboardingBusinessLabel();
         return;

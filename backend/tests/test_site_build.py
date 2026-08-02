@@ -1656,3 +1656,29 @@ def test_an_operator_lands_on_the_console():
     assert 'const INITIAL_VIEW = OPERATOR_SESSION ? "admin" : "autopilot";' in html
     assert "let activeView = INITIAL_VIEW;" in html
     assert 'let activeView = "autopilot";' not in html
+
+
+def test_the_topbar_names_the_signed_in_tenant():
+    """setBrandBusiness defaulted to btData — the committed snapshot — so the
+    topbar read whichever tenant was exported last. Signed in as one business
+    it showed another's name under the logo."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "function setBrandBusiness(model = null)" in html
+    assert "function setBrandBusiness(model = btData)" not in html
+    # And it is re-set once the tenant's own data arrives, not only at first paint.
+    live = html.split("syncPostsAndDecisionsFromWorkflow(liveWorkflowWorkspaces);", 1)[1][:400]
+    assert "setBrandBusiness();" in live
+
+
+def test_the_card_title_leaves_room_for_descenders():
+    """A -webkit-box's height is lines x line-height and overflow is hidden, so
+    anything a glyph extends below its line box is cut. At 1.06 the descender
+    on "birthdays" was sheared off."""
+    import re
+
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    rule = html.split("body.autopilot-mode .post-copy h2.post-title {", 1)[1].split("}", 1)[0]
+    [line_height] = re.findall(r"line-height:\s*([\d.]+)", rule)
+
+    assert float(line_height) >= 1.15, "descenders will clip"
