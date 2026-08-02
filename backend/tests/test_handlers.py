@@ -144,7 +144,59 @@ class StubSsm:
         ]}
 
 
+class PagedStubSsm:
+    """SSM as it actually behaves: GetParametersByPath caps a page at 10.
+
+    A caller that reads `Parameters` once and ignores `NextToken` gets the
+    first ten and silently loses the rest.
+    """
+
+    PAGE_SIZE = 10
+
+    def __init__(self, params):
+        self._items = list(params.items())
+        self.calls = []
+
+    def get_parameters_by_path(self, **kwargs):
+        self.calls.append(kwargs)
+        start = int(kwargs.get("NextToken") or 0)
+        window = self._items[start:start + self.PAGE_SIZE]
+        response = {"Parameters": [
+            {"Name": name, "Value": value} for name, value in window
+        ]}
+        if start + self.PAGE_SIZE < len(self._items):
+            response["NextToken"] = str(start + self.PAGE_SIZE)
+        return response
+
+
 class TestHydrateEnvironment:
+    def test_reads_every_page_not_just_the_first_ten(self):
+        # SSM returns at most 10 parameters per call. Stopping at the first
+        # page loses the 11th onward with no error at all: the Lambda boots
+        # with a variable missing and fails somewhere unrelated. /brasstacks
+        # already holds 9.
+        client = PagedStubSsm({
+            f"/brasstacks/VAR_{i:02d}": f"value-{i:02d}" for i in range(23)
+        })
+        env = {}
+
+        loaded = hydrate_environment(env=env, client=client, prefix="/brasstacks")
+
+        assert loaded == 23
+        assert env["VAR_00"] == "value-00"
+        assert env["VAR_10"] == "value-10", "the 11th parameter was dropped"
+        assert env["VAR_22"] == "value-22", "the last page was never requested"
+        assert len(client.calls) == 3
+
+    def test_every_page_is_decrypted(self):
+        # A second page fetched without WithDecryption would hand back
+        # ciphertext, which fails far from here.
+        client = PagedStubSsm({f"/brasstacks/V{i}": str(i) for i in range(15)})
+
+        hydrate_environment(env={}, client=client, prefix="/brasstacks")
+
+        assert [c["WithDecryption"] for c in client.calls] == [True, True]
+
     def test_maps_parameter_names_to_environment_variables(self):
         env = {}
         client = StubSsm({

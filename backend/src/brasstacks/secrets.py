@@ -1,7 +1,7 @@
 """Getting secrets into the environment on Lambda.
 
 `config.py` resolves settings from `os.environ`, falling back to a repo-root
-`.env`. A deployed Lambda has no `.env`, so something has to put the four real
+`.env`. A deployed Lambda has no `.env`, so something has to put the real
 secrets into the environment before `Settings.load()` runs. That is this module,
 and it is the whole of it.
 
@@ -48,12 +48,25 @@ def hydrate_environment(
 
         client = boto3.client("ssm")
 
+    # GetParametersByPath returns at most 10 parameters per call. Reading only
+    # the first response would drop the 11th onward silently — no error, just a
+    # variable that never arrives and a failure somewhere far from here.
+    parameters = []
+    token: str | None = None
     try:
-        response = client.get_parameters_by_path(
-            Path=path,
-            Recursive=True,
-            WithDecryption=True,
-        )
+        while True:
+            request: dict[str, Any] = {
+                "Path": path,
+                "Recursive": True,
+                "WithDecryption": True,
+            }
+            if token:
+                request["NextToken"] = token
+            response = client.get_parameters_by_path(**request)
+            parameters.extend(response.get("Parameters", []))
+            token = response.get("NextToken")
+            if not token:
+                break
     except Exception as e:
         raise RuntimeError(
             f"could not read SSM parameters under {path!r} "
@@ -62,7 +75,7 @@ def hydrate_environment(
         ) from e
 
     loaded = 0
-    for parameter in response.get("Parameters", []):
+    for parameter in parameters:
         name = parameter["Name"].rsplit("/", 1)[-1]
         # setdefault, not assignment: an explicitly set variable outranks
         # whatever is in Parameter Store, same rule as Settings.load().
