@@ -36,6 +36,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "backend" / "src"))
 from brasstacks.analyst_trace import parse_analyst_trace  # noqa: E402
+from brasstacks.ask_trace import parse_ask_trace  # noqa: E402
 
 SITE = REPO / "site"
 #: Anything here is copied to web/assets/ verbatim. The admin console's backdrop
@@ -99,7 +100,7 @@ MAX_QUESTION_CHARS = 500
 #: the page this is the disclosure of what a question can reach — the service
 #: account is read-only, and this is the whole surface.
 ASK_TABLES = [
-    "business", "observation", "find", "find_evidence",
+    "business", "business_fact", "observation", "find", "find_evidence",
     "ledger_entry", "artifact", "agent_run",
 ]
 
@@ -300,28 +301,35 @@ def parse_trail(note: str | None) -> list[str]:
 
 
 def ask_sessions(runs: list[dict]) -> list[dict]:
-    """Every Ask run, as the receipt it already left behind.
-
-    This needs no new column: `agent_run.note` holds the trail, and the exporter
-    already selects it. The two fields that are missing — the question and the
-    answer — are held nowhere in the schema, so they arrive as declared
-    placeholders rather than being invented here.
-
-    Shaped to match what `handlers/ask.py` returns to the browser, so pointing
-    the panel at a live endpoint later changes the source and not the renderer.
-    """
+    """Every Ask run, including its durable memory and token receipt."""
     out = []
     for r in runs:
         if r.get("agent") != "ask":
             continue
         trail = parse_trail(r.get("note"))
+        trace = parse_ask_trace(r.get("note"))
+        input_tokens = r.get("input_tokens")
+        output_tokens = r.get("output_tokens")
+        run_id = str(r.get("id") or "")
         out.append({
-            "runId": r["id"][:8],
+            "runId": run_id[:8],
+            "databaseRunId": run_id or None,
             "askedAt": r.get("started_at"),
             "seconds": run_seconds(r),
             "status": r.get("status"),
-            "queriedTheCluster": bool(trail),
+            "question": trace.get("question") if trace else None,
+            "answer": trace.get("answer") if trace else None,
+            "findId": trace.get("find_id") if trace else None,
+            "recentMessagesUsed": len(trace.get("recent_message_ids", [])) if trace else None,
+            "relevantMessagesUsed": len(trace.get("relevant_message_ids", [])) if trace else None,
+            "storedMessages": len(trace.get("stored_message_ids", [])) if trace else None,
+            "queriedTheCluster": bool(trace.get("queried_the_cluster")) if trace else bool(trail),
+            "traceSource": "cluster" if trace else "legacy",
             "trail": trail,
+            "inputTokens": input_tokens,
+            "outputTokens": output_tokens,
+            "totalTokens": (int(input_tokens or 0) + int(output_tokens or 0))
+                if input_tokens is not None or output_tokens is not None else None,
         })
     return out
 
@@ -363,6 +371,7 @@ def analyst_run_receipt(runs: list[dict]) -> dict | None:
         "findId": trace.get("find_id") if trace else None,
         "queries": trace.get("queries") if trace else None,
         "perQueryLimit": trace.get("per_query_limit") if trace else None,
+        "ownerMemoryIds": trace.get("owner_memory_ids") if trace else None,
     }
 
 
@@ -532,6 +541,7 @@ def build_model(data: dict) -> dict:
     hit = summary["hit_rate"]
     decision_endpoint = (os.environ.get("DECISION_API_ENDPOINT") or "").rstrip("/")
     workflow_endpoint = (os.environ.get("WORKFLOW_API_ENDPOINT") or "").rstrip("/")
+    ask_endpoint = (os.environ.get("ASK_API_ENDPOINT") or "").rstrip("/")
     onboarding_endpoint = (os.environ.get("ONBOARDING_API_ENDPOINT") or "").rstrip("/")
     login_endpoint = (os.environ.get("LOGIN_API_ENDPOINT") or "").rstrip("/")
     if not login_endpoint and decision_endpoint:
@@ -547,10 +557,13 @@ def build_model(data: dict) -> dict:
         admin_endpoint = f"{decision_endpoint}/admin/workspaces"
     if not workflow_endpoint and decision_endpoint:
         workflow_endpoint = f"{decision_endpoint}/workflow"
+    if not ask_endpoint and decision_endpoint:
+        ask_endpoint = f"{decision_endpoint}/ask"
     return {
         "api": {
             "decisionEndpoint": decision_endpoint or None,
             "workflowEndpoint": workflow_endpoint or None,
+            "askEndpoint": ask_endpoint or None,
             "onboardingEndpoint": onboarding_endpoint or None,
             "loginEndpoint": login_endpoint or None,
             "registerEndpoint": register_endpoint or None,
@@ -582,6 +595,7 @@ def build_model(data: dict) -> dict:
         },
         "corpus": {
             "observations": corpus["observations"],
+            "conversationMessages": int(corpus.get("conversation_messages") or 0),
             "evidenceRows": sum(f["evidenceCount"] for f in finds),
             "earliest": corpus.get("earliest"),
             "latest": corpus.get("latest"),
