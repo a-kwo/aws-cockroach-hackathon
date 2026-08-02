@@ -1682,3 +1682,49 @@ def test_the_card_title_leaves_room_for_descenders():
     [line_height] = re.findall(r"line-height:\s*([\d.]+)", rule)
 
     assert float(line_height) >= 1.15, "descenders will clip"
+
+
+# ---------------------------------------------------------------------------
+# The committed snapshot is a first paint, never an identity
+# ---------------------------------------------------------------------------
+
+def test_the_snapshot_is_scrubbed_when_it_is_not_the_signed_in_tenants():
+    """One guard instead of one per reader.
+
+    db/fixtures/demo.json belongs to whichever tenant was exported last. Three
+    separate bugs came from reading it as though it were the signed-in
+    business: the card showed a full rationale, the empty state told a brand-new
+    business it was "All caught up" on someone else's three finds, and the
+    topbar named the wrong company. Others were still latent — btData.finds
+    seeds the deck and btData.months draws the growth chart, so a new tenant saw
+    another business's cards and revenue until the live read landed.
+
+    Guarding each reader is what produced that sequence. The snapshot is now
+    emptied of everything tenant-shaped at the point it is parsed.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("const btData = (() => {", 1)[1].split("})();", 1)[0]
+
+    assert 'localStorage.getItem("brass-tacks-session-v1")' in block
+    assert "signedInAs === snapshotOf" in block
+    assert 'const KEEP = new Set(["api", "backdrop"]);' in block
+
+
+def test_endpoints_and_assets_survive_the_scrub():
+    """`api` is endpoint configuration and `backdrop` an asset path. Neither is
+    anyone's data, and dropping them would leave a signed-in owner unable to
+    reach the API at all."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("const btData = (() => {", 1)[1].split("})();", 1)[0]
+
+    assert '"api"' in block and '"backdrop"' in block
+    assert "if (KEEP.has(key)) scrubbed[key] = value;" in block
+
+
+def test_an_anonymous_visitor_still_sees_the_snapshot():
+    """No session means nobody is being shown the wrong tenant — the landing
+    demo and a first paint before login both depend on it rendering."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("const btData = (() => {", 1)[1].split("})();", 1)[0]
+
+    assert "if (!signedInAs || !snapshotOf || signedInAs === snapshotOf) return snapshot;" in block

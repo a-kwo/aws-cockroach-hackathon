@@ -12378,12 +12378,45 @@
      * and the chart hides itself rather than drawing an invented shape.
      */
     const btData = (() => {
+      let snapshot;
       try {
-        return JSON.parse(document.getElementById("bt-data").textContent) || {};
+        snapshot = JSON.parse(document.getElementById("bt-data").textContent) || {};
       } catch (error) {
         console.warn("bt-data did not parse; charts will be hidden", error);
         return {};
       }
+
+      //  The committed snapshot is a fast first paint. It belongs to whichever
+      //  tenant was exported last, and it is NOT an identity — three separate
+      //  bugs came from forgetting that: the card showed a full rationale, the
+      //  empty state told a new business it was "All caught up" on someone
+      //  else's finds, and the topbar named the wrong company.
+      //
+      //  Rather than guard each reader, the snapshot is emptied of everything
+      //  tenant-shaped when it is not the signed-in tenant's. Whoever reads
+      //  btData.finds next gets [] instead of another business's cards, and the
+      //  live workspace fills the page in when it arrives.
+      //
+      //  Session read inline: readSession() is defined further down, and
+      //  ordering is exactly what this fix cannot depend on.
+      let session = null;
+      try {
+        session = JSON.parse(localStorage.getItem("brass-tacks-session-v1") || "null");
+      } catch (_) { /* no session, or unreadable — treat the snapshot as public */ }
+
+      const signedInAs = session && session.businessId ? String(session.businessId) : "";
+      const snapshotOf = String(snapshot?.business?.id || "");
+      if (!signedInAs || !snapshotOf || signedInAs === snapshotOf) return snapshot;
+
+      //  Everything below describes a business. `api` is endpoint
+      //  configuration and `backdrop` is an asset path; neither is anyone's
+      //  data, so both survive.
+      const KEEP = new Set(["api", "backdrop"]);
+      const scrubbed = {};
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (KEEP.has(key)) scrubbed[key] = value;
+      }
+      return scrubbed;
     })();
 
     const ONBOARDING_PROFILE_KEY = "brass-tacks-onboarding-profile-v1";
