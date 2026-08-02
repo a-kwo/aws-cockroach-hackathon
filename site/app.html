@@ -1280,7 +1280,7 @@
       .growth-counts { display: grid; grid-template-columns: repeat(3, 1fr); }
       .growth-count { min-width: 0; }
     }
-  
+
 
     /* REFINED DETAILS DRAWER — clear status, calm hierarchy */
     .drawer-scrim {
@@ -11576,7 +11576,7 @@
         padding: 12px 14px 14px !important;
       }
     }
-  
+
 
     /* ----------------------------------------------------------
        First-run workspace after onboarding
@@ -11966,6 +11966,239 @@
     }
   </style>
 
+
+  <style id="native-swipe-mobile-v19">
+    /* One gesture contract for For You and Growth. Vertical movement remains
+       native page/card scrolling; a deliberate horizontal move owns the
+       carousel. The shared spring keeps touch, mouse, arrows, and dots feeling
+       like the same interaction rather than four separate implementations. */
+    :root { --swipe-spring: cubic-bezier(.22, 1, .36, 1); }
+
+    body.autopilot-mode .feed-stage {
+      touch-action: pan-y pinch-zoom !important;
+      overscroll-behavior-x: contain;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body.autopilot-mode .feed-card {
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+      isolation: isolate;
+      transition:
+        transform .46s var(--swipe-spring),
+        opacity .32s ease,
+        box-shadow .36s ease !important;
+    }
+
+    /* An entrance animation that also owns transform fights an in-progress
+       swipe and creates the visible snap. Navigation has one transform owner. */
+    body.autopilot-mode .feed-card.is-current { animation: none !important; }
+
+    body.autopilot-mode .feed-stage.is-gesture-active,
+    body.autopilot-mode .feed-stage.is-settling { cursor: grabbing; }
+
+    body.autopilot-mode .feed-stage.is-gesture-active .feed-card {
+      transition: none !important;
+    }
+
+    body.autopilot-mode .feed-stage.is-settling .feed-card {
+      pointer-events: none;
+    }
+
+    body.autopilot-mode .feed-card.swipe-target {
+      will-change: transform, opacity;
+    }
+
+    body.growth-mode .growth-swipe {
+      touch-action: pan-y pinch-zoom !important;
+      overscroll-behavior-x: contain;
+      cursor: grab;
+    }
+
+    body.growth-mode .growth-swipe.is-gesture-active,
+    body.growth-mode .growth-swipe.is-settling { cursor: grabbing; }
+
+    body.growth-mode .growth-swipe-track {
+      backface-visibility: hidden;
+      transition: transform .46s var(--swipe-spring) !important;
+    }
+
+    body.growth-mode .growth-swipe-track.is-dragging {
+      transition: none !important;
+    }
+
+    body.autopilot-mode .signal-full,
+    body.autopilot-mode .recommendation-steps .step-overflow { display: none; }
+
+    /* Phone layout: the evidence area scrolls independently and the decision
+       controls remain visible. No title, signal, or action step is clamped on
+       mobile. Owners can read the complete recommendation before deciding. */
+    @media (max-width: 640px) {
+      body.autopilot-mode .app {
+        height: 100dvh;
+        min-height: 0 !important;
+        overflow: hidden;
+      }
+
+      body.autopilot-mode .workspace,
+      body.autopilot-mode #view-autopilot,
+      body.autopilot-mode .autopilot-inner,
+      body.autopilot-mode #queueContent,
+      body.autopilot-mode .deck {
+        min-height: 0;
+        height: 100%;
+      }
+
+      body.autopilot-mode .autopilot-inner {
+        padding: 0 !important;
+        align-content: stretch !important;
+      }
+
+      body.autopilot-mode .deck { gap: 0 !important; }
+
+      body.autopilot-mode .feed-stage {
+        height: 100% !important;
+        min-height: 0 !important;
+      }
+
+      body.autopilot-mode .feed-card {
+        inset: 0 !important;
+        border-radius: 0 !important;
+      }
+
+      body.autopilot-mode .post-surface {
+        height: 100%;
+        min-height: 0;
+        display: grid !important;
+        grid-template-rows: minmax(0, 1fr) auto !important;
+      }
+
+      body.autopilot-mode .post-body {
+        min-height: 0;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        padding: 18px 18px 28px !important;
+        touch-action: pan-y;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        scroll-padding-block: 18px 28px;
+      }
+
+      body.autopilot-mode .post-body::-webkit-scrollbar { display: none; }
+
+      body.autopilot-mode .feed-card .post-copy {
+        flex: 0 0 auto !important;
+        min-height: max-content !important;
+        overflow: visible !important;
+        gap: 14px !important;
+        padding-bottom: 6px;
+      }
+
+      body.autopilot-mode .feed-card .post-copy::after { display: none !important; }
+      body.autopilot-mode .post-meta-row { margin-bottom: 0 !important; }
+
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+        max-width: 100% !important;
+        display: block !important;
+        -webkit-line-clamp: unset !important;
+        -webkit-box-orient: initial !important;
+        overflow: visible !important;
+        padding-bottom: 0 !important;
+        font-size: clamp(30px, 9.2vw, 40px) !important;
+        line-height: 1.16 !important;
+        letter-spacing: -.042em !important;
+        text-wrap: balance;
+      }
+
+      body.autopilot-mode .signal-summary { display: none !important; }
+      body.autopilot-mode .signal-full { display: block !important; }
+
+      body.autopilot-mode .signal-text,
+      body.autopilot-mode .feed-card[data-fit] .signal-text {
+        max-width: 100% !important;
+        display: block !important;
+        -webkit-line-clamp: unset !important;
+        -webkit-box-orient: initial !important;
+        overflow: visible !important;
+        padding-bottom: 0 !important;
+        font-size: 15px !important;
+        line-height: 1.55 !important;
+      }
+
+      body.autopilot-mode .post-copy .recommendation {
+        margin-top: 2px !important;
+        padding: 14px !important;
+      }
+
+      body.autopilot-mode .recommendation-steps .step-overflow { display: list-item !important; }
+      body.autopilot-mode .recommendation-steps .step-more { display: none !important; }
+
+      body.autopilot-mode .recommendation-steps li {
+        display: list-item !important;
+        -webkit-line-clamp: unset !important;
+        -webkit-box-orient: initial !important;
+        overflow: visible !important;
+        padding-bottom: 0 !important;
+      }
+
+      body.autopilot-mode .recommendation-copy strong {
+        font-size: 15px !important;
+        line-height: 1.48 !important;
+      }
+
+      body.autopilot-mode .post-footer {
+        position: relative;
+        z-index: 8;
+        min-height: 0 !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        padding: 11px 14px calc(12px + env(safe-area-inset-bottom)) !important;
+        box-shadow: 0 -10px 28px rgba(28, 34, 35, .08);
+      }
+
+      body.autopilot-mode .impact-summary {
+        justify-content: center !important;
+        gap: 9px !important;
+      }
+
+      body.autopilot-mode .impact-summary > strong { font-size: 26px !important; }
+      body.autopilot-mode .decision-actions { gap: 9px !important; }
+      body.autopilot-mode .decision-button { height: 52px !important; }
+      body.autopilot-mode .swipe-cue { display: none !important; }
+    }
+
+    @media (max-width: 390px) {
+      body.autopilot-mode .post-body { padding-inline: 16px !important; }
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title { font-size: 30px !important; }
+      body.autopilot-mode .signal-text { font-size: 14.5px !important; }
+      body.autopilot-mode .recommendation-copy strong { font-size: 14.5px !important; }
+    }
+
+    @media (max-width: 640px) and (max-height: 700px) {
+      body.autopilot-mode .post-body {
+        padding-top: 14px !important;
+        padding-bottom: 22px !important;
+      }
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title { font-size: 29px !important; }
+      body.autopilot-mode .signal-text { font-size: 14px !important; }
+      body.autopilot-mode .post-footer { gap: 8px !important; padding-top: 9px !important; }
+      body.autopilot-mode .decision-button { height: 48px !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body.autopilot-mode .feed-card,
+      body.growth-mode .growth-swipe-track { transition-duration: .001ms !important; }
+      .memory-engine .visual-flow-particle { animation: none !important; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -12071,7 +12304,7 @@
                     <header class="growth-chart-head">
                       <div>
                         <span class="growth-story-kicker">Your progress</span>
-                        <h2 id="growthChartHeading">Your momentum</h2>
+                        <h2 id="growthChartHeading" class="sr-only">Growth history</h2>
                         <p id="growthChartSub">Month by month</p>
                       </div>
                     </header>
@@ -12606,6 +12839,7 @@
         // The card face. The rationale is the agent's full argument and
         // runs to a paragraph; it lives behind the details button.
         signal: find.summary || find.rationale,
+        fullSignal: find.rationale || find.summary,
         recommendation: find.move,
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],
@@ -12901,9 +13135,11 @@
     function renderSteps(post) {
       const steps = (post.steps || []).filter(Boolean);
       if (!steps.length) return `<strong>${escapeHtml(post.recommendation || "")}</strong>`;
-      const shown = steps.slice(0, STEPS_ON_CARD);
-      const rest = steps.length - shown.length;
-      const items = shown.map(step => `<li>${escapeHtml(step)}</li>`).join("");
+      const rest = Math.max(0, steps.length - STEPS_ON_CARD);
+      const items = steps.map((step, index) => index < STEPS_ON_CARD
+        ? `<li>${escapeHtml(step)}</li>`
+        : `<li class="step-overflow">${escapeHtml(step)}</li>`
+      ).join("");
       const more = rest > 0
         ? `<li class="step-more">+${rest} more step${rest === 1 ? "" : "s"} in the details</li>`
         : "";
@@ -13689,7 +13925,7 @@
                   </button>
                 </div>
                 <h2 class="post-title">${post.title}</h2>
-                <p class="signal-text">${post.signal}</p>
+                <p class="signal-text"><span class="signal-summary">${escapeHtml(post.signal || "")}</span><span class="signal-full">${escapeHtml(post.fullSignal || post.signal || "")}</span></p>
                 <div class="recommendation">
                   <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
                   <span class="recommendation-copy">
@@ -13726,61 +13962,110 @@
     /**
      * Move the deck without rebuilding it.
      *
-     * This used to call renderAutopilot(), which rewrites queueContent.innerHTML. Fresh
-     * nodes mount already at their final computed style, so the transition on .feed-card
-     * had nothing to interpolate from and every arrow press, dot press and arrow key
-     * snapped. Swapping the position class on the *existing* nodes is what makes the CSS
-     * transition actually run. A full re-render is still correct when the set of cards
-     * changes (a decision, a restart) — just not when only the index moves.
+     * Fresh nodes mount at their final computed style, so rebuilding the deck
+     * on every move makes the card snap. Existing nodes change slots instead,
+     * which gives CSS a real start and end state to interpolate between.
      */
+    const FEED_SWIPE_DURATION = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 460;
+
+    function afterTransformTransition(element, callback, timeout = FEED_SWIPE_DURATION + 90) {
+      if (!element) {
+        callback();
+        return;
+      }
+      let completed = false;
+      let timer = null;
+      const finish = () => {
+        if (completed) return;
+        completed = true;
+        window.clearTimeout(timer);
+        element.removeEventListener("transitionend", onTransitionEnd);
+        callback();
+      };
+      const onTransitionEnd = event => {
+        if (event.target === element && event.propertyName === "transform") finish();
+      };
+      element.addEventListener("transitionend", onTransitionEnd);
+      timer = window.setTimeout(finish, timeout);
+    }
+
+    function feedCardAt(index) {
+      return document.querySelector(`.feed-card[data-index="${index}"]`);
+    }
+
+    function clearFeedCardGesture(card) {
+      if (!card) return;
+      card.classList.remove("drag-prev", "drag-next", "swipe-target");
+      card.style.removeProperty("transition");
+      card.style.removeProperty("transform");
+      card.style.removeProperty("opacity");
+      card.style.removeProperty("z-index");
+      card.style.removeProperty("pointer-events");
+      card.style.removeProperty("--swipe-opacity");
+    }
+
     function goToPost(index) {
       const pending = getPendingPosts();
       if (!pending.length || isAnimating) return;
       const next = (index + pending.length) % pending.length;
       if (next === currentIndex) return;
+
+      const stage = document.getElementById("feedStage");
+      const outgoing = getCurrentCard();
+      isAnimating = true;
+      stage?.classList.add("is-settling");
       currentIndex = next;
       applyCardPositions();
+
+      afterTransformTransition(outgoing, () => {
+        stage?.classList.remove("is-settling");
+        isAnimating = false;
+      });
     }
 
     /**
      * Re-slot every card for the current index and let CSS animate the move.
      *
-     * `snapCard` is the card that was just flung off-screen by a swipe: it carries an
-     * inline transform we need to drop without the drop itself animating, or it would
-     * visibly fly back across the stage. Suppressing its transition, clearing the inline
-     * styles, forcing a reflow to commit that, then restoring the transition puts it in
-     * its new slot silently.
+     * `snapCards` may be one card, an array, or true for the whole deck. A
+     * committed drag has already put the visible cards in their final places,
+     * so the class bookkeeping happens without a second visible movement.
      */
-    function applyCardPositions(snapCard = null) {
+    function applyCardPositions(snapCards = null) {
       const cards = Array.from(document.querySelectorAll(".feed-card"));
       if (!cards.length) return;
       const count = cards.length;
+      const snapSet = snapCards === true
+        ? new Set(cards)
+        : new Set(Array.isArray(snapCards) ? snapCards : snapCards ? [snapCards] : []);
 
       cards.forEach(card => {
         const offset = (Number(card.dataset.index) - currentIndex + count) % count;
-        if (card === snapCard) card.style.transition = "none";
+        if (snapSet.has(card)) card.style.transition = "none";
         else card.style.removeProperty("transition");
-        card.classList.remove(...CARD_POSITIONS, "drag-prev", "drag-next");
+        card.classList.remove(...CARD_POSITIONS, "drag-prev", "drag-next", "swipe-target");
         card.classList.add(positionFor(offset, count));
         card.setAttribute("aria-hidden", offset === 0 ? "false" : "true");
         card.style.removeProperty("transform");
         card.style.removeProperty("opacity");
+        card.style.removeProperty("z-index");
+        card.style.removeProperty("pointer-events");
         card.style.removeProperty("--swipe-opacity");
       });
 
-      if (snapCard) {
-        void snapCard.offsetWidth;
-        snapCard.style.removeProperty("transition");
+      if (snapSet.size) {
+        void cards[0].offsetWidth;
+        requestAnimationFrame(() => snapSet.forEach(card => card.style.removeProperty("transition")));
       }
 
       updateFeedChrome(count);
     }
 
-    //: The counter and dots follow the index, so they move with a class swap too.
     function updateFeedChrome(count) {
       queueCount.textContent = count ? `${currentIndex + 1} of ${count}` : "0 of 0";
       document.querySelectorAll("[data-feed-index]").forEach(dot => {
-        dot.classList.toggle("active", Number(dot.dataset.feedIndex) === currentIndex);
+        const active = Number(dot.dataset.feedIndex) === currentIndex;
+        dot.classList.toggle("active", active);
+        dot.setAttribute("aria-current", active ? "true" : "false");
       });
     }
 
@@ -13788,86 +14073,264 @@
       return document.querySelector(".feed-card.is-current");
     }
 
-    function resetCurrentCard() {
-      const card = getCurrentCard();
-      if (!card) return;
-      card.style.transition = "transform .24s var(--ease), opacity .22s var(--ease)";
-      card.style.transform = "";
-      card.style.opacity = "";
-      card.style.removeProperty("--swipe-opacity");
-      card.classList.remove("drag-prev", "drag-next");
-    }
-
     function bindFeedGestures() {
       const stage = document.getElementById("feedStage");
-      if (!stage) return;
+      if (!stage || stage.dataset.gestureBound) return;
+      stage.dataset.gestureBound = "1";
 
-      stage.addEventListener("pointerdown", event => {
-        const card = event.target.closest(".feed-card.is-current");
-        if (!card || event.target.closest("button") || isAnimating) return;
-        dragStartX = event.clientX;
-        dragStartY = event.clientY;
-        dragDeltaX = 0;
-        pointerId = event.pointerId;
-        stage.setPointerCapture(pointerId);
-      });
+      let gesture = null;
+      let frame = 0;
+      let suppressClickUntil = 0;
 
-      stage.addEventListener("pointermove", event => {
-        if (dragStartX === null || event.pointerId !== pointerId || isAnimating) return;
-        const deltaX = event.clientX - dragStartX;
-        const deltaY = event.clientY - dragStartY;
-        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) return;
+      const releasePointer = pointer => {
+        if (pointer == null) return;
+        try {
+          if (stage.hasPointerCapture(pointer)) stage.releasePointerCapture(pointer);
+        } catch (_) {}
+      };
 
-        dragDeltaX = deltaX;
-        const card = getCurrentCard();
-        if (!card) return;
-
-        const limit = stage.clientWidth * .36;
-        const clamped = Math.max(-limit, Math.min(limit, dragDeltaX));
-        const progress = Math.min(1, Math.abs(clamped) / Math.max(1, limit));
-        card.style.transition = "none";
-        card.style.transform = `translate3d(${clamped}px, ${Math.abs(clamped) * -.018}px, 0) rotate(${clamped * .008}deg)`;
-        card.style.setProperty("--swipe-opacity", String(Math.max(.15, progress)));
-        card.classList.toggle("drag-prev", clamped > 0);
-        card.classList.toggle("drag-next", clamped < 0);
-      });
-
-      const finish = event => {
-        if (dragStartX === null || (event.pointerId !== undefined && event.pointerId !== pointerId)) return;
-        const threshold = Math.min(90, stage.clientWidth * .15);
-        const direction = dragDeltaX < 0 ? 1 : -1;
-        const shouldMove = Math.abs(dragDeltaX) > threshold;
-        const card = getCurrentCard();
-
-        if (shouldMove && card) {
-          // Carry the card the rest of the way off the stage rather than stopping it
-          // part-way and cutting: the old .42-width throw ended while the card was still
-          // over the deck, so the re-render read as a jump cut.
-          isAnimating = true;
-          const exit = (direction > 0 ? -1 : 1) * (stage.clientWidth * .96 + card.offsetWidth * .5);
-          card.style.transition = "transform .26s var(--ease), opacity .24s var(--ease)";
-          card.style.transform = `translate3d(${exit}px, -10px, 0) rotate(${direction > 0 ? -9 : 9}deg)`;
-          card.style.opacity = "0";
-          card.classList.remove("drag-prev", "drag-next");
-          card.style.removeProperty("--swipe-opacity");
-
-          swipeTimer = window.setTimeout(() => {
-            const pendingCount = getPendingPosts().length;
-            currentIndex = pendingCount ? (currentIndex + direction + pendingCount) % pendingCount : 0;
-            isAnimating = false;
-            applyCardPositions(card);
-          }, 260);
-        } else {
-          resetCurrentCard();
-        }
+      const clearGestureState = () => {
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
+        releasePointer(gesture?.pointerId);
+        stage.classList.remove("is-gesture-pending", "is-gesture-active");
         dragStartX = null;
         dragStartY = null;
         dragDeltaX = 0;
         pointerId = null;
+        gesture = null;
       };
 
-      stage.addEventListener("pointerup", finish);
-      stage.addEventListener("pointercancel", finish);
+      const targetForDirection = direction => {
+        const count = getPendingPosts().length;
+        if (count < 2) return null;
+        const targetIndex = (currentIndex + direction + count) % count;
+        return { card: feedCardAt(targetIndex), index: targetIndex };
+      };
+
+      const renderDrag = () => {
+        frame = 0;
+        if (!gesture || gesture.axis !== "horizontal") return;
+        const card = gesture.card;
+        const width = Math.max(1, stage.clientWidth);
+        const hardLimit = width * .62;
+        const raw = gesture.deltaX;
+        const magnitude = Math.abs(raw);
+        const softened = magnitude <= hardLimit
+          ? magnitude
+          : hardLimit + Math.sqrt((magnitude - hardLimit) * hardLimit) * .18;
+        const x = Math.sign(raw || 1) * softened;
+        const direction = x < 0 ? 1 : -1;
+        const targetInfo = targetForDirection(direction);
+        const target = targetInfo?.card || null;
+
+        if (gesture.target && gesture.target !== target) clearFeedCardGesture(gesture.target);
+        gesture.target = target;
+        gesture.targetIndex = targetInfo?.index ?? currentIndex;
+        gesture.direction = direction;
+
+        const progress = Math.min(1, Math.abs(x) / (width * .42));
+        const rotation = Math.max(-5.2, Math.min(5.2, x * .007));
+        const lift = -Math.min(10, Math.abs(x) * .018);
+        const scale = 1 - progress * .012;
+
+        card.style.transition = "none";
+        card.style.transform = `translate3d(${x}px, ${lift}px, 0) rotate(${rotation}deg) scale(${scale})`;
+        card.style.opacity = String(1 - progress * .13);
+        card.style.setProperty("--swipe-opacity", String(Math.max(.18, progress)));
+        card.classList.toggle("drag-prev", x > 0);
+        card.classList.toggle("drag-next", x < 0);
+
+        if (target) {
+          target.classList.add("swipe-target");
+          target.style.transition = "none";
+          target.style.zIndex = "3";
+          target.style.pointerEvents = "none";
+          if (direction > 0) {
+            target.style.transform = `translate3d(0, ${-5 + 5 * progress}px, ${-42 + 42 * progress}px) scale(${.982 + .018 * progress})`;
+            target.style.opacity = String(.68 + .32 * progress);
+          } else {
+            target.style.transform = `translate3d(${-9 + 9 * progress}%, ${-4 + 4 * progress}px, 0) scale(${1.012 - .012 * progress})`;
+            target.style.opacity = String(.16 + .84 * progress);
+          }
+        }
+      };
+
+      const queueRender = () => {
+        if (!frame) frame = requestAnimationFrame(renderDrag);
+      };
+
+      const settleBack = () => {
+        const card = gesture?.card;
+        const target = gesture?.target;
+        if (!card) {
+          clearGestureState();
+          return;
+        }
+        isAnimating = true;
+        stage.classList.remove("is-gesture-active");
+        stage.classList.add("is-settling");
+        card.style.transition = `transform ${FEED_SWIPE_DURATION}ms var(--swipe-spring), opacity 300ms ease`;
+        if (target) target.style.transition = `transform ${FEED_SWIPE_DURATION}ms var(--swipe-spring), opacity 300ms ease`;
+        card.style.removeProperty("transform");
+        card.style.removeProperty("opacity");
+        card.style.removeProperty("--swipe-opacity");
+        card.classList.remove("drag-prev", "drag-next");
+        if (target) {
+          target.style.removeProperty("transform");
+          target.style.removeProperty("opacity");
+        }
+        afterTransformTransition(card, () => {
+          clearFeedCardGesture(card);
+          clearFeedCardGesture(target);
+          stage.classList.remove("is-settling");
+          isAnimating = false;
+          clearGestureState();
+        });
+      };
+
+      const commitSwipe = direction => {
+        const card = gesture?.card;
+        const targetInfo = targetForDirection(direction);
+        const target = targetInfo?.card;
+        if (!card || !target) {
+          settleBack();
+          return;
+        }
+
+        if (gesture.target && gesture.target !== target) clearFeedCardGesture(gesture.target);
+        gesture.target = target;
+        gesture.targetIndex = targetInfo.index;
+        isAnimating = true;
+        suppressClickUntil = performance.now() + 520;
+        stage.classList.remove("is-gesture-active");
+        stage.classList.add("is-settling");
+        releasePointer(gesture.pointerId);
+
+        card.style.transition = `transform ${FEED_SWIPE_DURATION}ms var(--swipe-spring), opacity 300ms ease`;
+        target.classList.add("swipe-target");
+        target.style.zIndex = "3";
+        target.style.pointerEvents = "none";
+        target.style.transition = `transform ${FEED_SWIPE_DURATION}ms var(--swipe-spring), opacity 320ms ease`;
+
+        requestAnimationFrame(() => {
+          const exit = direction > 0 ? -stage.clientWidth * 1.18 : stage.clientWidth * 1.18;
+          card.style.transform = `translate3d(${exit}px, -12px, 0) rotate(${direction > 0 ? -7 : 7}deg) scale(.985)`;
+          card.style.opacity = "0";
+          card.style.removeProperty("--swipe-opacity");
+          card.classList.remove("drag-prev", "drag-next");
+          target.style.transform = "translate3d(0, 0, 0) scale(1)";
+          target.style.opacity = "1";
+        });
+
+        afterTransformTransition(card, () => {
+          currentIndex = gesture?.targetIndex ?? targetInfo.index;
+          applyCardPositions(true);
+          stage.classList.remove("is-settling");
+          isAnimating = false;
+          clearGestureState();
+        });
+      };
+
+      stage.addEventListener("pointerdown", event => {
+        if (isAnimating) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (event.target.closest("button, a, input, textarea, select, [contenteditable='true']")) return;
+        const card = event.target.closest(".feed-card.is-current");
+        if (!card) return;
+
+        const now = performance.now();
+        gesture = {
+          pointerId: event.pointerId,
+          card,
+          target: null,
+          targetIndex: currentIndex,
+          axis: null,
+          startX: event.clientX,
+          startY: event.clientY,
+          lastX: event.clientX,
+          lastTime: now,
+          deltaX: 0,
+          velocityX: 0,
+          direction: 0,
+        };
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
+        dragDeltaX = 0;
+        pointerId = event.pointerId;
+        stage.classList.add("is-gesture-pending");
+      });
+
+      stage.addEventListener("pointermove", event => {
+        if (!gesture || event.pointerId !== gesture.pointerId || isAnimating) return;
+        const dx = event.clientX - gesture.startX;
+        const dy = event.clientY - gesture.startY;
+
+        if (!gesture.axis) {
+          if (Math.hypot(dx, dy) < 8) return;
+          if (Math.abs(dy) > Math.abs(dx) * 1.12) {
+            gesture.axis = "vertical";
+            stage.classList.remove("is-gesture-pending");
+            return;
+          }
+          gesture.axis = "horizontal";
+          stage.classList.remove("is-gesture-pending");
+          stage.classList.add("is-gesture-active");
+          try { stage.setPointerCapture(event.pointerId); } catch (_) {}
+        }
+
+        if (gesture.axis !== "horizontal") return;
+        if (event.cancelable) event.preventDefault();
+        const now = performance.now();
+        const dt = Math.max(1, now - gesture.lastTime);
+        const instantVelocity = (event.clientX - gesture.lastX) / dt;
+        gesture.velocityX = gesture.velocityX * .72 + instantVelocity * .28;
+        gesture.lastX = event.clientX;
+        gesture.lastTime = now;
+        gesture.deltaX = dx;
+        dragDeltaX = dx;
+        queueRender();
+      });
+
+      const finish = (event, cancelled = false) => {
+        if (!gesture || (event.pointerId != null && event.pointerId !== gesture.pointerId)) return;
+        if (frame) {
+          cancelAnimationFrame(frame);
+          frame = 0;
+          renderDrag();
+        }
+
+        if (gesture.axis !== "horizontal") {
+          clearGestureState();
+          return;
+        }
+
+        const width = Math.max(1, stage.clientWidth);
+        const predicted = gesture.deltaX + gesture.velocityX * 190;
+        const direction = predicted < 0 ? 1 : -1;
+        const distanceCommit = Math.abs(gesture.deltaX) >= Math.max(52, width * .15);
+        const velocityCommit = Math.abs(gesture.velocityX) >= .52 && Math.abs(gesture.deltaX) >= 16;
+        const projectedCommit = Math.abs(predicted) >= width * .22 && Math.abs(gesture.deltaX) >= 12;
+        const shouldMove = !cancelled && getPendingPosts().length > 1 && (distanceCommit || velocityCommit || projectedCommit);
+
+        suppressClickUntil = performance.now() + (Math.abs(gesture.deltaX) > 6 ? 420 : 0);
+        if (shouldMove) commitSwipe(direction);
+        else settleBack();
+      };
+
+      stage.addEventListener("pointerup", event => finish(event, false));
+      stage.addEventListener("pointercancel", event => finish(event, true));
+      stage.addEventListener("lostpointercapture", event => {
+        if (gesture && gesture.axis === "horizontal" && !isAnimating && event.pointerId === gesture.pointerId) {
+          finish(event, true);
+        }
+      });
+      stage.addEventListener("click", event => {
+        if (performance.now() < suppressClickUntil) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
     }
 
     /**
@@ -16727,51 +17190,187 @@ ledger_entry · artifact · agent_run`,
     });
 
     let growthSlideIndex = 0;
+
     function setGrowthSlide(index, animate = true) {
+      const swipe = document.getElementById("growthSwipe");
       const track = document.getElementById("growthSwipeTrack");
       if (!track) return;
       growthSlideIndex = Math.max(0, Math.min(1, index));
       track.classList.toggle("is-dragging", !animate);
-      track.style.transform = `translate3d(${-growthSlideIndex * 50}%,0,0)`;
-      document.querySelectorAll("[data-growth-slide]").forEach(dot => dot.classList.toggle("active", Number(dot.dataset.growthSlide) === growthSlideIndex));
-      // Disabled at each end, and the stylesheet fades it out: each arrow sits
-      // on its own edge, where a greyed one reads as a broken control. The dots
-      // are what say "there are only two of these".
+      track.style.transform = `translate3d(${-growthSlideIndex * 50}%, 0, 0)`;
+
+      document.querySelectorAll("[data-growth-slide]").forEach(dot => {
+        const active = Number(dot.dataset.growthSlide) === growthSlideIndex;
+        dot.classList.toggle("active", active);
+        dot.setAttribute("aria-current", active ? "true" : "false");
+      });
+      document.querySelectorAll(".growth-slide").forEach((slide, slideIndex) => {
+        slide.setAttribute("aria-hidden", slideIndex === growthSlideIndex ? "false" : "true");
+      });
       document.querySelectorAll("[data-growth-nav]").forEach(arrow => {
         const target = growthSlideIndex + Number(arrow.dataset.growthNav);
         arrow.disabled = target < 0 || target > 1;
       });
+
       if (!animate) requestAnimationFrame(() => track.classList.remove("is-dragging"));
+      if (swipe) swipe.dataset.slide = String(growthSlideIndex);
     }
+
     function bindGrowthSwipe() {
       const swipe = document.getElementById("growthSwipe");
       const track = document.getElementById("growthSwipeTrack");
       if (!swipe || !track || swipe.dataset.bound) return;
       swipe.dataset.bound = "1";
-      let startX=0,startY=0,deltaX=0,dragging=false,pid=null;
-      swipe.addEventListener("pointerdown", event => {
-        if (event.target.closest("button")) return;
-        startX=event.clientX;startY=event.clientY;deltaX=0;dragging=true;pid=event.pointerId;
-        swipe.setPointerCapture(pid);track.classList.add("is-dragging");
-      });
-      swipe.addEventListener("pointermove", event => {
-        if (!dragging || event.pointerId !== pid) return;
-        const dy=event.clientY-startY;deltaX=event.clientX-startX;
-        if (Math.abs(dy)>Math.abs(deltaX) && Math.abs(dy)>10) return;
-        const base=-growthSlideIndex*swipe.clientWidth;
-        const resistance=((growthSlideIndex===0&&deltaX>0)||(growthSlideIndex===1&&deltaX<0))?.28:1;
-        track.style.transform=`translate3d(${base+deltaX*resistance}px,0,0)`;
-      });
-      const finish=event=>{
-        if(!dragging || (event.pointerId!=null&&event.pointerId!==pid)) return;
-        dragging=false;track.classList.remove("is-dragging");
-        const threshold=Math.min(80,swipe.clientWidth*.16);
-        if(deltaX < -threshold) setGrowthSlide(1); else if(deltaX > threshold) setGrowthSlide(0); else setGrowthSlide(growthSlideIndex);
-        pid=null;
+
+      let gesture = null;
+      let frame = 0;
+      let settling = false;
+
+      const releasePointer = pointer => {
+        if (pointer == null) return;
+        try {
+          if (swipe.hasPointerCapture(pointer)) swipe.releasePointerCapture(pointer);
+        } catch (_) {}
       };
-      swipe.addEventListener("pointerup",finish);swipe.addEventListener("pointercancel",finish);
-      document.querySelectorAll("[data-growth-slide]").forEach(dot=>dot.addEventListener("click",()=>setGrowthSlide(Number(dot.dataset.growthSlide))));
-      document.querySelectorAll("[data-growth-nav]").forEach(arrow=>arrow.addEventListener("click",()=>setGrowthSlide(growthSlideIndex+Number(arrow.dataset.growthNav))));
+
+      const clearGesture = () => {
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
+        releasePointer(gesture?.pointerId);
+        gesture = null;
+        swipe.classList.remove("is-gesture-active", "is-gesture-pending");
+      };
+
+      const elasticEdge = (delta, width) => {
+        const range = width * .18;
+        return Math.sign(delta || 1) * range * (1 - Math.exp(-Math.abs(delta) / Math.max(1, range)));
+      };
+
+      const renderDrag = () => {
+        frame = 0;
+        if (!gesture || gesture.axis !== "horizontal") return;
+        const width = Math.max(1, swipe.clientWidth);
+        const atLeadingEdge = growthSlideIndex === 0 && gesture.deltaX > 0;
+        const atTrailingEdge = growthSlideIndex === 1 && gesture.deltaX < 0;
+        const offset = atLeadingEdge || atTrailingEdge
+          ? elasticEdge(gesture.deltaX, width)
+          : gesture.deltaX;
+        const base = -growthSlideIndex * width;
+        track.style.transform = `translate3d(${base + offset}px, 0, 0)`;
+      };
+
+      const settle = targetIndex => {
+        if (settling) return;
+        settling = true;
+        releasePointer(gesture?.pointerId);
+        swipe.classList.remove("is-gesture-active");
+        swipe.classList.add("is-settling");
+        track.classList.remove("is-dragging");
+        setGrowthSlide(targetIndex, true);
+        afterTransformTransition(track, () => {
+          swipe.classList.remove("is-settling");
+          settling = false;
+          clearGesture();
+        });
+      };
+
+      swipe.addEventListener("pointerdown", event => {
+        if (settling) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (event.target.closest("button, a, input, textarea, select")) return;
+        const now = performance.now();
+        gesture = {
+          pointerId: event.pointerId,
+          axis: null,
+          startX: event.clientX,
+          startY: event.clientY,
+          lastX: event.clientX,
+          lastTime: now,
+          deltaX: 0,
+          velocityX: 0,
+        };
+        swipe.classList.add("is-gesture-pending");
+      });
+
+      swipe.addEventListener("pointermove", event => {
+        if (!gesture || event.pointerId !== gesture.pointerId || settling) return;
+        const dx = event.clientX - gesture.startX;
+        const dy = event.clientY - gesture.startY;
+        if (!gesture.axis) {
+          if (Math.hypot(dx, dy) < 8) return;
+          if (Math.abs(dy) > Math.abs(dx) * 1.12) {
+            gesture.axis = "vertical";
+            swipe.classList.remove("is-gesture-pending");
+            return;
+          }
+          gesture.axis = "horizontal";
+          swipe.classList.remove("is-gesture-pending");
+          swipe.classList.add("is-gesture-active");
+          track.classList.add("is-dragging");
+          try { swipe.setPointerCapture(event.pointerId); } catch (_) {}
+        }
+        if (gesture.axis !== "horizontal") return;
+        if (event.cancelable) event.preventDefault();
+
+        const now = performance.now();
+        const dt = Math.max(1, now - gesture.lastTime);
+        const instantVelocity = (event.clientX - gesture.lastX) / dt;
+        gesture.velocityX = gesture.velocityX * .72 + instantVelocity * .28;
+        gesture.lastX = event.clientX;
+        gesture.lastTime = now;
+        gesture.deltaX = dx;
+        if (!frame) frame = requestAnimationFrame(renderDrag);
+      });
+
+      const finish = (event, cancelled = false) => {
+        if (!gesture || (event.pointerId != null && event.pointerId !== gesture.pointerId)) return;
+        if (frame) {
+          cancelAnimationFrame(frame);
+          frame = 0;
+          renderDrag();
+        }
+        if (gesture.axis !== "horizontal") {
+          clearGesture();
+          return;
+        }
+
+        const width = Math.max(1, swipe.clientWidth);
+        const predicted = gesture.deltaX + gesture.velocityX * 190;
+        const direction = predicted < 0 ? 1 : -1;
+        const target = Math.max(0, Math.min(1, growthSlideIndex + direction));
+        const distanceCommit = Math.abs(gesture.deltaX) >= Math.max(48, width * .14);
+        const velocityCommit = Math.abs(gesture.velocityX) >= .5 && Math.abs(gesture.deltaX) >= 14;
+        const projectedCommit = Math.abs(predicted) >= width * .21 && Math.abs(gesture.deltaX) >= 10;
+        const shouldMove = !cancelled && target !== growthSlideIndex && (distanceCommit || velocityCommit || projectedCommit);
+        settle(shouldMove ? target : growthSlideIndex);
+      };
+
+      swipe.addEventListener("pointerup", event => finish(event, false));
+      swipe.addEventListener("pointercancel", event => finish(event, true));
+      swipe.addEventListener("lostpointercapture", event => {
+        if (gesture && gesture.axis === "horizontal" && !settling && event.pointerId === gesture.pointerId) {
+          finish(event, true);
+        }
+      });
+
+      document.querySelectorAll("[data-growth-slide]").forEach(dot => {
+        dot.addEventListener("click", () => {
+          const target = Number(dot.dataset.growthSlide);
+          if (!settling && target !== growthSlideIndex) settle(target);
+        });
+      });
+      document.querySelectorAll("[data-growth-nav]").forEach(arrow => {
+        arrow.addEventListener("click", () => {
+          if (!settling) settle(growthSlideIndex + Number(arrow.dataset.growthNav));
+        });
+      });
+
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(() => {
+          if (!gesture && !settling) setGrowthSlide(growthSlideIndex, false);
+        }).observe(swipe);
+      }
+      setGrowthSlide(growthSlideIndex, false);
     }
 
     /* ----------------------------------------------------------

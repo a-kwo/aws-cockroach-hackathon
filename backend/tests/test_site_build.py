@@ -1814,3 +1814,101 @@ def test_the_admin_endpoint_is_built_into_the_page():
 
     assert '"adminEndpoint": admin_endpoint or None' in source
     assert 'ADMIN_API_ENDPOINT' in source
+
+# ---------------------------------------------------------------------------
+# Native swipe and complete mobile reading
+# ---------------------------------------------------------------------------
+
+
+def test_for_you_swipe_waits_for_horizontal_intent_and_uses_velocity():
+    """A recommendation deck must not steal a vertical reading gesture.
+
+    The old handler captured the pointer on pointerdown and moved the card on
+    every pointermove. On a phone that made a slightly diagonal scroll feel
+    like a broken swipe. The replacement locks an axis first, renders on the
+    animation frame, and uses distance plus velocity when deciding whether to
+    advance.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("function bindFeedGestures()", 1)[1].split(
+        "/**\n     * Arrow keys browse", 1
+    )[0]
+
+    assert 'gesture.axis = "vertical"' in block
+    assert 'gesture.axis = "horizontal"' in block
+    assert "requestAnimationFrame(renderDrag)" in block
+    assert "gesture.velocityX" in block
+    assert "const predicted = gesture.deltaX + gesture.velocityX" in block
+    assert "event.cancelable" in block and "event.preventDefault()" in block
+
+
+def test_mobile_for_you_keeps_every_word_readable():
+    """On a phone, long evidence and recommendations scroll; they never clamp.
+
+    The decision footer stays available while the body owns vertical scrolling.
+    This is more important than preserving a fixed-card screenshot: an owner
+    cannot approve a move responsibly if the card hides part of the evidence.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    css = html.split('<style id="native-swipe-mobile-v19">', 1)[1].split(
+        "</style>", 1
+    )[0]
+    mobile = css.split("@media (max-width: 640px)", 1)[1]
+
+    assert "touch-action: pan-y pinch-zoom" in css
+    assert "overflow-y: auto" in mobile
+    assert "-webkit-overflow-scrolling: touch" in mobile
+    assert "grid-template-rows: minmax(0, 1fr) auto" in mobile
+    assert "-webkit-line-clamp: unset" in mobile
+    assert "overflow: visible" in mobile
+    for selector in (
+        "body.autopilot-mode .post-copy h2",
+        "body.autopilot-mode .signal-text",
+        "body.autopilot-mode .recommendation-steps li",
+    ):
+        assert selector in mobile, selector
+
+
+def test_growth_swipe_uses_the_same_native_gesture_contract():
+    """Growth should not feel like a second, rougher carousel."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split("function bindGrowthSwipe()", 1)[1].split(
+        "/* ----------------------------------------------------------\n       Memory Engine", 1
+    )[0]
+
+    assert 'gesture.axis = "vertical"' in block
+    assert 'gesture.axis = "horizontal"' in block
+    assert "requestAnimationFrame(renderDrag)" in block
+    assert "gesture.velocityX" in block
+    assert "const predicted = gesture.deltaX + gesture.velocityX" in block
+
+
+def test_growth_momentum_heading_is_not_visible():
+    """The owner asked to remove the redundant 'Your momentum' card heading."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert ">Your momentum<" not in html
+    assert 'id="growthChartHeading" class="sr-only">Growth history</h2>' in html
+
+
+def test_mobile_card_contains_the_full_reason_and_every_action_step():
+    """The phone card can scroll, so it must not replace content with '+N more'.
+
+    Desktop keeps the compact summary, but the DOM retains the full rationale
+    and every action. Mobile CSS reveals those complete versions before the
+    owner chooses Do it or Pass.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    css = html.split('<style id="native-swipe-mobile-v19">', 1)[1].split(
+        "</style>", 1
+    )[0]
+    mobile = css.split("@media (max-width: 640px)", 1)[1]
+
+    assert "fullSignal: find.rationale || find.summary" in html
+    assert 'class="signal-summary"' in html
+    assert 'class="signal-full"' in html
+    assert 'class="step-overflow"' in html
+    assert ".signal-full" in mobile and "display: block" in mobile
+    assert ".signal-summary" in mobile and "display: none" in mobile
+    assert ".step-overflow" in mobile and "display: list-item" in mobile
+    assert ".step-more" in mobile and "display: none" in mobile
