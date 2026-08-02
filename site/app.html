@@ -12396,9 +12396,9 @@
 
 
   <style id="consistent-feed-chat-growth-v23">
-    /* One recommendation, one body of content. Viewport changes the reading
-       mechanics only; desktop and mobile render the same rationale and every
-       action step. */
+    /* One recommendation, one owner-facing summary. Viewport changes the
+       reading mechanics only; desktop and mobile render the same concise
+       insight and every action step. The traceable rationale stays in details. */
     body.autopilot-mode .post-surface {
       min-height: 0 !important;
       grid-template-rows: minmax(0, 1fr) auto !important;
@@ -12664,6 +12664,21 @@
       .memory-engine .visual-stage-pulse {
         animation: none !important;
       }
+    }
+  </style>
+
+  <style id="concise-owner-feed-v25">
+    /* Cards communicate the decision, not the database trace. The same concise
+       summary is rendered at every viewport and is never line-clamped. */
+    body.autopilot-mode .signal-text,
+    body.autopilot-mode .feed-card[data-fit] .signal-text {
+      display: block !important;
+      max-height: none !important;
+      overflow: visible !important;
+      -webkit-line-clamp: unset !important;
+      -webkit-box-orient: initial !important;
+      text-overflow: clip !important;
+      text-wrap: pretty;
     }
   </style>
 
@@ -13290,6 +13305,60 @@
       return `${days} day${days === 1 ? "" : "s"} ago`;
     }
 
+    function cleanOwnerCopy(value) {
+      return String(value || "")
+        .replace(/\s*[\(\[]\s*(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{8})(?:\s*[,;]\s*(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{8}))*\s*[\)\]]/gi, "")
+        .replace(/(^|[^0-9a-z])(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{8})(?=$|[^0-9a-z])/gi, "$1")
+        .replace(/\(\s*\)|\[\s*\]/g, "")
+        .replace(/\s+([,.;:!?])/g, "$1")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+    }
+
+    function completeOwnerSummary(value, limit = 180) {
+      const cleaned = cleanOwnerCopy(value);
+      if (!cleaned) return "";
+      const wasTruncated = /(?:…|\.{3})$/.test(cleaned);
+      let stem = cleaned.replace(/(?:…|\.{3})$/, "").trim();
+
+      if (wasTruncated) {
+        for (const marker of [" — ", "; ", ": "]) {
+          const index = stem.indexOf(marker);
+          if (index >= 60) {
+            stem = stem.slice(0, index);
+            break;
+          }
+        }
+      }
+
+      if (stem.length > limit) {
+        const windowText = stem.slice(0, limit);
+        const boundary = Math.max(
+          windowText.lastIndexOf(" — "),
+          windowText.lastIndexOf("; "),
+          windowText.lastIndexOf(": ")
+        );
+        stem = boundary >= 60
+          ? windowText.slice(0, boundary)
+          : windowText.replace(/\s+\S*$/, "");
+      }
+
+      stem = stem.replace(/[ ,;:—-]+$/, "");
+      return stem && !/[.!?]$/.test(stem) ? `${stem}.` : stem;
+    }
+
+    function conciseFindSummary(find) {
+      const stored = completeOwnerSummary(find?.summary || "");
+      if (stored) return stored;
+
+      // Legacy finds predate the summary column. Use only the opening sentence
+      // of the cleaned rationale; ids and the rest of the trace stay in details.
+      const rationale = cleanOwnerCopy(find?.rationale || "");
+      if (!rationale) return "A relevant market pattern is ready for your review.";
+      const match = rationale.match(/^.*?[.!?](?:\s|$)/);
+      return completeOwnerSummary((match ? match[0] : rationale).trim());
+    }
+
     function findToPost(find, { serverVerified = false } = {}) {
       const featureKey = postCategory(find);
       const styles = {
@@ -13305,10 +13374,10 @@
         feature: style.feature,
         featureKey,
         title: find.title,
-        // One recommendation has one canonical explanation on every device.
-        // The viewport changes the reading surface, never the content.
-        signal: find.rationale || find.summary || "",
-        fullSignal: find.rationale || find.summary || "",
+        // The card is deliberately concise. The exact same summary appears on
+        // phone and desktop; the clean rationale remains available in details.
+        signal: conciseFindSummary(find),
+        fullSignal: cleanOwnerCopy(find.rationale || find.summary || ""),
         recommendation: find.move,
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],
@@ -14423,7 +14492,7 @@
                   </button>
                 </div>
                 <h2 class="post-title">${post.title}</h2>
-                <p class="signal-text">${escapeHtml(post.fullSignal || post.signal || "")}</p>
+                <p class="signal-text">${escapeHtml(post.signal || "")}</p>
                 <div class="recommendation">
                   <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
                   <span class="recommendation-copy">

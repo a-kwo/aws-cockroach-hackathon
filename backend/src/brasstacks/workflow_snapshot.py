@@ -25,6 +25,7 @@ from brasstacks.agents.analyst import ANALYST_QUERIES, DEFAULT_PER_QUERY_LIMIT
 from brasstacks.agents.ask import TRAIL_PREFIX
 from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
+from brasstacks.finds import SUMMARY_MAX_CHARS, clean_owner_copy, owner_card_summary
 
 PER_MONTH = 30
 RAW_HIT_CEILING = len(ANALYST_QUERIES) * DEFAULT_PER_QUERY_LIMIT
@@ -274,11 +275,6 @@ def _analyst_run_receipt(raw_runs: list[dict[str, Any]]) -> dict[str, Any] | Non
     }
 
 
-#: Mirrors brasstacks.finds.SUMMARY_MAX_CHARS and build_web.card_summary. The
-#: card has the same amount of room whichever path filled it.
-SUMMARY_MAX_CHARS = 180
-
-
 def card_summary(raw_find: dict) -> str:
     """One sentence for the card face, from the model or from the rationale.
 
@@ -286,19 +282,14 @@ def card_summary(raw_find: dict) -> str:
     the rationale's first sentence is the fallback — done once here rather than
     in the page.
     """
-    text = " ".join((raw_find.get("summary") or "").split())
+    text = " ".join(clean_owner_copy(raw_find.get("summary") or "").split())
     if not text:
-        rationale = " ".join((raw_find.get("rationale") or "").split())
+        rationale = " ".join(clean_owner_copy(raw_find.get("rationale") or "").split())
         first, _, _ = rationale.partition(". ")
         text = first.strip()
         if text and not text.endswith("."):
             text += "."
-    if len(text) <= SUMMARY_MAX_CHARS:
-        return text
-    cut = text[:SUMMARY_MAX_CHARS - 1]
-    if " " in cut:
-        cut = cut[:cut.rindex(" ")]
-    return cut.rstrip(",;:") + "…"
+    return owner_card_summary(text)
 
 
 def build_workspace(data: dict[str, Any]) -> dict[str, Any]:

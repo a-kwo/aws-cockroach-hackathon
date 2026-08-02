@@ -1891,7 +1891,7 @@ def test_growth_momentum_heading_is_not_visible():
     assert 'id="growthChartHeading" class="sr-only">Growth history</h2>' in html
 
 
-def test_every_viewport_renders_the_same_full_reason_and_action_list():
+def test_every_viewport_renders_the_same_owner_summary_and_action_list():
     """Device width changes reading mechanics, never recommendation content."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     parity_css = html.split('<style id="consistent-feed-chat-growth-v23">', 1)[1].split(
@@ -1902,8 +1902,10 @@ def test_every_viewport_renders_the_same_full_reason_and_action_list():
         "function getDecision", 1
     )[0]
 
-    assert "signal: find.rationale || find.summary" in html
-    assert "post.fullSignal || post.signal" in card
+    assert "signal: conciseFindSummary(find)" in html
+    assert "fullSignal: cleanOwnerCopy(find.rationale" in html
+    assert 'escapeHtml(post.signal || "")' in card
+    assert "post.fullSignal" not in card
     assert 'class="signal-summary"' not in card
     assert 'class="signal-full"' not in card
     assert ".slice(" not in steps
@@ -1912,6 +1914,47 @@ def test_every_viewport_renders_the_same_full_reason_and_action_list():
     assert "overflow-y: auto !important" in parity_css
     assert "-webkit-line-clamp: unset !important" in parity_css
     assert "body.autopilot-mode .recommendation-steps li" in parity_css
+
+
+
+
+def test_owner_feed_summary_is_concise_and_hides_trace_identifiers():
+    """The card is owner communication; evidence ids stay in the trace."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "function cleanOwnerCopy(value)" in html
+    assert "function completeOwnerSummary(value, limit = 180)" in html
+    assert "function conciseFindSummary(find)" in html
+    assert "signal: conciseFindSummary(find)" in html
+    assert '<p class="signal-text">${escapeHtml(post.signal || "")}</p>' in html
+    assert "concise-owner-feed-v25" in html
+    assert 'return stem && !/[.!?]$/.test(stem) ? `${stem}.` : stem' in html
+
+
+def test_analyst_prompt_defines_a_short_nonredundant_owner_summary():
+    source = (build_web.REPO / "backend" / "src" / "brasstacks" /
+              "agents" / "analyst.py").read_text(encoding="utf-8")
+
+    assert "ideally 110–160 characters" in source
+    assert '"memory", "rows", "records" or "observations"' in source
+    assert "include any evidence id" in source
+    assert "Do not repeat the title" in source
+
+
+def test_mobile_landing_story_uses_portrait_compositions_without_clamps():
+    html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
+    css = html.split("MOBILE STORY COMPOSITION · V25", 1)[1].split("</style>", 1)[0]
+
+    assert "--story-stage-width" in css
+    assert "--story-stage-height" in css
+    assert "aspect-ratio: auto" in css
+    assert "-webkit-line-clamp: unset" in css
+    assert ".node-a" in css and ".node-b" in css and ".node-c" in css
+    assert ".move-card h4" in css
+    assert ".move-reason p" in css
+    assert ".proof-title" in css
+    assert "storyFind.title || storyFind.shortTitle" in html
+    assert "storyFind.summary || storyFind.rationale" in html
 
 
 def test_empty_growth_history_shows_an_honest_process_projection():

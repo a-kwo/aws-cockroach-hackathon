@@ -922,6 +922,452 @@ body[data-chapter="final"] .ambient::after { opacity: .12; }
   .converge { transform: scale(.82); margin-bottom: 6px; }
 }
 
+
+/* ============================================================
+   PRODUCTION RESPONSIVE LANDING VISUALS · V24
+   The story scene used to size itself from width and then cap only height.
+   In short/landscape viewports that produced a 520 × 195px “square” and
+   crushed every layer inside it. The stage now resolves one square size from
+   BOTH viewport axes, while its contents scale from the stage itself.
+   ============================================================ */
+.story-visual {
+  container: story-stage / inline-size;
+  max-width: 100%;
+  isolation: isolate;
+}
+
+.visual-time {
+  max-width: calc(100% - 116px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Scale the listening scene from its own card, not from the page viewport. */
+.orbit-node {
+  width: clamp(92px, 29cqi, 150px);
+  padding: clamp(8px, 2.35cqi, 12px) clamp(9px, 2.7cqi, 14px);
+  gap: clamp(7px, 1.9cqi, 10px);
+  border-radius: clamp(13px, 3.1cqi, 16px);
+}
+.orbit-node i {
+  width: clamp(26px, 6cqi, 31px);
+  height: clamp(26px, 6cqi, 31px);
+  border-radius: clamp(8px, 2cqi, 10px);
+  font-size: clamp(13px, 3cqi, 16px);
+}
+.orbit-node span {
+  min-width: 0;
+  font-size: clamp(8.5px, 2.15cqi, 11px);
+  line-height: 1.28;
+}
+.node-a { transform: translate(-29cqi, -21cqi); }
+.node-b { transform: translate(29cqi, -7cqi); }
+.node-c { transform: translate(-21cqi, 28cqi); }
+
+.watch-core {
+  width: clamp(70px, 18cqi, 94px);
+  height: clamp(70px, 18cqi, 94px);
+}
+.watch-core::before { inset: calc(-1 * clamp(34px, 12cqi, 62px)); }
+.watch-core::after { inset: calc(-1 * clamp(56px, 23cqi, 120px)); }
+.watch-core svg {
+  width: clamp(27px, 6.6cqi, 34px);
+  height: clamp(27px, 6.6cqi, 34px);
+}
+
+.visual-thread {
+  top: clamp(50px, 13.5cqi, 70px);
+  bottom: clamp(18px, 6.5cqi, 34px);
+}
+.visual-thread::after { animation-name: visualThreadResponsive; }
+@keyframes visualThreadResponsive {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(72cqi); opacity: 0; }
+}
+
+/* Reserve a real header-safe zone for every animated state. */
+.layer-decide,
+.layer-prove {
+  padding: clamp(50px, 13cqi, 74px) clamp(12px, 5cqi, 28px) clamp(12px, 5cqi, 28px);
+}
+.move-card,
+.proof-scene {
+  width: 100%;
+  max-width: 430px;
+  max-height: 100%;
+}
+.move-card {
+  padding: clamp(17px, 6cqi, 34px);
+  border-radius: clamp(21px, 5.8cqi, 30px);
+}
+.move-kicker {
+  margin-bottom: clamp(11px, 4.2cqi, 22px);
+  font-size: clamp(8px, 2cqi, 10px);
+}
+.move-card h4 {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: clamp(21px, 8.4cqi, 46px);
+  line-height: 1.02;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.move-reason {
+  margin-top: clamp(13px, 5cqi, 28px);
+  padding: clamp(10px, 3.2cqi, 16px) 0;
+  grid-template-columns: clamp(34px, 8cqi, 42px) 1fr;
+  gap: clamp(9px, 3cqi, 14px);
+}
+.move-reason-icon {
+  width: clamp(34px, 8cqi, 42px);
+  height: clamp(34px, 8cqi, 42px);
+  border-radius: clamp(11px, 3cqi, 14px);
+}
+.move-reason p {
+  margin-top: 4px;
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: clamp(10px, 2.7cqi, 13px);
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.move-impact { margin-top: clamp(12px, 4cqi, 20px); }
+.move-impact b { font-size: clamp(20px, 5.6cqi, 24px); }
+.move-impact-icon {
+  width: clamp(38px, 9.2cqi, 48px);
+  height: clamp(38px, 9.2cqi, 48px);
+  border-radius: clamp(13px, 3cqi, 16px);
+  font-size: clamp(23px, 6cqi, 29px);
+}
+
+.proof-main {
+  padding: clamp(17px, 6cqi, 32px);
+  border-radius: clamp(21px, 5.8cqi, 30px);
+}
+.proof-status { gap: clamp(10px, 3.3cqi, 17px); }
+.proof-check {
+  width: clamp(35px, 8.5cqi, 44px);
+  height: clamp(35px, 8.5cqi, 44px);
+}
+.proof-status-copy b { font-size: clamp(13px, 3.3cqi, 17px); }
+.proof-status-copy span { font-size: clamp(8.5px, 2.2cqi, 11px); }
+.proof-title {
+  margin-top: clamp(14px, 5.5cqi, 30px);
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: clamp(18px, 5.2cqi, 26px);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.proof-result {
+  margin-top: clamp(13px, 5cqi, 28px);
+  gap: clamp(10px, 3cqi, 15px);
+  padding: clamp(11px, 3.5cqi, 18px);
+  border-radius: clamp(15px, 4cqi, 20px);
+}
+.proof-result-arrow {
+  width: clamp(37px, 9cqi, 48px);
+  height: clamp(37px, 9cqi, 48px);
+  border-radius: clamp(12px, 3cqi, 16px);
+  font-size: clamp(23px, 6cqi, 30px);
+}
+.proof-result b { font-size: clamp(22px, 6cqi, 29px); }
+.proof-expected { margin-top: clamp(9px, 2.8cqi, 14px); }
+.proof-rule { margin: clamp(13px, 4cqi, 24px) 0 clamp(10px, 3cqi, 17px); }
+
+@media (min-width: 901px) and (max-height: 720px) {
+  .story-grid {
+    grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
+    gap: clamp(34px, 5vw, 72px);
+  }
+  .story-visual-wrap {
+    top: 86px;
+    height: calc(100svh - 104px);
+  }
+  .story-visual {
+    width: min(520px, 100%, calc(100svh - 112px));
+    height: auto;
+    max-height: none;
+    aspect-ratio: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .story-grid {
+    --story-stage-size: min(520px, calc(100vw - 48px), calc(100svh - 124px));
+  }
+  .story-visual-wrap {
+    position: sticky;
+    top: 82px;
+    width: 100%;
+    height: var(--story-stage-size);
+    min-height: 236px;
+    max-height: none;
+    align-self: start;
+  }
+  .story-visual {
+    z-index: 2;
+    width: var(--story-stage-size);
+    height: var(--story-stage-size);
+    max-height: none;
+    aspect-ratio: 1;
+    contain: layout paint;
+  }
+  /* Sticky scenes pass over the story copy. On compact screens the paper is
+     intentionally opaque so previous/next chapter text never bleeds through. */
+  .story-visual[data-state="watch"] {
+    background: radial-gradient(circle at 50% 46%, rgba(111,131,173,.14), transparent 38%), #f8f9fb;
+  }
+  .story-visual[data-state="decide"] {
+    background: radial-gradient(circle at 50% 40%, rgba(231,189,105,.18), transparent 42%), #fbfaf7;
+  }
+  .story-visual[data-state="prove"] {
+    background: radial-gradient(circle at 50% 46%, rgba(35,138,85,.10), transparent 42%), #f8faf8;
+  }
+  .story-step {
+    min-height: max(62svh, calc(var(--story-stage-size) + 230px));
+    padding: calc(var(--story-stage-size) + 34px) 0 96px;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 620px) {
+  .story-grid {
+    --story-stage-size: min(520px, calc(100vw - 28px), calc(100svh - 118px));
+  }
+  .story-visual-wrap {
+    top: 76px;
+    height: var(--story-stage-size);
+    min-height: 236px;
+  }
+  .story-visual {
+    width: var(--story-stage-size);
+    height: var(--story-stage-size);
+    max-height: none;
+    border-radius: clamp(24px, 7vw, 30px);
+  }
+  .story-step {
+    min-height: max(76svh, calc(var(--story-stage-size) + 220px));
+    padding: calc(var(--story-stage-size) + 28px) 0 84px;
+  }
+  .story-step h3 { font-size: clamp(40px, 12vw, 48px); }
+  .visual-time {
+    top: clamp(15px, 4.2cqi, 20px);
+    left: clamp(16px, 4.6cqi, 22px);
+    max-width: calc(100% - 104px);
+    font-size: clamp(8px, 2.2cqi, 10px);
+  }
+  .visual-progress {
+    top: clamp(16px, 4.2cqi, 20px);
+    right: clamp(16px, 4.6cqi, 22px);
+  }
+  .visual-progress i.active { width: clamp(16px, 5cqi, 22px); }
+}
+
+/* Short phones and landscape devices get a compact, still-square scene. */
+@media (max-width: 900px) and (max-height: 520px) {
+  .story-grid {
+    --story-stage-size: min(440px, calc(100vw - 48px), calc(100svh - 112px));
+  }
+  .story-visual-wrap { top: 74px; min-height: 220px; }
+  .story-step {
+    min-height: calc(var(--story-stage-size) + 210px);
+    padding-top: calc(var(--story-stage-size) + 24px);
+  }
+}
+
+@media (max-width: 420px) {
+  .wrap { width: min(100% - 24px, 1120px); }
+  header { padding: 13px 0; }
+  .nav { gap: 12px; }
+  .brand { gap: 8px; font-size: 10.5px; letter-spacing: .13em; }
+  .nav-cta { min-height: 38px; padding: 0 15px; font-size: 12px; }
+  .hero { padding-top: 108px; }
+  .hero-hours { width: calc(100% - 24px); }
+  .clue-row { gap: 8px; }
+  .clue-chip { max-width: 100%; }
+  .hour-row { gap: 8px; }
+  .hour-mark strong { max-width: 92px; }
+  .story-grid { --story-stage-size: min(520px, calc(100vw - 24px), calc(100svh - 112px)); }
+}
+
+/* The smallest stage drops only secondary proof metadata; it never squashes. */
+@container story-stage (max-width: 320px) {
+  .layer-decide,
+  .layer-prove { padding: 42px 10px 10px; }
+  .move-card,
+  .proof-main { padding: 14px; }
+  .move-kicker { margin-bottom: 8px; }
+  .move-reason { margin-top: 9px; padding: 8px 0; }
+  .move-reason p { -webkit-line-clamp: 2; }
+  .move-impact { margin-top: 9px; }
+  .proof-title { margin-top: 10px; }
+  .proof-result { margin-top: 10px; padding: 9px; }
+  .proof-rule,
+  .proof-miss { display: none; }
+}
+
+
+/* ============================================================
+   MOBILE STORY COMPOSITION · V25
+   A phone is not a scaled-down desktop square. The story stage becomes a
+   portrait canvas, each state gets a dedicated composition, and dynamic copy
+   is allowed to wrap instead of being cropped into an ellipsis.
+   ============================================================ */
+@media (max-width: 900px) {
+  .story-grid {
+    --story-stage-width: min(560px, calc(100vw - 32px));
+    --story-stage-height: min(660px, calc(100svh - 104px), calc(132vw - 42px));
+  }
+  .story-visual-wrap {
+    top: 78px;
+    width: 100%;
+    height: var(--story-stage-height);
+    min-height: 0;
+    max-height: none;
+    place-items: start center;
+  }
+  .story-visual {
+    width: var(--story-stage-width);
+    height: var(--story-stage-height);
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: clamp(26px, 6vw, 38px);
+  }
+  .story-step {
+    min-height: max(76svh, calc(var(--story-stage-height) + 210px));
+    padding: calc(var(--story-stage-height) + 30px) 0 82px;
+  }
+  .layer-watch { padding-top: 52px; }
+  .node-a { top: 22%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+  .node-b { top: 52%; right: 5%; left: auto; bottom: auto; transform: translateY(-50%); }
+  .node-c { top: auto; right: auto; bottom: 11%; left: 6%; transform: none; }
+  .orbit-node { width: clamp(104px, 31cqi, 150px); min-height: 52px; }
+  .layer-decide,
+  .layer-prove {
+    align-items: center;
+    padding: clamp(58px, 14cqi, 78px) clamp(12px, 4.5cqi, 24px) clamp(14px, 4.5cqi, 24px);
+  }
+  .move-card,
+  .proof-scene { width: 100%; max-width: 440px; max-height: none; }
+  .move-card { padding: clamp(18px, 5.7cqi, 30px); }
+  .move-card h4 {
+    display: block;
+    overflow: visible;
+    font-size: clamp(27px, 8.2cqi, 42px);
+    line-height: 1.04;
+    text-wrap: balance;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+  }
+  .move-reason { margin-top: clamp(14px, 4.5cqi, 24px); padding: clamp(11px, 3.3cqi, 16px) 0; }
+  .move-reason p {
+    display: block;
+    overflow: visible;
+    font-size: clamp(11px, 2.8cqi, 13px);
+    line-height: 1.42;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+  }
+  .move-impact { margin-top: clamp(13px, 4cqi, 20px); }
+  .proof-main { padding: clamp(18px, 5.7cqi, 30px); }
+  .proof-title {
+    display: block;
+    overflow: visible;
+    font-size: clamp(20px, 5.5cqi, 27px);
+    line-height: 1.16;
+    text-wrap: balance;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+  }
+}
+
+@media (max-width: 420px) {
+  .story-grid {
+    --story-stage-width: calc(100vw - 24px);
+    --story-stage-height: min(540px, calc(100svh - 90px), calc(132vw - 32px));
+  }
+  .story-visual-wrap { top: 72px; }
+  .story-step { min-height: max(82svh, calc(var(--story-stage-height) + 190px)); padding-top: calc(var(--story-stage-height) + 24px); }
+  .visual-time { max-width: calc(100% - 92px); }
+  .orbit-node { width: clamp(98px, 32cqi, 124px); }
+  .node-b { right: 3.5%; }
+  .node-c { left: 4%; }
+  .move-card,
+  .proof-main { padding: clamp(16px, 5cqi, 22px); }
+  .move-reason { grid-template-columns: 1fr; gap: 6px; }
+  .move-reason-icon { display: none; }
+  .proof-miss { font-size: 9px; }
+}
+
+@media (max-width: 900px) and (max-height: 540px) and (orientation: landscape) {
+  .story-grid { --story-stage-width: min(720px, calc(100vw - 32px)); --story-stage-height: calc(100svh - 82px); }
+  .story-visual-wrap { top: 68px; }
+  .story-step { min-height: calc(var(--story-stage-height) + 180px); padding: calc(var(--story-stage-height) + 20px) 0 68px; }
+  .layer-watch { padding-top: 38px; }
+  .node-a { top: 47%; left: 18%; }
+  .node-b { top: 47%; right: 7%; }
+  .node-c { bottom: 7%; left: 35%; }
+  .watch-core::after { inset: -68px; }
+  .layer-decide,
+  .layer-prove { padding: 42px 14px 10px; }
+  .move-card {
+    width: calc(100% - 44px);
+    max-width: 680px;
+    max-height: calc(100% - 52px);
+    display: grid;
+    grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    column-gap: 22px;
+    align-items: center;
+    padding: 12px 18px;
+    overflow: hidden;
+  }
+  .move-kicker { grid-column: 1 / -1; grid-row: 1; margin-bottom: 4px; }
+  .move-card h4 {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+    font-size: clamp(23px, 3.6vw, 31px);
+    line-height: 1;
+  }
+  .move-reason {
+    grid-column: 2;
+    grid-row: 2;
+    display: block;
+    margin: 0;
+    padding: 0 0 0 16px;
+    border-top: 0;
+    border-bottom: 0;
+    border-left: 1px solid rgba(16,17,20,.09);
+  }
+  .move-reason-icon { display: none; }
+  .move-reason p { margin-top: 4px; font-size: 11px; line-height: 1.32; }
+  .move-impact { grid-column: 1 / -1; grid-row: 3; margin-top: 7px; }
+  .move-impact-icon { width: 36px; height: 36px; border-radius: 12px; font-size: 22px; }
+  .proof-scene { width: calc(100% - 44px); max-width: 680px; }
+  .proof-main {
+    max-height: calc(100% - 52px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 9px 22px;
+    align-items: center;
+    padding: 13px 20px;
+    overflow: hidden;
+  }
+  .proof-status,
+  .proof-title { grid-column: 1; }
+  .proof-result,
+  .proof-expected { grid-column: 2; margin-top: 0; }
+  .proof-rule,
+  .proof-miss { display: none; }
+}
+
+
 </style>
 </head>
 <body data-chapter="hero">
@@ -1186,12 +1632,17 @@ function dailyValue(value){
   return signed.includes('/day') ? signed : signed + '/day';
 }
 
-function firstSentence(value, limit = 112){
-  const clean = String(value || '').replace(/\s+/g, ' ').trim();
-  if (!clean) return 'A clear pattern appeared in your business data.';
+function firstSentence(value, limit = 180){
+  const clean = String(value || '')
+    .replace(/\s*[\(\[]\s*(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{8})(?:\s*[,;]\s*(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{8}))*\s*[\)\]]/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .trim();
+  if (!clean) return 'A clear market pattern is ready for the owner.';
   const sentence = clean.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || clean;
   if (sentence.length <= limit) return sentence;
-  return sentence.slice(0, limit).replace(/\s+\S*$/, '').replace(/[,:;—-]+$/, '') + '…';
+  const cut = sentence.slice(0, limit - 1).replace(/\s+\S*$/, '').replace(/[,:;—-]+$/, '');
+  return cut + '.';
 }
 
 if (D.finds?.length) {
@@ -1201,17 +1652,16 @@ if (D.finds?.length) {
   const miss = D.finds.find(f => f.verdict === 'miss' && f.id !== storyFind?.id);
 
   if (storyFind) {
-    const title = storyFind.shortTitle || storyFind.title || 'A clear next move';
+    const title = storyFind.title || storyFind.shortTitle || 'A clear next move';
     const expected = dailyValue(storyFind.predictedDailyTxt || '$18');
 
     document.getElementById('leadTitle').textContent = title;
     document.getElementById('leadReason').textContent = firstSentence(
-      storyFind.rationale || storyFind.note || storyFind.move
+      storyFind.summary || storyFind.rationale || storyFind.note || storyFind.move
     );
     document.getElementById('leadExpected').textContent = expected;
 
-    document.getElementById('proofTitle').textContent =
-      `${storyFind.emoji || ''} ${title}`.trim();
+    document.getElementById('proofTitle').textContent = title;
     document.getElementById('proofExpected').textContent = expected;
 
     if (storyFind.actualDailyTxt) {
@@ -1222,7 +1672,7 @@ if (D.finds?.length) {
 
   if (miss) {
     document.getElementById('missTitle').textContent =
-      `${miss.emoji || ''} ${miss.shortTitle || miss.title || 'Another idea'}`.trim();
+      miss.shortTitle || miss.title || 'Another idea';
   }
 }
 

@@ -22,6 +22,19 @@ from typing import Any
 #: legitimate backslash in ordinary text is left alone.
 _STRAY_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
 
+#: Internal observation ids belong in the Analyst trace, not in owner-facing
+#: copy. Older rows can fall back from ``summary`` to a rationale that cites
+#: ids such as ``(c62cebb0, 51db9a91)``. Keep those links in the database while
+#: removing that implementation detail from the card.
+_EVIDENCE_ID = r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}|[0-9a-fA-F]{8}"
+_EVIDENCE_GROUP = re.compile(
+    rf"\s*[\(\[]\s*(?:{_EVIDENCE_ID})(?:\s*[,;]\s*(?:{_EVIDENCE_ID}))*\s*[\)\]]",
+    re.IGNORECASE,
+)
+_BARE_EVIDENCE_ID = re.compile(
+    rf"(?<![0-9A-Za-z])(?:{_EVIDENCE_ID})(?![0-9A-Za-z])", re.IGNORECASE
+)
+
 #: Ceiling on a single find's predicted daily value. A neighbourhood business
 #: earning +$5,000/day from one menu change means the model confused units or
 #: hallucinated; publishing it would poison the ledger.
@@ -71,6 +84,58 @@ def repair_escapes(text: str) -> str:
     return _STRAY_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), text)
 
 
+def clean_owner_copy(text: str) -> str:
+    """Remove internal evidence identifiers from owner-facing prose."""
+    cleaned = _EVIDENCE_GROUP.sub("", repair_escapes(str(text or "")))
+    cleaned = _BARE_EVIDENCE_ID.sub("", cleaned)
+    cleaned = re.sub(r"\(\s*\)|\[\s*\]", "", cleaned)
+    cleaned = re.sub(r"\s+([,.;:!?])", r"\1", cleaned)
+    cleaned = re.sub(r"([,;:])(?=[A-Za-z])", r"\1 ", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    return cleaned.strip(" ,;:")
+
+
+#: The card face. Long enough for a real sentence, short enough that three of
+#: them fit on a deck without the owner scrolling a card to learn what it says.
+SUMMARY_MAX_CHARS = 180
+
+
+def owner_card_summary(text: str, limit: int = SUMMARY_MAX_CHARS) -> str:
+    """Return a short, complete owner-facing sentence without an ellipsis.
+
+    Older rows were hard-cut at the card limit and end in an ellipsis. When a
+    useful signal clause precedes an em dash or semicolon, keep that complete
+    clause instead of showing a visibly truncated thought. New Analyst runs are
+    already prompted to produce a complete sentence within the limit.
+    """
+    cleaned = " ".join(clean_owner_copy(text).split())
+    if not cleaned:
+        return ""
+
+    was_truncated = cleaned.endswith("…") or cleaned.endswith("...")
+    stem = re.sub(r"(?:…|\.{3})$", "", cleaned).strip()
+
+    if was_truncated:
+        for marker in (" — ", "; ", ": "):
+            index = stem.find(marker)
+            if index >= 60:
+                stem = stem[:index]
+                break
+
+    if len(stem) > limit:
+        window = stem[:limit]
+        boundary = max(window.rfind(" — "), window.rfind("; "), window.rfind(": "))
+        if boundary >= 60:
+            stem = window[:boundary]
+        else:
+            stem = window.rsplit(" ", 1)[0]
+
+    stem = stem.rstrip(" ,;:—-")
+    if stem and stem[-1] not in ".!?":
+        stem += "."
+    return stem
+
+
 def _require_text(payload: Mapping[str, Any], field: str) -> str:
     value = payload.get(field)
     if not isinstance(value, str) or not value.strip():
@@ -78,11 +143,6 @@ def _require_text(payload: Mapping[str, Any], field: str) -> str:
             f"{field} must be a non-empty string, got {value!r}"
         )
     return repair_escapes(value.strip())
-
-
-#: The card face. Long enough for a real sentence, short enough that three of
-#: them fit on a deck without the owner scrolling a card to learn what it says.
-SUMMARY_MAX_CHARS = 180
 
 
 def _summary(payload: Mapping[str, Any], rationale: str) -> str:
@@ -103,15 +163,7 @@ def _summary(payload: Mapping[str, Any], rationale: str) -> str:
         if text and not text.endswith("."):
             text += "."
 
-    text = " ".join(repair_escapes(text).split())
-    if len(text) <= SUMMARY_MAX_CHARS:
-        return text
-
-    # Cut at a word boundary; a summary ending mid-word reads as a bug.
-    cut = text[:SUMMARY_MAX_CHARS - 1]
-    if " " in cut:
-        cut = cut[:cut.rindex(" ")]
-    return cut.rstrip(",;:") + "…"
+    return owner_card_summary(text)
 
 
 def _require_cents(payload: Mapping[str, Any]) -> int:

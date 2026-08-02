@@ -37,6 +37,11 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "backend" / "src"))
 from brasstacks.analyst_trace import parse_analyst_trace  # noqa: E402
 from brasstacks.ask_trace import parse_ask_trace  # noqa: E402
+from brasstacks.finds import (  # noqa: E402
+    SUMMARY_MAX_CHARS,
+    clean_owner_copy,
+    owner_card_summary,
+)
 
 SITE = REPO / "site"
 #: Anything here is copied to web/assets/ verbatim. The admin console's backdrop
@@ -154,12 +159,6 @@ def short_title(title: str, limit: int = 34) -> str:
     return clamp(title, limit)
 
 
-#: Mirrors brasstacks.finds.SUMMARY_MAX_CHARS. The Analyst is asked to stay
-#: under it, but a find written before the field existed is summarised here
-#: instead, and the card has the same amount of room either way.
-SUMMARY_MAX_CHARS = 180
-
-
 def card_summary(find: dict) -> str:
     """One sentence for the card face.
 
@@ -168,19 +167,14 @@ def card_summary(find: dict) -> str:
     records it as the reason main was reverted rather than the card retuned.
     The argument is still one tap away; it is just not the first thing read.
     """
-    text = " ".join((find.get("summary") or "").split())
+    text = " ".join(clean_owner_copy(find.get("summary") or "").split())
     if not text:
-        rationale = " ".join((find.get("rationale") or "").split())
+        rationale = " ".join(clean_owner_copy(find.get("rationale") or "").split())
         first, _, _ = rationale.partition(". ")
         text = first.strip()
         if text and not text.endswith("."):
             text += "."
-    if len(text) <= SUMMARY_MAX_CHARS:
-        return text
-    cut = text[:SUMMARY_MAX_CHARS - 1]
-    if " " in cut:
-        cut = cut[:cut.rindex(" ")]
-    return cut.rstrip(",;:") + "…"
+    return owner_card_summary(text)
 
 
 def bullets(move: str) -> list[str]:

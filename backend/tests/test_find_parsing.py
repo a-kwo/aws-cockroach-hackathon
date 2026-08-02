@@ -12,7 +12,13 @@ from datetime import date
 
 import pytest
 
-from brasstacks.finds import SUMMARY_MAX_CHARS, InvalidFindError, parse_find
+from brasstacks.finds import (
+    SUMMARY_MAX_CHARS,
+    InvalidFindError,
+    clean_owner_copy,
+    owner_card_summary,
+    parse_find,
+)
 
 TODAY = date(2026, 7, 28)
 KNOWN_IDS = ("obs-1", "obs-2", "obs-3")
@@ -284,3 +290,24 @@ class TestSummary:
 
         assert len(find.summary) <= SUMMARY_MAX_CHARS
         assert not find.summary.endswith("wor…"), "cut mid-word"
+
+    def test_internal_evidence_ids_never_reach_owner_copy(self):
+        source = (
+            "Hours conflict across platforms (c62cebb0, 51db9a91), "
+            "so customers may see the business as closed."
+        )
+
+        assert clean_owner_copy(source) == (
+            "Hours conflict across platforms, so customers may see the "
+            "business as closed."
+        )
+
+    def test_a_legacy_ellipsis_becomes_a_complete_signal_sentence(self):
+        summary = (
+            "Lunch bentos are praised in reviews but barely visible online — "
+            "publish them with photos and prices before the midday rush…"
+        )
+
+        assert owner_card_summary(summary) == (
+            "Lunch bentos are praised in reviews but barely visible online."
+        )

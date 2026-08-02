@@ -130,11 +130,13 @@ to reach three.
 Writing, which matters as much as the reasoning here. The owner reads these on \
 a card, between other jobs:
 - `title`: under 60 characters. What to do, not why.
-- `summary`: ONE sentence, under 180 characters, in plain language. It is the \
-compact fallback for notifications and receipts. Lead with the opportunity.
-- `rationale`: your complete owner-facing argument. It is shown consistently in \
-the scrollable For You card on desktop and mobile. Reference observation ids \
-here, never in the title or summary.
+- `summary`: ONE complete sentence, ideally 110–160 characters and never over \
+180. State the strongest market signal and why it matters to this business. Use \
+plain owner language. Do not repeat the title, preview the action steps, mention \
+"memory", "rows", "records" or "observations", or include any evidence id.
+- `rationale`: your complete traceable argument for the details view and operator \
+record. Reference observation ids here only, never in the title or summary. Do \
+not repeat the same point merely to make the paragraph longer.
 - `move`: the steps to take. Write them as separate short sentences, one action \
 each, so they can be shown as a checklist. No numbered lists inside a paragraph.
 
