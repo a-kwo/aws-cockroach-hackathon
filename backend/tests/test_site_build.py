@@ -2050,3 +2050,45 @@ def test_ask_lambda_can_embed_questions_and_return_durable_history():
     assert "Path: /ask" in ask_block
     assert "Method: GET" in ask_block
     assert "Method: POST" in ask_block
+
+
+def test_passed_growth_drawer_exposes_a_durable_undo_pass_action():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "Changed your mind?" in html
+    assert "Undo Pass changes this recommendation to Do it and starts Maker." in html
+    assert 'data-undo-pass data-post-id="${post.id}"' in html
+    assert 'action: "undo_pass"' in html
+    assert "async function undoPass(postId, button)" in html
+    assert "function applyUndoPassReceipt(post, payload)" in html
+    assert "previous_decided_at" in html
+    assert "Pass undone. This is now Do it." in html
+
+
+def test_maker_starts_on_approval_and_has_a_zero_token_reconciliation_sweep():
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+    decision = template.split("DecisionFunction:", 1)[1].split(
+        "WorkflowFunction:", 1
+    )[0]
+    ask = template.split("AskFunction:", 1)[1].split("DecisionFunction:", 1)[0]
+    maker = template.split("MakerFunction:", 1)[1].split("AskFunction:", 1)[0]
+    night = (build_web.REPO / "backend" / "src" / "brasstacks" /
+             "handlers" / "night.py").read_text(encoding="utf-8")
+
+    assert 'Command: ["brasstacks.handlers.maker.handler"]' in maker
+    assert "rate(5 minutes)" in template
+    assert "MakerSweepState" in maker
+    assert "ReservedConcurrentExecutions: 1" in maker
+    assert "BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction" in decision
+    assert "BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction" in ask
+    assert "lambda:InvokeFunction" in decision
+    assert "lambda:InvokeFunction" in ask
+    assert "store=None" in night
+
+
+def test_maker_queue_explanation_is_operator_visible():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "Do it and Undo Pass wake Maker immediately." in html
+    assert "A five-minute reconciliation sweep retries missed events" in html
+    assert "without using model tokens when the queue is empty" in html

@@ -5,9 +5,10 @@ Description: >
   Brass Tacks — a team of agents that grows a small business overnight and is
   then held to account for it.
 
-  Four Lambda entry points share one image. run_night() still sequences Radar →
-  Analyst → Maker → Meter inside one tested function; the other three are the
-  request-driven Ask, Decision, and read-only Workflow surfaces.
+  The scheduled night handles Radar, Analyst and Meter. A dedicated Maker
+  worker starts immediately after Do it or Undo Pass and reconciles accepted
+  backlog independently. The remaining request-driven functions serve Ask,
+  decisions, authentication, onboarding and live workflow state.
 
   Deploy from the repository root:
     sam build --template deploy/template.yaml
@@ -51,6 +52,22 @@ Parameters:
       the autopilot on is a deliberate act: deploy with
       ScheduleState=ENABLED, or flip it in the console.
 
+  MakerSweepExpression:
+    Type: String
+    Default: rate(5 minutes)
+    Description: >
+      Reconciliation cadence for accepted recommendations that still have no
+      Maker artifact. Owner decisions invoke Maker immediately; this SQL-first
+      sweep recovers a missed event and drains pre-existing backlog.
+
+  MakerSweepState:
+    Type: String
+    Default: ENABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: >
+      Keep the Maker reconciliation safety net active. An empty sweep performs
+      only CockroachDB reads and consumes zero reasoning-model tokens.
+
 Globals:
   Function:
     MemorySize: 1024
@@ -90,10 +107,6 @@ Resources:
               Effect: Allow
               Action: bedrock:InvokeModel
               Resource: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
-            - Sid: MakerArtifacts
-              Effect: Allow
-              Action: s3:PutObject
-              Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
             - Sid: ReadSecrets
               Effect: Allow
               Action:
@@ -130,6 +143,51 @@ Resources:
               MaximumRetryAttempts: 2
 
   # --------------------------------------------------------------------
+  # Event-driven Maker: start on Do it, reconcile accepted backlog
+  # --------------------------------------------------------------------
+  MakerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: maker
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.maker.handler"]
+      Timeout: 600
+      ReservedConcurrentExecutions: 1
+      Policies:
+        - Statement:
+            - Sid: MakerArtifacts
+              Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        ReconcileAcceptedWork:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref MakerSweepExpression
+            State: !Ref MakerSweepState
+            RetryPolicy:
+              MaximumRetryAttempts: 2
+
+  # --------------------------------------------------------------------
   # Owner Q&A over the CockroachDB managed MCP server
   # --------------------------------------------------------------------
   AskFunction:
@@ -142,6 +200,9 @@ Resources:
       PackageType: Image
       ImageConfig:
         Command: ["brasstacks.handlers.ask.handler"]
+      Environment:
+        Variables:
+          BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction
       # The MCP tool calls execute server-side between Anthropic and
       # CockroachDB Cloud, so a turn can run several queries before answering.
       Timeout: 120
@@ -171,6 +232,10 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+            - Sid: StartMaker
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt MakerFunction.Arn
       Events:
         Ask:
           Type: HttpApi
@@ -198,6 +263,9 @@ Resources:
       PackageType: Image
       ImageConfig:
         Command: ["brasstacks.handlers.decision.handler"]
+      Environment:
+        Variables:
+          BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction
       Timeout: 30
       Policies:
         - Statement:
@@ -216,6 +284,10 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+            - Sid: StartMaker
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt MakerFunction.Arn
       Events:
         Decide:
           Type: HttpApi
@@ -704,3 +776,7 @@ Outputs:
   NightFunctionName:
     Description: Invoke manually to prove a night end to end before waiting for 6 AM.
     Value: !Ref NightFunction
+
+  MakerFunctionName:
+    Description: Event-driven draft worker invoked by Do it and Undo Pass.
+    Value: !Ref MakerFunction

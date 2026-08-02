@@ -1,11 +1,13 @@
 # Deploying Brass Tacks
 
-Four Lambda entry points share one container image: `night` runs the agent loop
-on a schedule, `ask` answers owner questions over CockroachDB's managed MCP
-server, `decision` persists Do it / Pass, and `workflow` serves current operator
-state. The board still ships a static CockroachDB snapshot for instant first
-paint, then Memory Engine revalidates that snapshot through the read-only
-workflow route while the operator view is open.
+The Lambda entry points share one container image. `night` runs Radar, Analyst
+and Meter on a schedule; `maker` starts as soon as the owner chooses Do it and
+also reconciles accepted backlog every five minutes; `ask` answers owner
+questions and can execute an authenticated Undo Pass; `decision` persists Do it
+/ Pass; and `workflow` serves current operator state. The board still ships a
+static CockroachDB snapshot for instant first paint, then Memory Engine
+revalidates that snapshot through the read-only workflow route while the
+operator view is open.
 
 Prerequisites: AWS SAM CLI, Docker, and an AWS profile that is **not** root.
 
@@ -270,10 +272,15 @@ Because both routes share the same API, `scripts/build_web.py` also infers
 `$DECISION_API_ENDPOINT/workflow` when `WORKFLOW_API_ENDPOINT` is omitted.
 
 The built `web/app/index.html` then writes decisions to CockroachDB. `Do it`
-changes the find to `accepted`, making it eligible for the Maker on the next
-nightly run. `Pass` changes it to `rejected`. Without the environment variable,
-the UI remains usable in an explicitly labelled demo-only mode and does not
-pretend the decision was persisted.
+changes the find to `accepted` and asynchronously starts the dedicated Maker
+worker. `Pass` changes it to `rejected`. From the passed recommendation's chat
+drawer, `Undo Pass` records a new `accepted` decision, preserves the earlier
+Pass receipt in conversation memory, and starts Maker. Accepted rows with no
+artifact are the durable queue; a five-minute SQL-first reconciliation sweep
+recovers a missed invocation and drains older approved work. An empty sweep
+invokes no reasoning model and consumes zero LLM tokens. Without the endpoint
+environment variable, the UI remains usable in an explicitly labelled demo-only
+mode and does not pretend the decision was persisted.
 
 The app performs one `GET /v1/workflow` sync at startup so For You reflects
 decisions made on another device. Memory Engine then revalidates at the

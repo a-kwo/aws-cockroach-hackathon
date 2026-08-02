@@ -86,6 +86,23 @@ class FindSummary:
     created_at: datetime
 
 
+@dataclass(frozen=True)
+class DecisionTransition:
+    """The durable result of changing one owner decision.
+
+    ``changed`` is false for an idempotent retry. The previous status and
+    timestamp let the application preserve an honest Pass -> Do it history
+    without allowing accepted work to be silently reversed.
+    """
+
+    find_id: str
+    previous_status: str
+    status: str
+    decided_at: datetime
+    previous_decided_at: datetime | None = None
+    changed: bool = True
+
+
 #: Owner conversations share the existing observation vector index, while
 #: remaining distinct from market signals in counts and Analyst retrieval.
 CHAT_OWNER_SOURCE = "owner_chat"
@@ -118,6 +135,7 @@ class FindContext:
     predicted_daily_cents: int
     confidence: float
     verify_after: date
+    decided_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -253,7 +271,7 @@ class Repository(Protocol):
 
     def set_find_status(self, find_id: str, *, status: str,
                         decided_at: datetime | None = ...,
-                        business_id: str | None = ...) -> None: ...
+                        business_id: str | None = ...) -> DecisionTransition: ...
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]: ...
 
@@ -350,6 +368,7 @@ class _Find:
     verify_after: date
     status: str
     created_at: datetime
+    decided_at: datetime | None = None
     run_id: str | None = None
     #: One sentence for the card face; the rationale is the full argument.
     summary: str | None = None
@@ -744,6 +763,7 @@ class InMemoryRepository:
             rationale=found.rationale, move=found.move, status=found.status,
             predicted_daily_cents=found.predicted_daily_cents,
             confidence=found.confidence, verify_after=found.verify_after,
+            decided_at=found.decided_at,
         )
 
     # -- finds -----------------------------------------------------------
@@ -777,6 +797,7 @@ class InMemoryRepository:
             predicted_daily_cents=predicted_daily_cents, confidence=confidence,
             verify_after=verify_after, status=status,
             created_at=created_at if created_at is not None else self._now(),
+            decided_at=decided_at,
             run_id=run_id,
             evidence=[
                 StoredEvidence(observation_id=ref.observation_id,
@@ -788,15 +809,42 @@ class InMemoryRepository:
 
     def set_find_status(self, find_id: str, *, status: str,
                         decided_at: datetime | None = None,
-                        business_id: str | None = None) -> None:
+                        business_id: str | None = None) -> DecisionTransition:
         found = self._finds.get(find_id)
         if found is None or (business_id is not None and found.business_id != business_id):
             raise RepositoryError("recommendation is no longer available")
-        if found.status in ("proposed", "later"):
-            found.status = status
-            return
+
+        moment = decided_at or self._now()
+        previous_status = found.status
+        previous_decided_at = found.decided_at
         if found.status == status:
-            return
+            return DecisionTransition(
+                find_id=find_id,
+                previous_status=previous_status,
+                status=status,
+                decided_at=previous_decided_at or moment,
+                previous_decided_at=previous_decided_at,
+                changed=False,
+            )
+
+        normal_decision = found.status in ("proposed", "later") and status in (
+            "accepted", "rejected", "later"
+        )
+        undo_pass = found.status == "rejected" and status == "accepted"
+        if normal_decision or undo_pass:
+            # A pass is reversible because no work has been produced from it.
+            # The only reverse transition is Pass -> Do it; accepted work cannot
+            # later be rewritten as rejected once Maker or Meter may have acted.
+            found.status = status
+            found.decided_at = moment
+            return DecisionTransition(
+                find_id=find_id,
+                previous_status=previous_status,
+                status=status,
+                decided_at=moment,
+                previous_decided_at=previous_decided_at,
+                changed=True,
+            )
         raise RepositoryError(f"find already decided as {found.status}")
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:

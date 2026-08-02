@@ -6,7 +6,12 @@ import json
 from datetime import date, datetime, timedelta, timezone
 
 from brasstacks.auth import token_fingerprint
-from brasstacks.handlers.ask import answer_question, build_context_question, read_chat_history
+from brasstacks.handlers.ask import (
+    answer_question,
+    build_context_question,
+    read_chat_history,
+    undo_pass_action,
+)
 from brasstacks.providers import Answer, FakeAsker, ModelUsage, ToolCall
 from brasstacks.repository import EvidenceRef, InMemoryRepository
 
@@ -30,6 +35,14 @@ class Settings:
     anthropic_model_id = "claude-opus-5"
     cockroach_cluster_id = "cluster-1"
     cockroach_database = "defaultdb"
+
+
+class FakeInvoker:
+    def __init__(self):
+        self.calls = []
+
+    def invoke(self, **kwargs):
+        self.calls.append(kwargs)
 
 
 class FailAssistantWriteRepository(InMemoryRepository):
@@ -71,6 +84,17 @@ def event(token, question="Can we do this without more staff?", find_id=None):
     return {
         "headers": {"Authorization": f"Bearer {token}"},
         "body": json.dumps(body),
+    }
+
+
+def undo_event(token, find_id):
+    return {
+        "headers": {"Authorization": f"Bearer {token}"},
+        "body": json.dumps({
+            "action": "undo_pass",
+            "question": "I changed my mind. Do it.",
+            "find_id": find_id,
+        }),
     }
 
 
@@ -263,3 +287,133 @@ def test_compact_context_keeps_memory_rules_even_when_profile_is_large():
     assert "OWNER'S CURRENT QUESTION" in prompt
     assert "MEMORY USE RULES" in prompt
     assert "intent, not independent proof" in prompt
+
+
+def rejected_find(repo, business_id):
+    observation_id = repo.insert_observation(
+        business_id,
+        content="Customers ask for a fixed group menu",
+        kind="review",
+        embedding=VECTOR,
+        observed_at=NOW - timedelta(days=5),
+    )
+    return repo.insert_find_with_evidence(
+        business_id,
+        title="Create a group package",
+        summary="Package the group meal.",
+        rationale="Repeated group enquiries are being lost.",
+        move="Set a package price and add reservations.",
+        emoji="↗",
+        predicted_daily_cents=2200,
+        confidence=.72,
+        verify_after=date(2026, 8, 20),
+        status="rejected",
+        decided_at=NOW - timedelta(days=1),
+        evidence=[EvidenceRef(observation_id, .9)],
+    )
+
+
+def test_undo_pass_button_action_is_zero_token_durable_and_starts_maker():
+    repo, business_id, token = owner_repo()
+    find_id = rejected_find(repo, business_id)
+    invoker = FakeInvoker()
+
+    response = undo_pass_action(
+        undo_event(token, find_id),
+        repo=repo,
+        invoker=invoker,
+        maker_function="brasstacks-MakerFunction-abc",
+        model_id=Settings.anthropic_model_id,
+        now=NOW,
+    )
+
+    assert response["statusCode"] == 200
+    body = response_body(response)
+    assert body["action"] == {
+        "type": "undo_pass", "status": "completed", "changed": True}
+    assert body["status"] == "accepted"
+    assert body["previous_status"] == "rejected"
+    assert body["tokens"] == {"input": 0, "output": 0, "total": 0}
+    assert body["maker"] == "started"
+    assert repo.get_find_context(business_id, find_id).status == "accepted"
+    assert repo.count_chat_messages(business_id) == 2
+    assert len(invoker.calls) == 1
+    payload = json.loads(invoker.calls[0]["Payload"])
+    assert payload["business_id"] == business_id
+    assert payload["find_id"] == find_id
+    run = repo.recent_runs(business_id, limit=1)[0]
+    assert '"previous_status":"rejected"' in run.note
+    assert '"status":"accepted"' in run.note
+    assert '"model_tokens":0' in run.note
+
+
+def test_clear_changed_mind_message_undoes_pass_without_calling_the_model():
+    repo, business_id, token = owner_repo()
+    find_id = rejected_find(repo, business_id)
+    asker = FakeAsker([])
+    embedder = Embedder()
+
+    response = answer_question(
+        event(token, "I changed my mind. Do it.", find_id=find_id),
+        repo=repo,
+        asker=asker,
+        embedder=embedder,
+        settings=Settings(),
+        invoker=FakeInvoker(),
+        maker_function="brasstacks-MakerFunction-abc",
+        now=NOW,
+    )
+
+    assert response["statusCode"] == 200
+    body = response_body(response)
+    assert body["action"]["type"] == "undo_pass"
+    assert body["decision"] == "approved"
+    assert asker.calls == []
+    assert embedder.calls == []
+    assert repo.get_find_context(business_id, find_id).status == "accepted"
+
+
+
+def test_redo_pass_wording_is_treated_as_an_explicit_changed_mind_action():
+    repo, business_id, token = owner_repo()
+    find_id = rejected_find(repo, business_id)
+    asker = FakeAsker([])
+    embedder = Embedder()
+
+    response = answer_question(
+        event(token, "Redo my pass", find_id=find_id),
+        repo=repo,
+        asker=asker,
+        embedder=embedder,
+        settings=Settings(),
+        invoker=FakeInvoker(),
+        maker_function="brasstacks-MakerFunction-abc",
+        now=NOW,
+    )
+
+    assert response["statusCode"] == 200
+    assert response_body(response)["action"]["type"] == "undo_pass"
+    assert asker.calls == []
+    assert embedder.calls == []
+    assert repo.get_find_context(business_id, find_id).status == "accepted"
+
+def test_vague_undo_question_is_answered_normally_without_changing_status():
+    repo, business_id, token = owner_repo()
+    find_id = rejected_find(repo, business_id)
+    asker = FakeAsker([Answer(
+        text="Yes. Use the Undo Pass button in this recommendation's chat.",
+        tool_calls=(),
+    )])
+
+    response = answer_question(
+        event(token, "Can I undo this?", find_id=find_id),
+        repo=repo,
+        asker=asker,
+        embedder=Embedder(),
+        settings=Settings(),
+        now=NOW,
+    )
+
+    assert response["statusCode"] == 200
+    assert asker.calls
+    assert repo.get_find_context(business_id, find_id).status == "rejected"

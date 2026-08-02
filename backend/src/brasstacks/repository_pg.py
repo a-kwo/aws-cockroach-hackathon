@@ -12,7 +12,7 @@ a live cluster with ``pytest -m integration``.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 import psycopg
@@ -22,6 +22,7 @@ from brasstacks.repository import (
     CHAT_OWNER_SOURCE,
     JUDGEABLE_STATUSES,
     ChatMessage,
+    DecisionTransition,
     DueFind,
     EvidenceRef,
     FindContext,
@@ -566,7 +567,8 @@ class PostgresRepository:
             cur.execute(
                 """
                 SELECT id, title, summary, rationale, move, status,
-                       predicted_daily_cents, confidence, verify_after
+                       predicted_daily_cents, confidence, verify_after,
+                       decided_at
                 FROM find
                 WHERE id = %s AND business_id = %s
                 """,
@@ -579,7 +581,7 @@ class PostgresRepository:
             find_id=str(row[0]), title=row[1], summary=row[2], rationale=row[3],
             move=row[4] or "", status=str(row[5]),
             predicted_daily_cents=int(row[6]), confidence=float(row[7]),
-            verify_after=row[8],
+            verify_after=row[8], decided_at=row[9],
         )
 
     # -- finds -----------------------------------------------------------
@@ -645,46 +647,73 @@ class PostgresRepository:
 
     def set_find_status(self, find_id: str, *, status: str,
                         decided_at: datetime | None = None,
-                        business_id: str | None = None) -> None:
+                        business_id: str | None = None) -> DecisionTransition:
         """Record the owner's decision on a find.
 
         ``business_id`` scopes browser-originated writes to the configured
         tenant. Agent-internal callers may omit it because they already operate
         on repository objects retrieved for that tenant.
         """
-        with self._conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE find
-                SET status = %s, decided_at = coalesce(%s, clock_timestamp())
-                WHERE id = %s
-                  AND (%s::UUID IS NULL OR business_id = %s::UUID)
-                  AND status IN ('proposed', 'later')
-                """,
-                (status, decided_at, find_id, business_id, business_id),
-            )
-            if cur.rowcount:
-                return
+        moment = decided_at or datetime.now(timezone.utc)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT status, decided_at
+                    FROM find
+                    WHERE id = %s
+                      AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                    FOR UPDATE
+                    """,
+                    (find_id, business_id, business_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError("recommendation is no longer available")
 
-            # A browser or network retry of the same decision is harmless.
-            # Keep it idempotent, but do not permit a later request to rewrite
-            # history from Do it to Pass (or the reverse). The lookup is still
-            # tenant-scoped, so the response cannot reveal another owner's row.
-            cur.execute(
-                """
-                SELECT status
-                FROM find
-                WHERE id = %s
-                  AND (%s::UUID IS NULL OR business_id = %s::UUID)
-                """,
-                (find_id, business_id, business_id),
-            )
-            row = cur.fetchone()
-            if row and str(row[0]) == status:
-                return
-            if row:
-                raise RepositoryError(f"find already decided as {row[0]}")
-            raise RepositoryError("recommendation is no longer available")
+                previous_status = str(row[0])
+                previous_decided_at = row[1]
+                if previous_status == status:
+                    return DecisionTransition(
+                        find_id=find_id,
+                        previous_status=previous_status,
+                        status=status,
+                        decided_at=previous_decided_at or moment,
+                        previous_decided_at=previous_decided_at,
+                        changed=False,
+                    )
+
+                normal_decision = previous_status in ("proposed", "later") and status in (
+                    "accepted", "rejected", "later"
+                )
+                undo_pass = previous_status == "rejected" and status == "accepted"
+                if not (normal_decision or undo_pass):
+                    raise RepositoryError(f"find already decided as {previous_status}")
+
+                cur.execute(
+                    """
+                    UPDATE find
+                    SET status = %s, decided_at = %s
+                    WHERE id = %s
+                      AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                      AND status = %s
+                    """,
+                    (status, moment, find_id, business_id, business_id,
+                     previous_status),
+                )
+                if cur.rowcount != 1:
+                    raise RepositoryError(
+                        "recommendation changed while the decision was saving"
+                    )
+
+        return DecisionTransition(
+            find_id=find_id,
+            previous_status=previous_status,
+            status=status,
+            decided_at=moment,
+            previous_decided_at=previous_decided_at,
+            changed=True,
+        )
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         with self._conn.cursor() as cur:

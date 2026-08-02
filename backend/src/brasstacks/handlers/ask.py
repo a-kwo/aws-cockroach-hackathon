@@ -9,14 +9,19 @@ history for the signed-in owner (optionally scoped to one recommendation).
 from __future__ import annotations
 
 import json
+import os
+import re
 from datetime import datetime, timezone
 from typing import Any
 
 from brasstacks.agents.ask import ask_system_prompt, run_ask, trail_lines
+from brasstacks.ask_trace import encode_ask_trace
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
+from brasstacks.maker_dispatch import MAKER_FUNCTION_VAR, dispatch_maker
 from brasstacks.providers import build_asker, build_embedder
+from brasstacks.repository import RepositoryError
 from brasstacks.secrets import hydrate_environment
 
 MAX_QUESTION_CHARS = 500
@@ -25,6 +30,7 @@ RELEVANT_MESSAGES_LIMIT = 3
 HISTORY_LIMIT = 30
 MESSAGE_PREVIEW_CHARS = 360
 CONTEXT_CHAR_BUDGET = 3600
+UNDO_PASS_ACTION = "undo_pass"
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -47,7 +53,7 @@ def _method(event: Any) -> str:
     ).upper()
 
 
-def parse_request(event: Any) -> tuple[str, str | None]:
+def _payload(event: Any) -> dict[str, Any]:
     raw = (event or {}).get("body")
     if raw is None:
         raise ValueError("send a JSON body with a 'question' field")
@@ -59,7 +65,12 @@ def parse_request(event: Any) -> tuple[str, str | None]:
     else:
         payload = raw
     if not isinstance(payload, dict):
-        raise ValueError("body must be a JSON object with a 'question' field")
+        raise ValueError("body must be a JSON object")
+    return payload
+
+
+def parse_request(event: Any) -> tuple[str, str | None]:
+    payload = _payload(event)
     question = str(payload.get("question") or "").strip()
     if not question:
         raise ValueError("'question' is required and cannot be blank")
@@ -69,6 +80,59 @@ def parse_request(event: Any) -> tuple[str, str | None]:
         )
     find_id = str(payload.get("find_id") or "").strip() or None
     return question, find_id
+
+
+def parse_action(event: Any) -> tuple[str, str, str | None] | None:
+    """Parse a deterministic chat action without invoking the model."""
+    payload = _payload(event)
+    action = str(payload.get("action") or "").strip().lower()
+    if not action:
+        return None
+    if action != UNDO_PASS_ACTION:
+        raise ValueError(f"unsupported action {action!r}")
+    find_id = str(payload.get("find_id") or "").strip()
+    if not find_id:
+        raise ValueError("find_id is required for Undo Pass")
+    question = str(payload.get("question") or "").strip() or None
+    if question and len(question) > MAX_QUESTION_CHARS:
+        raise ValueError(
+            f"question is too long ({len(question)} characters, limit {MAX_QUESTION_CHARS})"
+        )
+    return action, find_id, question
+
+
+def is_undo_pass_request(question: str) -> bool:
+    """Recognise only clear requests to reverse a Pass.
+
+    Vague questions such as "can I undo this?" still receive a normal Ask
+    answer. A state change requires an imperative or explicit changed-mind
+    phrase so chat never surprises the owner.
+    """
+    text = re.sub(r"[^a-z0-9]+", " ", question.lower()).strip()
+    exact_imperatives = {
+        "do it",
+        "yes do it",
+        "go ahead",
+        "approve it",
+        "approve this",
+    }
+    phrases = (
+        "undo pass",
+        "undo my pass",
+        "redo pass",
+        "redo my pass",
+        "reverse my pass",
+        "take back my pass",
+        "change my pass to do it",
+        "change this to do it",
+        "changed my mind do it",
+        "i changed my mind do it",
+        "i want to do it now",
+        "do it after all",
+        "approve this after all",
+        "go ahead with this after all",
+    )
+    return text in exact_imperatives or any(phrase in text for phrase in phrases)
 
 
 def parse_question(event: Any) -> str:
@@ -239,6 +303,211 @@ def read_chat_history(
     })
 
 
+def _undo_answer(*, changed: bool, maker: str) -> str:
+    if not changed:
+        lead = "This recommendation is already approved."
+    else:
+        lead = "Pass undone. This recommendation is now Do it."
+    if maker == "started":
+        return f"{lead} Maker is starting the draft now."
+    if maker == "start_failed":
+        return (
+            f"{lead} Maker is still queued in CockroachDB and the automatic "
+            "reconciliation worker will retry it."
+        )
+    return f"{lead} Maker is queued and will start when the worker is available."
+
+
+def perform_undo_pass(
+    *,
+    repo: Any,
+    business_id: str,
+    find_id: str,
+    request_text: str,
+    timestamp: datetime,
+    invoker: Any | None = None,
+    maker_function: str | None = None,
+    model_id: str | None = None,
+) -> dict[str, Any]:
+    """Change a tenant-scoped Pass to Do it and preserve the chat receipt.
+
+    This is a deterministic application action, not a model decision. It uses
+    zero reasoning tokens and still stores both sides of the exchange so Ask
+    and Analyst remember that the owner's intent changed.
+    """
+    find_context = repo.get_find_context(business_id, find_id)
+    if find_context is None:
+        return respond(404, {"error": "recommendation is no longer available"})
+    if find_context.status not in {"rejected", "accepted"}:
+        return respond(409, {"error": "only a passed recommendation can be undone"})
+
+    try:
+        transition = repo.set_find_status(
+            find_id,
+            status="accepted",
+            decided_at=timestamp,
+            business_id=business_id,
+        )
+    except RepositoryError as exc:
+        return respond(409, {"error": str(exc)})
+
+    maker = dispatch_maker(
+        invoker=invoker,
+        function_name=maker_function,
+        business_id=business_id,
+        find_id=find_id,
+    )
+    answer = _undo_answer(changed=transition.changed, maker=maker)
+
+    run_id = None
+    owner_message_id = None
+    assistant_message_id = None
+    storage_error = None
+    try:
+        run_id = repo.start_run(business_id, agent="ask", model_id=model_id)
+        owner_message_id = repo.insert_chat_message(
+            business_id,
+            role="user",
+            content=request_text,
+            created_at=timestamp,
+            embedding=None,
+            find_id=find_id,
+            run_id=run_id,
+        )
+        assistant_message_id = repo.insert_chat_message(
+            business_id,
+            role="assistant",
+            content=answer,
+            created_at=timestamp,
+            embedding=None,
+            find_id=find_id,
+            run_id=run_id,
+        )
+        action_receipt = json.dumps({
+            "type": UNDO_PASS_ACTION,
+            "find_id": find_id,
+            "previous_status": transition.previous_status,
+            "status": transition.status,
+            "previous_decided_at": (
+                transition.previous_decided_at.isoformat()
+                if transition.previous_decided_at else None
+            ),
+            "decided_at": transition.decided_at.isoformat(),
+            "changed": transition.changed,
+            "maker": maker,
+            "model_tokens": 0,
+        }, separators=(",", ":"), sort_keys=True)
+        note = encode_ask_trace(
+            question=request_text,
+            answer=answer,
+            find_id=find_id,
+            recent_message_ids=(),
+            relevant_message_ids=(),
+            stored_message_ids=(owner_message_id, assistant_message_id),
+            queried_the_cluster=False,
+        ) + f"\naction> {action_receipt}"
+        repo.finish_run(
+            run_id,
+            status="ok",
+            note=note,
+            input_tokens=0,
+            output_tokens=0,
+        )
+    except Exception as exc:
+        storage_error = f"{type(exc).__name__}: {exc}"
+        if run_id:
+            try:
+                repo.finish_run(
+                    run_id,
+                    status="failed",
+                    error=storage_error,
+                    note="Undo Pass succeeded, but its conversation receipt was incomplete",
+                    input_tokens=0,
+                    output_tokens=0,
+                )
+            except Exception:
+                pass
+
+    try:
+        stored_total = repo.count_chat_messages(business_id)
+    except Exception:
+        stored_total = None
+
+    return respond(200, {
+        "answer": answer,
+        "action": {
+            "type": UNDO_PASS_ACTION,
+            "status": "completed",
+            "changed": transition.changed,
+        },
+        "find_id": find_id,
+        "decision": "approved",
+        "status": transition.status,
+        "previous_status": transition.previous_status,
+        "decided_at": transition.decided_at.isoformat(),
+        "previous_decided_at": (
+            transition.previous_decided_at.isoformat()
+            if transition.previous_decided_at else None
+        ),
+        "maker": maker,
+        "queried_the_cluster": False,
+        "trail": [],
+        "run_id": run_id,
+        "messages": {
+            "owner": owner_message_id,
+            "assistant": assistant_message_id,
+        },
+        "memory": {
+            "stored": assistant_message_id is not None,
+            "ownerScoped": True,
+            "analystBridge": True,
+            "storedThisTurn": int(owner_message_id is not None) + int(assistant_message_id is not None),
+            "storedMessages": stored_total,
+            "recentMessages": 0,
+            "relevantMessages": 0,
+            "contextMessages": 0,
+            "retrievalLimit": 0,
+            "embeddingCalls": 0,
+            "embeddingFallback": False,
+            "storageError": storage_error,
+        },
+        "tokens": {"input": 0, "output": 0, "total": 0},
+    })
+
+
+def undo_pass_action(
+    event: Any,
+    *,
+    repo: Any,
+    invoker: Any | None = None,
+    maker_function: str | None = None,
+    model_id: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    try:
+        parsed = parse_action(event)
+    except ValueError as exc:
+        return respond(400, {"error": str(exc)})
+    if parsed is None:
+        return respond(400, {"error": "an action is required"})
+    _, find_id, question = parsed
+
+    timestamp = now or datetime.now(timezone.utc)
+    account, error = _business_for_event(event, repo=repo, now=timestamp)
+    if error:
+        return error
+    return perform_undo_pass(
+        repo=repo,
+        business_id=account["business_id"],
+        find_id=find_id,
+        request_text=question or "I changed my mind. Do it.",
+        timestamp=timestamp,
+        invoker=invoker,
+        maker_function=maker_function,
+        model_id=model_id,
+    )
+
+
 def answer_question(
     event: Any,
     *,
@@ -246,6 +515,8 @@ def answer_question(
     asker: Any,
     embedder: Any,
     settings: Any,
+    invoker: Any | None = None,
+    maker_function: str | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     try:
@@ -264,6 +535,25 @@ def answer_question(
         find_context = repo.get_find_context(business_id, find_id)
         if find_context is None:
             return respond(404, {"error": "recommendation is no longer available"})
+
+    # Chat can carry an explicit changed-mind instruction. The deterministic
+    # action is handled before embedding or reasoning, so it cannot hallucinate
+    # a state change and it consumes zero model tokens.
+    if (
+        find_context is not None
+        and find_context.status == "rejected"
+        and is_undo_pass_request(question)
+    ):
+        return perform_undo_pass(
+            repo=repo,
+            business_id=business_id,
+            find_id=find_id,
+            request_text=question,
+            timestamp=timestamp,
+            invoker=invoker,
+            maker_function=maker_function,
+            model_id=getattr(settings, "anthropic_model_id", None),
+        )
 
     # Prefer semantic retrieval. A temporary embedding failure must not turn the
     # chat box into a dead control: recent durable memory plus live MCP queries
@@ -427,6 +717,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     hydrate_environment()
     settings = Settings.load()
 
+    import boto3
     import psycopg
     from brasstacks.repository_pg import PostgresRepository
 
@@ -437,12 +728,28 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 return read_chat_history(event, repo=repo)
             if method != "POST":
                 return respond(405, {"error": "method not allowed"})
+            invoker = boto3.client("lambda")
+            maker_function = os.environ.get(MAKER_FUNCTION_VAR)
+            try:
+                action = parse_action(event)
+            except ValueError as exc:
+                return respond(400, {"error": str(exc)})
+            if action is not None:
+                return undo_pass_action(
+                    event,
+                    repo=repo,
+                    invoker=invoker,
+                    maker_function=maker_function,
+                    model_id=getattr(settings, "anthropic_model_id", None),
+                )
             return answer_question(
                 event,
                 repo=repo,
                 asker=build_asker(settings),
                 embedder=build_embedder(settings),
                 settings=settings,
+                invoker=invoker,
+                maker_function=maker_function,
             )
     except psycopg.Error:
         return respond(503, {"error": "conversation memory could not be reached"})
@@ -455,8 +762,13 @@ __all__ = [
     "answer_question",
     "read_chat_history",
     "parse_request",
+    "parse_action",
     "parse_question",
     "respond",
     "build_context_question",
+    "undo_pass_action",
+    "perform_undo_pass",
+    "is_undo_pass_request",
+    "UNDO_PASS_ACTION",
     "MAX_QUESTION_CHARS",
 ]

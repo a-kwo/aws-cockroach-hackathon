@@ -6,6 +6,7 @@ import pytest
 
 from brasstacks.handlers import decision as decision_handler
 from brasstacks.handlers.decision import UI_TO_DB, parse_request, respond
+from brasstacks.repository import DecisionTransition
 
 
 def event(find_id="00000000-0000-0000-0000-000000000001", decision="approved"):
@@ -63,7 +64,7 @@ def test_handler_uses_one_server_timestamp_for_the_write_and_receipt():
     source = inspect.getsource(decision_handler.record_decision)
     assert "datetime.now(timezone.utc)" in source
     assert "decided_at=moment" in source
-    assert '"decided_at": moment.isoformat()' in source
+    assert '"decided_at": transition.decided_at.isoformat()' in source
 
 class FakeDecisionRepo:
     def __init__(self, account=None, error=None):
@@ -85,6 +86,20 @@ class FakeDecisionRepo:
             "decided_at": decided_at,
             "business_id": business_id,
         }
+        return DecisionTransition(
+            find_id=find_id,
+            previous_status="proposed",
+            status=status,
+            decided_at=decided_at,
+        )
+
+
+class FakeInvoker:
+    def __init__(self):
+        self.calls = []
+
+    def invoke(self, **kwargs):
+        self.calls.append(kwargs)
 
 
 def authenticated_event(*, find_id="00000000-0000-0000-0000-000000000001", decision="approved"):
@@ -121,7 +136,32 @@ def test_record_decision_scopes_the_write_to_the_session_business():
     }
     body = json.loads(result["body"])
     assert body["decision"] == "approved"
-    assert body["maker"] == "queued"
+    assert body["maker"] == "not_configured"
+
+
+def test_approved_decision_starts_the_maker_for_the_session_business():
+    moment = datetime(2026, 8, 2, 19, 4, 5, tzinfo=timezone.utc)
+    repo = FakeDecisionRepo(account={
+        "account_id": "owner-1",
+        "business_id": "business-from-session",
+        "is_admin": False,
+    })
+    invoker = FakeInvoker()
+
+    result = decision_handler.record_decision(
+        authenticated_event(), repo=repo, now=moment,
+        invoker=invoker, maker_function="brasstacks-MakerFunction-abc")
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["maker"] == "started"
+    assert len(invoker.calls) == 1
+    call = invoker.calls[0]
+    assert call["FunctionName"] == "brasstacks-MakerFunction-abc"
+    assert call["InvocationType"] == "Event"
+    payload = json.loads(call["Payload"])
+    assert payload["business_id"] == "business-from-session"
+    assert payload["find_id"] == "00000000-0000-0000-0000-000000000001"
 
 
 def test_record_decision_does_not_fall_back_to_the_seeded_config_tenant():

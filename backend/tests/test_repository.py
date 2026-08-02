@@ -452,6 +452,24 @@ class TestDecidingOnAFind:
         with pytest.raises(RepositoryError, match="already decided"):
             repo.set_find_status(find_id, status="rejected")
 
+    def test_a_pass_can_be_undone_to_do_it_with_both_timestamps_preserved(
+        self, repo, business
+    ):
+        find_id = self._proposed(repo, business)
+        passed_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+        approved_at = datetime(2026, 8, 2, 13, 30, tzinfo=timezone.utc)
+
+        repo.set_find_status(find_id, status="rejected", decided_at=passed_at)
+        transition = repo.set_find_status(
+            find_id, status="accepted", decided_at=approved_at)
+
+        assert transition.previous_status == "rejected"
+        assert transition.status == "accepted"
+        assert transition.previous_decided_at == passed_at
+        assert transition.decided_at == approved_at
+        assert [f.find_id for f in repo.due_finds(
+            business, today=TODAY)] == [find_id]
+
     def test_unknown_find_is_an_error(self, repo, business):
         with pytest.raises(RepositoryError):
             repo.set_find_status(str(uuid.uuid4()), status="accepted")

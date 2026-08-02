@@ -12682,6 +12682,70 @@
     }
   </style>
 
+  <style id="undo-pass-v26">
+    #detailDrawer .drawer-chat-action {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding-top: 13px;
+      border-top: 1px solid rgba(31,38,42,.09);
+    }
+    #detailDrawer .drawer-chat-action-copy strong {
+      display: block;
+      color: var(--theme-ink);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    #detailDrawer .drawer-chat-action-copy span {
+      display: block;
+      margin-top: 3px;
+      color: var(--theme-copy);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    #detailDrawer .undo-pass-button {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 17px;
+      border: 0;
+      border-radius: 14px;
+      background: #2f7468;
+      color: #fff;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 780;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(47,116,104,.18);
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+    #detailDrawer .undo-pass-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 13px 25px rgba(47,116,104,.24);
+    }
+    #detailDrawer .undo-pass-button:focus-visible {
+      outline: 3px solid rgba(47,116,104,.22);
+      outline-offset: 3px;
+    }
+    #detailDrawer .undo-pass-button:disabled {
+      cursor: wait;
+      opacity: .64;
+      transform: none;
+    }
+    #detailDrawer .undo-pass-button svg {
+      width: 17px;
+      height: 17px;
+      flex: 0 0 auto;
+    }
+    @media (max-width: 560px) {
+      #detailDrawer .drawer-chat-action { grid-template-columns: 1fr; }
+      #detailDrawer .undo-pass-button { width: 100%; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -13718,10 +13782,12 @@
 
       const finds = model.finds.map(find => {
         const decision = decisionForFind(find);
-        // Browser receipts bridge only an undecided build snapshot. Once the
-        // live endpoint reports a later stage (live, retired, or judged), the
-        // cluster is authoritative and must not be pushed backward to accepted.
-        if (!decision || find.verdict || !["proposed", "later"].includes(find.status)) return find;
+        // Browser receipts bridge an undecided snapshot and the brief interval
+        // after Undo Pass while /workflow still reports the old rejected row.
+        // Later stages (live, retired, judged) remain cluster-authoritative.
+        const canOverlay = ["proposed", "later"].includes(find.status)
+          || (find.status === "rejected" && decision?.status === "approved");
+        if (!decision || find.verdict || !canOverlay) return find;
         const status = decision.status === "later"
           ? "later"
           : decision.status === "approved" ? "accepted" : "rejected";
@@ -15072,7 +15138,9 @@
           if (currentIndex >= pending.length) currentIndex = Math.max(0, pending.length - 1);
           isAnimating = false;
           const message = status === "approved"
-            ? (receipt.demoOnly ? "Approved in demo. Add DECISION_API_ENDPOINT to save it." : "Approved. Saved to memory and queued for Maker.")
+            ? (receipt.demoOnly
+                ? "Approved in demo. Add DECISION_API_ENDPOINT to save it."
+                : makerHandoffMessage(receipt.maker))
             : (receipt.demoOnly ? "Passed in demo. Maker was not requested." : "Passed. Saved to memory; Maker was not requested.");
           showToast(message, status);
           renderApp();
@@ -16215,7 +16283,7 @@
       });
       const makerState = withRunState("maker", {
         statusKey: acceptedUndrafted.length ? "attention" : ((model.artifactCount || 0) ? "ready" : "idle"),
-        statusLabel: acceptedUndrafted.length ? "Queued" : ((model.artifactCount || 0) ? "Drafts stored" : "Waiting"),
+        statusLabel: acceptedUndrafted.length ? "Starting" : ((model.artifactCount || 0) ? "Drafts stored" : "Waiting"),
       });
       const meterState = withRunState("meter", {
         statusKey: measuring.length ? "watching" : "ready",
@@ -16280,6 +16348,7 @@
       }))).slice(0, 4);
       const makerDetails = [
         memoryDetailSection("Accepted, not drafted", memoryRows(makerRows)),
+        memoryDetailSection("Start behavior", `<p class="stage-note"><b>Do it and Undo Pass wake Maker immediately.</b> Accepted rows remain the durable CockroachDB queue until a draft is stored. A five-minute reconciliation sweep retries missed events and drains older approved work without using model tokens when the queue is empty.</p>`),
         memoryDetailSection("Stored drafts", memoryRows(artifactRows)),
       ].join("");
 
@@ -16358,7 +16427,7 @@
           current: memoryRunIsRunning(makerState.run)
             ? `Creating an approved deliverable now.`
             : acceptedUndrafted.length
-              ? `${memoryPlural(acceptedUndrafted.length, "accepted move")} queued for a draft.`
+              ? `${memoryPlural(acceptedUndrafted.length, "accepted move")} accepted. Maker starts immediately; reconciliation retries any missed handoff.`
               : passed.length
                 ? `No approved work queued. Passed moves stop at the decision gate.`
                 : `Waiting for an owner-approved move.`,
@@ -17763,7 +17832,7 @@ ledger_entry · artifact · agent_run`,
         : status === "rejected"
           ? {
               title: "Passed",
-              note: "You chose not to pursue this idea.",
+              note: "You chose not to pursue this idea. You can change it to Do it below.",
               icon: icons.rejected,
               className: "rejected"
             }
@@ -17818,6 +17887,17 @@ ledger_entry · artifact · agent_run`,
           <div class="drawer-chat-thread" id="drawerChatThread" aria-live="polite">
             <p class="chat-empty">Loading conversation memory…</p>
           </div>
+          ${status === "rejected" ? `
+            <div class="drawer-chat-action">
+              <div class="drawer-chat-action-copy">
+                <strong>Changed your mind?</strong>
+                <span>Undo Pass changes this recommendation to Do it and starts Maker.</span>
+              </div>
+              <button class="undo-pass-button" type="button" data-undo-pass data-post-id="${post.id}">
+                ${icons.approved}<span>Undo Pass</span>
+              </button>
+            </div>
+          ` : ""}
         </section>
 
         ${status === "pending" ? `
@@ -17921,6 +18001,85 @@ ledger_entry · artifact · agent_run`,
       }
     }
 
+    function makerHandoffMessage(maker, { undo = false } = {}) {
+      const prefix = undo ? "Pass undone. This is now Do it." : "Approved.";
+      if (maker === "started") return `${prefix} Maker is starting the draft now.`;
+      if (maker === "start_failed") return `${prefix} Maker is queued and will retry automatically.`;
+      if (maker === "not_configured") return `${prefix} Maker is queued, but the worker is not configured yet.`;
+      return `${prefix} Maker is queued.`;
+    }
+
+    function applyUndoPassReceipt(post, payload) {
+      const serverRecordedAt = payload?.decided_at ? new Date(payload.decided_at).getTime() : NaN;
+      const recordedAt = Number.isFinite(serverRecordedAt) ? serverRecordedAt : Date.now();
+      const receipt = {
+        status: "approved",
+        at: recordedAt,
+        persisted: true,
+        server: true,
+        undoPass: true,
+        previousAt: payload?.previous_decided_at || null,
+      };
+      for (const id of [post.id, post.databaseId]) {
+        if (!id) continue;
+        state.decisions[String(id)] = receipt;
+        liveDecisionState[String(id)] = receipt;
+      }
+      saveState();
+      showToast(makerHandoffMessage(payload?.maker, { undo: true }), "approved");
+      renderApp();
+      if (workflowApiConfigured) {
+        refreshWorkflowSnapshot({ force: true, silent: true })
+          .finally(scheduleWorkflowRefresh);
+      }
+    }
+
+    async function undoPass(postId, button) {
+      const post = posts.find(item => item.id === postId);
+      if (!post || button?.disabled) return;
+      if (!askApiConfigured) {
+        showToast("Undo Pass needs the connected Ask service.", "rejected");
+        return;
+      }
+
+      const original = button?.innerHTML;
+      if (button) {
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.textContent = "Changing to Do it…";
+      }
+      appendDrawerMessage("user", "I changed my mind. Do it.");
+      const loadingId = `undo-pass-${Date.now()}`;
+      appendDrawerMessage("assistant", "Updating the decision and starting Maker…", {
+        loading: true,
+        id: loadingId,
+      });
+
+      try {
+        const response = await fetch(ASK_ENDPOINT, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
+          body: JSON.stringify({
+            action: "undo_pass",
+            question: "I changed my mind. Do it.",
+            find_id: post.databaseId || post.id,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        document.getElementById(loadingId)?.remove();
+        if (!response.ok) throw new Error(payload.error || `Undo Pass failed (${response.status})`);
+        applyUndoPassReceipt(post, payload);
+      } catch (error) {
+        document.getElementById(loadingId)?.remove();
+        appendDrawerMessage("assistant", error.message || "Undo Pass is temporarily unavailable.", { error: true });
+        if (button) {
+          button.disabled = false;
+          button.removeAttribute("aria-busy");
+          button.innerHTML = original;
+        }
+      }
+    }
+
     document.getElementById("drawerForm").addEventListener("submit", async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -17953,9 +18112,13 @@ ledger_entry · artifact · agent_run`,
         const payload = await response.json().catch(() => ({}));
         document.getElementById(loadingId)?.remove();
         if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
-        appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
-        appendChatReceipt(payload);
-        if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
+        if (payload?.action?.type === "undo_pass") {
+          applyUndoPassReceipt(post, payload);
+        } else {
+          appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
+          appendChatReceipt(payload);
+          if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
+        }
       } catch (error) {
         document.getElementById(loadingId)?.remove();
         appendDrawerMessage("assistant", error.message || "Ask is temporarily unavailable.", { error: true });
@@ -18041,6 +18204,9 @@ ledger_entry · artifact · agent_run`,
           if (fromDrawer) closeDrawer();
           decide(postId, status, !fromDrawer);
         };
+      });
+      document.querySelectorAll("[data-undo-pass]").forEach(button => {
+        button.onclick = () => undoPass(button.dataset.postId, button);
       });
       document.querySelectorAll("[data-switch-growth]").forEach(button => {
         button.onclick = () => switchView("growth");

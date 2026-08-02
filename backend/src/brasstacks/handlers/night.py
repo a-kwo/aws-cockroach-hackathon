@@ -3,11 +3,10 @@
 EventBridge Scheduler wakes this once a night. It is what makes the loop
 autonomous rather than a button, which is the claim the product rests on.
 
-One function rather than three chained ones. `run_night()` already sequences
-Radar → Analyst → Maker → Meter and is covered by the offline suite; splitting
-it across three Lambdas would move that ordering into infrastructure, where it
-is less tested, and buy cross-invoke IAM and three new failure modes for
-nothing. A night takes single-digit minutes against a fifteen-minute ceiling.
+The scheduled run handles Radar → Analyst → Meter. Maker is event-driven in the
+deployed product: Do it wakes a dedicated worker immediately, and a lightweight
+reconciliation sweep drains any accepted backlog. Keeping Maker out of the
+night prevents the two Lambda functions from drafting the same find at once.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ import os
 from datetime import date, datetime, time, timezone
 from typing import Any
 
-from brasstacks.artifacts import build_artifact_store
 from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
 from brasstacks.night import build_night_sources, run_night
@@ -66,7 +64,6 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
 
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
-    store = build_artifact_store(settings)
     sources = build_night_sources(
         settings, anchor,
         # Live web signal for a real tenant; the committed corpus only if
@@ -103,7 +100,10 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                     repo=repo,
                     embedder=embedder,
                     reasoner=reasoner,
-                    store=store,
+                    # The deployed Maker owns all drafting. The local run_night
+                    # harness can still pass a store when testing the complete
+                    # loop in one process.
+                    store=None,
                     # Per tenant: the coordinates the scout searches around live
                     # on the business row, so one scout for every tenant would
                     # point them all at the same street.

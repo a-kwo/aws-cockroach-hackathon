@@ -8,12 +8,14 @@ and scoped to that business. The browser never gets to choose a tenant id.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from typing import Any
 
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
+from brasstacks.maker_dispatch import MAKER_FUNCTION_VAR, dispatch_maker
 from brasstacks.repository import RepositoryError
 from brasstacks.secrets import hydrate_environment
 
@@ -58,6 +60,8 @@ def record_decision(
     event: Any,
     *,
     repo: Any,
+    invoker: Any | None = None,
+    maker_function: str | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Authorize and persist one owner decision.
@@ -85,7 +89,7 @@ def record_decision(
         return respond(409, {"error": "finish setting up your business first"})
 
     try:
-        repo.set_find_status(
+        transition = repo.set_find_status(
             find_id,
             status=UI_TO_DB[decision],
             decided_at=moment,
@@ -96,12 +100,27 @@ def record_decision(
         # scopes its lookup before producing this message.
         return respond(409, {"error": str(exc)})
 
+    maker = "not_requested"
+    if decision == "approved":
+        maker = dispatch_maker(
+            invoker=invoker,
+            function_name=maker_function,
+            business_id=business_id,
+            find_id=find_id,
+        )
+
     return respond(200, {
         "find_id": find_id,
         "decision": decision,
-        "status": UI_TO_DB[decision],
-        "decided_at": moment.isoformat(),
-        "maker": "queued" if decision == "approved" else "not_requested",
+        "status": transition.status,
+        "previous_status": transition.previous_status,
+        "changed": transition.changed,
+        "decided_at": transition.decided_at.isoformat(),
+        "previous_decided_at": (
+            transition.previous_decided_at.isoformat()
+            if transition.previous_decided_at else None
+        ),
+        "maker": maker,
     })
 
 
@@ -114,16 +133,23 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     hydrate_environment()
     settings = Settings.load()
 
+    import boto3
     import psycopg
     from brasstacks.repository_pg import PostgresRepository
 
     try:
         with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
-            return record_decision(event, repo=PostgresRepository(conn))
+            return record_decision(
+                event,
+                repo=PostgresRepository(conn),
+                invoker=boto3.client("lambda"),
+                maker_function=os.environ.get(MAKER_FUNCTION_VAR),
+            )
     except psycopg.Error:
         return respond(503, {"error": "decision could not be saved"})
 
 
 __all__ = [
     "handler", "record_decision", "parse_request", "respond", "UI_TO_DB",
+    "MAKER_FUNCTION_VAR",
 ]
