@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 #: Must match VECTOR(1024) in db/schema.sql. Changing one without the other
 #: fails on every insert, so the mismatch is rejected at startup.
@@ -60,6 +61,88 @@ def _as_float(value: str | None, name: str) -> float | None:
 
 def _mask_url_password(url: str) -> str:
     return re.sub(r"://([^:/@]+):[^@]*@", r"://\1:***@", url)
+
+
+#: OS trust stores, tried only if certifi is somehow absent. The first is the
+#: Amazon Linux path the Lambda image carries; the second is Debian/Ubuntu.
+CA_BUNDLE_CANDIDATES = (
+    "/etc/pki/tls/certs/ca-bundle.crt",
+    "/etc/ssl/certs/ca-certificates.crt",
+)
+
+#: sslmodes that actually verify the server certificate. Only these need a CA.
+_VERIFYING_SSLMODES = frozenset({"verify-full", "verify-ca"})
+
+#: Distinguishes "caller said nothing, go and look" from an explicit
+#: ``ca_bundle=None`` meaning "there is no bundle" — which the tests need to be
+#: able to say, and which must leave the URL alone rather than probing.
+_USE_DEFAULT_CA = "<resolve>"
+
+
+def default_ca_bundle(exists: Callable[[str], bool] = os.path.isfile) -> str | None:
+    """Find a CA bundle that exists on *this* machine.
+
+    certifi first, deliberately: it is the same Mozilla trust store on every
+    machine, so the laptop and the Lambda validate against identical roots
+    rather than whatever the base image happens to ship. It is already present
+    — anthropic depends on httpx, which depends on certifi — so this widens the
+    dependency surface by nothing.
+
+    Returns None if nothing is found, which leaves the URL untouched so psycopg
+    raises its own error rather than us inventing a path.
+    """
+    try:
+        import certifi
+    except ImportError:
+        pass
+    else:
+        bundle = certifi.where()
+        if exists(bundle):
+            return bundle
+
+    for candidate in CA_BUNDLE_CANDIDATES:
+        if exists(candidate):
+            return candidate
+    return None
+
+
+def with_ca_bundle(
+    url: str,
+    bundle: str | None,
+    exists: Callable[[str], bool] = os.path.isfile,
+) -> str:
+    """Point ``sslrootcert`` at a CA file that is actually on this machine.
+
+    The cluster presents an ordinary Let's Encrypt certificate — the committed
+    `cockroach-certs/ca.crt` is nothing but ISRG Root X1 — so any standard
+    bundle verifies it. What breaks is the *path*: that file is gitignored, and
+    a shared `.env` carries whichever absolute path its author had. Both fail as
+    a TLS error, which reads like a certificate problem and is not one.
+
+    `sslmode` is never touched. The point is to keep verify-full working, not to
+    find a way around it.
+    """
+    parts = urlsplit(url)
+    params = parse_qsl(parts.query, keep_blank_values=True)
+    values = dict(params)
+
+    if values.get("sslmode") not in _VERIFYING_SSLMODES:
+        return url
+
+    current = values.get("sslrootcert")
+    # `system` is a libpq spelling that psycopg's bundled OpenSSL cannot
+    # resolve on either Windows or Amazon Linux. See deploy/README.md.
+    if current and current != "system" and exists(current):
+        return url
+    if bundle is None:
+        return url
+
+    rebuilt = [(k, bundle if k == "sslrootcert" else v) for k, v in params]
+    if "sslrootcert" not in values:
+        rebuilt.append(("sslrootcert", bundle))
+
+    query = urlencode(rebuilt, safe=":/\\", quote_via=quote)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
 
 
 @dataclass(frozen=True)
@@ -145,7 +228,9 @@ class Settings:
         )
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str]) -> Settings:
+    def from_env(
+        cls, env: Mapping[str, str], ca_bundle: str | None = _USE_DEFAULT_CA,
+    ) -> Settings:
         def required(name: str) -> str:
             value = _clean(env.get(name))
             if value is None:
@@ -194,7 +279,10 @@ class Settings:
             )
 
         return cls(
-            cockroach_url=required("COCKROACH_DATABASE_URL"),
+            cockroach_url=with_ca_bundle(
+                required("COCKROACH_DATABASE_URL"),
+                default_ca_bundle() if ca_bundle == _USE_DEFAULT_CA else ca_bundle,
+            ),
             aws_region=required("AWS_REGION"),
             embedding_model_id=required("BEDROCK_EMBEDDING_MODEL_ID"),
             embedding_dimensions=dimensions,

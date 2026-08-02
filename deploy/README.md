@@ -120,30 +120,43 @@ aws ssm put-parameter --type String --overwrite \
   --name /brasstacks/COCKROACH_DATABASE --value defaultdb
 ```
 
-### The connection string is not the same one you use locally
+### Omit `sslrootcert` from the connection string
 
-`sslrootcert` must differ by environment. Copying the local value across is a
-deploy failure that reads as a certificate problem rather than a path problem.
-Both values below are confirmed against the deployed function:
+**As of 2026-08-02 this is handled in code and you should not set it by hand.**
+`config.with_ca_bundle()` rewrites `sslrootcert` at startup to a CA bundle that
+exists on the machine actually running — certifi's, normally — and `db/migrate.py`
+does the same. Leave the parameter off and the same `.env` works on a laptop and
+in Lambda.
+
+The history is worth keeping, because the failure is misleading in both
+directions. `sslrootcert` used to have to differ by environment:
 
 | | `sslrootcert` |
 |---|---|
 | Local (Windows) | absolute path to `cockroach-certs/ca.crt`. `system` does not work — psycopg's bundled libpq will not resolve it to the Windows trust store |
 | Lambda (Linux) | `/etc/pki/tls/certs/ca-bundle.crt` |
 
-**`sslrootcert=system` also fails on Lambda**, which is counter-intuitive enough
+**`sslrootcert=system` fails on Lambda too**, which is counter-intuitive enough
 to be worth stating plainly. The container *does* carry OS CA bundles at all
 three standard locations, and the cluster presents an ordinary **Let's Encrypt**
 certificate. The problem is that `psycopg[binary]` bundles its own OpenSSL,
 whose compiled-in default cert path does not exist in the Amazon Linux image, so
-`system` resolves to nothing. Naming the bundle explicitly is the fix; the OS
-path is stable for as long as the base image stays Amazon Linux.
+`system` resolves to nothing. Naming a real bundle is the fix.
 
-`sslmode=verify-full` is retained throughout — the aim was never to weaken TLS.
+Two things forced the code fix. `cockroach-certs/ca.crt` is gitignored, so it is
+absent from a fresh clone; and a `.env` shared between developers carries
+whichever absolute path its author happened to have. Both surface as a TLS
+error, which sends the reader to `sslmode` and the certificate chain rather than
+to the missing file. That file was only ISRG Root X1 — the public Let's Encrypt
+root — so nothing about the cluster required a private copy of it.
+
+`sslmode=verify-full` is retained throughout, and the rewrite never touches it —
+the aim was never to weaken TLS. An `sslrootcert` that does point at a real file
+is left exactly as configured.
 
 Do **not** `COPY cockroach-certs/ca.crt` into the image instead. That file is
-gitignored, so it is absent from a fresh clone and the build would fail for
-everyone but this machine, a judge included.
+gitignored, so the build would fail for everyone but this machine, a judge
+included.
 
 ### Rotating a secret needs a cold start
 

@@ -20,6 +20,14 @@ import psycopg
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_DIR = REPO_ROOT / "db"
 
+# By path rather than by installed package: this is the first command a new
+# clone runs, and requiring `pip install -e backend` before the schema exists
+# would put an install step in front of the one command that has no other
+# dependency than psycopg.
+sys.path.insert(0, str(REPO_ROOT / "backend" / "src"))
+
+from brasstacks.config import with_ca_bundle, default_ca_bundle  # noqa: E402
+
 
 def load_env() -> None:
     """Populate os.environ from .env for values that aren't already set.
@@ -64,6 +72,12 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    # A shared .env carries whichever absolute sslrootcert path its author had,
+    # and cockroach-certs/ca.crt is gitignored, so on a fresh clone this is the
+    # first command that fails — with a TLS error that reads like a certificate
+    # problem rather than a missing file. Resolve it the same way the agents do.
+    url = with_ca_bundle(url, default_ca_bundle())
 
     # autocommit because CockroachDB applies cluster settings outside a txn,
     # and schema.sql manages its own BEGIN/COMMIT.

@@ -15,7 +15,8 @@ FROM public.ecr.aws/lambda/python:3.12
 RUN pip install --no-cache-dir \
         "psycopg[binary]>=3.2" \
         "anthropic[bedrock]>=0.40" \
-        "boto3>=1.35"
+        "boto3>=1.35" \
+        "certifi"
 
 # The source tree keeps its repository shape rather than being pip-installed
 # into site-packages. Installing it would move `brasstacks` somewhere that

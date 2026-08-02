@@ -10,6 +10,12 @@ dependencies = [
     # model) and for S3.
     "anthropic[bedrock]>=0.40",
     "boto3>=1.35",
+    # Already present transitively (anthropic -> httpx -> certifi). Declared
+    # because config.default_ca_bundle() relies on it to verify the CockroachDB
+    # connection: psycopg's bundled OpenSSL cannot resolve `sslrootcert=system`
+    # on either Windows or the Amazon Linux Lambda image, so a real bundle path
+    # has to come from somewhere. Relying on it silently is the fragile version.
+    "certifi",
 ]
 
 [project.optional-dependencies]

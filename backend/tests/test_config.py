@@ -8,6 +8,8 @@ Fail at startup with the variable named, not at 2 AM inside a nightly run.
 `Settings.from_env` takes a plain mapping so these tests never touch os.environ.
 """
 
+from pathlib import Path
+
 import pytest
 
 from brasstacks.config import ConfigError, Settings
@@ -138,3 +140,82 @@ class TestSecretsAreNotLeaked:
         s = Settings.from_env(env(
             COCKROACH_DATABASE_URL="postgresql://user:hunter2@host:26257/defaultdb"))
         assert "hunter2" not in repr(s)
+
+
+class TestCaBundleResolution:
+    """`sslrootcert` must not be a path that only exists on one machine.
+
+    Two failures this prevents, both reported by a second developer joining the
+    project on 2026-08-02:
+
+    * `cockroach-certs/ca.crt` is gitignored, so a fresh clone does not have it.
+    * A shared `.env` carries an absolute path from whoever wrote it.
+
+    Both surface as a TLS error rather than a missing-file error, which sends
+    the reader looking at `sslmode` and the certificate chain instead of at the
+    path. The file is only ISRG Root X1 — the public Let's Encrypt root — so any
+    standard CA bundle validates the cluster equally well.
+    """
+
+    URL = "postgresql://u:p@host:26257/defaultdb?sslmode=verify-full"
+
+    def test_a_missing_cert_path_is_replaced_with_a_bundle_that_exists(self):
+        s = Settings.from_env(
+            env(COCKROACH_DATABASE_URL=(
+                f"{self.URL}&sslrootcert=C:/Users/someone-else/certs/ca.crt")),
+            ca_bundle="/etc/ssl/certs/ca-certificates.crt",
+        )
+        assert "someone-else" not in s.cockroach_url
+        assert "sslrootcert=/etc/ssl/certs/ca-certificates.crt" in s.cockroach_url
+
+    def test_an_existing_cert_path_is_left_alone(self, tmp_path):
+        # Explicit configuration that works must keep working.
+        mine = tmp_path / "ca.crt"
+        mine.write_text("-----BEGIN CERTIFICATE-----")
+        s = Settings.from_env(
+            env(COCKROACH_DATABASE_URL=f"{self.URL}&sslrootcert={mine}"),
+            ca_bundle="/etc/ssl/certs/ca-certificates.crt",
+        )
+        assert str(mine) in s.cockroach_url
+
+    def test_sslrootcert_system_is_replaced(self):
+        # `system` resolves to nothing under psycopg's bundled OpenSSL, on both
+        # Windows and the Amazon Linux Lambda image. See deploy/README.md.
+        s = Settings.from_env(
+            env(COCKROACH_DATABASE_URL=f"{self.URL}&sslrootcert=system"),
+            ca_bundle="/etc/ssl/certs/ca-certificates.crt",
+        )
+        assert "sslrootcert=/etc/ssl/certs/ca-certificates.crt" in s.cockroach_url
+
+    def test_a_verifying_url_with_no_cert_at_all_gets_one(self):
+        s = Settings.from_env(env(COCKROACH_DATABASE_URL=self.URL),
+                              ca_bundle="/etc/ssl/certs/ca-certificates.crt")
+        assert "sslrootcert=/etc/ssl/certs/ca-certificates.crt" in s.cockroach_url
+
+    def test_sslmode_is_never_weakened(self):
+        s = Settings.from_env(
+            env(COCKROACH_DATABASE_URL=f"{self.URL}&sslrootcert=system"),
+            ca_bundle="/etc/ssl/certs/ca-certificates.crt",
+        )
+        assert "sslmode=verify-full" in s.cockroach_url
+        assert "sslmode=disable" not in s.cockroach_url
+
+    def test_a_non_verifying_url_is_untouched(self):
+        # `cockroach demo` and CI run insecure. Injecting a CA there would be
+        # noise at best.
+        url = "postgresql://root@localhost:26257/brasstacks?sslmode=disable"
+        s = Settings.from_env(env(COCKROACH_DATABASE_URL=url),
+                              ca_bundle="/etc/ssl/certs/ca-certificates.crt")
+        assert s.cockroach_url == url
+
+    def test_no_bundle_anywhere_leaves_the_url_alone(self):
+        # Fail loudly in psycopg rather than quietly rewriting to nothing.
+        broken = f"{self.URL}&sslrootcert=/nope/ca.crt"
+        s = Settings.from_env(env(COCKROACH_DATABASE_URL=broken), ca_bundle=None)
+        assert s.cockroach_url == broken
+
+    def test_the_default_bundle_exists_on_this_machine(self):
+        from brasstacks.config import default_ca_bundle
+        found = default_ca_bundle()
+        assert found is not None, "no CA bundle found — certifi should provide one"
+        assert Path(found).is_file()
