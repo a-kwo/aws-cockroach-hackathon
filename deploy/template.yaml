@@ -156,7 +156,6 @@ Resources:
       ImageConfig:
         Command: ["brasstacks.handlers.maker.handler"]
       Timeout: 600
-      ReservedConcurrentExecutions: 1
       Policies:
         - Statement:
             - Sid: MakerArtifacts
