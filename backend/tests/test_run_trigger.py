@@ -116,16 +116,38 @@ class TestStartNight:
         assert json.loads(response["body"])["status"] == "running"
         assert invoker.calls == []
 
-    def test_a_business_that_already_had_a_night_is_not_re_run(self, repo):
+    def test_a_business_that_already_has_finds_is_not_re_run(self, repo):
+        from brasstacks.providers import FakeEmbedder
+        from brasstacks.repository import EvidenceRef
+
         token, business = signed_in(repo)
-        run = repo.start_run(business, agent="radar")
-        repo.finish_run(run, status="ok")
+        observation = repo.insert_observation(
+            business, content="something observed", kind="review",
+            embedding=FakeEmbedder().embed(["x"])[0], observed_at=NOW)
+        repo.insert_find_with_evidence(
+            business, title="A find", rationale="Because.", move="Do it.",
+            emoji="x", predicted_daily_cents=100, confidence=0.5,
+            verify_after=NOW.date(), evidence=[EvidenceRef(observation, 0.5)])
         invoker = FakeInvoker()
 
         response = call(repo, token, invoker)
 
         assert json.loads(response["body"])["status"] == "done"
         assert invoker.calls == []
+
+    def test_a_night_that_failed_can_be_retried(self, repo):
+        """The first live signup's Analyst blew its token budget and stored no
+        find. Guarding on "has any run happened" left that business refused
+        forever, having never seen a single recommendation."""
+        token, business = signed_in(repo)
+        run = repo.start_run(business, agent="analyst")
+        repo.finish_run(run, status="failed", error="output hit max_tokens")
+        invoker = FakeInvoker()
+
+        response = call(repo, token, invoker)
+
+        assert json.loads(response["body"])["status"] == "started"
+        assert len(invoker.calls) == 1
 
     def test_an_unconfigured_runner_is_reported_not_guessed(self, repo):
         token, _ = signed_in(repo)

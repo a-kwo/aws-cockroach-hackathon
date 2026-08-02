@@ -21,7 +21,17 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-DEFAULT_MAX_TOKENS = 4096
+#: One night's output, and it has to hold THREE finds now rather than one.
+#: Each carries a title, a one-sentence summary, a paragraph of rationale, the
+#: move as several steps, and its evidence ids — call it 1.2k tokens, so three
+#: sit close to 4k with nothing spare. 4096 was the ceiling when a night
+#: proposed one move; the first tenant to get three genuinely distinct ones hit
+#: it and the whole Analyst run failed with truncated JSON.
+#:
+#: Generous rather than exact: the failure mode is losing a night's reasoning
+#: after paying for the retrieval that fed it, and unused output tokens cost
+#: nothing — only generated ones are billed.
+DEFAULT_MAX_TOKENS = 16384
 
 #: Ask answers are prose, not documents — she is reading between other jobs, and
 #: generation time is the dominant cost once the queries are cheap. Measured: at

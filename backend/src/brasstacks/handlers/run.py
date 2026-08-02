@@ -63,11 +63,16 @@ def start_night(event: Any, *, repo: Any, invoker: Any,
     # caller would let any signed-in owner spend model calls against any other
     # business in the cluster.
     runs = repo.recent_runs(business_id, limit=1)
-    if runs:
-        run = runs[0]
-        if run.status == "running":
-            return respond(202, {"status": "running",
-                                 "message": "the agents are already working"})
+    if runs and runs[0].status == "running":
+        return respond(202, {"status": "running",
+                             "message": "the agents are already working"})
+
+    # Whether a night HAPPENED is the wrong question; whether it produced
+    # anything is the right one. This checked for any prior run, so a business
+    # whose first night failed — a truncated model response, a search outage —
+    # was refused forever, having never seen a single recommendation. The
+    # failure is recorded on the agent_run row either way.
+    if repo.count_finds(business_id):
         return respond(200, {"status": "done",
                              "message": "this business has already had a night"})
 

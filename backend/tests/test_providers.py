@@ -267,3 +267,20 @@ class TestFakeReasoner:
         fake = FakeReasoner([ModelRefusedError("policy")])
         with pytest.raises(ModelRefusedError):
             fake.complete_json(system="s", user="u", schema=SCHEMA)
+
+
+def test_the_output_budget_fits_a_full_night_of_finds():
+    """A night proposes up to three finds, each with a title, summary, a
+    paragraph of rationale, several move steps and its evidence ids.
+
+    At 4096 the first tenant to get three distinct moves failed with
+    `output hit max_tokens (4096) and is truncated` — after the retrieval that
+    fed it had already been paid for. The budget has to scale with
+    MAX_FINDS_PER_NIGHT, not sit at the figure that suited one find.
+    """
+    from brasstacks.agents.analyst import MAX_FINDS_PER_NIGHT
+    from brasstacks.providers import DEFAULT_MAX_TOKENS
+
+    # ~1.2k tokens per find, with real headroom. Unused output tokens are free;
+    # a truncated night is not.
+    assert DEFAULT_MAX_TOKENS >= MAX_FINDS_PER_NIGHT * 2000
