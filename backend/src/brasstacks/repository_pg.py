@@ -89,6 +89,103 @@ class PostgresRepository:
                 "goal_monthly_cents", "goal_note", "latitude", "longitude")
         return {k: (str(v) if k == "id" else v) for k, v in zip(keys, row)}
 
+    # -- owners ----------------------------------------------------------
+    def create_account(self, business_id: str, *, username: str,
+                       password_hash: str) -> str:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM owner_account WHERE username = %s", (username,))
+            if cur.fetchone():
+                # Checked rather than relying on the unique index alone, so the
+                # caller gets a message it can show instead of a driver error.
+                raise RepositoryError(f"username {username!r} is already taken")
+            cur.execute(
+                """
+                INSERT INTO owner_account (business_id, username, password_hash)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (business_id, username, password_hash),
+            )
+            return str(cur.fetchone()[0])
+
+    def find_account(self, username: str) -> dict[str, Any] | None:
+        """None rather than raising: the login handler must do the same work
+        whether or not the user exists."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, business_id, username, password_hash
+                FROM owner_account WHERE username = %s
+                """,
+                (username,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"id": str(row[0]), "business_id": str(row[1]),
+                "username": row[2], "password_hash": row[3]}
+
+    def create_session(self, token_hash: str, *, business_id: str,
+                       account_id: str, expires_at: datetime) -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO owner_session
+                    (token_hash, business_id, account_id, expires_at)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (token_hash, business_id, account_id, expires_at),
+            )
+            cur.execute(
+                "UPDATE owner_account SET last_login_at = clock_timestamp() "
+                "WHERE id = %s", (account_id,))
+
+    def business_for_session(self, token_hash: str, *,
+                             now: datetime) -> str | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT business_id FROM owner_session
+                WHERE token_hash = %s AND expires_at > %s
+                """,
+                (token_hash, now),
+            )
+            row = cur.fetchone()
+        return str(row[0]) if row else None
+
+    def delete_session(self, token_hash: str) -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM owner_session WHERE token_hash = %s", (token_hash,))
+
+    def set_business_status(self, business_id: str, *, status: str) -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "UPDATE business SET status = %s WHERE id = %s",
+                (status, business_id))
+            if cur.rowcount == 0:
+                raise RepositoryError(f"unknown business {business_id}")
+
+    def active_business_ids(self, *, limit: int = 50) -> list[str]:
+        """Tenants the agents work for tonight, oldest first and capped.
+
+        Every one costs a search, embeddings and a Claude call, so the cap is a
+        spend control rather than pagination. Oldest first so a burst of signups
+        cannot push an established tenant out of tonight's run.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id FROM business
+                WHERE status = 'active'
+                ORDER BY created_at
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            return [str(r[0]) for r in cur.fetchall()]
+
     # -- profile ---------------------------------------------------------
     def insert_business_fact(self, business_id: str, *, fact: str, source: str,
                              embedding: Sequence[float],

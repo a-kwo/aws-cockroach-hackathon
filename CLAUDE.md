@@ -107,12 +107,40 @@ judge finding it unstated is worse than reading it up front.
 - **Frontend:** React (rebuild — see below).
 - **DB:** CockroachDB Cloud, vector indexes with `vector_cosine_ops`.
 
-### Scope cuts (deliberate)
+### Scope
 
-Build Radar, Analyst, Maker, Meter, Ask. **Dropped:** Stripe, accounts,
-multi-tenancy, and the **Mapper** — its job, chat → business profile, is already
-served by the seeded `business_fact` rows, and it contributes to neither required
-disclosure. Single demo tenant. Maker ships exactly one artifact type.
+Build Radar, Analyst, Maker, Meter, Ask. **Dropped:** Stripe, and the **Mapper**
+— its job, chat → business profile, is now served by the signup flow writing
+`business_fact` rows, and it contributes to neither required disclosure. Maker
+ships exactly one artifact type.
+
+**Accounts and multi-tenancy are back in, as of 2026-08-01.** They were dropped
+on the reasoning that a single seeded tenant proves the memory-layer claim just
+as well and costs a fraction of the work. That held while the tenant was
+fictional. It stopped holding once a real business signed itself up through the
+deployed onboarding endpoint: a product that lets one person create a profile and
+then shows them somebody else's restaurant is not a product, and the signup flow
+already existed. The earlier decision is preserved here rather than deleted,
+because it was correct when it was made.
+
+What that means concretely:
+
+- `business` carries a `status`; nights run for every **active** tenant rather
+  than one id read from Parameter Store.
+- Owners get a **username and password**. Not a capability URL — the owner asked
+  for real credentials, and a UUID in a link is a share away from being someone
+  else's board.
+- Passwords are hashed with `hashlib.scrypt` from the standard library. No new
+  dependency: the Lambda image installs `psycopg`, `anthropic` and `boto3`, and
+  a password KDF is not worth widening that.
+- Session tokens are random, and only their **hash** is stored — a database read
+  must not be enough to impersonate an owner.
+- **The Memory Engine tenant list is an admin view and is not public.** Listing
+  active businesses is exactly the enumeration `load_workspaces` was written to
+  prevent; it now happens behind an admin secret instead of not at all.
+- **Nights cost money per tenant.** Tavily search, ~50 embeddings and a Claude
+  call each. Active tenants are capped, and signup stays invite-gated, so a
+  curious afternoon cannot multiply the nightly bill without limit.
 
 **Why one nightly Lambda rather than one per agent.** `run_night()` already
 sequences Radar → Analyst → Maker → Meter and is covered by the offline suite.

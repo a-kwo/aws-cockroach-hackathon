@@ -134,6 +134,8 @@ class TestFactSourceMatchesTheSchema:
 
 class TestProfileFacts:
     PROFILE = {
+        "username": "sam",
+        "password": "a long enough passphrase",
         "owner": {"name": "Sam", "email": "sam@example.com"},
         "business": {"name": "Nonna's", "category": "restaurant",
                      "categoryLabel": "Restaurant or café",
@@ -322,3 +324,69 @@ class TestHandler:
         response = self._call(an_event(self.PROFILE))
 
         assert response["headers"]["Access-Control-Allow-Origin"] == "*"
+
+
+class TestSignupCredentials:
+    """Signup creates the login. Without it a tenant exists that nobody can reach."""
+
+    PROFILE = TestHandler.PROFILE
+
+    def _call(self, event, repo=None):
+        from brasstacks.handlers import onboarding
+        from brasstacks.providers import FakeEmbedder
+        from brasstacks.repository import InMemoryRepository
+
+        return onboarding.onboard(
+            event,
+            repo=repo if repo is not None else InMemoryRepository(),
+            embedder=FakeEmbedder(),
+            invite_code="let-me-in",
+        )
+
+    def test_the_owner_can_log_in_afterwards(self):
+        from brasstacks.auth import verify_password
+        from brasstacks.repository import InMemoryRepository
+
+        repo = InMemoryRepository()
+        self._call(an_event(self.PROFILE), repo=repo)
+
+        account = repo.find_account("sam")
+        assert account is not None
+        assert verify_password("a long enough passphrase", account["password_hash"])
+
+    def test_the_password_is_never_stored_as_typed(self):
+        from brasstacks.repository import InMemoryRepository
+
+        repo = InMemoryRepository()
+        self._call(an_event(self.PROFILE), repo=repo)
+
+        assert "a long enough passphrase" not in json.dumps(repo._accounts)
+
+    def test_a_short_password_creates_nothing(self):
+        from brasstacks.repository import InMemoryRepository
+
+        repo = InMemoryRepository()
+        thin = dict(self.PROFILE, password="short")
+        response = self._call(an_event(thin), repo=repo)
+
+        assert response["statusCode"] == 400
+        assert repo._businesses == {}
+
+    def test_a_taken_username_creates_nothing(self):
+        from brasstacks.auth import hash_password
+        from brasstacks.repository import InMemoryRepository
+
+        repo = InMemoryRepository()
+        other = repo.create_business(name="Other", category="restaurant")
+        repo.create_account(other, username="sam", password_hash=hash_password("x" * 20))
+        before = len(repo._businesses)
+
+        response = self._call(an_event(self.PROFILE), repo=repo)
+
+        assert response["statusCode"] == 409
+        assert len(repo._businesses) == before
+
+    def test_the_password_never_comes_back_in_the_response(self):
+        response = self._call(an_event(self.PROFILE))
+
+        assert "a long enough passphrase" not in json.dumps(response)

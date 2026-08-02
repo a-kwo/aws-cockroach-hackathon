@@ -18,6 +18,12 @@ import json
 import os
 from typing import Any
 
+from brasstacks.auth import (
+    AuthError,
+    hash_password,
+    validate_password,
+    validate_username,
+)
 from brasstacks.config import Settings
 from brasstacks.onboarding import (
     FACT_SOURCE,
@@ -85,6 +91,17 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
     if problem:
         return respond(400, {"error": problem})
 
+    # Credentials before anything is created, so a rejected signup leaves no
+    # business row behind and no half-built tenant to wonder about later.
+    try:
+        username = validate_username(str(profile.get("username") or ""))
+        password = validate_password(profile.get("password"))
+    except AuthError as e:
+        return respond(400, {"error": str(e)})
+
+    if repo.find_account(username) is not None:
+        return respond(409, {"error": f"the username {username!r} is taken"})
+
     business = profile["business"]
 
     # Name and address together. Text Search resolves a business far better
@@ -115,8 +132,14 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
     for rule in (rules or list(DEFAULT_OWNER_RULES)):
         repo.insert_owner_rule(business_id, rule=rule)
 
+    # Last, so a failure anywhere above rolls back rather than leaving an
+    # account pointing at a business with no profile behind it.
+    repo.create_account(business_id, username=username,
+                        password_hash=hash_password(password))
+
     return respond(201, {
         "business_id": business_id,
+        "username": username,
         "facts_stored": len(facts),
         # Echoed so the form can show the owner what the agents will actually
         # search around, rather than what they typed. Text Search is fuzzy, so

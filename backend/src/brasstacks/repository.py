@@ -347,6 +347,8 @@ class InMemoryRepository:
         self._finds: dict[str, _Find] = {}
         self._artifacts: list[_Artifact] = []
         self._ledger: list[_LedgerEntry] = []
+        self._accounts: dict[str, dict[str, Any]] = {}
+        self._sessions: dict[str, dict[str, Any]] = {}
         self._clock = 0
 
     _EPOCH = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -370,6 +372,60 @@ class InMemoryRepository:
             "latitude": latitude, "longitude": longitude,
         }
         return business_id
+
+    # -- owners ----------------------------------------------------------
+    def create_account(self, business_id: str, *, username: str,
+                       password_hash: str) -> str:
+        if username in self._accounts:
+            raise RepositoryError(f"username {username!r} is already taken")
+        account_id = str(uuid.uuid4())
+        self._accounts[username] = {
+            "id": account_id, "business_id": business_id,
+            "username": username, "password_hash": password_hash,
+        }
+        return account_id
+
+    def find_account(self, username: str) -> dict[str, Any] | None:
+        """None rather than raising: the login handler must do the same work
+        whether or not the user exists, or "no such user" becomes a timing
+        signal and a different code path."""
+        found = self._accounts.get(username)
+        return dict(found) if found else None
+
+    def create_session(self, token_hash: str, *, business_id: str,
+                       account_id: str, expires_at: datetime) -> None:
+        self._sessions[token_hash] = {
+            "business_id": business_id, "account_id": account_id,
+            "expires_at": expires_at,
+        }
+
+    def business_for_session(self, token_hash: str, *,
+                             now: datetime) -> str | None:
+        session = self._sessions.get(token_hash)
+        if session is None or session["expires_at"] <= now:
+            return None
+        return session["business_id"]
+
+    def delete_session(self, token_hash: str) -> None:
+        self._sessions.pop(token_hash, None)
+
+    def set_business_status(self, business_id: str, *, status: str) -> None:
+        if business_id not in self._businesses:
+            raise RepositoryError(f"unknown business {business_id}")
+        self._businesses[business_id]["status"] = status
+
+    def active_business_ids(self, *, limit: int = 50) -> list[str]:
+        """Tenants the agents work for tonight, oldest first and capped.
+
+        Every one costs a search, embeddings and a Claude call per night, so the
+        cap is a spend control rather than pagination. Oldest first so a burst
+        of signups cannot push an established tenant out of tonight's run.
+        """
+        active = [
+            business_id for business_id, row in self._businesses.items()
+            if row.get("status", "active") == "active"
+        ]
+        return active[:limit]
 
     # -- profile ---------------------------------------------------------
     def insert_business_fact(self, business_id: str, *, fact: str, source: str,

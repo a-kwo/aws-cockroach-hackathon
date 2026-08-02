@@ -247,6 +247,42 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
 );
 
 -- ---------------------------------------------------------------------------
+-- Owners: who may see a business, and how they prove it
+-- ---------------------------------------------------------------------------
+
+-- One login per business. Not a users table with a join table: a business has
+-- exactly one owner here, and inventing team membership before anyone has asked
+-- for it would be inventing a permissions model too.
+CREATE TABLE IF NOT EXISTS owner_account (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  -- Stored casefolded. Usernames that differ only by case are the same person
+  -- as far as anyone typing one is concerned, and letting both exist is a
+  -- support problem disguised as a feature.
+  username      STRING NOT NULL,
+  -- scrypt, as 'scrypt$n$r$p$salt$hash'. Never the password itself, and never
+  -- anything reversible.
+  password_hash STRING NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  last_login_at TIMESTAMPTZ,
+
+  UNIQUE INDEX owner_account_username_idx (username)
+);
+
+-- A login session. The token itself is never stored — only its SHA-256 — so
+-- that read access to this table is not enough to impersonate an owner.
+CREATE TABLE IF NOT EXISTS owner_session (
+  token_hash    STRING PRIMARY KEY,
+  business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  account_id    UUID NOT NULL REFERENCES owner_account(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  expires_at    TIMESTAMPTZ NOT NULL,
+
+  INDEX (business_id),
+  INDEX (expires_at)
+);
+
+-- ---------------------------------------------------------------------------
 -- Additive migrations for clusters provisioned before a column existed.
 -- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, and
 -- deleting a tenant's rows does not drop the table. These run last, so every
@@ -254,5 +290,11 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE find ADD COLUMN IF NOT EXISTS summary STRING;
+
+-- Whether the agents work for this business tonight. Every active tenant costs
+-- a Tavily search, ~50 embeddings and a Claude call per night, so this is a
+-- spend control as much as a lifecycle flag. Defaults to active: a business
+-- that just signed up wants a night.
+ALTER TABLE business ADD COLUMN IF NOT EXISTS status STRING NOT NULL DEFAULT 'active';
 
 COMMIT;
