@@ -265,7 +265,7 @@ def run_analyst(
     queries: Sequence[str] = ANALYST_QUERIES,
     per_query_limit: int = DEFAULT_PER_QUERY_LIMIT,
     model_id: str | None = None,
-    scout: CompetitorScout | None = None,
+    competitors: Sequence = (),
 ) -> AnalystResult:
     run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
 
@@ -274,14 +274,9 @@ def run_analyst(
     )
     retrieved = list(retrieval.hits)
 
-    # Best-effort, like every outside-world call in this system. Losing tonight's
-    # competitor snapshot costs the Analyst context; it must not cost the night.
-    competitors: list = []
-    if scout is not None:
-        try:
-            competitors = list(scout.scan(on=today))
-        except Exception:
-            competitors = []
+    # Handed over by Radar rather than fetched here. Radar is the only agent
+    # that touches the outside world; the Analyst reasons over what it is given.
+    competitors = list(competitors)
 
     if not retrieved:
         # Nothing to reason over. Calling the model anyway would be inviting it

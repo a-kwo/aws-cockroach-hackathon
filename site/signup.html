@@ -330,6 +330,15 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <span class="field-error">Enter a full web address beginning with http:// or https://.</span>
               <p class="field-help">This helps Radar distinguish your business from similarly named competitors.</p>
             </div>
+            <!-- Not a login. Creating a workspace embeds the profile through
+                 Bedrock and writes rows, so the endpoint cannot be open to
+                 anyone who finds the URL in a public repository. -->
+            <div class="field wide" data-field="inviteCode">
+              <label for="inviteCode">Invite code</label>
+              <input id="inviteCode" name="inviteCode" type="text" autocomplete="off" spellcheck="false" placeholder="Ask whoever sent you here" maxlength="80">
+              <span class="field-error">That invite code was not accepted.</span>
+              <p class="field-help">Creating a workspace runs live models against your market, so signup is invite-only while this is a demo.</p>
+            </div>
           </div>
 
           <div class="form-actions">
@@ -595,6 +604,9 @@ function buildProfile() {
   return {
     version: 1,
     createdAt: new Date().toISOString(),
+    // Checked by the onboarding Lambda before anything is created, so a wrong
+    // code leaves no half-built tenant behind.
+    inviteCode: fieldValue("inviteCode"),
     owner: { name: fieldValue("ownerName"), email: fieldValue("email") },
     business: {
       name: fieldValue("businessName"),

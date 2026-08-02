@@ -21,11 +21,27 @@ allowance is 10,000 calls per SKU per month and one nightly scan uses about 30.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Any, Protocol, runtime_checkable
 
 PLACES_NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
+PLACES_DETAILS_URL = "https://places.googleapis.com/v1/places/"
+
+#: Reviews are already the most expensive SKU Google sells, so an extra field
+#: here is charged on every rival every night. Pinned by a test.
+PLACES_DETAILS_FIELD_MASK = "id,reviews"
+
+#: How many rivals get a Details call per night. One per rival would be the
+#: most expensive thing this system does — twenty nightly Details calls against
+#: a 10,000/month free allowance leaves no headroom for anything else. Ranked by
+#: review count: a place with 812 reviews describes the street better than one
+#: with none.
+DEFAULT_DETAIL_LIMIT = 5
+
+#: Google returns at most five per place. Two is what fits in a prompt shared
+#: with twenty rivals and the whole retrieved corpus.
+REVIEWS_PER_COMPETITOR = 2
 
 #: Exactly the fields used below, and no more. Adding one silently raises the
 #: SKU on every call. Pinned by a test for that reason.
@@ -67,6 +83,10 @@ class Competitor:
     price_level: str | None = None
     kind: str | None = None
     hours_today: str | None = None
+    #: What their customers are saying, today. Review *text* only — author
+    #: attribution is personal data we have no reason to hold even for the
+    #: length of a prompt. Live-only like every other field here.
+    reviews: tuple[str, ...] = ()
 
 
 @runtime_checkable
@@ -99,13 +119,41 @@ class PlacesCompetitorScout:
 
     def __init__(self, *, api_key: str, latitude: float, longitude: float,
                  radius_m: int = 1500, exclude_names: tuple[str, ...] = (),
+                 detail_limit: int = DEFAULT_DETAIL_LIMIT,
                  client: Any | None = None) -> None:
         self._api_key = api_key
         self._latitude = latitude
         self._longitude = longitude
         self._radius_m = radius_m
         self._exclude = {n.strip().casefold() for n in exclude_names}
+        self._detail_limit = detail_limit
         self._client = client
+
+    def _reviews_for(self, client: Any, place_id: str) -> tuple[str, ...]:
+        """Today's reviews for one rival, or nothing.
+
+        Best-effort per place: one rival's Details call failing must not cost
+        the other nineteen their entry in the snapshot.
+        """
+        try:
+            response = client.get(
+                f"{PLACES_DETAILS_URL}{place_id}",
+                headers={
+                    "X-Goog-Api-Key": self._api_key,
+                    "X-Goog-FieldMask": PLACES_DETAILS_FIELD_MASK,
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except Exception:
+            return ()
+
+        texts = []
+        for review in (payload.get("reviews") or [])[:REVIEWS_PER_COMPETITOR]:
+            text = ((review.get("text") or {}).get("text") or "").strip()
+            if text:
+                texts.append(text)
+        return tuple(texts)
 
     def scan(self, *, on: date) -> list[Competitor]:
         client = self._client
@@ -152,7 +200,22 @@ class PlacesCompetitorScout:
                     (place.get("regularOpeningHours") or {}).get("weekdayDescriptions"),
                     on),
             ))
-        return competitors
+
+        # Details is billed per call, so only the rivals worth paying for get
+        # one. Sorted by review count rather than rating: a 4.9 from three
+        # people says less about the street than a 4.1 from eight hundred.
+        ranked = sorted(competitors,
+                        key=lambda c: c.rating_count or 0, reverse=True)
+        wanted = {c.place_id for c in ranked[:self._detail_limit] if c.place_id}
+        if not wanted:
+            return competitors
+
+        reviews = {pid: self._reviews_for(client, pid) for pid in wanted}
+        return [
+            replace(c, reviews=reviews[c.place_id])
+            if c.place_id in reviews and reviews[c.place_id] else c
+            for c in competitors
+        ]
 
 
 class FakeCompetitorScout:
@@ -182,6 +245,13 @@ def describe_competitors(competitors: list[Competitor]) -> str:
     lines = ["Nearby restaurants, as they stand TODAY (a live snapshot — there "
              "is no history behind these numbers, so do not describe them as "
              "rising or falling):"]
+    if any(c.reviews for c in competitors):
+        # The find's rationale is stored permanently. Characterising what a
+        # rival's customers say is derived analysis and fine; reproducing the
+        # text would put cached Places content in the database forever, which
+        # the licence forbids. This is the only path by which that could happen.
+        lines.append("Summarise what these customers are saying in your own "
+                     "words — do not quote a rival's review verbatim.")
     for c in competitors:
         bits = []
         if c.rating is not None:
@@ -195,27 +265,47 @@ def describe_competitors(competitors: list[Competitor]) -> str:
             bits.append(c.kind)
         bits.append(f"today: {c.hours_today}" if c.hours_today else "hours unknown")
         lines.append(f"- {c.name} — " + "; ".join(bits))
+        for review in c.reviews:
+            # Indented under the rival it belongs to, and labelled, so the model
+            # cannot mistake a rival's customer for one of ours.
+            lines.append(f"    a customer says: {review}")
     return "\n".join(lines)
 
 
-def build_competitor_scout(settings: Any) -> CompetitorScout | None:
-    """Real scout from settings, or None when it is not configured.
+def build_competitor_scout(settings: Any,
+                           business: dict | None = None) -> CompetitorScout | None:
+    """Real scout for this tenant, or None when it is not configured.
+
+    Where to look is a property of the business, not of the deployment: the
+    coordinates on the business row win, and the configured ones are only a
+    fallback for tenants created before signup existed. With two tenants and a
+    single environment-wide `PLACES_LATITUDE`, both would be scouted against the
+    same street.
 
     None rather than an exception: competitor scouting is an enhancement, and a
-    missing key should cost the night its competitor context rather than the
-    night itself.
+    missing key should cost the night its competitor context, not the night.
     """
+    business = business or {}
     key = getattr(settings, "google_maps_api_key", None)
-    latitude = getattr(settings, "places_latitude", None)
-    longitude = getattr(settings, "places_longitude", None)
+
+    latitude = business.get("latitude")
+    longitude = business.get("longitude")
+    if latitude is None or longitude is None:
+        latitude = getattr(settings, "places_latitude", None)
+        longitude = getattr(settings, "places_longitude", None)
+
     if not key or latitude is None or longitude is None:
         return None
 
+    # Nearby Search returns the tenant's own business. Excluding it by name is
+    # what stops its own ratings coming back as a rival's.
+    excluded = [n for n in (getattr(settings, "places_exclude_name", None),
+                            business.get("name")) if n]
+
     return PlacesCompetitorScout(
         api_key=key,
-        latitude=latitude,
-        longitude=longitude,
+        latitude=float(latitude),
+        longitude=float(longitude),
         radius_m=getattr(settings, "places_radius_m", 1500),
-        exclude_names=tuple(
-            n for n in (getattr(settings, "places_exclude_name", None),) if n),
+        exclude_names=tuple(excluded),
     )

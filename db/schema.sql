@@ -68,8 +68,19 @@ CREATE TABLE IF NOT EXISTS business (
   region       STRING,
   goal_monthly_cents BIGINT,                 -- the locked goal, e.g. +$8,000/mo
   goal_note    STRING,                       -- 'by fall'
+  -- Where to look for rivals. Per business, not per deployment: the moment a
+  -- second tenant signs up, an environment-wide PLACES_LATITUDE would point
+  -- both of them at the same street. Geocoded from the address at signup.
+  latitude     FLOAT,
+  longitude    FLOAT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
+
+-- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, so a
+-- cluster provisioned before these columns existed needs them added explicitly.
+-- Deleting a tenant's rows does not drop the table.
+ALTER TABLE business ADD COLUMN IF NOT EXISTS latitude FLOAT;
+ALTER TABLE business ADD COLUMN IF NOT EXISTS longitude FLOAT;
 
 -- "The leash you hold" — constraints the autopilot obeys on every run.
 CREATE TABLE IF NOT EXISTS owner_rule (

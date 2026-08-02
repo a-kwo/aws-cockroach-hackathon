@@ -276,11 +276,16 @@ def test_templates_carry_the_data_placeholder():
 
 
 def test_landing_routes_directly_to_the_demo():
+    """The nav offers signup; the page itself still opens the product.
+
+    The two hero buttons deliberately bypass onboarding. A judge — or anyone
+    else — must be able to reach the working demo without handing over a name,
+    and that was the point of the assertion this replaces.
+    """
     html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
-    assert 'class="nav-cta" href="app/">Try the demo</a>' in html
+    assert 'class="nav-cta" href="signup/">Sign up</a>' in html
     assert 'href="app/"><span>Show me what I missed</span>' in html
     assert 'href="app/"><span>Show me my morning move</span>' in html
-    assert 'href="signup/"' not in html
 
 
 def test_signup_collects_the_minimum_agent_scope_without_a_password():

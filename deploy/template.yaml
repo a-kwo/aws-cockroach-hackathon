@@ -40,6 +40,17 @@ Parameters:
     Default: America/New_York
     Description: The owner's timezone — 6 AM should mean her morning.
 
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: >
+      Whether the nightly run actually fires. Defaults to DISABLED because the
+      schedule spends money on embeddings and reasoning every night, and a
+      deploy that silently switched it on would be discovered at 6 AM. Turning
+      the autopilot on is a deliberate act: deploy with
+      ScheduleState=ENABLED, or flip it in the console.
+
 Globals:
   Function:
     MemorySize: 1024
@@ -109,6 +120,10 @@ Resources:
           Properties:
             ScheduleExpression: !Ref ScheduleExpression
             ScheduleExpressionTimezone: !Ref ScheduleTimezone
+            # Declared, so CloudFormation owns it. Without this property the
+            # stack has no opinion about the schedule's state, and a deploy
+            # silently reverts anyone who disabled it out of band.
+            State: !Ref ScheduleState
             # One night is worth more than a retried night: a duplicate run
             # would re-embed and re-reason for no new information.
             RetryPolicy:
@@ -238,6 +253,51 @@ Resources:
             Path: /workflow
             Method: GET
 
+  # --------------------------------------------------------------------
+  # Signup — the only endpoint that lets a stranger write to the database
+  # --------------------------------------------------------------------
+  OnboardingFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: onboarding
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.onboarding.handler"]
+      # Geocoding plus one embedding call per profile fact.
+      Timeout: 60
+      Policies:
+        - Statement:
+            # Signup embeds the profile so the Analyst can retrieve it later.
+            - Sid: TitanEmbeddings
+              Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Onboard:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /onboarding
+            Method: POST
+
   AskApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -255,7 +315,127 @@ Resources:
         AllowMethods: ["GET", "POST", "OPTIONS"]
         ExposeHeaders: ["ETag"]
 
+  # --------------------------------------------------------------------
+  # The board, hosted
+  # --------------------------------------------------------------------
+  # A separate bucket from ArtifactBucket, deliberately. That one holds the
+  # Maker's owner deliverables; this one is served to the public internet. One
+  # bucket for both would be one policy mistake away from publishing her drafts.
+  #
+  # Unnamed on purpose: S3 bucket names are globally unique, and a hardcoded one
+  # makes the template fail for anyone who redeploys it — a judge included.
+  # CloudFormation generates a name; SiteBucketName outputs it for the sync.
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # The bucket stays private and CloudFront is the only reader. The alternative
+  # — an S3 website endpoint — would mean a publicly readable bucket and HTTP
+  # only, and the board makes HTTPS calls to the API.
+  SiteOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-site-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${SiteBucket.Arn}/*
+            # Without this condition any CloudFront distribution in any account
+            # could read the bucket.
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution}
+
+  # DefaultRootObject only resolves "/" — it does nothing for "/app/" or
+  # "/signup/", which are the two pages that matter. With a REST origin S3 has
+  # no concept of an index document, so those paths return 403 and the board
+  # looks broken while the landing page works. This rewrites them before the
+  # request reaches the origin.
+  SiteRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub ${AWS::StackName}-append-index
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Resolve directory paths to their index.html
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          if (uri.endsWith('/')) {
+            request.uri = uri + 'index.html';
+          } else if (!uri.split('/').pop().includes('.')) {
+            request.uri = uri + '/index.html';
+          }
+          return request;
+        }
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub ${AWS::StackName} board
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        # US/Europe only. This is a demo URL, not a global product, and the
+        # cheapest class is a third of the price of full coverage.
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: SiteS3Origin
+            # RegionalDomainName, not WebsiteURL: the website endpoint would
+            # require a public bucket and speaks HTTP only.
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt SiteOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: SiteS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          # Managed-CachingOptimized. A fixed AWS-owned id, stable across
+          # accounts and regions.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SiteRewriteFunction.FunctionMetadata.FunctionARN
+
 Outputs:
+  SiteUrl:
+    Description: The board. Landing at /, dashboard at /app/, onboarding at /signup/.
+    Value: !Sub https://${SiteDistribution.DomainName}
+
+  SiteBucketName:
+    Description: >
+      Publish into this after a build:
+      aws s3 sync web/ s3://<this>/ --delete
+    Value: !Ref SiteBucket
+
   AskEndpoint:
     # Quoted: the JSON braces contain a colon, which bare YAML reads as a
     # key/value split and rejects.
@@ -269,6 +449,12 @@ Outputs:
   WorkflowEndpoint:
     Description: GET live owner workflow state for the Memory Engine overlay.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
+
+  OnboardingEndpoint:
+    Description: >
+      Signup. Requires the invite code held at
+      /brasstacks/BRASSTACKS_INVITE_CODE — without it every request is a 403.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/onboarding
 
   NightFunctionName:
     Description: Invoke manually to prove a night end to end before waiting for 6 AM.

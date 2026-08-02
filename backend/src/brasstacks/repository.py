@@ -148,7 +148,9 @@ class LedgerSummary:
 @runtime_checkable
 class Repository(Protocol):
     def create_business(self, *, name: str, category: str, city: str | None = ...,
-                        goal_monthly_cents: int | None = ...) -> str: ...
+                        goal_monthly_cents: int | None = ...,
+                        latitude: float | None = ...,
+                        longitude: float | None = ...) -> str: ...
 
     def insert_business_fact(self, business_id: str, *, fact: str, source: str,
                              embedding: Sequence[float],
@@ -355,11 +357,14 @@ class InMemoryRepository:
 
     # -- businesses ------------------------------------------------------
     def create_business(self, *, name: str, category: str, city: str | None = None,
-                        goal_monthly_cents: int | None = None) -> str:
+                        goal_monthly_cents: int | None = None,
+                        latitude: float | None = None,
+                        longitude: float | None = None) -> str:
         business_id = str(uuid.uuid4())
         self._businesses[business_id] = {
             "name": name, "category": category, "city": city,
             "goal_monthly_cents": goal_monthly_cents,
+            "latitude": latitude, "longitude": longitude,
         }
         return business_id
 

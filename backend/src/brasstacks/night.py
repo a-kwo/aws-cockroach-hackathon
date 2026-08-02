@@ -92,11 +92,12 @@ def run_night(
         repo=repo, embedder=embedder, business_id=business_id, sources=sources,
         now=now, business_name=(business or {}).get("name", ""),
         city=(business or {}).get("city"),
+        scout=scout, today=today,
     )
 
     analyst = run_analyst(
         repo=repo, embedder=embedder, reasoner=reasoner, business_id=business_id,
-        today=today, model_id=model_id, scout=scout,
+        today=today, model_id=model_id, competitors=radar.competitors,
     )
 
     # Standing in for the owner tapping "do it now". Only ever used by the local
@@ -193,11 +194,13 @@ def main(argv: list[str] | None = None) -> int:
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
     store = build_artifact_store(settings)
-    scout = build_competitor_scout(settings)
     outcomes = NoOutcomeSource()
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
         repo = PostgresRepository(conn)
+        # After the connection, not before: the scout searches around the
+        # coordinates on the business row.
+        scout = build_competitor_scout(settings, repo.get_business(settings.business_id))
 
         for index in range(args.nights):
             tonight = start + timedelta(days=index * args.step)

@@ -63,12 +63,17 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     anchor = datetime.combine(today, time(hour=2), tzinfo=timezone.utc)
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+        repo = PostgresRepository(conn)
+        # Built here rather than from settings alone: the coordinates the scout
+        # searches around live on the business row, so the tenant has to be
+        # known before the scout can exist.
+        scout = build_competitor_scout(settings, repo.get_business(settings.business_id))
         result = run_night(
-            repo=PostgresRepository(conn),
+            repo=repo,
             embedder=build_embedder(settings),
             reasoner=build_reasoner(settings),
             store=build_artifact_store(settings),
-            scout=build_competitor_scout(settings),
+            scout=scout,
             outcomes=NoOutcomeSource(),
             business_id=settings.business_id,
             today=today,

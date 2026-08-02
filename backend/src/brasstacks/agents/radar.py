@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from typing import Any
 
 from brasstacks.providers import Embedder, EmbeddingError
 from brasstacks.repository import Repository, content_hash
@@ -32,6 +33,11 @@ class RadarResult:
     #: Rows deleted to honour a source's retention licence. Surfaced in the note
     #: so the audit trail shows compliance happening rather than implying it.
     expired: int = 0
+    #: Tonight's street, passed through to the Analyst and **never stored**.
+    #: Google's Places terms permit keeping place_id and nothing else, so this
+    #: is the one thing Radar observes and does not commit to memory. Pinned by
+    #: test_competitors.TestRadarIntegration.
+    competitors: tuple = ()
 
     @property
     def note(self) -> str:
@@ -114,9 +120,23 @@ def run_radar(
     limit_per_source: int = DEFAULT_LIMIT_PER_SOURCE,
     business_name: str = "",
     city: str | None = None,
+    scout: Any | None = None,
+    today: date | None = None,
 ) -> RadarResult:
     run_id = repo.start_run(business_id, agent="radar")
     observed_at_default = now or datetime.now(timezone.utc)
+
+    # The one thing Radar looks at and does not remember. Google's Places terms
+    # permit storing place_id and nothing else, so this deliberately bypasses
+    # the signal → embed → insert path that everything else here travels. Best
+    # effort, like every outside-world call: losing tonight's street costs the
+    # Analyst context, never the night.
+    competitors: tuple = ()
+    if scout is not None:
+        try:
+            competitors = tuple(scout.scan(on=today or observed_at_default.date()))
+        except Exception:
+            competitors = ()
 
     signals, failed = _collect(sources, business_name=business_name, city=city,
                                limit=limit_per_source)
@@ -161,6 +181,7 @@ def run_radar(
         duplicates=duplicates,
         failed_sources=tuple(failed),
         expired=expired,
+        competitors=competitors,
     )
     repo.finish_run(
         run_id,

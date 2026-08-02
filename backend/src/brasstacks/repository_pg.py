@@ -57,15 +57,18 @@ class PostgresRepository:
 
     # -- businesses ------------------------------------------------------
     def create_business(self, *, name: str, category: str, city: str | None = None,
-                        goal_monthly_cents: int | None = None) -> str:
+                        goal_monthly_cents: int | None = None,
+                        latitude: float | None = None,
+                        longitude: float | None = None) -> str:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO business (name, category, city, goal_monthly_cents)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO business
+                    (name, category, city, goal_monthly_cents, latitude, longitude)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (name, category, city, goal_monthly_cents),
+                (name, category, city, goal_monthly_cents, latitude, longitude),
             )
             return str(cur.fetchone()[0])
 
@@ -73,7 +76,8 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, name, category, city, region, goal_monthly_cents, goal_note
+                SELECT id, name, category, city, region, goal_monthly_cents,
+                       goal_note, latitude, longitude
                 FROM business WHERE id = %s
                 """,
                 (business_id,),
@@ -82,7 +86,7 @@ class PostgresRepository:
         if row is None:
             return None
         keys = ("id", "name", "category", "city", "region",
-                "goal_monthly_cents", "goal_note")
+                "goal_monthly_cents", "goal_note", "latitude", "longitude")
         return {k: (str(v) if k == "id" else v) for k, v in zip(keys, row)}
 
     # -- profile ---------------------------------------------------------
