@@ -51,6 +51,9 @@ jobs:
             pip install pytest
           fi
 
+      - name: Build website for tests
+        run: python scripts/build_web.py
+
       - name: Run backend tests
         run: python -m pytest backend/tests -q
 
