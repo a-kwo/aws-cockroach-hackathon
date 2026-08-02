@@ -103,8 +103,6 @@ judge finding it unstated is worse than reading it up front.
 
 ## Stack
 
-- **Backend:** Python. `psycopg` for CockroachDB, `boto3` for Bedrock.
-- **Frontend:** React (rebuild — see below).
 - **DB:** CockroachDB Cloud, vector indexes with `vector_cosine_ops`.
 
 ### Scope
