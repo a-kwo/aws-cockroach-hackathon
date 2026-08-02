@@ -1671,6 +1671,33 @@ def test_the_topbar_names_the_signed_in_tenant():
     assert "setBrandBusiness();" in live
 
 
+def test_no_fit_level_reintroduces_the_descender_clipping():
+    """fitFeedCards() shrinks type by setting data-fit on the feed-card, and
+    those rules carry an attribute selector — so they outrank a plain
+    `body.autopilot-mode .post-copy h2` rule on specificity. One of them sets
+    line-height:1.02, which is where the sheared descenders came back from: the
+    earlier fix only ever applied to a card that had not been fitted.
+
+    Checks the built page, because this is a question about the cascade rather
+    than about any one rule.
+    """
+    import re
+
+    html = (build_web.OUT_DIR / "app" / "index.html").read_text(encoding="utf-8")
+    rules = re.finditer(r"([^{}]*(?:post-copy h2|post-title)[^{}]*)\{([^}]*)\}", html)
+    winner = None
+    for match in rules:
+        found = re.search(r"line-height:\s*([\d.]+)", match.group(2))
+        if found:
+            winner = float(found.group(1))
+
+    assert winner is not None, "no line-height rule found for the title"
+    assert winner >= 1.15, (
+        f"the last line-height that can match the title is {winner}; "
+        "descenders will clip on a fitted card"
+    )
+
+
 def test_the_card_title_leaves_room_for_descenders():
     """A -webkit-box's height is lines x line-height and overflow is hidden, so
     anything a glyph extends below its line box is cut. At 1.06 the descender

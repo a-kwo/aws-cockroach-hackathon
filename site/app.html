@@ -11917,6 +11917,24 @@
       overflow: hidden;
     }
 
+    /* fitFeedCards() shrinks the type when copy wants more room than the card
+       has, by setting data-fit on the feed-card. Those rules carry an attribute
+       selector, so they outrank the block above on specificity — and one of
+       them sets line-height:1.02, which is where the sheared descenders came
+       back from. The rule above only ever applied to a card that had not been
+       fitted.
+
+       Matching every fit level explicitly, and qualifying with .post-title, so
+       this wins on specificity as well as order rather than depending on
+       staying last in the file. */
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+      line-height: 1.18;
+    }
+    body.autopilot-mode .feed-card[data-fit] .signal-text {
+      line-height: 1.5;
+    }
+
     /* The safety valve. Every number above is a guess about how much text fits
        in a viewport I cannot see, and a short window or a long word will
        eventually beat it. A card that scrolls a little is recoverable; one
