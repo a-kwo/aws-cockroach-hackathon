@@ -1593,3 +1593,25 @@ def test_removing_a_tab_happens_before_handlers_are_bound():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert html.index("gateViewsToTheAudience") < html.index("const viewTabs =")
+
+
+def test_gating_removes_the_tab_but_never_the_view():
+    """Removing the hidden views broke the Memory Engine outright.
+
+    Module-scope lookups reach inside them — `queueContent` lives in
+    #view-autopilot, and growthChart / growthChartSub / growthSwipeTrack in
+    #view-growth. For an operator those resolved to null, and the first
+    `.textContent` on one threw, aborting the script and taking the console's
+    own render down with it.
+
+    A view with no tab is already unreachable, and carries no `.active` class
+    so it is display:none regardless. Removing the tab was all this needed.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    gate = html.split("function gateViewsToTheAudience", 1)[1][:1200]
+
+    assert "tab.remove()" in gate
+    assert "view.remove()" not in gate
+    # And the elements the rest of the file depends on are still declared.
+    for element_id in ("view-autopilot", "view-growth", "view-admin"):
+        assert f'id="{element_id}"' in html, element_id

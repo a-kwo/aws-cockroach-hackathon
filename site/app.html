@@ -12614,13 +12614,23 @@
     const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);
 
     (function gateViewsToTheAudience() {
-      const remove = OPERATOR_SESSION
+      const hidden = OPERATOR_SESSION
         ? ["autopilot", "growth"]
         : ["admin"];
-      remove.forEach(name => {
+      hidden.forEach(name => {
+        //  The TAB goes; the view stays in the document.
+        //
+        //  Removing the sections was the obvious move and it broke the Memory
+        //  Engine outright. Module-scope lookups reach inside them —
+        //  `const queueContent = getElementById("queueContent")` lives in
+        //  #view-autopilot, growthChart/growthChartSub/growthSwipeTrack in
+        //  #view-growth — so for an operator they resolved to null and the
+        //  first `.textContent` on one threw, aborting the script and taking
+        //  the console's render down with it.
+        //
+        //  A view with no tab is unreachable, which is all this needed to be.
+        //  It also carries no `.active` class, so it is display:none anyway.
         document.querySelectorAll(`[data-view="${name}"]`).forEach(tab => tab.remove());
-        const view = document.getElementById(`view-${name}`);
-        if (view) view.remove();
       });
     })();
 
