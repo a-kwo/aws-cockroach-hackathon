@@ -416,7 +416,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <div><span>Priority</span><strong id="successGoal">—</strong></div>
             </div>
             <div class="success-actions">
-              <a class="button primary" id="openWorkspace" href="../app/?onboarded=1">Open my workspace<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
+              <a class="button primary" id="openWorkspace" href="../app/?onboarded=1">Start my first night<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
               <button class="button secondary" type="button" data-back="2">Edit profile</button>
             </div>
             <div class="success-mode" id="successMode"></div>
@@ -485,6 +485,7 @@ const PROFILE_KEY = "brass-tacks-onboarding-profile-v1";
 //  to, and the API answers 401 — so send the owner back rather than let them
 //  fill in three steps and lose the lot.
 const SESSION_KEY = "brass-tacks-session-v1";
+const RUN_ENDPOINT = String(DATA.api?.runEndpoint || "").trim();
 
 function currentSession() {
   try {
@@ -768,6 +769,11 @@ form.addEventListener("submit", async event => {
       ? "Local mode · saved only in this browser until the secure onboarding API is connected."
       : "Connected mode · business profile saved to CockroachDB.";
     showStep(3);
+
+    //  Nothing exists for this business yet: no observations, no finds, no
+    //  runs. The button below is what asks the agents to go and look, and it
+    //  is the only path to a first night that does not wait for 6 AM.
+    wireFirstNight();
   } catch (error) {
     submitError.textContent = `Workspace could not be created: ${error.message}`;
     submitError.classList.add("visible");
@@ -783,3 +789,50 @@ updateBrief();
 </script>
 </body>
 </html>
+
+<script>
+//  The first night, started by the owner rather than by the clock.
+//
+//  Fire-and-poll, not fire-and-wait: the API returns 202 as soon as the night
+//  is queued, because API Gateway caps an integration at 30 seconds and a night
+//  runs 60-90. The board picks up the result.
+function wireFirstNight() {
+  const button = document.getElementById("openWorkspace");
+  if (!button) return;
+
+  button.addEventListener("click", async event => {
+    event.preventDefault();
+    const session = currentSession();
+    if (!RUN_ENDPOINT || !session) {
+      window.location.href = "../app/?onboarded=1";
+      return;
+    }
+
+    const label = button.firstChild;
+    const original = label.textContent;
+    label.textContent = "Waking the agents";
+    button.style.pointerEvents = "none";
+
+    try {
+      const response = await fetch(RUN_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.token}`,
+        },
+      });
+      //  A refusal here is not worth stranding the owner on this page — the
+      //  board explains what it is waiting for either way.
+      if (!response.ok && response.status !== 202) {
+        console.warn("first night not started:", response.status);
+      }
+    } catch (e) {
+      console.warn("first night could not be started", e);
+    } finally {
+      label.textContent = original;
+      button.style.pointerEvents = "";
+      window.location.href = "../app/?onboarded=1&waiting=1";
+    }
+  });
+}
+</script>

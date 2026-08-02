@@ -80,11 +80,21 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
         repo = PostgresRepository(conn)
 
-        tenants = repo.active_business_ids(limit=MAX_TENANTS_PER_NIGHT)
-        if not tenants and settings.business_id:
-            # A cluster provisioned before `status` existed. One configured id
-            # is still a night rather than a silent no-op.
-            tenants = [settings.business_id]
+        # A named tenant runs alone. That is the on-demand path: an owner who
+        # just finished onboarding presses a button and waits for their first
+        # night, and making them wait behind nine other businesses' model calls
+        # would be minutes of nothing.
+        requested = str((event or {}).get("business_id") or "").strip()
+        if requested:
+            if repo.get_business(requested) is None:
+                raise RuntimeError(f"no such business {requested}")
+            tenants = [requested]
+        else:
+            tenants = repo.active_business_ids(limit=MAX_TENANTS_PER_NIGHT)
+            if not tenants and settings.business_id:
+                # A cluster provisioned before `status` existed. One configured
+                # id is still a night rather than a silent no-op.
+                tenants = [settings.business_id]
 
         for business_id in tenants:
             business = repo.get_business(business_id)

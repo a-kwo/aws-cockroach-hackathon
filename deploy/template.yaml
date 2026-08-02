@@ -416,6 +416,55 @@ Resources:
             Path: /onboarding
             Method: POST
 
+  # --------------------------------------------------------------------
+  # "Show me my first night" — the button at the end of onboarding
+  # --------------------------------------------------------------------
+  RunFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: run
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.run.handler"]
+      # It authorises and fires; it never waits for the night. API Gateway caps
+      # an integration at 30s and a night runs 60-90, so a synchronous trigger
+      # would 504 while the work carried on invisibly.
+      Timeout: 15
+      Environment:
+        Variables:
+          BRASSTACKS_NIGHT_FUNCTION: !Ref NightFunction
+      Policies:
+        - Statement:
+            - Sid: StartOneNight
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt NightFunction.Arn
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Run:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /run
+            Method: POST
+
   AskApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -570,6 +619,12 @@ Outputs:
   WorkflowEndpoint:
     Description: GET live owner workflow state for the Memory Engine overlay.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
+
+  RunEndpoint:
+    Description: >
+      POST with a session token to start that owner's first night. Returns 202
+      immediately — the night runs asynchronously and the board polls /workflow.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/run
 
   RegisterEndpoint:
     Description: >

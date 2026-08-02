@@ -539,6 +539,9 @@ def build_model(data: dict) -> dict:
     register_endpoint = (os.environ.get("REGISTER_API_ENDPOINT") or "").rstrip("/")
     if not register_endpoint and decision_endpoint:
         register_endpoint = f"{decision_endpoint}/register"
+    run_endpoint = (os.environ.get("RUN_API_ENDPOINT") or "").rstrip("/")
+    if not run_endpoint and decision_endpoint:
+        run_endpoint = f"{decision_endpoint}/run"
     if not workflow_endpoint and decision_endpoint:
         workflow_endpoint = f"{decision_endpoint}/workflow"
     return {
@@ -548,6 +551,7 @@ def build_model(data: dict) -> dict:
             "onboardingEndpoint": onboarding_endpoint or None,
             "loginEndpoint": login_endpoint or None,
             "registerEndpoint": register_endpoint or None,
+            "runEndpoint": run_endpoint or None,
         },
         "business": {
             "id": business.get("id"),

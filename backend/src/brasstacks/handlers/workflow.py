@@ -125,13 +125,33 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     try:
         hydrate_environment()
         settings = Settings.load()
-        business_ids = configured_business_ids(settings)
     except (ValueError, RuntimeError) as exc:
         return respond(500, {"error": str(exc)})
+
+    from datetime import datetime, timezone
+
+    from brasstacks.auth import token_fingerprint
+    from brasstacks.handlers.login import bearer_token
+
+    # The tenant comes from the caller's session, not from configuration and
+    # never from the request. An allowlist in Parameter Store was right while
+    # there was one seeded tenant; with businesses signing themselves up it
+    # would show every owner the same board — someone else's.
+    token = bearer_token(event)
+    if not token:
+        return respond(401, {"error": "sign in first"})
 
     driver = get_psycopg()
     try:
         with driver.connect(settings.cockroach_url, autocommit=True) as conn:
+            from brasstacks.repository_pg import PostgresRepository
+
+            business_id = PostgresRepository(conn).business_for_session(
+                token_fingerprint(token), now=datetime.now(timezone.utc))
+            if business_id is None:
+                # Expired, unknown, or registered without finishing onboarding.
+                return respond(401, {"error": "sign in first"})
+            business_ids = [business_id]
             # One transaction makes the several set-based reads one coherent
             # CockroachDB snapshot while preserving autocommit for the caller.
             transaction = getattr(conn, "transaction", None)

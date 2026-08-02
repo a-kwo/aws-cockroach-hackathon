@@ -115,6 +115,8 @@ def main() -> int:
         "WORKFLOW_API_ENDPOINT": outputs.get("WorkflowEndpoint", ""),
         "ONBOARDING_API_ENDPOINT": outputs.get("OnboardingEndpoint", ""),
         "LOGIN_API_ENDPOINT": outputs.get("LoginEndpoint", ""),
+        "REGISTER_API_ENDPOINT": outputs.get("RegisterEndpoint", ""),
+        "RUN_API_ENDPOINT": outputs.get("RunEndpoint", ""),
     })
 
     if not args.no_export:

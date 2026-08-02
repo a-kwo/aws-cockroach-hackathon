@@ -1414,11 +1414,20 @@ def test_the_board_sends_the_session_token():
     assert "Bearer ${session.token}" in html
 
 
-def test_the_board_still_renders_without_a_session():
-    """The public demo must keep working with no credentials — the README leads
-    with it. A session adds the live overlay; it is not a gate."""
+def test_the_board_requires_a_session():
+    """This asserted the opposite until 2026-08-02, and it is worth saying why.
+
+    Rendering the committed snapshot to anyone was a defensible public demo
+    while there was one seeded tenant: the README leads with "see it in 30
+    seconds with no credentials". Once businesses sign themselves up, that
+    snapshot is one specific business, and showing it to every visitor as their
+    own board is the exact failure multi-tenancy exists to prevent — a new owner
+    finished onboarding and was shown another restaurant's recommendations.
+
+    The no-credentials demo now belongs on the landing page, which needs no
+    session and claims to be nobody's data.
+    """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    assert "window.location.href = \"../login/\"" in html   # available on sign-out
-    # ...but not fired on load. A redirect guard would break the public demo.
-    assert "if (!readSession()) window.location" not in html
+    assert "if (!readSession()) {" in html
+    assert 'window.location.replace("../login/")' in html

@@ -12450,6 +12450,15 @@
       window.location.href = "../login/";
     }
 
+    //  The board is a signed-in surface now. It used to render the committed
+    //  snapshot to anyone, which was a fine public demo while there was one
+    //  seeded tenant — and became a liability the moment businesses signed
+    //  themselves up, because the snapshot is one specific business and every
+    //  visitor saw it as theirs. No session, no board.
+    if (!readSession()) {
+      window.location.replace("../login/");
+    }
+
     const decisionApiConfigured = Boolean(String(btData.api?.decisionEndpoint || "").trim());
     const workflowApiEndpoint = String(btData.api?.workflowEndpoint || "").trim();
     const workflowApiConfigured = Boolean(workflowApiEndpoint) && !onboardingMode;
