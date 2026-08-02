@@ -60,7 +60,77 @@ def test_success_receipt_can_carry_the_authoritative_decision_time():
 
 
 def test_handler_uses_one_server_timestamp_for_the_write_and_receipt():
-    source = inspect.getsource(decision_handler.handler)
+    source = inspect.getsource(decision_handler.record_decision)
     assert "datetime.now(timezone.utc)" in source
-    assert "decided_at=decided_at" in source
-    assert '"decided_at": decided_at.isoformat()' in source
+    assert "decided_at=moment" in source
+    assert '"decided_at": moment.isoformat()' in source
+
+class FakeDecisionRepo:
+    def __init__(self, account=None, error=None):
+        self.account = account
+        self.error = error
+        self.session_lookup = None
+        self.write = None
+
+    def account_for_session(self, token_hash, *, now):
+        self.session_lookup = (token_hash, now)
+        return self.account
+
+    def set_find_status(self, find_id, *, status, decided_at, business_id):
+        if self.error:
+            raise self.error
+        self.write = {
+            "find_id": find_id,
+            "status": status,
+            "decided_at": decided_at,
+            "business_id": business_id,
+        }
+
+
+def authenticated_event(*, find_id="00000000-0000-0000-0000-000000000001", decision="approved"):
+    payload = event(find_id=find_id, decision=decision)
+    payload["headers"] = {"Authorization": "Bearer owner-session-token"}
+    return payload
+
+
+def test_record_decision_requires_a_session():
+    repo = FakeDecisionRepo(account=None)
+    result = decision_handler.record_decision(event(), repo=repo)
+    assert result["statusCode"] == 401
+    assert json.loads(result["body"])["error"] == "sign in first"
+    assert repo.write is None
+
+
+def test_record_decision_scopes_the_write_to_the_session_business():
+    moment = datetime(2026, 8, 2, 19, 4, 5, tzinfo=timezone.utc)
+    repo = FakeDecisionRepo(account={
+        "account_id": "owner-1",
+        "business_id": "business-from-session",
+        "is_admin": False,
+    })
+
+    result = decision_handler.record_decision(
+        authenticated_event(), repo=repo, now=moment)
+
+    assert result["statusCode"] == 200
+    assert repo.write == {
+        "find_id": "00000000-0000-0000-0000-000000000001",
+        "status": "accepted",
+        "decided_at": moment,
+        "business_id": "business-from-session",
+    }
+    body = json.loads(result["body"])
+    assert body["decision"] == "approved"
+    assert body["maker"] == "queued"
+
+
+def test_record_decision_does_not_fall_back_to_the_seeded_config_tenant():
+    source = inspect.getsource(decision_handler.record_decision)
+    assert "account_for_session" in source
+    assert 'account.get("business_id")' in source
+    assert "settings.business_id" not in source
+
+
+def test_decision_cors_allows_the_authorization_header():
+    result = respond(200, {"ok": True})
+    assert "Authorization" in result["headers"]["Access-Control-Allow-Headers"]

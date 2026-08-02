@@ -37,7 +37,7 @@ def get_psycopg():
 CORS_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type,If-None-Match",
+    "Access-Control-Allow-Headers": "Content-Type,If-None-Match,Authorization",
     "Access-Control-Allow-Methods": "GET,OPTIONS",
     "Access-Control-Expose-Headers": "ETag",
     "Cache-Control": "no-cache, max-age=0",

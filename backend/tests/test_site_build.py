@@ -1912,3 +1912,35 @@ def test_mobile_card_contains_the_full_reason_and_every_action_step():
     assert ".signal-summary" in mobile and "display: none" in mobile
     assert ".step-overflow" in mobile and "display: list-item" in mobile
     assert ".step-more" in mobile and "display: none" in mobile
+
+
+def test_mobile_for_you_uses_native_scroll_snap_instead_of_pointer_drag():
+    """Phones should let the browser compositor own the horizontal gesture.
+
+    The desktop stack keeps its pointer-driven card physics. On mobile, native
+    scroll snap avoids pointercancel and nested vertical-scroll races that made
+    diagonal finger movement jump back or stutter.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    css = html.split('<style id="native-mobile-scroll-snap-v20">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "scroll-snap-type: x mandatory" in css
+    assert "-webkit-overflow-scrolling: touch" in css
+    assert "scroll-snap-align: start" in css
+    assert "touch-action: pan-x pan-y pinch-zoom" in css
+    assert "function bindNativeMobileFeed(stage)" in html
+    assert "if (usesNativeMobileFeed())" in html
+    assert 'stage.dataset.gestureBound = "native"' in html
+
+
+def test_decision_buttons_wait_for_the_authenticated_live_workflow():
+    """A build-time UUID must never be written before tenant state is verified."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "signedInBusinessId !== snapshotBusinessId" in html
+    assert "Checking latest decision status" in html
+    assert "Never write a UUID from an unverified build snapshot" in html
+    assert "await refreshWorkflowSnapshot({ force: true, silent: true })" in html
+    assert "This move was already decided or is no longer available. Feed refreshed." in html

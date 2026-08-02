@@ -12199,6 +12199,66 @@
     }
   </style>
 
+  <style id="native-mobile-scroll-snap-v20">
+    /* Phones use the browser's native compositor-driven horizontal scroller.
+       The desktop card stack keeps the richer pointer animation, while mobile
+       gets the same physics as the platform itself: no pointer-capture race,
+       no diagonal-gesture snap-back, and no JavaScript frame loop fighting the
+       vertically scrollable recommendation body. */
+    @media (max-width: 700px) {
+      body.autopilot-mode .feed-stage {
+        display: flex !important;
+        gap: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        scroll-padding-inline: 0;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        perspective: none !important;
+        touch-action: pan-x pan-y pinch-zoom !important;
+      }
+
+      body.autopilot-mode .feed-stage::-webkit-scrollbar { display: none; }
+
+      body.autopilot-mode .feed-card,
+      body.autopilot-mode .feed-card.is-current,
+      body.autopilot-mode .feed-card.is-next,
+      body.autopilot-mode .feed-card.is-back,
+      body.autopilot-mode .feed-card.is-hidden,
+      body.autopilot-mode .feed-card.is-prev {
+        position: relative !important;
+        inset: auto !important;
+        z-index: auto !important;
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        pointer-events: auto !important;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        backface-visibility: visible;
+        will-change: auto;
+        cursor: default;
+      }
+
+      body.autopilot-mode .feed-card.swipe-target,
+      body.autopilot-mode .feed-card.drag-prev,
+      body.autopilot-mode .feed-card.drag-next {
+        transform: none !important;
+        opacity: 1 !important;
+      }
+
+      body.autopilot-mode .post-body {
+        touch-action: pan-x pan-y pinch-zoom !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -13067,6 +13127,18 @@
     let workflowRefreshError = null;
     let liveDecisionState = {};
 
+    // The committed export is a fast first paint only when it belongs to the
+    // signed-in business. Showing another tenant's snapshot while /workflow is
+    // loading creates two failures at once: a privacy leak and decision UUIDs
+    // the authenticated owner cannot write. Start empty and wait for the live
+    // owner-scoped read when the ids differ.
+    const signedInBusinessId = String(readSession()?.businessId || "");
+    const snapshotBusinessId = String(btData.business?.id || "");
+    if (!OPERATOR_SESSION && workflowApiConfigured && signedInBusinessId &&
+        snapshotBusinessId && signedInBusinessId !== snapshotBusinessId) {
+      posts = [];
+    }
+
     // An unconnected file remains a repeatable demo and starts clean. Once the
     // decision API is configured, however, a CockroachDB-backed choice must not
     // reappear simply because the owner refreshed the page. Keep the browser
@@ -13746,8 +13818,31 @@
         //  and reasonably concluded nothing had happened.
         const working = myRuns.some(run => String(run.status) === "running");
         const neverRan = !myFinds.length && !myRuns.length;
+        const awaitingLiveOwner = workflowApiConfigured && !liveWorkflowWorkspaces &&
+          workflowRefreshState === "loading";
+        const liveOwnerUnavailable = workflowApiConfigured && !liveWorkflowWorkspaces &&
+          workflowRefreshState === "error";
 
-        queueContent.innerHTML = working ? `
+        queueContent.innerHTML = awaitingLiveOwner ? `
+          <section class="queue-empty" aria-label="Loading live recommendations" data-enter>
+            <div>
+              <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
+              <h2>Checking your latest moves<span class="working-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></h2>
+              <p>Brass Tacks is matching this signed-in account to its current CockroachDB workflow before decisions are enabled.</p>
+            </div>
+          </section>
+        ` : liveOwnerUnavailable ? `
+          <section class="queue-empty" aria-label="Live recommendations unavailable" data-enter>
+            <div>
+              <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
+              <h2>Could not load your live moves</h2>
+              <p>The build snapshot is not used for another business. Retry the secure workflow read before choosing Do it or Pass.</p>
+              <div class="empty-actions">
+                <button class="empty-primary" type="button" data-refresh-owner-feed>Retry</button>
+              </div>
+            </div>
+          </section>
+        ` : working ? `
           <section class="queue-empty" aria-label="The agents are working" data-enter>
             <div>
               <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
@@ -13894,6 +13989,11 @@
     function renderFeedCard(post, index, count) {
       const offset = (index - currentIndex + count) % count;
       const positionClass = positionFor(offset, count);
+      const decisionSyncPending = decisionApiConfigured && workflowApiConfigured &&
+        workflowRefreshState !== "live";
+      const decisionDisabled = decisionSyncPending
+        ? ' disabled aria-busy="true" title="Checking the latest decision status"'
+        : "";
 
       return `
         <article
@@ -13941,15 +14041,15 @@
                 <strong>${formatMoney(post.amount)}</strong>
                 <span>
                   <b>Monthly potential</b>
-                  <small>Nothing changes until approved</small>
+                  <small>${decisionSyncPending ? "Checking latest decision status…" : "Nothing changes until approved"}</small>
                 </span>
               </div>
 
               <div class="decision-actions" aria-label="Respond to this recommendation">
-                <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">
+                <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}"${decisionDisabled}>
                   ${icons.rejected}<span>Pass</span>
                 </button>
-                <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}">
+                <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}"${decisionDisabled}>
                   ${icons.approved}<span>Do it</span>
                 </button>
               </div>
@@ -13966,7 +14066,17 @@
      * on every move makes the card snap. Existing nodes change slots instead,
      * which gives CSS a real start and end state to interpolate between.
      */
-    const FEED_SWIPE_DURATION = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 460;
+    const PREFERS_REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const MOBILE_NATIVE_FEED_QUERY = window.matchMedia("(max-width: 700px)");
+    const FEED_SWIPE_DURATION = PREFERS_REDUCED_MOTION.matches ? 1 : 460;
+
+    function usesNativeMobileFeed() {
+      return MOBILE_NATIVE_FEED_QUERY.matches;
+    }
+
+    MOBILE_NATIVE_FEED_QUERY.addEventListener?.("change", () => {
+      if (activeView === "autopilot") renderAutopilot();
+    });
 
     function afterTransformTransition(element, callback, timeout = FEED_SWIPE_DURATION + 90) {
       if (!element) {
@@ -14011,6 +14121,17 @@
       if (next === currentIndex) return;
 
       const stage = document.getElementById("feedStage");
+      if (stage && usesNativeMobileFeed()) {
+        currentIndex = next;
+        applyCardPositions(true);
+        stage.scrollTo({
+          left: next * Math.max(1, stage.clientWidth),
+          top: 0,
+          behavior: PREFERS_REDUCED_MOTION.matches ? "auto" : "smooth",
+        });
+        return;
+      }
+
       const outgoing = getCurrentCard();
       isAnimating = true;
       stage?.classList.add("is-settling");
@@ -14073,10 +14194,66 @@
       return document.querySelector(".feed-card.is-current");
     }
 
+    function bindNativeMobileFeed(stage) {
+      if (!stage || stage.dataset.gestureBound) return;
+      stage.dataset.gestureBound = "native";
+      stage.classList.add("is-native-mobile-feed");
+
+      let frame = 0;
+      let settleTimer = 0;
+      const cardCount = () => stage.querySelectorAll(".feed-card").length;
+      const indexFromScroll = () => {
+        const width = Math.max(1, stage.clientWidth);
+        return Math.max(0, Math.min(cardCount() - 1, Math.round(stage.scrollLeft / width)));
+      };
+
+      const updateVisibleIndex = () => {
+        frame = 0;
+        const next = indexFromScroll();
+        if (next === currentIndex) return;
+        currentIndex = next;
+        updateFeedChrome(cardCount());
+      };
+
+      const settle = () => {
+        window.clearTimeout(settleTimer);
+        const next = indexFromScroll();
+        currentIndex = next;
+        applyCardPositions(true);
+        const destination = next * Math.max(1, stage.clientWidth);
+        if (Math.abs(stage.scrollLeft - destination) > 1) {
+          stage.scrollTo({
+            left: destination,
+            top: 0,
+            behavior: PREFERS_REDUCED_MOTION.matches ? "auto" : "smooth",
+          });
+        }
+      };
+
+      stage.addEventListener("scroll", () => {
+        if (!frame) frame = requestAnimationFrame(updateVisibleIndex);
+        window.clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(settle, 110);
+      }, { passive: true });
+
+      if ("onscrollend" in stage) {
+        stage.addEventListener("scrollend", settle, { passive: true });
+      }
+
+      requestAnimationFrame(() => {
+        stage.scrollLeft = currentIndex * Math.max(1, stage.clientWidth);
+        updateFeedChrome(cardCount());
+      });
+    }
+
     function bindFeedGestures() {
       const stage = document.getElementById("feedStage");
       if (!stage || stage.dataset.gestureBound) return;
-      stage.dataset.gestureBound = "1";
+      if (usesNativeMobileFeed()) {
+        bindNativeMobileFeed(stage);
+        return;
+      }
+      stage.dataset.gestureBound = "pointer";
 
       let gesture = null;
       let frame = 0;
@@ -14371,12 +14548,32 @@
       });
       let payload = {};
       try { payload = await response.json(); } catch (_) {}
-      if (!response.ok) throw new Error(payload.error || `Decision API returned ${response.status}`);
+      if (!response.ok) {
+        const error = new Error(payload.error || `Decision API returned ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
       return payload;
     }
 
     async function decide(postId, status, animate = true) {
       if (isAnimating || getDecision(postId)) return;
+
+      // Never write a UUID from an unverified build snapshot. The live read is
+      // owner-scoped and removes stale/already-decided cards before the POST.
+      if (workflowApiConfigured && workflowRefreshState !== "live") {
+        showToast("Checking the latest decision status…", "approved");
+        await refreshWorkflowSnapshot({ force: true, silent: true });
+        if (workflowRefreshState !== "live") {
+          showToast("Could not verify this recommendation. Please retry.", "rejected");
+          return;
+        }
+        if (!posts.some(item => item.id === postId) || getDecision(postId)) {
+          showToast("Your feed changed on the server. It has been refreshed.", "approved");
+          return;
+        }
+      }
+
       const post = posts.find(item => item.id === postId);
       if (!post) return;
       const card = document.querySelector(`.feed-card[data-post-id="${postId}"]`);
@@ -14425,6 +14622,11 @@
           button.disabled = false;
           button.removeAttribute("aria-busy");
         });
+        if (error.status === 409 && workflowApiConfigured) {
+          await refreshWorkflowSnapshot({ force: true, silent: true });
+          showToast("This move was already decided or is no longer available. Feed refreshed.", "rejected");
+          return;
+        }
         showToast(`Could not save decision: ${error.message}`, "rejected");
       }
     }
@@ -17164,6 +17366,9 @@ ledger_entry · artifact · agent_run`,
       document.querySelectorAll("[data-start-night]").forEach(button => {
         button.onclick = () => startFirstNight(
           button, document.getElementById("firstNightNote"));
+      });
+      document.querySelectorAll("[data-refresh-owner-feed]").forEach(button => {
+        button.onclick = () => refreshWorkflowSnapshot({ force: true, silent: false });
       });
       document.querySelectorAll("[data-open-post]").forEach(button => {
         button.onclick = () => openDrawer(button.dataset.openPost);

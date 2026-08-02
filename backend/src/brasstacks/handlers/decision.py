@@ -1,9 +1,8 @@
 """Owner decisions from the For You feed.
 
-The static board can read at build time, but Do it / Pass are writes and must go
-through a live endpoint. The write is tenant-scoped and only transitions an
-undecided proposal, making repeated clicks idempotently reject rather than
-silently rewriting history.
+The board may ship a CockroachDB snapshot for fast first paint, but Do it / Pass
+are live writes. Every write is resolved from the caller's authenticated session
+and scoped to that business. The browser never gets to choose a tenant id.
 """
 
 from __future__ import annotations
@@ -12,15 +11,18 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
+from brasstacks.handlers.login import bearer_token
 from brasstacks.repository import RepositoryError
 from brasstacks.secrets import hydrate_environment
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
+    "Cache-Control": "no-store",
 }
 
 UI_TO_DB = {"approved": "accepted", "rejected": "rejected"}
@@ -52,46 +54,76 @@ def parse_request(event: Any) -> tuple[str, str]:
     return find_id, decision
 
 
-def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
-    if (event or {}).get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
-        return respond(204, {})
+def record_decision(
+    event: Any,
+    *,
+    repo: Any,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Authorize and persist one owner decision.
+
+    The business id is taken from the session row. This is deliberately the
+    same tenant boundary used by /workflow and /run; using the deployment's
+    BRASSTACKS_BUSINESS_ID here made every newer owner write against the seeded
+    demo tenant and produced the misleading "inaccessible find" error.
+    """
     try:
         find_id, decision = parse_request(event)
     except ValueError as exc:
         return respond(400, {"error": str(exc)})
 
-    hydrate_environment()
-    settings = Settings.load()
-    if not settings.business_id:
-        return respond(500, {"error": "no tenant configured"})
+    moment = now or datetime.now(timezone.utc)
+    token = bearer_token(event)
+    account = repo.account_for_session(
+        token_fingerprint(token), now=moment
+    ) if token else None
+    if account is None:
+        return respond(401, {"error": "sign in first"})
 
-    import psycopg
-    from brasstacks.repository_pg import PostgresRepository
+    business_id = account.get("business_id")
+    if not business_id:
+        return respond(409, {"error": "finish setting up your business first"})
 
-    # Generate the timestamp once and pass the same value to CockroachDB and
-    # the browser receipt.  The operator trace should use the authoritative
-    # server write time rather than a potentially skewed client clock.
-    decided_at = datetime.now(timezone.utc)
     try:
-        with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
-            PostgresRepository(conn).set_find_status(
-                find_id,
-                status=UI_TO_DB[decision],
-                decided_at=decided_at,
-                business_id=settings.business_id,
-            )
+        repo.set_find_status(
+            find_id,
+            status=UI_TO_DB[decision],
+            decided_at=moment,
+            business_id=business_id,
+        )
     except RepositoryError as exc:
+        # Do not reveal whether a UUID belongs to another tenant. The repository
+        # scopes its lookup before producing this message.
         return respond(409, {"error": str(exc)})
-    except psycopg.Error:
-        return respond(503, {"error": "decision could not be saved"})
 
     return respond(200, {
         "find_id": find_id,
         "decision": decision,
         "status": UI_TO_DB[decision],
-        "decided_at": decided_at.isoformat(),
+        "decided_at": moment.isoformat(),
         "maker": "queued" if decision == "approved" else "not_requested",
     })
 
 
-__all__ = ["handler", "parse_request", "respond", "UI_TO_DB"]
+def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
+    method = str(((event or {}).get("requestContext") or {})
+                 .get("http", {}).get("method") or "").upper()
+    if method == "OPTIONS":
+        return respond(204, {})
+
+    hydrate_environment()
+    settings = Settings.load()
+
+    import psycopg
+    from brasstacks.repository_pg import PostgresRepository
+
+    try:
+        with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+            return record_decision(event, repo=PostgresRepository(conn))
+    except psycopg.Error:
+        return respond(503, {"error": "decision could not be saved"})
+
+
+__all__ = [
+    "handler", "record_decision", "parse_request", "respond", "UI_TO_DB",
+]

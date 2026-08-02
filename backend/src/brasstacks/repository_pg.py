@@ -534,10 +534,28 @@ class PostgresRepository:
                 """,
                 (status, decided_at, find_id, business_id, business_id),
             )
-            if cur.rowcount == 0:
-                raise RepositoryError(
-                    f"unknown, already decided, or inaccessible find {find_id}"
-                )
+            if cur.rowcount:
+                return
+
+            # A browser or network retry of the same decision is harmless.
+            # Keep it idempotent, but do not permit a later request to rewrite
+            # history from Do it to Pass (or the reverse). The lookup is still
+            # tenant-scoped, so the response cannot reveal another owner's row.
+            cur.execute(
+                """
+                SELECT status
+                FROM find
+                WHERE id = %s
+                  AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                """,
+                (find_id, business_id, business_id),
+            )
+            row = cur.fetchone()
+            if row and str(row[0]) == status:
+                return
+            if row:
+                raise RepositoryError(f"find already decided as {row[0]}")
+            raise RepositoryError("recommendation is no longer available")
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         with self._conn.cursor() as cur:

@@ -632,8 +632,13 @@ class InMemoryRepository:
                         business_id: str | None = None) -> None:
         found = self._finds.get(find_id)
         if found is None or (business_id is not None and found.business_id != business_id):
-            raise RepositoryError(f"unknown find {find_id}")
-        found.status = status
+            raise RepositoryError("recommendation is no longer available")
+        if found.status in ("proposed", "later"):
+            found.status = status
+            return
+        if found.status == status:
+            return
+        raise RepositoryError(f"find already decided as {found.status}")
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         found = self._finds.get(find_id)

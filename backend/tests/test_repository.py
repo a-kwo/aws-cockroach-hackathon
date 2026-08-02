@@ -440,6 +440,18 @@ class TestDecidingOnAFind:
         repo.set_find_status(find_id, status="rejected")
         assert repo.due_finds(business, today=TODAY) == []
 
+    def test_repeating_the_same_decision_is_idempotent(self, repo, business):
+        find_id = self._proposed(repo, business)
+        repo.set_find_status(find_id, status="accepted")
+        repo.set_find_status(find_id, status="accepted")
+        assert [f.find_id for f in repo.due_finds(business, today=TODAY)] == [find_id]
+
+    def test_a_recorded_decision_cannot_be_rewritten(self, repo, business):
+        find_id = self._proposed(repo, business)
+        repo.set_find_status(find_id, status="accepted")
+        with pytest.raises(RepositoryError, match="already decided"):
+            repo.set_find_status(find_id, status="rejected")
+
     def test_unknown_find_is_an_error(self, repo, business):
         with pytest.raises(RepositoryError):
             repo.set_find_status(str(uuid.uuid4()), status="accepted")
