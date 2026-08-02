@@ -12396,7 +12396,19 @@
     }
 
     const onboardingProfile = loadOnboardingProfile();
-    const onboardingMode = Boolean(onboardingProfile && !sampleWorkspaceMode);
+
+    //  Onboarding is an event, not a state. This keyed off the presence of the
+    //  profile in localStorage — which signup writes and nothing ever removes —
+    //  so every visit afterwards showed the welcome screen and its "Preview
+    //  sample recommendations" link, even for a business with real finds sitting
+    //  behind it. Signing back in a week later put the owner back on day one.
+    //
+    //  The signup flow already redirects with ?onboarded=1 and nothing read it.
+    //  A query parameter is the right shape for this: it survives exactly one
+    //  navigation, which is the length of the moment being described.
+    const justOnboarded = appQuery.get("onboarded") === "1";
+    const onboardingMode = Boolean(
+      onboardingProfile && justOnboarded && !sampleWorkspaceMode);
 
     function onboardingBusinessLabel(profile = onboardingProfile) {
       return String(profile?.business?.name || "Your business");

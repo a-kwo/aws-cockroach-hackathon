@@ -1547,3 +1547,23 @@ def test_the_board_offers_a_way_to_sign_out():
     # Best effort at the server too, but signing out must not depend on it.
     assert "/logout" in html
     assert "keepalive: true" in html
+
+
+def test_the_welcome_screen_shows_once_not_forever():
+    """Onboarding is an event, not a state.
+
+    This keyed off the onboarding profile in localStorage, which signup writes
+    and nothing ever removes — so every later visit showed the welcome screen
+    and its "Preview sample recommendations" link, even for a business with real
+    finds behind it. Signing back in a week later put the owner on day one.
+
+    The signup redirect already carried ?onboarded=1 and nothing read it. A
+    query parameter survives exactly one navigation, which is the length of the
+    moment being described.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'const justOnboarded = appQuery.get("onboarded") === "1";' in html
+    assert "onboardingProfile && justOnboarded && !sampleWorkspaceMode" in html
+    # The old form must not come back.
+    assert "Boolean(onboardingProfile && !sampleWorkspaceMode)" not in html

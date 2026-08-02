@@ -18,13 +18,293 @@
     "judged": 0
   },
   "corpus": {
-    "observations": 0,
-    "earliest": null,
-    "latest": null
+    "observations": 44,
+    "earliest": "2026-08-02T13:28:26.541991+00:00",
+    "latest": "2026-08-02T13:28:26.541991+00:00"
   },
-  "finds": [],
-  "runs": [],
+  "finds": [
+    {
+      "id": "9bc53e94-84ef-453e-b6d0-171e70a89dfd",
+      "run_id": "8af70334-441d-433f-9abc-e7e29cfbdbcf",
+      "emoji": "\ud83e\udd62",
+      "title": "Publish and photograph the weekday lunch bento",
+      "summary": "Your lunch specials and bentos already get named in reviews but are barely visible online \u2014 put them on the website and Google with photos and prices to win the midday walk-in\u2026",
+      "rationale": "Two separate sources point at lunch as an underworked strength: a diner reports lunch specials at roughly $10-11 per entree (6ad117f0), and a Yelp regular specifically praises the lunch bentos and calls the place right for a casual daytime visit (09c1515f). You open at 11:30 every day (91248c4e, 752c1172), so the lunch window is already staffed and paid for. But the online presence gives a browsing visitor no lunch price, no bento photo and no reason to choose you at noon \u2014 the listings show only casual dining and a $30-and-under band (d63f1161, 13631a55). Daytime on this stretch is dominated by cafes and quick counters; a proper sit-down Japanese lunch with a view has no direct competitor in that slot. Making the lunch offer findable is a listings job, not a kitchen job.",
+      "move": "Write out the weekday lunch bento and special menu with current prices.\nPhotograph three bentos on the patio in daylight.\nAdd a dedicated lunch section to the website with those prices and photos.\nUpload the lunch photos to Google Business Profile and Yelp.\nPost the lunch menu as a Google Post once a week.\nTrack midday covers separately for four weeks.\nConfirm the prices with the owner before anything goes live.",
+      "predicted_daily_cents": 1400,
+      "confidence": 0.4,
+      "verify_after": "2026-09-01",
+      "status": "proposed",
+      "decided_at": null,
+      "created_at": "2026-08-02T13:29:32.241848+00:00",
+      "verdict": null,
+      "actual_daily_cents": null,
+      "method": null,
+      "note": null,
+      "measured_at": null,
+      "period_start": null,
+      "period_end": null,
+      "evidence": [
+        {
+          "rank": 0,
+          "similarity": 0.3051415879040762,
+          "observation_id": "6ad117f0-183c-4cdc-b3ec-1b305539a009",
+          "content": "My friend and I ordered the lunch specials. The cost was about $10-11 per entree. This was my first time here, so I cannot speak re. the rest of the menu.Read more",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 1,
+          "similarity": 0.19138630490205655,
+          "observation_id": "09c1515f-068c-4670-b225-66f7d10779a5",
+          "content": "Lunch\n   Dinner\n   Good for groups\n   Kid-friendly\n   Pet friendly\n   Takeout\n   Delivery\n\nImage 14SaveImage 15CallImage 16WebImage 17Share\n\nDirections\n\nAdvertisement\n\nAdvertisement\n\n## Photos\n\nImage 18: Albacore Double DoubleYelp\n\nAlbacore Double Double\n\nImage 19: Thai teaYelp\n\nThai tea\n\nImage 20: At patio.Yelp\n\nAt patio.\n\nImage 21: Sashimi BentoYelp\n\nSashimi Bento\n\nImage 22: Spicy Tuna Hand RollYelp\n\nSpicy Tuna Hand Roll\n\nImage 23: Sushi DeluxeYelp\n\nSushi Deluxe [...] 1 month ago\n\nImage 33\n\nTintin B.\n\nRead more on Yelp\nAsaka is one of our little gems in the South Bay. We usually come here less for the food and more for the view, which makes it perfect for a casual brunch or low key date. The lunch bentos are...\n\n7 months ago\n\nImage 34\n\nJustin D.\n\nRead more on Yelp\nI'm surprised at the reviews! It has a phenomenal view (on a clear day) of the ocean. The staff was very friendly. The restaurant clean. It has a modern decor. They have a really big menu. We... [...] Terms of use\n   Privacy policy\n   Data and licenses\n   About our ads\n   Do not sell\n\nAdvertisement\n\nAdvertisement\n\n\u00a9 2026 MapQuestLegal\n\nImage 6CoffeeImage 7FoodImage 8GasImage 9GroceryImage 10ShoppingImage 11Hotels\n\nImage 12Live Radio\n\n2000 ft\n\n- [x] Traffic slowdowns - [x] Traffic incidents \n\nAsaka Sushi & Grill\n\n\n\nLog in\n\nSearch places or paste a link \n\n# Asaka Sushi & Grill\n\n$$\n\nClosed\n\nImage 13: yelp logo\n(448)",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 2,
+          "similarity": 0.2656413079225046,
+          "observation_id": "91248c4e-a84e-4666-ba05-fe299a4a3bc1",
+          "content": "All hours\n\nSunday 11:30 am - 8:30 pm\nMonday 11:30 am - 8:00 pm\nTuesday 11:30 am - 8:00 pm\nWednesday 11:30 am - 8:00 pm\nThursday 11:30 am - 8:00 pm\nFriday 11:30 am - 8:30 pm\nSaturday 11:30 am - 8:30 pm\n\nRestaurant info\n\nCome in and enjoy!\n\nLocation\n\n31208 Palos Verdes Drive West, Rancho Palos Verdes, CA 90275\n\nDirections\n\n  \n\n## Similar restaurants in your area\n\nImage 89: scroll leftImage 90: scroll right\n\nImage 91 Japonica View restaurantImage 92: next [...] Skip to Main content\n\n   # Asaka Japanese Cuisine 31208 Palos Verdes Drive West Image 1 \n\n   0  \n   Sign in\n\n   Home\n   /\n   Rancho Palos Verdes\n   /\n   Asaka Japanese Cuisine 31208 Palos Verdes Drive West\n\nImage 2: Restaurant banner image\n\nSushi\n\n# Asaka Japanese Cuisine 31208 Palos Verdes Drive West\n\n31208 Palos Verdes Drive West\n\nRancho Palos Verdes, CA 90275\n\n  \n\nImage 3\n\nOrders through Toast are commission free and go directly to this restaurant\n\n  \n\nCallHoursDirectionsGift Cards\n\nFood Menu [...] Image 60### PV Roll spicy tuna, shrimp tempura roll with avocado and tobiko with eel sauce, spicy mayo on top. $22.95 \n   ### Crunch Albacore Roll Shrimp tempura roll with green onion tempura, topped with seared albacore, crispy onion and eel sauce. $21.95 \n   ### Harmony Roll Shrimp tempura roll with spicy tuna, avocado and cucumber , topped with tuna, salmon, yellowtail, scallions and harmony sauce. $23.95",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 3,
+          "similarity": 0.24672448478912978,
+          "observation_id": "752c1172-a291-49a3-9bb3-d03c1b8068fe",
+          "content": "Asaka Japanese Cuisine 31208 Palos Verdes Drive West in Rancho \u2022Pickup in 10 - 15 min Food Menu. Friday 11:30 am - 8:30 pm Saturday 11:30 am - 8:30 pm",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 4,
+          "similarity": 0.2520372196424846,
+          "observation_id": "d63f1161-1547-4ab0-8b92-be87bdcdf021",
+          "content": "Dining style. Casual Dining ; Price. $30 and under ; Cuisines. Japanese ; Phone number. (310) 377-5999 ; Location. 31208 Palos Verdes Dr W, Rancho Palos Verdes, CA\u00a0...Read more",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 5,
+          "similarity": 0.08791199048137277,
+          "observation_id": "13631a55-21f2-4a02-9c72-b41001ffdec8",
+          "content": "Dining style. Casual Dining ; Price. $30 and under ; Cuisines. Japanese ; Phone number. (310) 377-5999 ; Location. 31208 Palos Verdes Dr W, Rancho Palos Verdes, CA",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        }
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "c739ed10-4ac1-4885-9fb3-7026283ab0db",
+      "run_id": "8af70334-441d-433f-9abc-e7e29cfbdbcf",
+      "emoji": "\ud83c\udf71",
+      "title": "Fix delivery value: add a fixed-price sushi set",
+      "summary": "Delivery reviewers are complaining about portion size for the price, so add one clearly-described fixed-price set and steer repeat orders to your commission-free Toast page.",
+      "rationale": "The delivery reviews split hard on value, not on taste: one guest paid $51 for three rolls and called it nowhere near the value, another paid $32 for a sushi sampler and was unhappy (390cc17d). Meanwhile the same listing shows a la carte rolls at $21.95 to $23.95 (91248c4e) and entrees from $23 to $54.95 (390cc17d), so a customer assembling an order has no way to feel they got a deal. A single named, photographed set at a fixed price with the piece count stated removes the guesswork and resets the value impression \u2014 this is the cheapest fix available because it is a menu-description change, not a discount. Your Toast page is commission free and money goes straight to you (91248c4e), so every order you move off the marketplaces is worth materially more per dollar than a delivery order.",
+      "move": "Build one fixed-price sushi set for two with the exact piece count written into the description.\nPhotograph it as it actually leaves the kitchen in a takeout box.\nList the set at the top of the Toast ordering page and on the third-party menus.\nAdd a card in every delivery bag pointing to the Toast page as the direct-order option.\nCheck the packed portion against the photo for the first two weeks.\nGet owner approval on the set contents and price before launch.",
+      "predicted_daily_cents": 1600,
+      "confidence": 0.45,
+      "verify_after": "2026-08-23",
+      "status": "proposed",
+      "decided_at": null,
+      "created_at": "2026-08-02T13:29:32.219047+00:00",
+      "verdict": null,
+      "actual_daily_cents": null,
+      "method": null,
+      "note": null,
+      "measured_at": null,
+      "period_start": null,
+      "period_end": null,
+      "evidence": [
+        {
+          "rank": 0,
+          "similarity": 0.26924916642924346,
+          "observation_id": "390cc17d-8da2-43da-9199-153af683b966",
+          "content": "\u2022 DoorDash order\n\nI am visiting my son from Ohio and was cravng teriyaki....I have never ever had better steak teri in all my life! I ate the entire entree! Salad vegg and all! I would definitely order from here again! I wish there was a branch in Ohio!\n\nS\n\nSam Q\n\n1 contributions\n\nLoved\n\n\u2022 4/4/23\n\n\u2022 DoorDash review\n\nAsaka RPV has always maintained a very good quality of food. Fresh sushi and sashimi. Good service and beautiful patio view.\n\nCorinne D\n\n14 contributions\n\nDidn't like\n\n\u2022 3/15/26 [...] \u2022 3/15/26\n\n\u2022 DoorDash review\n\nJust ordered the sushi sampler for $32.00. The salmon sushi was not sushi grade at all...so chewy and sinewy that it was inedible.! The rest of the fish was not fresh. If you're going to present raw fish, and it isn't, then be prepared to get the harshest review.... it was bad...shame on you Asaka!\n\nKi Y\n\n2 contributions\n\nDidn't like\n\n\u2022 3/22/26\n\n\u2022 DoorDash order\n\nI paid $51 fo 3 rolls and they were so small. Not even close to the value. Won't order again here. [...] pricing & fees\n\nto see delivery time\n\n## Featured Items\n\nSashimi Selection\n\n$54.95\n\nSalmon Sashimi\n\n$23.00\n\nShrimp Tempura Dinner\n\n$25.95\n\nMiso Glazed Chilean Seabass\n\n$43.95\n\nRib-Eye Steak Teriyaki\n\n$30.95\n\n\u2022100% (6)\n\nLava Roll\n\n$23.95\n\nReviews200+ ratings \u2022 10+ public reviews\n\n4.7\n\nof 5 stars\n\nY\n\nYvonne S\n\n1 contributions\n\nLoved\n\n\u2022 10/3/24\n\n\u2022 DoorDash order",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 1,
+          "similarity": 0.2656413079225046,
+          "observation_id": "91248c4e-a84e-4666-ba05-fe299a4a3bc1",
+          "content": "All hours\n\nSunday 11:30 am - 8:30 pm\nMonday 11:30 am - 8:00 pm\nTuesday 11:30 am - 8:00 pm\nWednesday 11:30 am - 8:00 pm\nThursday 11:30 am - 8:00 pm\nFriday 11:30 am - 8:30 pm\nSaturday 11:30 am - 8:30 pm\n\nRestaurant info\n\nCome in and enjoy!\n\nLocation\n\n31208 Palos Verdes Drive West, Rancho Palos Verdes, CA 90275\n\nDirections\n\n  \n\n## Similar restaurants in your area\n\nImage 89: scroll leftImage 90: scroll right\n\nImage 91 Japonica View restaurantImage 92: next [...] Skip to Main content\n\n   # Asaka Japanese Cuisine 31208 Palos Verdes Drive West Image 1 \n\n   0  \n   Sign in\n\n   Home\n   /\n   Rancho Palos Verdes\n   /\n   Asaka Japanese Cuisine 31208 Palos Verdes Drive West\n\nImage 2: Restaurant banner image\n\nSushi\n\n# Asaka Japanese Cuisine 31208 Palos Verdes Drive West\n\n31208 Palos Verdes Drive West\n\nRancho Palos Verdes, CA 90275\n\n  \n\nImage 3\n\nOrders through Toast are commission free and go directly to this restaurant\n\n  \n\nCallHoursDirectionsGift Cards\n\nFood Menu [...] Image 60### PV Roll spicy tuna, shrimp tempura roll with avocado and tobiko with eel sauce, spicy mayo on top. $22.95 \n   ### Crunch Albacore Roll Shrimp tempura roll with green onion tempura, topped with seared albacore, crispy onion and eel sauce. $21.95 \n   ### Harmony Roll Shrimp tempura roll with spicy tuna, avocado and cucumber , topped with tuna, salmon, yellowtail, scallions and harmony sauce. $23.95",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 2,
+          "similarity": 0.19349523802116841,
+          "observation_id": "38bffe87-da06-43fb-bba5-0e5b5d686309",
+          "content": "31208 Palos Verdes Dr W, Rancho Palos Verdes, CA 90275\n\n3103775999\n\nPickup\n\nDelivery\n\nHours of Operation (Takeout)\n\nMonday - Thursday\n\n11:30 am - 08:30 pm\n\nFriday - Sunday\n\n11:30 am - 08:45 pm\n\nOrder OnlineView Menu [...] Discover the taste of Japan at Asaka in Rancho Palos Verdes! Indulge in our exquisite sushi, sashimi, and Tokyo Roll, crafted with the freshest ingredients. Enjoy the convenience of delivery and takeout. Whether you crave classic favorites or innovative flavors, our menu promises a delightful culinary journey. Experience Asaka's unique identity and passion for sushi. Place your online order now!\n\n## Location\n\n### Asaka\n\nOPEN NOW\n\n\u2022 Closes at 08:30 pm [...] this the alt text\n\n# Fresh Japanese Cuisine Rancho Palos Verdes\n\nDiscover the art of sushi in Rancho Palos Verdes, CA. Delight in authentic flavors crafted with passion and precision. Convenient delivery and takeout options available. Place your online order now for an unforgettable dining experience!\n\nOrder OnlineView Menu\n\n## Savor Sushi at Asaka",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        }
+      ],
+      "artifacts": []
+    },
+    {
+      "id": "c651141b-e72b-456c-9ff2-03efb9645211",
+      "run_id": "8af70334-441d-433f-9abc-e7e29cfbdbcf",
+      "emoji": "\ud83c\udf05",
+      "title": "Lead every listing with the ocean-view patio",
+      "summary": "Your patio view is the thing guests rave about, but your website and delivery listings sell takeout instead \u2014 put the view front and centre to pull in visitors and date-night\u2026",
+      "rationale": "Review after review names the same asset: the patio, the ocean breeze, the 'million dollar view' (ddbcdc49), 'excellent food, great view, sit on the ocean view terrace' (7918693f), and diners who say they come 'less for the food and more for the view... perfect for a casual brunch or low key date' (09c1515f, c8c1e6c4). Yet the website copy is entirely about sushi, delivery and takeout with no mention of the patio or the ocean at all (38bffe87, d1427ddc), and the Yelp photo set leads with food shots rather than the terrace (09c1515f). Every high-traffic rival on this stretch of coast \u2014 the cafe, the resort restaurants \u2014 wins visitors on view. You have the same asset and are not claiming it. This is a copy-and-photo change with no food cost and no new labour, aimed squarely at the visitor and tourist segment you already say you serve.",
+      "move": "Replace the top line of the website homepage with a sentence naming the ocean-view patio.\nShoot six good daylight photos of the patio with the ocean behind it.\nSet a patio photo as the primary image on Google Business Profile, Yelp and the Toast ordering page.\nAdd 'Outdoor seating' and 'Great view' attributes on the Google profile.\nAdd one line to the Google Business description mentioning the ocean-view terrace.\nGet owner sign-off on the wording before publishing.",
+      "predicted_daily_cents": 2200,
+      "confidence": 0.5,
+      "verify_after": "2026-09-01",
+      "status": "proposed",
+      "decided_at": null,
+      "created_at": "2026-08-02T13:29:32.167227+00:00",
+      "verdict": null,
+      "actual_daily_cents": null,
+      "method": null,
+      "note": null,
+      "measured_at": null,
+      "period_start": null,
+      "period_end": null,
+      "evidence": [
+        {
+          "rank": 0,
+          "similarity": 0.3401698571494216,
+          "observation_id": "ddbcdc49-07a7-4d5a-8f60-2e50120dd0bc",
+          "content": "Jeffrey C \u2014 Google review\n\nI love dinning outside in the patio. You will feel the fresh ocean breeze and the view is a million dollars view. It over look the Pacific ocean. Good food, nice friendly service and the price is right.\n\nSunadda S \u2014 Google review\n\n31208 Palos Verdes Dr W, Rancho Palos Verdes, CA 90275, USA\u2022\u2022(310) 377-5999-377-5999)\u2022Tips and more reviews for Asaka\n\n## 8Burattino Brick Oven Pizza\n\n4.4\n\n(1376)\n\n\u2022\n\n4.2\n\n(23)\n\n\u2022\n\nMentioned on\n\n2 lists\n\n$$$$affordable\n\nPizza restaurant [...] 31240 Palos Verdes Dr W, Rancho Palos Verdes, CA 90275, USA\u2022 265-4999-265-4999)\u2022Tips and more reviews for Domino's Pizza\n\nCreate your ultimate travel itinerary\n\nPlan your itinerary, find lodging, and import reservations \u2014 all in one app.\n\nLearn more\n\n## Create your ultimate travel itinerary\n\nPlan your itinerary, find lodging, and import reservations \u2014 all in one app.\n\n## 41Denny's Restaurant\n\n4.3\n\n(974)\n\n\u2022\n\n4.5\n\n(4)\n\n$$$$cheap\n\nRestaurant\n\nAmerican restaurant\n\nBreakfast restaurant\n\nDiner [...] 31218 Palos Verdes Dr W, Rancho Palos Verdes, CA 90275, USA\u2022\u2022(310) 544-4600-544-4600)\u2022Tips and more reviews for Tomatillo Mexican Grill\n\n## 34Starbucks Coffee Company\n\n3.8\n\n(81)\n\n\u2022\n\n4.3\n\n(14)\n\n$$$$affordable\n\nCoffee shop\n\nCafe\n\nCoffee store\n\nEspresso bar",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 1,
+          "similarity": 0.1876722871435823,
+          "observation_id": "7918693f-c5be-45d0-8cc0-018f3f05f44a",
+          "content": "Excellent food, great view. Sit on the ocean view terrance. Enjoy great food and service. Slow service and mediocre food. The view is so spectacular",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 2,
+          "similarity": 0.19138630490205655,
+          "observation_id": "09c1515f-068c-4670-b225-66f7d10779a5",
+          "content": "Lunch\n   Dinner\n   Good for groups\n   Kid-friendly\n   Pet friendly\n   Takeout\n   Delivery\n\nImage 14SaveImage 15CallImage 16WebImage 17Share\n\nDirections\n\nAdvertisement\n\nAdvertisement\n\n## Photos\n\nImage 18: Albacore Double DoubleYelp\n\nAlbacore Double Double\n\nImage 19: Thai teaYelp\n\nThai tea\n\nImage 20: At patio.Yelp\n\nAt patio.\n\nImage 21: Sashimi BentoYelp\n\nSashimi Bento\n\nImage 22: Spicy Tuna Hand RollYelp\n\nSpicy Tuna Hand Roll\n\nImage 23: Sushi DeluxeYelp\n\nSushi Deluxe [...] 1 month ago\n\nImage 33\n\nTintin B.\n\nRead more on Yelp\nAsaka is one of our little gems in the South Bay. We usually come here less for the food and more for the view, which makes it perfect for a casual brunch or low key date. The lunch bentos are...\n\n7 months ago\n\nImage 34\n\nJustin D.\n\nRead more on Yelp\nI'm surprised at the reviews! It has a phenomenal view (on a clear day) of the ocean. The staff was very friendly. The restaurant clean. It has a modern decor. They have a really big menu. We... [...] Terms of use\n   Privacy policy\n   Data and licenses\n   About our ads\n   Do not sell\n\nAdvertisement\n\nAdvertisement\n\n\u00a9 2026 MapQuestLegal\n\nImage 6CoffeeImage 7FoodImage 8GasImage 9GroceryImage 10ShoppingImage 11Hotels\n\nImage 12Live Radio\n\n2000 ft\n\n- [x] Traffic slowdowns - [x] Traffic incidents \n\nAsaka Sushi & Grill\n\n\n\nLog in\n\nSearch places or paste a link \n\n# Asaka Sushi & Grill\n\n$$\n\nClosed\n\nImage 13: yelp logo\n(448)",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 3,
+          "similarity": 0.08504451841912142,
+          "observation_id": "c8c1e6c4-e965-4776-a921-111784eb46d5",
+          "content": "It has a phenomenal view (on a clear day) of the ocean. The staff was very friendly. The restaurant clean. It has a modern decor. They have a really big menu.",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 4,
+          "similarity": 0.19349523802116841,
+          "observation_id": "38bffe87-da06-43fb-bba5-0e5b5d686309",
+          "content": "31208 Palos Verdes Dr W, Rancho Palos Verdes, CA 90275\n\n3103775999\n\nPickup\n\nDelivery\n\nHours of Operation (Takeout)\n\nMonday - Thursday\n\n11:30 am - 08:30 pm\n\nFriday - Sunday\n\n11:30 am - 08:45 pm\n\nOrder OnlineView Menu [...] Discover the taste of Japan at Asaka in Rancho Palos Verdes! Indulge in our exquisite sushi, sashimi, and Tokyo Roll, crafted with the freshest ingredients. Enjoy the convenience of delivery and takeout. Whether you crave classic favorites or innovative flavors, our menu promises a delightful culinary journey. Experience Asaka's unique identity and passion for sushi. Place your online order now!\n\n## Location\n\n### Asaka\n\nOPEN NOW\n\n\u2022 Closes at 08:30 pm [...] this the alt text\n\n# Fresh Japanese Cuisine Rancho Palos Verdes\n\nDiscover the art of sushi in Rancho Palos Verdes, CA. Delight in authentic flavors crafted with passion and precision. Convenient delivery and takeout options available. Place your online order now for an unforgettable dining experience!\n\nOrder OnlineView Menu\n\n## Savor Sushi at Asaka",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        },
+        {
+          "rank": 5,
+          "similarity": 0.09266035560901087,
+          "observation_id": "d1427ddc-0642-413b-a0ca-9d4af77ae94f",
+          "content": "31208 Palos Verdes Dr W, Rancho Palos Verdes, CA 90275\n\n3103775999\n\nPickup\n\nDelivery\n\nHours of Operation (Takeout)\n\nMonday - Thursday\n\n11:30 am - 08:30 pm\n\nFriday - Sunday\n\n11:30 am - 08:45 pm\n\nOrder OnlineView Menu [...] this the alt text\n\n# Fresh Japanese Cuisine Rancho Palos Verdes\n\nDiscover the art of sushi in Rancho Palos Verdes, CA. Delight in authentic flavors crafted with passion and precision. Convenient delivery and takeout options available. Place your online order now for an unforgettable dining experience!\n\nOrder OnlineView Menu\n\n## Savor Sushi at Asaka [...] Discover the taste of Japan at Asaka in Rancho Palos Verdes! Indulge in our exquisite sushi, sashimi, and Tokyo Roll, crafted with the freshest ingredients. Enjoy the convenience of delivery and takeout. Whether you crave classic favorites or innovative flavors, our menu promises a delightful culinary journey. Experience Asaka's unique identity and passion for sushi. Place your online order now!\n\n## Location\n\n### Asaka\n\nOPEN NOW\n\n\u2022 Closes at 08:30 pm",
+          "kind": "trend",
+          "source_name": "web",
+          "subject": null,
+          "observed_at": "2026-08-02T13:28:26.541991+00:00"
+        }
+      ],
+      "artifacts": []
+    }
+  ],
+  "runs": [
+    {
+      "id": "6d1cef40-4003-4c2f-afe1-b06ec1ff8226",
+      "agent": "meter",
+      "status": "ok",
+      "started_at": "2026-08-02T13:29:32.307787+00:00",
+      "finished_at": "2026-08-02T13:29:32.322214+00:00",
+      "note": "nothing due",
+      "input_tokens": null,
+      "output_tokens": null,
+      "model_id": null,
+      "error": null
+    },
+    {
+      "id": "68b386f1-aa8f-4f85-9147-a331c76edb4f",
+      "agent": "maker",
+      "status": "ok",
+      "started_at": "2026-08-02T13:29:32.282168+00:00",
+      "finished_at": "2026-08-02T13:29:32.300658+00:00",
+      "note": "nothing accepted and undrafted",
+      "input_tokens": null,
+      "output_tokens": null,
+      "model_id": "claude-opus-5",
+      "error": null
+    },
+    {
+      "id": "8af70334-441d-433f-9abc-e7e29cfbdbcf",
+      "agent": "analyst",
+      "status": "ok",
+      "started_at": "2026-08-02T13:28:38.087510+00:00",
+      "finished_at": "2026-08-02T13:29:32.268395+00:00",
+      "note": "21 retrieved; proposed 3 move(s), led by 'Lead every listing with the ocean-view patio' at +2200c/day, verify after 2026-09-01\nanalyst_trace_v1:{\"cited_hits\":15,\"find_id\":\"c651141b-e72b-456c-9ff2-03efb9645211\",\"per_query_limit\":6,\"queries\":[\"Which dishes do customers praise most, and are they underpriced compared to nearby restaurants?\",\"Customers complain about waiting a long time for a table, or leaving without eating\",\"Is there demand at times or days this restaurant is not currently open, such as lunch?\",\"What are nearby competing restaurants charging, and what have they changed recently?\",\"What do the lowest-rated reviews complain about, and is it something the owner can fix?\",\"What local trends or nearby developments could change demand in the next few months?\"],\"query_hits\":[6,6,6,6,6,6],\"raw_hits\":36,\"unique_hits\":21}",
+      "input_tokens": 11581,
+      "output_tokens": 3275,
+      "model_id": "claude-opus-5",
+      "error": null
+    },
+    {
+      "id": "53f3b000-da40-4aa0-b3a6-37be58fbeb9b",
+      "agent": "radar",
+      "status": "ok",
+      "started_at": "2026-08-02T13:28:25.677391+00:00",
+      "finished_at": "2026-08-02T13:28:38.078638+00:00",
+      "note": "47 observed; 44 new; 3 already known",
+      "input_tokens": null,
+      "output_tokens": null,
+      "model_id": null,
+      "error": null
+    }
+  ],
   "monthly": [],
-  "kinds": [],
+  "kinds": [
+    {
+      "kind": "trend",
+      "count": 44
+    }
+  ],
   "ratings": []
 }
