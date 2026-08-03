@@ -1,13 +1,19 @@
 # Deploying Brass Tacks
 
-The Lambda entry points share one container image. `night` runs Radar, Analyst
-and Meter on a schedule; `maker` starts as soon as the owner chooses Do it and
-also reconciles accepted backlog every five minutes; `ask` answers owner
-questions and can execute an authenticated Undo Pass; `decision` persists Do it
-/ Pass; and `workflow` serves current operator state. The board still ships a
-static CockroachDB snapshot for instant first paint, then Memory Engine
-revalidates that snapshot through the read-only workflow route while the
-operator view is open.
+The Lambda entry points use the same container build context but have separate
+commands and deployment images. `night` runs Radar, Analyst and Meter on a
+schedule; authenticated `decision` and `ask` requests create or reuse a durable
+CockroachDB task; SQS FIFO buffers approved work; a Task Starter begins one
+Step Functions Standard execution; the atomic `maker` worker creates one draft;
+`maker_email` optionally sends the review link through SES; and a SQL-only
+reconciler recovers missed dispatches and expired leases every five minutes.
+`workflow` projects current owner and operator state without invoking a model.
+
+The board still ships a static CockroachDB snapshot for instant first paint,
+then Memory Engine revalidates that snapshot through the read-only workflow
+route while the operator view is open. See
+[`../docs/MULTI_TENANT_AGENT_PLATFORM.md`](../docs/MULTI_TENANT_AGENT_PLATFORM.md)
+for the task contract, idempotency model, tool roadmap and acceptance tests.
 
 Prerequisites: AWS SAM CLI, Docker, and an AWS profile that is **not** root.
 
@@ -86,14 +92,13 @@ prefix, no encoding. Adding the prefix by hand produces `Bearer Bearer …` and 
 
 ## 3. Put the secrets in Parameter Store
 
-Four values, all SecureString. They live here rather than in Lambda environment
-variables, where they would be readable from the console.
+Core values live under the SSM prefix rather than in committed files. Keep credentials as SecureString; non-secret feature flags and identifiers may use String.
 
 ```bash
 put() { aws ssm put-parameter --type SecureString \
           --overwrite --name "/brasstacks/$1" --value "$2"; }
 
-put COCKROACH_DATABASE_URL 'postgresql://…?sslmode=verify-full&sslrootcert=system'
+put COCKROACH_DATABASE_URL 'postgresql://…?sslmode=verify-full'
 put ANTHROPIC_API_KEY      'sk-ant-…'
 put COCKROACH_MCP_TOKEN    '…'          # from step 2
 put BRASSTACKS_BUSINESS_ID '…'          # printed by scripts/seed.py
@@ -121,6 +126,37 @@ aws ssm put-parameter --type String --overwrite \
 aws ssm put-parameter --type String --overwrite \
   --name /brasstacks/COCKROACH_DATABASE --value defaultdb
 ```
+
+### Configure the first Maker execution tool: SES review email
+
+Maker always stores the draft first. Email notification is optional and disabled
+by default. The model cannot choose the sender or recipient; trusted server
+configuration does.
+
+Verify a sender identity in Amazon SES in `us-east-1`. If the SES account is
+still in the sandbox, also verify the test recipient `virtual.icfd@gmail.com`.
+Then set:
+
+```bash
+aws ssm put-parameter --type String --overwrite \
+  --name /brasstacks/MAKER_EMAIL_ENABLED --value true
+
+aws ssm put-parameter --type String --overwrite \
+  --name /brasstacks/MAKER_EMAIL_FROM \
+  --value '<verified-sender@example.com>'
+
+aws ssm put-parameter --type String --overwrite \
+  --name /brasstacks/MAKER_REVIEW_EMAIL \
+  --value 'virtual.icfd@gmail.com'
+```
+
+The email includes the complete draft, task receipt and a link to
+`/app/?task=<task-id>`. After sign-in, the app opens the exact recommendation and
+full Maker draft. This proves a visible external action and manual-post handoff;
+it does not claim that Maker published to a third-party account.
+
+Leave `MAKER_EMAIL_ENABLED=false` while the SES identity is unverified. The
+workflow records a `skipped` tool receipt without failing the completed draft.
 
 ### Omit `sslrootcert` from the connection string
 
@@ -177,11 +213,19 @@ Any configuration change replaces every execution environment. This is a
 deliberate trade — reading SSM on every invocation would add latency and cost to
 each request to save a step that happens rarely.
 
-## 4. Create the artifact bucket
+## 4. Apply the task schema and create the artifact bucket
+
+Apply the additive schema before shifting traffic. Lambda also contains an
+idempotent bootstrap as a safety net, but production deployment should run the
+migration explicitly:
 
 ```bash
+python db/migrate.py --schema-only
 aws s3 mb s3://brasstacks-artifacts-<suffix>
 ```
+
+The migration adds `work_task`, `task_event`, `tool_execution`, and task/body
+linkage on `artifact`.
 
 ## 5. Deploy
 
@@ -204,7 +248,7 @@ sam deploy \
 need; `--resolve-s3` handles the deployment bucket. `sam deploy --guided` is the
 interactive equivalent and asks the same questions.
 
-It prints the Ask, Decision, and Workflow endpoint URLs on completion.
+It prints the site/API outputs plus the Maker function, Step Functions workflow, FIFO queue and DLQ identifiers on completion.
 
 ## 6. Prove it works
 
@@ -227,6 +271,16 @@ empty and `queried_the_cluster` is `false`, the model answered from its own
 knowledge instead of from the database. That is a prompt failure, not a success,
 and it is the thing to watch for on the first live call.
 
+Then run one task end to end:
+
+1. Sign in and press **Do it** once.
+2. Confirm the card immediately shows Saving, then Approved.
+3. Confirm Memory Engine shows one exact task with a workflow receipt.
+4. Confirm one—not two—draft artifacts are created.
+5. If SES is enabled, confirm one message arrives at `virtual.icfd@gmail.com`.
+6. Open the email link, sign in, and verify the exact task and full draft open.
+7. Wait past one reconciliation interval and verify no duplicate draft or email appears.
+
 Then confirm the schedule fires unattended overnight. That is the "autonomous
 rather than a button" claim, and it is the one part that cannot be faked on
 video.
@@ -235,6 +289,16 @@ video.
 
 ## Notes
 
+- **CockroachDB is the task source of truth.** SQS and Step Functions provide
+  delivery and orchestration. Every worker must atomically claim the task before
+  constructing a model client or executing a tool.
+- **Delivery may be repeated.** SQS/Lambda and workflow retries are treated as
+  at-least-once. Unique task, artifact and tool-execution keys provide
+  idempotent business behavior; the system does not claim end-to-end magical
+  exactly-once side effects.
+- **The email is a review notification, not public publishing.** OAuth account
+  connections and browser automation remain roadmap work and must keep
+  credentials outside model prompts.
 - **Container images, not zips.** `psycopg[binary]` ships platform-specific
   wheels and this repo is developed on Windows; a zip built there installs
   Windows wheels and fails on Lambda's manylinux runtime.
@@ -272,12 +336,17 @@ Because both routes share the same API, `scripts/build_web.py` also infers
 `$DECISION_API_ENDPOINT/workflow` when `WORKFLOW_API_ENDPOINT` is omitted.
 
 The built `web/app/index.html` then writes decisions to CockroachDB. `Do it`
-changes the find to `accepted` and asynchronously starts the dedicated Maker
-worker. `Pass` changes it to `rejected`. From the passed recommendation's chat
-drawer, `Undo Pass` records a new `accepted` decision, preserves the earlier
-Pass receipt in conversation memory, and starts Maker. Accepted rows with no
-artifact are the durable queue; a five-minute SQL-first reconciliation sweep
-recovers a missed invocation and drains older approved work. An empty sweep
+changes the find to `accepted`, creates or reuses one idempotent `work_task`,
+and sends one dispatch to SQS FIFO. `Pass` changes the find to `rejected` and
+creates no Maker task. From the passed recommendation's chat drawer, `Undo Pass`
+records a new `accepted` decision, preserves the earlier Pass receipt in
+conversation memory, and uses the same task key.
+
+The FIFO message starts a Step Functions Standard execution. Maker must atomically
+claim the CockroachDB task before it constructs the reasoner, so duplicate queue
+or workflow delivery consumes no second model call and creates no second draft.
+A five-minute SQL-first reconciliation sweep creates tasks for legacy approved
+finds, recovers expired claims and re-dispatches retryable rows. An empty sweep
 invokes no reasoning model and consumes zero LLM tokens. Without the endpoint
 environment variable, the UI remains usable in an explicitly labelled demo-only
 mode and does not pretend the decision was persisted.
@@ -298,10 +367,11 @@ before the first successful read, the build snapshot remains visible instead.
 
 ## Production authentication boundary
 
-The submitted demo uses fictional business data and leaves the shared HTTP API
-public, with throttling and a server-side tenant allowlist. The allowlist prevents
-arbitrary `business_id` enumeration, but it is **not user authentication**. Before
-using real owner data, put API Gateway JWT authorization (for example Amazon
-Cognito) in front of `Ask`, `Decision`, and `Workflow`, and derive the permitted
-business ids from authenticated claims rather than from a browser-supplied value.
-Do not put a permanent API secret in the static HTML; anyone can inspect it.
+The current application handlers require Brass Tacks bearer sessions and derive
+the business from the authenticated account; they do not trust a browser-supplied
+`business_id`. API Gateway itself does not yet enforce a managed JWT authorizer.
+Before using real owner data at production scale, put a managed identity boundary
+(for example Cognito or another OIDC provider) in front of owner routes, map claims
+to allowed businesses server-side, and retain the same repository-level tenant
+checks. Do not put passwords, provider tokens or permanent API secrets in static
+HTML or model prompts.

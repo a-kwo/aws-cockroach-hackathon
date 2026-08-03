@@ -237,14 +237,19 @@ def artifacts(row: dict) -> list[dict]:
     out = []
     for a in row.get("artifacts") or []:
         bucket, key = a.get("s3_bucket"), a.get("s3_key")
+        artifact_id = str(a.get("id") or "")
         out.append({
-            "id": a["id"][:8],
-            "kind": a["kind"],
+            "id": artifact_id[:8],
+            "databaseId": artifact_id or None,
+            "kind": a.get("kind") or "draft",
             "title": " ".join((a.get("title") or "").split()),
             "preview": " ".join((a.get("preview") or "").split()),
+            "body": a.get("body") or None,
             "createdAt": a.get("created_at"),
             "stored": bool(bucket and key),
             "location": f"s3://{bucket}/{key}" if bucket and key else None,
+            "taskId": str(a.get("task_id") or "") or None,
+            "idempotencyKey": a.get("idempotency_key"),
         })
     return out
 

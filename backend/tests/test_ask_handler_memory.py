@@ -37,12 +37,13 @@ class Settings:
     cockroach_database = "defaultdb"
 
 
-class FakeInvoker:
+class FakeQueue:
     def __init__(self):
         self.calls = []
 
-    def invoke(self, **kwargs):
+    def send_message(self, **kwargs):
         self.calls.append(kwargs)
+        return {"MessageId": f"message-{len(self.calls)}"}
 
 
 class FailAssistantWriteRepository(InMemoryRepository):
@@ -316,13 +317,13 @@ def rejected_find(repo, business_id):
 def test_undo_pass_button_action_is_zero_token_durable_and_starts_maker():
     repo, business_id, token = owner_repo()
     find_id = rejected_find(repo, business_id)
-    invoker = FakeInvoker()
+    queue = FakeQueue()
 
     response = undo_pass_action(
         undo_event(token, find_id),
         repo=repo,
-        invoker=invoker,
-        maker_function="brasstacks-MakerFunction-abc",
+        queue_client=queue,
+        maker_queue_url="https://sqs.example/maker.fifo",
         model_id=Settings.anthropic_model_id,
         now=NOW,
     )
@@ -334,13 +335,14 @@ def test_undo_pass_button_action_is_zero_token_durable_and_starts_maker():
     assert body["status"] == "accepted"
     assert body["previous_status"] == "rejected"
     assert body["tokens"] == {"input": 0, "output": 0, "total": 0}
-    assert body["maker"] == "started"
+    assert body["maker"] == "queued"
     assert repo.get_find_context(business_id, find_id).status == "accepted"
     assert repo.count_chat_messages(business_id) == 2
-    assert len(invoker.calls) == 1
-    payload = json.loads(invoker.calls[0]["Payload"])
+    assert len(queue.calls) == 1
+    payload = json.loads(queue.calls[0]["MessageBody"])
     assert payload["business_id"] == business_id
     assert payload["find_id"] == find_id
+    assert payload["task_id"] == body["maker_task"]["task_id"]
     run = repo.recent_runs(business_id, limit=1)[0]
     assert '"previous_status":"rejected"' in run.note
     assert '"status":"accepted"' in run.note
@@ -359,8 +361,8 @@ def test_clear_changed_mind_message_undoes_pass_without_calling_the_model():
         asker=asker,
         embedder=embedder,
         settings=Settings(),
-        invoker=FakeInvoker(),
-        maker_function="brasstacks-MakerFunction-abc",
+        queue_client=FakeQueue(),
+        maker_queue_url="https://sqs.example/maker.fifo",
         now=NOW,
     )
 
@@ -386,8 +388,8 @@ def test_redo_pass_wording_is_treated_as_an_explicit_changed_mind_action():
         asker=asker,
         embedder=embedder,
         settings=Settings(),
-        invoker=FakeInvoker(),
-        maker_function="brasstacks-MakerFunction-abc",
+        queue_client=FakeQueue(),
+        maker_queue_url="https://sqs.example/maker.fifo",
         now=NOW,
     )
 

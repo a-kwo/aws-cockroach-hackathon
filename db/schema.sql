@@ -289,6 +289,108 @@ CREATE TABLE IF NOT EXISTS owner_session (
 );
 
 -- ---------------------------------------------------------------------------
+-- Durable multi-tenant task control plane
+-- ---------------------------------------------------------------------------
+
+-- One row per unit of agent work. CockroachDB is authoritative; SQS and Step
+-- Functions deliver and orchestrate this row but never replace it. The unique
+-- idempotency key makes repeated Do it clicks, queue redelivery and reconciler
+-- retries converge on the same task.
+CREATE TABLE IF NOT EXISTS work_task (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id              UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  find_id                  UUID REFERENCES find(id) ON DELETE CASCADE,
+  requested_by_account_id  UUID REFERENCES owner_account(id) ON DELETE SET NULL,
+  agent                    STRING NOT NULL,
+  task_type                STRING NOT NULL,
+  status                   STRING NOT NULL DEFAULT 'queued'
+                           CHECK (status IN (
+                             'queued', 'running', 'waiting_user', 'completed',
+                             'retry', 'failed', 'cancelled'
+                           )),
+  priority                 INT NOT NULL DEFAULT 100,
+  idempotency_key          STRING NOT NULL,
+  resource_key             STRING NOT NULL,
+  approval_state           STRING NOT NULL DEFAULT 'approved'
+                           CHECK (approval_state IN (
+                             'not_required', 'pending', 'approved', 'rejected'
+                           )),
+  approved_at              TIMESTAMPTZ,
+  attempt_count            INT NOT NULL DEFAULT 0,
+  dispatch_count           INT NOT NULL DEFAULT 0,
+  claimed_by               STRING,
+  claim_token              UUID,
+  lease_expires_at         TIMESTAMPTZ,
+  next_attempt_at          TIMESTAMPTZ,
+  workflow_execution_arn   STRING,
+  output_artifact_id       UUID,
+  input_data               JSONB NOT NULL DEFAULT '{}'::JSONB,
+  output_data              JSONB NOT NULL DEFAULT '{}'::JSONB,
+  last_error               STRING,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  started_at               TIMESTAMPTZ,
+  completed_at             TIMESTAMPTZ,
+
+  UNIQUE INDEX work_task_idempotency_idx (idempotency_key),
+  INDEX work_task_business_status_idx (business_id, status, created_at DESC),
+  INDEX work_task_dispatch_idx (status, next_attempt_at, priority, created_at),
+  INDEX work_task_find_idx (find_id, task_type)
+);
+
+-- Append-only operational history. The UI can explain exactly who requested a
+-- task, when a worker claimed it, which retry ran, and what external receipt was
+-- produced without reconstructing history from mutable status columns.
+CREATE TABLE IF NOT EXISTS task_event (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id      UUID NOT NULL REFERENCES work_task(id) ON DELETE CASCADE,
+  business_id  UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  event_type   STRING NOT NULL,
+  actor_type   STRING NOT NULL DEFAULT 'system',
+  actor_id     STRING,
+  data         JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+
+  INDEX task_event_task_idx (task_id, created_at),
+  INDEX task_event_business_idx (business_id, created_at DESC)
+);
+
+-- Every tool side effect receives its own idempotency key and receipt. Models
+-- never hold credentials; the deterministic tool adapter performs the action
+-- and records the provider's reference here.
+CREATE TABLE IF NOT EXISTS tool_execution (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id            UUID NOT NULL REFERENCES work_task(id) ON DELETE CASCADE,
+  business_id        UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  tool_name          STRING NOT NULL,
+  status             STRING NOT NULL DEFAULT 'running'
+                     CHECK (status IN (
+                       'running', 'succeeded', 'failed', 'skipped', 'cancelled'
+                     )),
+  idempotency_key    STRING NOT NULL,
+  input_data         JSONB NOT NULL DEFAULT '{}'::JSONB,
+  output_data        JSONB NOT NULL DEFAULT '{}'::JSONB,
+  external_reference STRING,
+  error              STRING,
+  started_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  finished_at        TIMESTAMPTZ,
+
+  UNIQUE INDEX tool_execution_idempotency_idx (idempotency_key),
+  INDEX tool_execution_task_idx (task_id, started_at DESC),
+  INDEX tool_execution_business_idx (business_id, started_at DESC)
+);
+
+-- Artifact identity is task-scoped. A Lambda retry may call insert twice after
+-- the first write succeeded but before the task row was completed; this unique
+-- key returns the first artifact instead of producing a duplicate draft.
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES work_task(id) ON DELETE SET NULL;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS idempotency_key STRING;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS body STRING;
+CREATE UNIQUE INDEX IF NOT EXISTS artifact_idempotency_idx
+  ON artifact (idempotency_key);
+CREATE INDEX IF NOT EXISTS artifact_task_idx ON artifact (task_id, created_at DESC);
+
+-- ---------------------------------------------------------------------------
 -- Additive migrations for clusters provisioned before a column existed.
 -- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, and
 -- deleting a tenant's rows does not drop the table. These run last, so every

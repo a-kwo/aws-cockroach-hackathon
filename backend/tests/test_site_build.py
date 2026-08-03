@@ -2065,32 +2065,78 @@ def test_passed_growth_drawer_exposes_a_durable_undo_pass_action():
     assert "Pass undone. This is now Do it." in html
 
 
-def test_maker_starts_on_approval_and_has_a_zero_token_reconciliation_sweep():
+def test_maker_uses_a_durable_fifo_and_standard_workflow_control_plane():
     template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
     decision = template.split("DecisionFunction:", 1)[1].split(
         "WorkflowFunction:", 1
     )[0]
     ask = template.split("AskFunction:", 1)[1].split("DecisionFunction:", 1)[0]
-    maker = template.split("MakerFunction:", 1)[1].split("AskFunction:", 1)[0]
-    night = (build_web.REPO / "backend" / "src" / "brasstacks" /
-             "handlers" / "night.py").read_text(encoding="utf-8")
+    maker = template.split("MakerFunction:", 1)[1].split("MakerEmailFunction:", 1)[0]
+    starter = template.split("TaskStarterFunction:", 1)[1].split("MakerFunction:", 1)[0]
+    reconciler = template.split("MakerReconcilerFunction:", 1)[1].split("AskFunction:", 1)[0]
 
+    assert "MakerTaskQueue:" in template
+    assert "FifoQueue: true" in template
+    assert "MakerTaskDeadLetterQueue:" in template
+    assert "MakerWorkflow:" in template
+    assert "Type: STANDARD" in template
+    assert 'Command: ["brasstacks.handlers.task_starter.handler"]' in starter
     assert 'Command: ["brasstacks.handlers.maker.handler"]' in maker
+    assert 'Command: ["brasstacks.handlers.task_reconciler.handler"]' in reconciler
+    assert "FunctionResponseTypes:" in starter
+    assert "ReportBatchItemFailures" in starter
+    assert "states:StartExecution" in starter
+    assert "BRASSTACKS_MAKER_QUEUE_URL: !Ref MakerTaskQueue" in decision
+    assert "BRASSTACKS_MAKER_QUEUE_URL: !Ref MakerTaskQueue" in ask
+    assert "sqs:SendMessage" in decision
+    assert "sqs:SendMessage" in ask
     assert "rate(5 minutes)" in template
-    assert "MakerSweepState" in maker
-    # Reserved concurrency is intentionally omitted because some AWS accounts
-    # cannot allocate it while preserving the required unreserved concurrency.
+    assert "MakerSweepState" in reconciler
     assert "ReservedConcurrentExecutions" not in maker
-    assert "BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction" in decision
-    assert "BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction" in ask
-    assert "lambda:InvokeFunction" in decision
-    assert "lambda:InvokeFunction" in ask
-    assert "store=None" in night
 
 
-def test_maker_queue_explanation_is_operator_visible():
+def test_maker_task_control_plane_is_explained_to_operators():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    assert "Do it and Undo Pass wake Maker immediately." in html
-    assert "A five-minute reconciliation sweep retries missed events" in html
-    assert "without using model tokens when the queue is empty" in html
+    assert "Live task ledger · exact work per owner" in html
+    assert "Do it and Undo Pass create one idempotent CockroachDB task." in html
+    assert "SQS FIFO buffers bursts" in html
+    assert "Step Functions Standard orchestrates the task" in html
+    assert "Maker must atomically claim it before any model call" in html
+
+
+def test_maker_email_deep_link_opens_the_exact_task_and_full_draft():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'const requestedTaskId = String(appQuery.get("task") || "").trim()' in html
+    assert "function maybeOpenRequestedTask()" in html
+    assert "function makerReviewPanel(post)" in html
+    assert 'data-maker-task-review="${escapeHtml(task.id || "")}"' in html
+    assert "data-maker-draft-body" in html
+    assert "Copy draft" in html
+    assert "Connected-account publishing remains approval-gated" in html
+    assert "maybeOpenRequestedTask();" in html
+
+
+def test_static_artifact_model_preserves_task_identity_and_full_body():
+    row = {
+        "artifacts": [{
+            "id": "50000000-0000-0000-0000-000000000005",
+            "kind": "review_reply",
+            "title": "Owner draft",
+            "preview": "preview",
+            "body": "complete body",
+            "task_id": "60000000-0000-0000-0000-000000000006",
+            "idempotency_key": "task:6:artifact:review_reply:v1",
+            "s3_bucket": "bucket",
+            "s3_key": "draft.md",
+            "created_at": "2026-08-02T20:00:00+00:00",
+        }]
+    }
+
+    [artifact] = build_web.artifacts(row)
+
+    assert artifact["databaseId"].endswith("000000000005")
+    assert artifact["taskId"].endswith("000000000006")
+    assert artifact["body"] == "complete body"
+    assert artifact["idempotencyKey"].startswith("task:")

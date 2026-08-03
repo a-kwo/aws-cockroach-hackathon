@@ -20,10 +20,9 @@ Parameters:
     Default: /brasstacks
     Description: >
       SSM Parameter Store path holding COCKROACH_DATABASE_URL,
-      ANTHROPIC_API_KEY, COCKROACH_MCP_TOKEN, BRASSTACKS_BUSINESS_ID, and
-      optionally BRASSTACKS_OPERATOR_BUSINESS_IDS. Secrets live here rather
-      than in Lambda environment variables, where they would be readable from
-      the console.
+      ANTHROPIC_API_KEY, COCKROACH_MCP_TOKEN, BRASSTACKS_BUSINESS_ID, optional
+      BRASSTACKS_OPERATOR_BUSINESS_IDS, and optional Maker email settings.
+      Secrets live here rather than in committed files or model prompts.
 
   ArtifactBucket:
     Type: String
@@ -143,8 +142,67 @@ Resources:
               MaximumRetryAttempts: 2
 
   # --------------------------------------------------------------------
-  # Event-driven Maker: start on Do it, reconcile accepted backlog
+  # Durable multi-tenant Maker control plane
   # --------------------------------------------------------------------
+  MakerTaskDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true
+      SqsManagedSseEnabled: true
+      MessageRetentionPeriod: 1209600
+
+  MakerTaskQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true
+      ContentBasedDeduplication: false
+      SqsManagedSseEnabled: true
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt MakerTaskDeadLetterQueue.Arn
+        maxReceiveCount: 5
+
+  # SQS absorbs bursts from many owners. Each recommendation uses its own FIFO
+  # message group, so retries stay ordered while unrelated tasks run in parallel.
+  TaskStarterFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: task-starter
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.task_starter.handler"]
+      Timeout: 30
+      Environment:
+        Variables:
+          BRASSTACKS_MAKER_STATE_MACHINE_ARN: !Ref MakerWorkflow
+      Policies:
+        - Statement:
+            - Sid: StartMakerWorkflow
+              Effect: Allow
+              Action: states:StartExecution
+              Resource: !Ref MakerWorkflow
+            - Sid: ConsumeMakerQueue
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt MakerTaskQueue.Arn
+      Events:
+        MakerTasks:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MakerTaskQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+
+  # One worker processes one task id. CockroachDB's atomic claim happens before
+  # the reasoner is constructed, so duplicate deliveries spend zero model tokens.
   MakerFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -162,6 +220,98 @@ Resources:
               Effect: Allow
               Action: s3:PutObject
               Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+
+  # The first constrained execution tool. It can only send the completed draft
+  # to the configured owner/test inbox; the model never chooses an address.
+  MakerEmailFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: maker-email
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.maker_email.handler"]
+      Timeout: 30
+      Environment:
+        Variables:
+          BRASSTACKS_SITE_URL: !Sub https://${SiteDistribution.DomainName}
+      Policies:
+        - Statement:
+            - Sid: SendOwnerReviewEmail
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+
+  MakerWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: maker_workflow.asl.json
+      DefinitionSubstitutions:
+        MakerFunctionArn: !GetAtt MakerFunction.Arn
+        MakerEmailFunctionArn: !GetAtt MakerEmailFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref MakerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref MakerEmailFunction
+
+  # SQL-only safety net: create tasks for legacy approved finds, recover expired
+  # leases, and requeue retryable work. An empty pass consumes zero LLM tokens.
+  MakerReconcilerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: maker-reconciler
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.task_reconciler.handler"]
+      Timeout: 120
+      Environment:
+        Variables:
+          BRASSTACKS_MAKER_QUEUE_URL: !Ref MakerTaskQueue
+      Policies:
+        - Statement:
+            - Sid: DispatchMakerTasks
+              Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt MakerTaskQueue.Arn
             - Sid: ReadSecrets
               Effect: Allow
               Action:
@@ -201,7 +351,7 @@ Resources:
         Command: ["brasstacks.handlers.ask.handler"]
       Environment:
         Variables:
-          BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction
+          BRASSTACKS_MAKER_QUEUE_URL: !Ref MakerTaskQueue
       # The MCP tool calls execute server-side between Anthropic and
       # CockroachDB Cloud, so a turn can run several queries before answering.
       Timeout: 120
@@ -231,10 +381,10 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
-            - Sid: StartMaker
+            - Sid: QueueMakerTask
               Effect: Allow
-              Action: lambda:InvokeFunction
-              Resource: !GetAtt MakerFunction.Arn
+              Action: sqs:SendMessage
+              Resource: !GetAtt MakerTaskQueue.Arn
       Events:
         Ask:
           Type: HttpApi
@@ -264,7 +414,7 @@ Resources:
         Command: ["brasstacks.handlers.decision.handler"]
       Environment:
         Variables:
-          BRASSTACKS_MAKER_FUNCTION: !Ref MakerFunction
+          BRASSTACKS_MAKER_QUEUE_URL: !Ref MakerTaskQueue
       Timeout: 30
       Policies:
         - Statement:
@@ -283,10 +433,10 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
-            - Sid: StartMaker
+            - Sid: QueueMakerTask
               Effect: Allow
-              Action: lambda:InvokeFunction
-              Resource: !GetAtt MakerFunction.Arn
+              Action: sqs:SendMessage
+              Resource: !GetAtt MakerTaskQueue.Arn
       Events:
         Decide:
           Type: HttpApi
@@ -777,5 +927,17 @@ Outputs:
     Value: !Ref NightFunction
 
   MakerFunctionName:
-    Description: Event-driven draft worker invoked by Do it and Undo Pass.
+    Description: Atomic draft worker invoked by the durable Maker workflow.
     Value: !Ref MakerFunction
+
+  MakerWorkflowArn:
+    Description: Step Functions Standard workflow for one approved Maker task.
+    Value: !Ref MakerWorkflow
+
+  MakerTaskQueueUrl:
+    Description: FIFO queue buffering approved work across owner accounts.
+    Value: !Ref MakerTaskQueue
+
+  MakerTaskDeadLetterQueueUrl:
+    Description: Tasks that exhausted queue delivery attempts.
+    Value: !Ref MakerTaskDeadLetterQueue

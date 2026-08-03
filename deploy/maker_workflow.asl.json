@@ -1,0 +1,86 @@
+{
+  "Comment": "Durable, idempotent Maker workflow for one approved recommendation",
+  "StartAt": "GenerateDraft",
+  "States": {
+    "GenerateDraft": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${MakerFunctionArn}",
+        "Payload": {
+          "task_id.$": "$.task_id",
+          "dispatch_count.$": "$.dispatch_count",
+          "source.$": "$.source",
+          "workflow_execution_arn.$": "$$.Execution.Id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.maker",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Next": "DraftReady"
+    },
+    "DraftReady": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.maker.result.status",
+          "StringEquals": "completed",
+          "Next": "NotifyOwner"
+        }
+      ],
+      "Default": "WorkflowComplete"
+    },
+    "NotifyOwner": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${MakerEmailFunctionArn}",
+        "Payload": {
+          "task_id.$": "$.task_id"
+        }
+      },
+      "ResultSelector": {
+        "result.$": "$.Payload"
+      },
+      "ResultPath": "$.notification",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.notification_error",
+          "Next": "WorkflowComplete"
+        }
+      ],
+      "Next": "WorkflowComplete"
+    },
+    "WorkflowComplete": {
+      "Type": "Succeed"
+    }
+  }
+}

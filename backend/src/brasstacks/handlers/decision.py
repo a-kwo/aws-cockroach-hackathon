@@ -15,7 +15,7 @@ from typing import Any
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
-from brasstacks.maker_dispatch import MAKER_FUNCTION_VAR, dispatch_maker
+from brasstacks.maker_dispatch import MAKER_QUEUE_URL_VAR, dispatch_maker
 from brasstacks.repository import RepositoryError
 from brasstacks.secrets import hydrate_environment
 
@@ -60,8 +60,8 @@ def record_decision(
     event: Any,
     *,
     repo: Any,
-    invoker: Any | None = None,
-    maker_function: str | None = None,
+    queue_client: Any | None = None,
+    maker_queue_url: str | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Authorize and persist one owner decision.
@@ -101,13 +101,20 @@ def record_decision(
         return respond(409, {"error": str(exc)})
 
     maker = "not_requested"
+    maker_task = None
     if decision == "approved":
-        maker = dispatch_maker(
-            invoker=invoker,
-            function_name=maker_function,
+        dispatch = dispatch_maker(
+            repo=repo,
+            queue_client=queue_client,
+            queue_url=maker_queue_url,
             business_id=business_id,
             find_id=find_id,
+            requested_by_account_id=account.get("account_id"),
+            approved_at=transition.decided_at,
+            source="owner_decision",
         )
+        maker = dispatch.status
+        maker_task = dispatch.as_dict()
 
     return respond(200, {
         "find_id": find_id,
@@ -121,6 +128,7 @@ def record_decision(
             if transition.previous_decided_at else None
         ),
         "maker": maker,
+        "maker_task": maker_task,
     })
 
 
@@ -142,8 +150,8 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             return record_decision(
                 event,
                 repo=PostgresRepository(conn),
-                invoker=boto3.client("lambda"),
-                maker_function=os.environ.get(MAKER_FUNCTION_VAR),
+                queue_client=boto3.client("sqs", region_name=settings.aws_region),
+                maker_queue_url=os.environ.get(MAKER_QUEUE_URL_VAR),
             )
     except psycopg.Error:
         return respond(503, {"error": "decision could not be saved"})
@@ -151,5 +159,5 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
 
 __all__ = [
     "handler", "record_decision", "parse_request", "respond", "UI_TO_DB",
-    "MAKER_FUNCTION_VAR",
+    "MAKER_QUEUE_URL_VAR",
 ]

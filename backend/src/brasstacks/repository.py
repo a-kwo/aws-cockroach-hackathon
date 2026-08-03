@@ -16,9 +16,24 @@ import hashlib
 import math
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Mapping, Protocol, runtime_checkable
+
+from brasstacks.tasks import (
+    MAKER_AGENT,
+    MAKER_DRAFT_TASK,
+    TASK_COMPLETED,
+    TASK_FAILED,
+    TASK_QUEUED,
+    TASK_RETRY,
+    TASK_RUNNING,
+    TaskEvent,
+    TaskRecord,
+    ToolExecutionRecord,
+    maker_resource_key,
+    maker_task_idempotency_key,
+)
 
 #: Statuses whose outcome the Meter is allowed to judge. A find the owner never
 #: acted on has no outcome to measure.
@@ -140,12 +155,11 @@ class FindContext:
 
 @dataclass(frozen=True)
 class StoredArtifact:
-    """A done-for-you deliverable produced against one find.
+    """A done-for-you deliverable produced against one find and task.
 
-    ``s3_bucket``/``s3_key`` are nullable on purpose: a draft that exists and is
-    readable in ``preview`` but failed to upload is a legitimate state, and
-    losing the row because S3 was briefly unavailable would be worse than
-    recording it without a location.
+    ``body`` keeps the complete draft durable in CockroachDB when S3 is
+    temporarily unavailable. ``idempotency_key`` makes a worker retry return
+    the first artifact instead of creating a duplicate.
     """
 
     artifact_id: str
@@ -156,6 +170,9 @@ class StoredArtifact:
     preview: str | None = None
     s3_bucket: str | None = None
     s3_key: str | None = None
+    task_id: str | None = None
+    idempotency_key: str | None = None
+    body: str | None = None
 
 
 @dataclass(frozen=True)
@@ -283,9 +300,83 @@ class Repository(Protocol):
 
     def insert_artifact(self, *, find_id: str, kind: str, title: str,
                         preview: str | None = ..., s3_bucket: str | None = ...,
-                        s3_key: str | None = ..., run_id: str | None = ...) -> str: ...
+                        s3_key: str | None = ..., run_id: str | None = ...,
+                        task_id: str | None = ...,
+                        idempotency_key: str | None = ...,
+                        body: str | None = ...) -> str: ...
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]: ...
+
+    def get_artifact_by_idempotency_key(
+        self, idempotency_key: str,
+    ) -> StoredArtifact | None: ...
+
+    def create_or_get_maker_task(
+        self, business_id: str, *, find_id: str,
+        requested_by_account_id: str | None = ...,
+        approved_at: datetime | None = ..., priority: int = ...,
+        input_data: Mapping[str, Any] | None = ...,
+    ) -> TaskRecord: ...
+
+    def get_task(
+        self, task_id: str, *, business_id: str | None = ...,
+    ) -> TaskRecord | None: ...
+
+    def prepare_task_dispatch(self, task_id: str) -> TaskRecord | None: ...
+
+    def record_task_workflow(
+        self, task_id: str, *, execution_arn: str,
+    ) -> TaskRecord | None: ...
+
+    def claim_task(
+        self, task_id: str, *, worker_id: str, lease_seconds: int = ...,
+    ) -> TaskRecord | None: ...
+
+    def complete_task(
+        self, task_id: str, *, claim_token: str,
+        output_artifact_id: str | None = ...,
+        output_data: Mapping[str, Any] | None = ...,
+    ) -> TaskRecord: ...
+
+    def fail_task(
+        self, task_id: str, *, claim_token: str, error: str,
+        retryable: bool = ..., retry_after_seconds: int = ...,
+    ) -> TaskRecord: ...
+
+    def list_tasks(
+        self, business_id: str, *, statuses: Sequence[str] | None = ...,
+        limit: int = ...,
+    ) -> list[TaskRecord]: ...
+
+    def list_dispatchable_tasks(
+        self, *, limit: int = ..., per_business_limit: int = ...
+    ) -> list[TaskRecord]: ...
+
+    def recover_stale_tasks(
+        self, *, now: datetime, max_attempts: int = ...,
+    ) -> int: ...
+
+    def record_task_event(
+        self, task_id: str, *, event_type: str, actor_type: str = ...,
+        actor_id: str | None = ..., data: Mapping[str, Any] | None = ...,
+    ) -> str: ...
+
+    def task_events(self, task_id: str, *, limit: int = ...) -> list[TaskEvent]: ...
+
+    def start_tool_execution(
+        self, *, task_id: str, business_id: str, tool_name: str,
+        idempotency_key: str, input_data: Mapping[str, Any] | None = ...,
+    ) -> ToolExecutionRecord: ...
+
+    def finish_tool_execution(
+        self, execution_id: str, *, status: str,
+        output_data: Mapping[str, Any] | None = ...,
+        external_reference: str | None = ..., error: str | None = ...,
+    ) -> ToolExecutionRecord: ...
+
+    def tool_executions(
+        self, task_id: str, *, limit: int = ...,
+    ) -> list[ToolExecutionRecord]: ...
 
     def insert_ledger_entry(
         self, business_id: str, *, find_id: str, verdict: str,
@@ -386,6 +477,9 @@ class _Artifact:
     s3_bucket: str | None = None
     s3_key: str | None = None
     run_id: str | None = None
+    task_id: str | None = None
+    idempotency_key: str | None = None
+    body: str | None = None
 
 
 @dataclass
@@ -420,6 +514,11 @@ class InMemoryRepository:
         self._observations: list[_Observation] = []
         self._finds: dict[str, _Find] = {}
         self._artifacts: list[_Artifact] = []
+        self._tasks: dict[str, dict[str, Any]] = {}
+        self._task_by_idempotency: dict[str, str] = {}
+        self._task_events: list[TaskEvent] = []
+        self._tool_executions: dict[str, ToolExecutionRecord] = {}
+        self._tool_by_idempotency: dict[str, str] = {}
         self._ledger: list[_LedgerEntry] = []
         self._accounts: dict[str, dict[str, Any]] = {}
         self._sessions: dict[str, dict[str, Any]] = {}
@@ -898,33 +997,421 @@ class InMemoryRepository:
                         preview: str | None = None,
                         s3_bucket: str | None = None,
                         s3_key: str | None = None,
-                        run_id: str | None = None) -> str:
-        # Mirrors the REFERENCES find(id) constraint. The fake enforcing it too
-        # is what stops agent tests passing against a permissive fiction.
+                        run_id: str | None = None,
+                        task_id: str | None = None,
+                        idempotency_key: str | None = None,
+                        body: str | None = None) -> str:
         if find_id not in self._finds:
             raise RepositoryError(
                 f"no find {find_id} — an artifact is the deliverable for a "
                 "specific promise, so it cannot outlive the find that made it"
             )
+        if task_id is not None and task_id not in self._tasks:
+            raise RepositoryError(f"unknown task {task_id}")
+        if idempotency_key:
+            existing = self.get_artifact_by_idempotency_key(idempotency_key)
+            if existing is not None:
+                return existing.artifact_id
 
         artifact_id = str(uuid.uuid4())
         self._artifacts.append(_Artifact(
             artifact_id=artifact_id, find_id=find_id, kind=kind, title=title,
             created_at=self._now(), preview=preview, s3_bucket=s3_bucket,
-            s3_key=s3_key, run_id=run_id,
+            s3_key=s3_key, run_id=run_id, task_id=task_id,
+            idempotency_key=idempotency_key, body=body,
         ))
         return artifact_id
+
+    def _stored_artifact(self, artifact: _Artifact) -> StoredArtifact:
+        return StoredArtifact(
+            artifact_id=artifact.artifact_id, find_id=artifact.find_id,
+            kind=artifact.kind, title=artifact.title,
+            created_at=artifact.created_at, preview=artifact.preview,
+            s3_bucket=artifact.s3_bucket, s3_key=artifact.s3_key,
+            task_id=artifact.task_id, idempotency_key=artifact.idempotency_key,
+            body=artifact.body,
+        )
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
         mine = [a for a in self._artifacts if a.find_id == find_id]
         mine.sort(key=lambda a: a.created_at, reverse=True)
-        return [
-            StoredArtifact(
-                artifact_id=a.artifact_id, find_id=a.find_id, kind=a.kind,
-                title=a.title, created_at=a.created_at, preview=a.preview,
-                s3_bucket=a.s3_bucket, s3_key=a.s3_key)
-            for a in mine
+        return [self._stored_artifact(a) for a in mine]
+
+    def get_artifact_by_idempotency_key(
+        self, idempotency_key: str,
+    ) -> StoredArtifact | None:
+        found = next(
+            (artifact for artifact in self._artifacts
+             if artifact.idempotency_key == idempotency_key),
+            None,
+        )
+        return self._stored_artifact(found) if found is not None else None
+
+    # -- durable tasks ---------------------------------------------------
+    def _task_record(self, row: dict[str, Any]) -> TaskRecord:
+        return TaskRecord(
+            task_id=row["task_id"], business_id=row["business_id"],
+            find_id=row.get("find_id"),
+            requested_by_account_id=row.get("requested_by_account_id"),
+            agent=row["agent"], task_type=row["task_type"],
+            status=row["status"], priority=row["priority"],
+            idempotency_key=row["idempotency_key"],
+            resource_key=row["resource_key"],
+            approval_state=row["approval_state"],
+            attempt_count=row["attempt_count"],
+            dispatch_count=row["dispatch_count"],
+            created_at=row["created_at"], updated_at=row["updated_at"],
+            approved_at=row.get("approved_at"), started_at=row.get("started_at"),
+            completed_at=row.get("completed_at"),
+            next_attempt_at=row.get("next_attempt_at"),
+            lease_expires_at=row.get("lease_expires_at"),
+            claimed_by=row.get("claimed_by"), claim_token=row.get("claim_token"),
+            workflow_execution_arn=row.get("workflow_execution_arn"),
+            output_artifact_id=row.get("output_artifact_id"),
+            last_error=row.get("last_error"),
+            input_data=dict(row.get("input_data") or {}),
+            output_data=dict(row.get("output_data") or {}),
+        )
+
+    def create_or_get_maker_task(
+        self, business_id: str, *, find_id: str,
+        requested_by_account_id: str | None = None,
+        approved_at: datetime | None = None, priority: int = 100,
+        input_data: Mapping[str, Any] | None = None,
+    ) -> TaskRecord:
+        found = self._finds.get(find_id)
+        if found is None or found.business_id != business_id:
+            raise RepositoryError("recommendation is no longer available")
+        if found.status != "accepted":
+            raise RepositoryError("Maker work requires an approved recommendation")
+
+        key = maker_task_idempotency_key(find_id)
+        existing_id = self._task_by_idempotency.get(key)
+        if existing_id:
+            return self._task_record(self._tasks[existing_id])
+
+        now = self._now()
+        task_id = str(uuid.uuid4())
+        row = {
+            "task_id": task_id,
+            "business_id": business_id,
+            "find_id": find_id,
+            "requested_by_account_id": requested_by_account_id,
+            "agent": MAKER_AGENT,
+            "task_type": MAKER_DRAFT_TASK,
+            "status": TASK_QUEUED,
+            "priority": int(priority),
+            "idempotency_key": key,
+            "resource_key": maker_resource_key(business_id, find_id),
+            "approval_state": "approved",
+            "approved_at": approved_at or found.decided_at or now,
+            "attempt_count": 0,
+            "dispatch_count": 0,
+            "claimed_by": None,
+            "claim_token": None,
+            "lease_expires_at": None,
+            "next_attempt_at": None,
+            "workflow_execution_arn": None,
+            "output_artifact_id": None,
+            "input_data": dict(input_data or {
+                "title": found.title,
+                "move": found.move,
+                "predicted_daily_cents": found.predicted_daily_cents,
+            }),
+            "output_data": {},
+            "last_error": None,
+            "created_at": now,
+            "updated_at": now,
+            "started_at": None,
+            "completed_at": None,
+        }
+        self._tasks[task_id] = row
+        self._task_by_idempotency[key] = task_id
+        self.record_task_event(
+            task_id, event_type="task.created", actor_type="owner",
+            actor_id=requested_by_account_id,
+            data={"find_id": find_id, "task_type": MAKER_DRAFT_TASK},
+        )
+        return replace(self._task_record(row), created=True)
+
+    def get_task(
+        self, task_id: str, *, business_id: str | None = None,
+    ) -> TaskRecord | None:
+        row = self._tasks.get(task_id)
+        if row is None or (business_id is not None and row["business_id"] != business_id):
+            return None
+        return self._task_record(row)
+
+    def prepare_task_dispatch(self, task_id: str) -> TaskRecord | None:
+        row = self._tasks.get(task_id)
+        if row is None or row["status"] not in {TASK_QUEUED, TASK_RETRY}:
+            return None
+        now = self._now()
+        if row.get("next_attempt_at") and row["next_attempt_at"] > now:
+            return None
+        row["dispatch_count"] += 1
+        row["updated_at"] = now
+        self.record_task_event(
+            task_id, event_type="task.dispatched", actor_type="system",
+            data={"dispatch_count": row["dispatch_count"]},
+        )
+        return self._task_record(row)
+
+    def record_task_workflow(
+        self, task_id: str, *, execution_arn: str,
+    ) -> TaskRecord | None:
+        row = self._tasks.get(task_id)
+        if row is None:
+            return None
+        row["workflow_execution_arn"] = execution_arn
+        row["updated_at"] = self._now()
+        self.record_task_event(
+            task_id, event_type="workflow.started", actor_type="orchestrator",
+            data={"execution_arn": execution_arn},
+        )
+        return self._task_record(row)
+
+    def claim_task(
+        self, task_id: str, *, worker_id: str, lease_seconds: int = 900,
+    ) -> TaskRecord | None:
+        row = self._tasks.get(task_id)
+        if row is None:
+            return None
+        now = self._now()
+        reclaimable = (
+            row["status"] in {TASK_QUEUED, TASK_RETRY}
+            or (
+                row["status"] == TASK_RUNNING
+                and row.get("lease_expires_at") is not None
+                and row["lease_expires_at"] <= now
+            )
+        )
+        if not reclaimable:
+            return None
+        claim_token = str(uuid.uuid4())
+        row.update({
+            "status": TASK_RUNNING,
+            "claimed_by": worker_id,
+            "claim_token": claim_token,
+            "lease_expires_at": now + timedelta(seconds=max(30, int(lease_seconds))),
+            "started_at": row.get("started_at") or now,
+            "attempt_count": row["attempt_count"] + 1,
+            "updated_at": now,
+            "next_attempt_at": None,
+            "last_error": None,
+        })
+        self.record_task_event(
+            task_id, event_type="task.claimed", actor_type="worker",
+            actor_id=worker_id,
+            data={"attempt_count": row["attempt_count"], "claim_token": claim_token},
+        )
+        return self._task_record(row)
+
+    def complete_task(
+        self, task_id: str, *, claim_token: str,
+        output_artifact_id: str | None = None,
+        output_data: Mapping[str, Any] | None = None,
+    ) -> TaskRecord:
+        row = self._tasks.get(task_id)
+        if row is None:
+            raise RepositoryError(f"unknown task {task_id}")
+        if row["status"] == TASK_COMPLETED:
+            return self._task_record(row)
+        if row.get("claim_token") != claim_token or row["status"] != TASK_RUNNING:
+            raise RepositoryError("task claim is no longer valid")
+        now = self._now()
+        row.update({
+            "status": TASK_COMPLETED,
+            "output_artifact_id": output_artifact_id,
+            "output_data": dict(output_data or {}),
+            "completed_at": now,
+            "updated_at": now,
+            "claimed_by": None,
+            "claim_token": None,
+            "lease_expires_at": None,
+            "last_error": None,
+        })
+        self.record_task_event(
+            task_id, event_type="task.completed", actor_type="worker",
+            data={"output_artifact_id": output_artifact_id},
+        )
+        return self._task_record(row)
+
+    def fail_task(
+        self, task_id: str, *, claim_token: str, error: str,
+        retryable: bool = True, retry_after_seconds: int = 60,
+    ) -> TaskRecord:
+        row = self._tasks.get(task_id)
+        if row is None:
+            raise RepositoryError(f"unknown task {task_id}")
+        if row.get("claim_token") != claim_token or row["status"] != TASK_RUNNING:
+            raise RepositoryError("task claim is no longer valid")
+        now = self._now()
+        row.update({
+            "status": TASK_RETRY if retryable else TASK_FAILED,
+            "last_error": str(error),
+            "next_attempt_at": (
+                now + timedelta(seconds=max(1, int(retry_after_seconds)))
+                if retryable else None
+            ),
+            "updated_at": now,
+            "claimed_by": None,
+            "claim_token": None,
+            "lease_expires_at": None,
+        })
+        self.record_task_event(
+            task_id,
+            event_type="task.retry_scheduled" if retryable else "task.failed",
+            actor_type="worker",
+            data={"error": str(error), "retryable": retryable},
+        )
+        return self._task_record(row)
+
+    def list_tasks(
+        self, business_id: str, *, statuses: Sequence[str] | None = None,
+        limit: int = 100,
+    ) -> list[TaskRecord]:
+        allowed = set(statuses or ())
+        rows = [
+            row for row in self._tasks.values()
+            if row["business_id"] == business_id
+            and (not allowed or row["status"] in allowed)
         ]
+        rows.sort(key=lambda row: (row["priority"], -row["created_at"].timestamp()))
+        return [self._task_record(row) for row in rows[: max(0, int(limit))]]
+
+    def list_dispatchable_tasks(
+        self, *, limit: int = 100, per_business_limit: int = 3,
+    ) -> list[TaskRecord]:
+        now = self._now()
+        rows = [
+            row for row in self._tasks.values()
+            if row["status"] in {TASK_QUEUED, TASK_RETRY}
+            and (row.get("next_attempt_at") is None or row["next_attempt_at"] <= now)
+        ]
+        rows.sort(key=lambda row: (row["priority"], row["created_at"]))
+        selected: list[dict[str, Any]] = []
+        per_business: dict[str, int] = {}
+        ceiling = max(1, int(per_business_limit))
+        for row in rows:
+            business_id = row["business_id"]
+            if per_business.get(business_id, 0) >= ceiling:
+                continue
+            per_business[business_id] = per_business.get(business_id, 0) + 1
+            selected.append(row)
+            if len(selected) >= max(0, int(limit)):
+                break
+        return [self._task_record(row) for row in selected]
+
+    def recover_stale_tasks(
+        self, *, now: datetime, max_attempts: int = 3,
+    ) -> int:
+        # Tests may advance a lease by minutes while the deterministic in-memory
+        # clock advances one second per write. Bring that clock forward so the
+        # immediately following dispatch query observes the recovered row as due.
+        elapsed = int((now - self._EPOCH).total_seconds())
+        if elapsed > self._clock:
+            self._clock = elapsed
+        changed = 0
+        for task_id, row in self._tasks.items():
+            if (
+                row["status"] == TASK_RUNNING
+                and row.get("lease_expires_at") is not None
+                and row["lease_expires_at"] <= now
+            ):
+                row["status"] = TASK_RETRY if row["attempt_count"] < max_attempts else TASK_FAILED
+                row["last_error"] = "worker lease expired"
+                row["next_attempt_at"] = now if row["status"] == TASK_RETRY else None
+                row["claimed_by"] = None
+                row["claim_token"] = None
+                row["lease_expires_at"] = None
+                row["updated_at"] = now
+                self.record_task_event(
+                    task_id,
+                    event_type="task.lease_expired",
+                    actor_type="reconciler",
+                    data={"status": row["status"], "attempt_count": row["attempt_count"]},
+                )
+                changed += 1
+        return changed
+
+    def record_task_event(
+        self, task_id: str, *, event_type: str, actor_type: str = "system",
+        actor_id: str | None = None,
+        data: Mapping[str, Any] | None = None,
+    ) -> str:
+        row = self._tasks.get(task_id)
+        if row is None:
+            raise RepositoryError(f"unknown task {task_id}")
+        event = TaskEvent(
+            event_id=str(uuid.uuid4()), task_id=task_id,
+            business_id=row["business_id"], event_type=event_type,
+            actor_type=actor_type, actor_id=actor_id,
+            data=dict(data or {}), created_at=self._now(),
+        )
+        self._task_events.append(event)
+        return event.event_id
+
+    def task_events(self, task_id: str, *, limit: int = 100) -> list[TaskEvent]:
+        events = [event for event in self._task_events if event.task_id == task_id]
+        events.sort(key=lambda event: event.created_at, reverse=True)
+        return events[: max(0, int(limit))]
+
+    def start_tool_execution(
+        self, *, task_id: str, business_id: str, tool_name: str,
+        idempotency_key: str, input_data: Mapping[str, Any] | None = None,
+    ) -> ToolExecutionRecord:
+        if task_id not in self._tasks or self._tasks[task_id]["business_id"] != business_id:
+            raise RepositoryError("task is no longer available")
+        existing_id = self._tool_by_idempotency.get(idempotency_key)
+        if existing_id:
+            existing = self._tool_executions[existing_id]
+            return ToolExecutionRecord(**{**existing.__dict__, "created": False})
+        record = ToolExecutionRecord(
+            execution_id=str(uuid.uuid4()), task_id=task_id,
+            business_id=business_id, tool_name=tool_name, status="running",
+            idempotency_key=idempotency_key, started_at=self._now(),
+            input_data=dict(input_data or {}), created=True,
+        )
+        self._tool_executions[record.execution_id] = record
+        self._tool_by_idempotency[idempotency_key] = record.execution_id
+        self.record_task_event(
+            task_id, event_type="tool.started", actor_type="tool",
+            actor_id=tool_name, data={"tool_execution_id": record.execution_id},
+        )
+        return record
+
+    def finish_tool_execution(
+        self, execution_id: str, *, status: str,
+        output_data: Mapping[str, Any] | None = None,
+        external_reference: str | None = None, error: str | None = None,
+    ) -> ToolExecutionRecord:
+        existing = self._tool_executions.get(execution_id)
+        if existing is None:
+            raise RepositoryError(f"unknown tool execution {execution_id}")
+        finished = ToolExecutionRecord(
+            execution_id=existing.execution_id, task_id=existing.task_id,
+            business_id=existing.business_id, tool_name=existing.tool_name,
+            status=status, idempotency_key=existing.idempotency_key,
+            started_at=existing.started_at, finished_at=self._now(),
+            external_reference=external_reference, error=error,
+            input_data=dict(existing.input_data), output_data=dict(output_data or {}),
+        )
+        self._tool_executions[execution_id] = finished
+        self.record_task_event(
+            existing.task_id, event_type=f"tool.{status}", actor_type="tool",
+            actor_id=existing.tool_name,
+            data={"tool_execution_id": execution_id,
+                  "external_reference": external_reference, "error": error},
+        )
+        return finished
+
+    def tool_executions(
+        self, task_id: str, *, limit: int = 100,
+    ) -> list[ToolExecutionRecord]:
+        rows = [row for row in self._tool_executions.values() if row.task_id == task_id]
+        rows.sort(key=lambda row: row.started_at, reverse=True)
+        return rows[: max(0, int(limit))]
 
     # -- ledger ----------------------------------------------------------
     def insert_ledger_entry(

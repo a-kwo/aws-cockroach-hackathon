@@ -1,5 +1,11 @@
 # Backend design — what remains
 
+> **Historical planning document.** The Ask agent, AWS deployment, Maker/S3,
+> authentication, durable multi-tenant task plane, Step Functions workflow, SQS
+> FIFO delivery, and first SES tool now exist. For the current architecture and
+> remaining roadmap, use
+> [`MULTI_TENANT_AGENT_PLATFORM.md`](MULTI_TENANT_AGENT_PLATFORM.md).
+
 Written 2026-07-28. Companion to `CLAUDE.md` (constraints) and `SESSION_SUMMARY.md`
 (state). This document covers only the backend work that is still open, and it
 exists because two of the open items are **hackathon rules compliance, not polish**.

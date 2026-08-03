@@ -19,7 +19,7 @@ from brasstacks.ask_trace import encode_ask_trace
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
-from brasstacks.maker_dispatch import MAKER_FUNCTION_VAR, dispatch_maker
+from brasstacks.maker_dispatch import MAKER_QUEUE_URL_VAR, dispatch_maker
 from brasstacks.providers import build_asker, build_embedder
 from brasstacks.repository import RepositoryError
 from brasstacks.secrets import hydrate_environment
@@ -308,14 +308,22 @@ def _undo_answer(*, changed: bool, maker: str) -> str:
         lead = "This recommendation is already approved."
     else:
         lead = "Pass undone. This recommendation is now Do it."
-    if maker == "started":
-        return f"{lead} Maker is starting the draft now."
-    if maker == "start_failed":
+    if maker == "completed":
+        return f"{lead} The Maker draft is already ready to review."
+    if maker == "already_running":
+        return f"{lead} Maker is already preparing the draft."
+    if maker == "queued":
+        return f"{lead} Maker is queued and will start shortly."
+    if maker == "dispatch_failed":
         return (
-            f"{lead} Maker is still queued in CockroachDB and the automatic "
-            "reconciliation worker will retry it."
+            f"{lead} The task is safely queued in CockroachDB; the automatic "
+            "reconciliation worker will deliver it again."
         )
-    return f"{lead} Maker is queued and will start when the worker is available."
+    if maker == "not_configured":
+        return f"{lead} The task was saved, but Maker dispatch is not configured yet."
+    if maker == "failed":
+        return f"{lead} The Maker task needs attention before it can be retried."
+    return f"{lead} Maker will continue from the durable task queue."
 
 
 def perform_undo_pass(
@@ -325,8 +333,9 @@ def perform_undo_pass(
     find_id: str,
     request_text: str,
     timestamp: datetime,
-    invoker: Any | None = None,
-    maker_function: str | None = None,
+    queue_client: Any | None = None,
+    maker_queue_url: str | None = None,
+    requested_by_account_id: str | None = None,
     model_id: str | None = None,
 ) -> dict[str, Any]:
     """Change a tenant-scoped Pass to Do it and preserve the chat receipt.
@@ -351,12 +360,18 @@ def perform_undo_pass(
     except RepositoryError as exc:
         return respond(409, {"error": str(exc)})
 
-    maker = dispatch_maker(
-        invoker=invoker,
-        function_name=maker_function,
+    dispatch = dispatch_maker(
+        repo=repo,
+        queue_client=queue_client,
+        queue_url=maker_queue_url,
         business_id=business_id,
         find_id=find_id,
+        requested_by_account_id=requested_by_account_id,
+        approved_at=transition.decided_at,
+        source="chat_undo_pass",
     )
+    maker = dispatch.status
+    maker_task = dispatch.as_dict()
     answer = _undo_answer(changed=transition.changed, maker=maker)
 
     run_id = None
@@ -395,6 +410,7 @@ def perform_undo_pass(
             "decided_at": transition.decided_at.isoformat(),
             "changed": transition.changed,
             "maker": maker,
+            "maker_task": maker_task,
             "model_tokens": 0,
         }, separators=(",", ":"), sort_keys=True)
         note = encode_ask_trace(
@@ -450,6 +466,7 @@ def perform_undo_pass(
             if transition.previous_decided_at else None
         ),
         "maker": maker,
+        "maker_task": maker_task,
         "queried_the_cluster": False,
         "trail": [],
         "run_id": run_id,
@@ -479,8 +496,8 @@ def undo_pass_action(
     event: Any,
     *,
     repo: Any,
-    invoker: Any | None = None,
-    maker_function: str | None = None,
+    queue_client: Any | None = None,
+    maker_queue_url: str | None = None,
     model_id: str | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
@@ -502,8 +519,9 @@ def undo_pass_action(
         find_id=find_id,
         request_text=question or "I changed my mind. Do it.",
         timestamp=timestamp,
-        invoker=invoker,
-        maker_function=maker_function,
+        queue_client=queue_client,
+        maker_queue_url=maker_queue_url,
+        requested_by_account_id=account.get("account_id"),
         model_id=model_id,
     )
 
@@ -515,8 +533,8 @@ def answer_question(
     asker: Any,
     embedder: Any,
     settings: Any,
-    invoker: Any | None = None,
-    maker_function: str | None = None,
+    queue_client: Any | None = None,
+    maker_queue_url: str | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     try:
@@ -550,8 +568,9 @@ def answer_question(
             find_id=find_id,
             request_text=question,
             timestamp=timestamp,
-            invoker=invoker,
-            maker_function=maker_function,
+            queue_client=queue_client,
+            maker_queue_url=maker_queue_url,
+            requested_by_account_id=account.get("account_id"),
             model_id=getattr(settings, "anthropic_model_id", None),
         )
 
@@ -728,8 +747,8 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 return read_chat_history(event, repo=repo)
             if method != "POST":
                 return respond(405, {"error": "method not allowed"})
-            invoker = boto3.client("lambda")
-            maker_function = os.environ.get(MAKER_FUNCTION_VAR)
+            queue_client = boto3.client("sqs", region_name=settings.aws_region)
+            maker_queue_url = os.environ.get(MAKER_QUEUE_URL_VAR)
             try:
                 action = parse_action(event)
             except ValueError as exc:
@@ -738,8 +757,8 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 return undo_pass_action(
                     event,
                     repo=repo,
-                    invoker=invoker,
-                    maker_function=maker_function,
+                    queue_client=queue_client,
+                    maker_queue_url=maker_queue_url,
                     model_id=getattr(settings, "anthropic_model_id", None),
                 )
             return answer_question(
@@ -748,8 +767,8 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 asker=build_asker(settings),
                 embedder=build_embedder(settings),
                 settings=settings,
-                invoker=invoker,
-                maker_function=maker_function,
+                queue_client=queue_client,
+                maker_queue_url=maker_queue_url,
             )
     except psycopg.Error:
         return respond(503, {"error": "conversation memory could not be reached"})

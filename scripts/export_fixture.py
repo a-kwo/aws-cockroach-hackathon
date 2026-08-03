@@ -85,7 +85,8 @@ def main() -> int:
             # to approve rather than a description of it.
             artifacts = rows(cur, """
                 SELECT a.id, a.find_id, a.kind, a.title, a.preview,
-                       a.s3_bucket, a.s3_key, a.created_at
+                       a.s3_bucket, a.s3_key, a.created_at, a.task_id,
+                       a.idempotency_key, a.body
                 FROM artifact a
                 JOIN find f ON f.id = a.find_id
                 WHERE f.business_id = %s

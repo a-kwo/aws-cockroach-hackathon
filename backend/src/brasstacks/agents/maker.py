@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from brasstacks.artifacts import ArtifactStore, ArtifactStoreError
 from brasstacks.providers import ProviderError, Reasoner
 from brasstacks.repository import FindSummary, Repository, RepositoryError
+from brasstacks.tasks import maker_artifact_idempotency_key
 
 #: The one artifact type this ships, per the scope cut in CLAUDE.md.
 ARTIFACT_KIND = "review_reply"
@@ -69,6 +70,7 @@ class MakerResult:
     artifact_id: str | None = None
     location: str | None = None
     error: str | None = None
+    reused: bool = False
 
     @property
     def note(self) -> str:
@@ -76,8 +78,10 @@ class MakerResult:
             return f"no artifact produced — {self.error}"
         if not self.artifact_id:
             return "nothing accepted and undrafted"
+        if self.reused:
+            return "existing idempotent draft reused; zero model tokens spent"
         if not self.location:
-            return "draft saved; it could not be uploaded, so only the preview is stored"
+            return "draft saved in CockroachDB; the S3 copy could not be uploaded"
         return f"draft saved to {self.location}"
 
 
@@ -131,6 +135,8 @@ def run_maker(
     business_id: str,
     find: FindSummary | None,
     model_id: str | None = None,
+    task_id: str | None = None,
+    artifact_idempotency_key: str | None = None,
 ) -> MakerResult:
     """Draft the deliverable for one accepted find."""
     run_id = repo.start_run(business_id, agent="maker", model_id=model_id)
@@ -141,6 +147,28 @@ def run_maker(
         result = MakerResult(run_id=run_id)
         repo.finish_run(run_id, status="ok", note=result.note)
         return result
+
+    idempotency_key = artifact_idempotency_key
+    if idempotency_key is None and task_id is not None:
+        idempotency_key = maker_artifact_idempotency_key(
+            task_id, kind=ARTIFACT_KIND
+        )
+    if idempotency_key:
+        existing = repo.get_artifact_by_idempotency_key(idempotency_key)
+        if existing is not None:
+            result = MakerResult(
+                run_id=run_id, artifact_id=existing.artifact_id,
+                location=(
+                    f"s3://{existing.s3_bucket}/{existing.s3_key}"
+                    if existing.s3_bucket and existing.s3_key else None
+                ),
+                reused=True,
+            )
+            repo.finish_run(
+                run_id, status="ok", note=result.note,
+                input_tokens=0, output_tokens=0,
+            )
+            return result
 
     business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
 
@@ -165,8 +193,8 @@ def run_maker(
     # is survivable, and the draft is kept either way.
     location = None
     try:
-        where = store.put(key=f"finds/{find.find_id}/{ARTIFACT_KIND}.md",
-                          body=body)
+        object_prefix = f"tasks/{task_id}" if task_id else f"finds/{find.find_id}"
+        where = store.put(key=f"{object_prefix}/{ARTIFACT_KIND}.md", body=body)
         location = where
     except ArtifactStoreError:
         pass
@@ -180,6 +208,9 @@ def run_maker(
             s3_bucket=location.bucket if location else None,
             s3_key=location.key if location else None,
             run_id=run_id,
+            task_id=task_id,
+            idempotency_key=idempotency_key,
+            body=body,
         )
     except RepositoryError as e:
         error = f"{type(e).__name__}: {e}"

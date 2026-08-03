@@ -12746,6 +12746,179 @@
     }
   </style>
 
+
+  <style id="task-platform-v27">
+    .decision-button.is-saving,
+    .decision-button.is-committed {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .decision-button.is-saving {
+      box-shadow: inset 0 0 0 2px currentColor;
+    }
+    .decision-button.is-saving svg {
+      animation: decision-spin .85s linear infinite;
+    }
+    .decision-button.is-muted { opacity: .42 !important; }
+    .feed-card.is-decision-pending .impact-summary small { color: var(--accent); font-weight: 750; }
+    @keyframes decision-spin { to { transform: rotate(360deg); } }
+
+    .maker-task-list { display: grid; gap: 10px; }
+    .maker-task-item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.58);
+      overflow: hidden;
+    }
+    .maker-task-item > summary {
+      list-style: none;
+      display: grid;
+      grid-template-columns: auto minmax(0,1fr) auto auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 14px;
+      cursor: pointer;
+    }
+    .maker-task-item > summary::-webkit-details-marker { display: none; }
+    .maker-task-status {
+      min-width: 76px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .03em;
+      background: #eef1ef;
+      color: #536069;
+    }
+    .maker-task-status.running { background: #e7f0fb; color: #315f9c; }
+    .maker-task-status.queued, .maker-task-status.retry { background: #f8edd7; color: #93651d; }
+    .maker-task-status.completed { background: #e3f1eb; color: #267561; }
+    .maker-task-status.failed { background: #f8e7e6; color: #a33f3b; }
+    .maker-task-copy { min-width: 0; display: grid; gap: 3px; }
+    .maker-task-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .maker-task-copy small { color: var(--muted); }
+    .maker-task-time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .maker-task-detail {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+      padding: 0 14px 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+    .maker-task-detail span {
+      display: grid; gap: 3px; padding: 10px; border-radius: 10px;
+      background: rgba(246,244,239,.72); min-width: 0;
+    }
+    .maker-task-detail small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .maker-task-detail b { overflow-wrap: anywhere; font-size: 12px; }
+    .maker-task-tool { grid-column: 1 / -1; }
+
+    .maker-review-panel {
+      margin-top: 18px;
+      border: 1px solid rgba(47,116,104,.22);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(237,246,241,.96), rgba(255,255,255,.96));
+      overflow: hidden;
+      box-shadow: 0 16px 42px rgba(31,38,42,.07);
+    }
+    .maker-review-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(47,116,104,.14);
+    }
+    .maker-review-head div { display: grid; gap: 4px; min-width: 0; }
+    .maker-review-head small {
+      color: #2f7468;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .maker-review-head strong { font-size: 16px; line-height: 1.3; }
+    .maker-review-head span { color: var(--theme-copy); font-size: 12px; line-height: 1.45; }
+    .maker-review-state {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #e2f0ea;
+      color: #267561;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .04em;
+    }
+    .maker-review-state.running, .maker-review-state.queued, .maker-review-state.retry {
+      background: #f8edd7;
+      color: #8a611f;
+    }
+    .maker-review-state.failed { background: #f8e7e6; color: #a33f3b; }
+    .maker-review-body { padding: 20px; }
+    .maker-review-body pre {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--theme-ink);
+    }
+    .maker-review-empty {
+      margin: 0;
+      color: var(--theme-copy);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .maker-review-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 20px 18px;
+      border-top: 1px solid rgba(47,116,104,.12);
+    }
+    .maker-review-actions p { margin: 0; color: var(--theme-copy); font-size: 11px; line-height: 1.5; }
+    .maker-copy-button {
+      flex: 0 0 auto;
+      min-height: 42px;
+      border: 0;
+      border-radius: 13px;
+      padding: 0 15px;
+      background: #20272b;
+      color: #fff;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .maker-copy-button:focus-visible { outline: 3px solid rgba(47,116,104,.24); outline-offset: 3px; }
+    .maker-tool-receipt {
+      display: grid;
+      gap: 3px;
+      margin: 0 20px 18px;
+      padding: 12px 14px;
+      border-radius: 13px;
+      background: rgba(255,255,255,.72);
+      color: var(--theme-copy);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .maker-tool-receipt strong { color: var(--theme-ink); }
+    @media (max-width: 700px) {
+      .maker-task-item > summary { grid-template-columns: auto minmax(0,1fr) auto; }
+      .maker-task-time { display: none; }
+      .maker-task-detail { grid-template-columns: 1fr; }
+      .maker-review-head { padding: 16px; }
+      .maker-review-body { padding: 16px; }
+      .maker-review-actions { align-items: stretch; flex-direction: column; padding: 14px 16px 16px; }
+      .maker-copy-button { width: 100%; }
+      .maker-tool-receipt { margin: 0 16px 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .decision-button.is-saving svg, .visual-flow-particle, .visual-live-dot, .visual-stage-node { animation: none !important; transition: none !important; } }
+  </style>
 </head>
 <body>
   <main class="app" id="app">
@@ -13238,6 +13411,11 @@
     const ONBOARDING_PROFILE_KEY = "brass-tacks-onboarding-profile-v1";
     const appQuery = new URLSearchParams(window.location.search);
     const sampleWorkspaceMode = appQuery.get("demo") === "1";
+    // SES review emails link to a specific durable task. The first live
+    // /workflow read resolves that task inside the authenticated tenant and
+    // opens its exact recommendation/draft; the URL never carries credentials.
+    const requestedTaskId = String(appQuery.get("task") || "").trim();
+    let requestedTaskHandled = false;
 
     function loadOnboardingProfile() {
       try {
@@ -13451,6 +13629,7 @@
         highlightValue: `${find.evidenceCount || 0} memories`,
         confidence: find.confidence,
         evidence: find.evidence || [],
+        artifacts: Array.isArray(find.artifacts) ? find.artifacts : [],
         verifyAfter: find.verifyAfter,
         accent: style.accent,
         accentRgb: style.accentRgb
@@ -14115,6 +14294,7 @@
         //  their name instead of the exported one's.
         setBrandBusiness();
         renderLiveWorkflowViews();
+        maybeOpenRequestedTask();
         updateWorkflowLiveStatus();
         return true;
       })().catch(error => {
@@ -15121,15 +15301,31 @@
         return;
       }
       const card = document.querySelector(`.feed-card[data-post-id="${postId}"]`);
+      const decisionButtons = Array.from(document.querySelectorAll(`[data-decide][data-post-id="${postId}"]`));
+      const selectedButton = decisionButtons.find(button => button.dataset.decide === status);
       isAnimating = true;
-      document.querySelectorAll(`[data-decide][data-post-id="${postId}"]`).forEach(button => {
+      card?.classList.add("is-decision-pending");
+      const statusCopy = card?.querySelector(".impact-summary small");
+      if (statusCopy) statusCopy.textContent = status === "approved" ? "Saving Do it…" : "Saving Pass…";
+      decisionButtons.forEach(button => {
+        button.dataset.originalHtml = button.innerHTML;
         button.disabled = true;
         button.setAttribute("aria-busy", "true");
+        button.classList.toggle("is-saving", button === selectedButton);
+        button.classList.toggle("is-muted", button !== selectedButton);
       });
+      if (selectedButton) selectedButton.querySelector("span").textContent = "Saving…";
 
       try {
         const receipt = await persistDecision(post, status);
         const commit = () => {
+          if (selectedButton) {
+            selectedButton.classList.remove("is-saving");
+            selectedButton.classList.add("is-committed");
+            const label = selectedButton.querySelector("span");
+            if (label) label.textContent = status === "approved" ? "Approved ✓" : "Passed ✓";
+          }
+          if (statusCopy) statusCopy.textContent = status === "approved" ? "Approved · Maker task created" : "Passed · decision saved";
           const serverRecordedAt = receipt.decided_at ? new Date(receipt.decided_at).getTime() : NaN;
           const recordedAt = Number.isFinite(serverRecordedAt) ? serverRecordedAt : Date.now();
           state.decisions[postId] = { status, at: recordedAt, persisted: !receipt.demoOnly };
@@ -15164,10 +15360,14 @@
         decisionTimer = window.setTimeout(commit, 270);
       } catch (error) {
         isAnimating = false;
-        document.querySelectorAll(`[data-decide][data-post-id="${postId}"]`).forEach(button => {
+        card?.classList.remove("is-decision-pending");
+        decisionButtons.forEach(button => {
           button.disabled = false;
           button.removeAttribute("aria-busy");
+          button.classList.remove("is-saving", "is-muted", "is-committed");
+          if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
         });
+        if (statusCopy) statusCopy.textContent = "Nothing changes until approved";
         if (error.status === 409 && workflowApiConfigured) {
           await refreshWorkflowSnapshot({ force: true, silent: true });
           showToast("This move was already decided or is no longer available. Feed refreshed.", "rejected");
@@ -16248,6 +16448,59 @@
         ${tokenRows}${traceWarning}
       </div>`;
     }
+    function makerTaskLabel(status) {
+      return ({
+        queued: "Waiting", retry: "Retry", running: "Working",
+        completed: "Ready", failed: "Failed", waiting_user: "Needs owner",
+        cancelled: "Cancelled",
+      })[status] || String(status || "Unknown");
+    }
+
+    function makerTaskCurrentStep(task) {
+      if (task.status === "running") return "Generating the owner-ready draft";
+      if (task.status === "queued") return "Waiting for an available Maker worker";
+      if (task.status === "retry") return task.nextAttemptAt
+        ? `Retry scheduled ${memoryDateTime(task.nextAttemptAt)}`
+        : "Waiting for an automatic retry";
+      if (task.status === "completed") {
+        const email = (task.tools || []).find(tool => tool.name === "ses.send_review_email");
+        if (email?.status === "succeeded") return `Draft ready · review email sent`;
+        if (email?.status === "failed") return `Draft ready · email needs attention`;
+        return "Draft ready to review";
+      }
+      if (task.status === "failed") return task.lastError || "Task needs operator attention";
+      return "Task recorded";
+    }
+
+    function memoryMakerTasksHtml(model) {
+      const tasks = Array.isArray(model.maker?.tasks) ? model.maker.tasks : (model.tasks || []);
+      if (!tasks.length) {
+        return `<div class="owner-decision-empty"><strong>No durable Maker task yet</strong><span>The next Do it creates one CockroachDB task, sends it through SQS FIFO, and traces every workflow and tool receipt here.</span></div>`;
+      }
+      return `<div class="maker-task-list">${tasks.map(task => {
+        const tool = (task.tools || [])[0] || null;
+        const updated = task.completedAt || task.startedAt || task.updatedAt || task.createdAt;
+        return `<details class="maker-task-item" data-task-id="${escapeHtml(task.id || "")}">
+          <summary>
+            <span class="maker-task-status ${escapeHtml(task.status || "")}">${escapeHtml(makerTaskLabel(task.status))}</span>
+            <span class="maker-task-copy"><strong>${escapeHtml(task.title || "Maker task")}</strong><small>${escapeHtml(makerTaskCurrentStep(task))}</small></span>
+            <time class="maker-task-time">${escapeHtml(memoryDateTime(updated))}</time>
+            <span class="analyst-output-chevron" aria-hidden="true">${MEMORY_UI_ICONS.chevron}</span>
+          </summary>
+          <div class="maker-task-detail">
+            <span><small>Task receipt</small><b>${escapeHtml(task.shortId || task.id || "—")}</b></span>
+            <span><small>Recommendation</small><b>${escapeHtml(task.findShortId || "—")}</b></span>
+            <span><small>Attempts</small><b>${escapeHtml(String(task.attemptCount || 0))} worker · ${escapeHtml(String(task.dispatchCount || 0))} dispatch</b></span>
+            <span><small>Started</small><b>${escapeHtml(memoryDateTime(task.startedAt))}</b></span>
+            <span><small>Completed</small><b>${escapeHtml(memoryDateTime(task.completedAt))}</b></span>
+            <span><small>Workflow</small><b>${escapeHtml(task.workflowExecutionArn ? "Step Functions Standard" : "Waiting for workflow")}</b></span>
+            ${task.lastError ? `<span class="maker-task-tool"><small>Last error</small><b>${escapeHtml(task.lastError)}</b></span>` : ""}
+            ${tool ? `<span class="maker-task-tool"><small>Latest tool receipt</small><b>${escapeHtml(tool.name || "tool")} · ${escapeHtml(tool.status || "—")}${tool.externalReference ? ` · ${escapeHtml(tool.externalReference)}` : ""}</b></span>` : ""}
+          </div>
+        </details>`;
+      }).join("")}</div>`;
+    }
+
     function deriveMemoryStages(model) {
       const onboardingPending = Boolean(model.onboarding?.pendingInitialScan);
       const finds = model.finds || [];
@@ -16263,6 +16516,14 @@
       const doItRecorded = ownerDecisionRecords.filter(record => record.choice === "approved");
       const passRecorded = ownerDecisionRecords.filter(record => record.choice === "rejected");
       const acceptedUndrafted = approved.filter(f => !(f.artifacts || []).length);
+      const makerTasks = Array.isArray(model.maker?.tasks) ? model.maker.tasks : [];
+      const makerTaskLedgerAvailable = makerTasks.length > 0;
+      const makerWaiting = makerTasks.filter(task => ["queued", "retry"].includes(task.status));
+      const makerRunning = makerTasks.filter(task => task.status === "running");
+      const makerReady = makerTasks.filter(task => task.status === "completed");
+      const makerFailed = makerTasks.filter(task => task.status === "failed");
+      const makerWaitingCount = makerTaskLedgerAvailable ? makerWaiting.length : acceptedUndrafted.length;
+      const makerReadyCount = makerTaskLedgerAvailable ? makerReady.length : Number(model.artifactCount || 0);
       const topFind = proposed[0] || finds[0] || null;
 
       const withRunState = (agent, fallback) => {
@@ -16281,10 +16542,15 @@
         statusKey: proposed.length ? "ready" : "idle",
         statusLabel: proposed.length ? "Recommendations ready" : "Idle",
       });
-      const makerState = withRunState("maker", {
-        statusKey: acceptedUndrafted.length ? "attention" : ((model.artifactCount || 0) ? "ready" : "idle"),
-        statusLabel: acceptedUndrafted.length ? "Starting" : ((model.artifactCount || 0) ? "Drafts stored" : "Waiting"),
-      });
+      const makerState = makerFailed.length
+        ? { statusKey: "error", statusLabel: "Needs attention", run: memoryLatestRun(model, "maker") }
+        : makerRunning.length
+          ? { statusKey: "running", statusLabel: "Working", run: memoryLatestRun(model, "maker") }
+          : {
+              statusKey: makerWaitingCount ? "attention" : (makerReadyCount ? "ready" : "idle"),
+              statusLabel: makerWaitingCount ? "Queued" : (makerReadyCount ? "Ready to review" : "Waiting"),
+              run: memoryLatestRun(model, "maker"),
+            };
       const meterState = withRunState("meter", {
         statusKey: measuring.length ? "watching" : "ready",
         statusLabel: measuring.length ? "Watching" : "Caught up",
@@ -16338,18 +16604,14 @@
         memoryDetailSection("Decision routing", `<p class="stage-note"><b>Do it → send to Maker.</b> <b>Pass → close and remember.</b>${saved.length ? ` ${saved.length} recommendation${saved.length === 1 ? " is" : "s are"} saved for later and ${saved.length === 1 ? "remains" : "remain"} outside both outcomes.` : ""}</p>`),
       ].join("");
 
-      const makerRows = acceptedUndrafted.slice(0, 4).map(find => ({
-        label: escapeHtml(clampText(find.title, 58)),
-        value: "accepted",
-      }));
       const artifactRows = finds.flatMap(find => (find.artifacts || []).map(artifact => ({
         label: escapeHtml(clampText(artifact.title || `${artifact.kind} draft`, 58)),
         value: artifact.stored ? "S3" : "database",
-      }))).slice(0, 4);
+      }))).slice(0, 6);
       const makerDetails = [
-        memoryDetailSection("Accepted, not drafted", memoryRows(makerRows)),
-        memoryDetailSection("Start behavior", `<p class="stage-note"><b>Do it and Undo Pass wake Maker immediately.</b> Accepted rows remain the durable CockroachDB queue until a draft is stored. A five-minute reconciliation sweep retries missed events and drains older approved work without using model tokens when the queue is empty.</p>`),
-        memoryDetailSection("Stored drafts", memoryRows(artifactRows)),
+        memoryDetailSection("Live task ledger · exact work per owner", memoryMakerTasksHtml(model)),
+        memoryDetailSection("Execution model", `<p class="stage-note"><b>Do it and Undo Pass create one idempotent CockroachDB task.</b> SQS FIFO buffers bursts, Step Functions Standard orchestrates the task, and Maker must atomically claim it before any model call. A reconciliation pass recovers missed delivery without creating duplicate drafts.</p>`),
+        memoryDetailSection("Ready-to-review drafts", memoryRows(artifactRows)),
       ].join("");
 
       const meterRows = measuring.slice(0, 4).map(find => ({
@@ -16424,16 +16686,21 @@
         {
           key: "maker", index: "04", name: "Maker", role: "Draft · store · hand back",
           ...makerState,
-          current: memoryRunIsRunning(makerState.run)
-            ? `Creating an approved deliverable now.`
-            : acceptedUndrafted.length
-              ? `${memoryPlural(acceptedUndrafted.length, "accepted move")} accepted. Maker starts immediately; reconciliation retries any missed handoff.`
-              : passed.length
-                ? `No approved work queued. Passed moves stop at the decision gate.`
-                : `Waiting for an owner-approved move.`,
+          current: makerRunning.length
+            ? `${memoryPlural(makerRunning.length, "task")} working now: ${clampText(makerRunning[0]?.title || "approved work", 64)}.`
+            : makerWaitingCount
+              ? `${memoryPlural(makerWaitingCount, "task")} waiting for a Maker worker.`
+              : makerFailed.length
+                ? `${memoryPlural(makerFailed.length, "task")} needs operator attention.`
+                : makerReadyCount
+                  ? `${memoryPlural(makerReadyCount, "draft")} ready for owner review.`
+                  : passed.length
+                    ? `No approved work queued. Passed moves stop at the decision gate.`
+                    : `Waiting for an owner-approved move.`,
           metrics: [
-            { value: String(acceptedUndrafted.length), label: "queued" },
-            { value: String(model.artifactCount || 0), label: "drafts" },
+            { value: String(makerRunning.length), label: "working now" },
+            { value: String(makerWaitingCount), label: "waiting" },
+            { value: String(makerReadyCount), label: "ready to review" },
           ],
           detailsHtml: makerDetails,
           technicalKey: "maker",
@@ -16480,9 +16747,9 @@
         };
       }
       const maker = stages.find(stage => stage.key === "maker");
-      if (Number(maker?.metrics?.[0]?.value || 0) > 0) {
+      if (Number(maker?.metrics?.[0]?.value || 0) > 0 || Number(maker?.metrics?.[1]?.value || 0) > 0 || maker?.statusKey === "error") {
         return {
-          key: "maker", label: "Maker is the next handoff", tone: "attention",
+          key: "maker", label: maker?.statusKey === "error" ? "Maker needs attention" : "Maker is processing approved work", tone: maker?.statusKey === "error" ? "error" : "attention",
           detail: maker.current,
         };
       }
@@ -17808,6 +18075,114 @@ ledger_entry · artifact · agent_run`,
       `;
     }
 
+    function allDurableTasks() {
+      const rows = [];
+      normalizeOwnerWorkspaces().forEach((workspace, workspaceIndex) => {
+        const tasks = Array.isArray(workspace.tasks)
+          ? workspace.tasks
+          : (Array.isArray(workspace.maker?.tasks) ? workspace.maker.tasks : []);
+        tasks.forEach(task => rows.push({
+          workspace,
+          workspaceId: workflowWorkspaceId(workspace, workspaceIndex),
+          task,
+        }));
+      });
+      return rows;
+    }
+
+    function latestMakerTaskForPost(post) {
+      const findId = String(post?.databaseId || post?.id || "");
+      return allDurableTasks()
+        .map(entry => entry.task)
+        .filter(task => String(task.findId || "") === findId)
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
+    }
+
+    function makerArtifactForTask(post, task) {
+      const artifacts = Array.isArray(post?.artifacts) ? post.artifacts : [];
+      if (!artifacts.length) return null;
+      return artifacts.find(artifact =>
+        String(artifact.taskId || "") === String(task?.id || "")
+        || String(artifact.databaseId || artifact.id || "") === String(task?.artifactId || "")
+      ) || artifacts[0];
+    }
+
+    function makerReviewPanel(post) {
+      const task = latestMakerTaskForPost(post);
+      if (!task) return "";
+      const artifact = makerArtifactForTask(post, task);
+      const body = String(artifact?.body || artifact?.preview || "").trim();
+      const email = (task.tools || []).find(tool => tool.name === "ses.send_review_email") || null;
+      const statusLabel = makerTaskLabel(task.status);
+      const stateClass = escapeHtml(task.status || "queued");
+      const receipt = email ? `
+        <div class="maker-tool-receipt">
+          <strong>${email.status === "succeeded" ? "Review email accepted by Amazon SES" : email.status === "failed" ? "Review email needs attention" : "Review email receipt"}</strong>
+          <span>${escapeHtml(email.output?.recipient || email.input?.recipient || "Configured owner inbox")}${email.externalReference ? ` · receipt ${escapeHtml(email.externalReference)}` : ""}</span>
+        </div>` : "";
+      const copy = body ? `
+        <div class="maker-review-actions">
+          <p>Copy this owner-ready draft and post it manually. Connected-account publishing remains approval-gated and is not enabled in this release.</p>
+          <button class="maker-copy-button" type="button" data-copy-maker-draft>Copy draft</button>
+        </div>` : "";
+      return `
+        <section class="maker-review-panel" data-maker-task-review="${escapeHtml(task.id || "")}" aria-label="Maker task review">
+          <header class="maker-review-head">
+            <div>
+              <small>Maker task · ${escapeHtml(task.shortId || String(task.id || "").slice(0, 8))}</small>
+              <strong>${escapeHtml(artifact?.title || task.title || "Owner-ready draft")}</strong>
+              <span>${escapeHtml(makerTaskCurrentStep(task))}</span>
+            </div>
+            <span class="maker-review-state ${stateClass}">${escapeHtml(statusLabel)}</span>
+          </header>
+          <div class="maker-review-body">
+            ${body ? `<pre data-maker-draft-body>${escapeHtml(body)}</pre>` : `<p class="maker-review-empty">${escapeHtml(task.status === "running" ? "Maker is generating this draft now. This panel will update from CockroachDB when the work completes." : task.status === "queued" || task.status === "retry" ? "This approved task is waiting for a Maker worker." : task.lastError || "No draft body is available yet.")}</p>`}
+          </div>
+          ${receipt}${copy}
+        </section>`;
+    }
+
+    function maybeOpenRequestedTask() {
+      if (!requestedTaskId || requestedTaskHandled) return false;
+      const match = allDurableTasks().find(entry => String(entry.task.id || "") === requestedTaskId);
+      if (!match) {
+        // Wait for the authoritative owner-scoped /workflow read. Only report
+        // a missing task after that read succeeds; the static first paint may
+        // legitimately predate the email that sent this link.
+        if (workflowRefreshState === "live") {
+          requestedTaskHandled = true;
+          showToast("This Maker task is no longer available in this owner workspace.", "rejected");
+        }
+        return false;
+      }
+      requestedTaskHandled = true;
+      const post = posts.find(item =>
+        String(item.databaseId || item.id || "") === String(match.task.findId || "")
+      );
+      if (post) {
+        switchView("growth");
+        openDrawer(post.id);
+        window.setTimeout(() => {
+          document.querySelector(`[data-maker-task-review="${CSS.escape(requestedTaskId)}"]`)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
+        return true;
+      }
+
+      // Operators may have a task whose find is not part of the selected
+      // owner's current post deck. Open Memory Engine and reveal the exact row.
+      memoryEngineSelectedId = match.workspaceId;
+      switchView("admin");
+      window.setTimeout(() => {
+        const row = document.querySelector(`[data-task-id="${CSS.escape(requestedTaskId)}"]`);
+        if (row) {
+          row.open = true;
+          row.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 80);
+      return true;
+    }
+
     function openDrawer(postId) {
       openPostId = postId;
       renderDrawer(postId);
@@ -17870,6 +18245,8 @@ ledger_entry · artifact · agent_run`,
             <p>${status === "pending" ? "Nothing changes until you choose Do it." : status === "approved" ? "This idea is now in Where it came from." : "You passed on this recommendation."}</p>
           </section>
         </div>
+
+        ${makerReviewPanel(post)}
 
         <div class="detail-impact">
           <div class="detail-impact-copy">
@@ -18003,10 +18380,13 @@ ledger_entry · artifact · agent_run`,
 
     function makerHandoffMessage(maker, { undo = false } = {}) {
       const prefix = undo ? "Pass undone. This is now Do it." : "Approved.";
-      if (maker === "started") return `${prefix} Maker is starting the draft now.`;
-      if (maker === "start_failed") return `${prefix} Maker is queued and will retry automatically.`;
-      if (maker === "not_configured") return `${prefix} Maker is queued, but the worker is not configured yet.`;
-      return `${prefix} Maker is queued.`;
+      if (maker === "completed") return `${prefix} The Maker draft is already ready.`;
+      if (maker === "already_running") return `${prefix} Maker is already preparing the draft.`;
+      if (maker === "queued") return `${prefix} Maker task queued.`;
+      if (maker === "dispatch_failed") return `${prefix} Task saved; automatic dispatch will retry.`;
+      if (maker === "not_configured") return `${prefix} Task saved, but the Maker queue is not configured yet.`;
+      if (maker === "failed") return `${prefix} Maker task needs attention.`;
+      return `${prefix} Maker task recorded.`;
     }
 
     function applyUndoPassReceipt(post, payload) {
@@ -18207,6 +18587,21 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-undo-pass]").forEach(button => {
         button.onclick = () => undoPass(button.dataset.postId, button);
+      });
+      document.querySelectorAll("[data-copy-maker-draft]").forEach(button => {
+        button.onclick = async () => {
+          const body = button.closest(".maker-review-panel")?.querySelector("[data-maker-draft-body]")?.textContent || "";
+          if (!body) return;
+          try {
+            await navigator.clipboard.writeText(body);
+            const original = button.textContent;
+            button.textContent = "Copied";
+            window.setTimeout(() => { button.textContent = original; }, 1400);
+            showToast("Draft copied. It is ready to post manually.", "approved");
+          } catch (_) {
+            showToast("Could not copy automatically. Select the draft text and copy it.", "rejected");
+          }
+        };
       });
       document.querySelectorAll("[data-switch-growth]").forEach(button => {
         button.onclick = () => switchView("growth");
@@ -19305,6 +19700,7 @@ ledger_entry · artifact · agent_run`,
     }
     bindGrowthSwipe();
     renderApp();
+    if (!workflowApiConfigured) maybeOpenRequestedTask();
     // One read at startup synchronizes For You with decisions made on another
     // device. Continuous polling remains operator-only and begins only when
     // Memory Engine is visible.

@@ -12,10 +12,14 @@ a live cluster with ``pytest -m integration``.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, datetime, timezone
-from typing import Any
+from dataclasses import replace
+from datetime import date, datetime, timedelta, timezone
+import json
+import uuid
+from typing import Any, Mapping
 
 import psycopg
+from psycopg.types.json import Jsonb
 
 from brasstacks.repository import (
     CHAT_ASSISTANT_SOURCE,
@@ -37,6 +41,21 @@ from brasstacks.repository import (
     compute_hit_rate,
     content_hash,
 )
+from brasstacks.task_schema import ensure_task_schema
+from brasstacks.tasks import (
+    MAKER_AGENT,
+    MAKER_DRAFT_TASK,
+    TASK_COMPLETED,
+    TASK_FAILED,
+    TASK_QUEUED,
+    TASK_RETRY,
+    TASK_RUNNING,
+    TaskEvent,
+    TaskRecord,
+    ToolExecutionRecord,
+    maker_resource_key,
+    maker_task_idempotency_key,
+)
 
 
 def _vector_literal(embedding: Sequence[float]) -> str:
@@ -46,6 +65,50 @@ def _vector_literal(embedding: Sequence[float]) -> str:
     string and cast in SQL with ``::VECTOR``.
     """
     return "[" + ",".join(repr(float(x)) for x in embedding) + "]"
+
+
+_TASK_COLUMNS = """
+    id, business_id, find_id, requested_by_account_id, agent, task_type,
+    status, priority, idempotency_key, resource_key, approval_state,
+    attempt_count, dispatch_count, created_at, updated_at, approved_at,
+    started_at, completed_at, next_attempt_at, lease_expires_at, claimed_by,
+    claim_token, workflow_execution_arn, output_artifact_id, last_error,
+    input_data, output_data
+"""
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return dict(parsed) if isinstance(parsed, dict) else {}
+    return dict(value)
+
+
+def _task_record(row: Sequence[Any]) -> TaskRecord:
+    return TaskRecord(
+        task_id=str(row[0]), business_id=str(row[1]),
+        find_id=str(row[2]) if row[2] is not None else None,
+        requested_by_account_id=str(row[3]) if row[3] is not None else None,
+        agent=str(row[4]), task_type=str(row[5]), status=str(row[6]),
+        priority=int(row[7]), idempotency_key=str(row[8]),
+        resource_key=str(row[9]), approval_state=str(row[10]),
+        attempt_count=int(row[11]), dispatch_count=int(row[12]),
+        created_at=row[13], updated_at=row[14], approved_at=row[15],
+        started_at=row[16], completed_at=row[17], next_attempt_at=row[18],
+        lease_expires_at=row[19], claimed_by=row[20],
+        claim_token=str(row[21]) if row[21] is not None else None,
+        workflow_execution_arn=row[22],
+        output_artifact_id=str(row[23]) if row[23] is not None else None,
+        last_error=row[24], input_data=_mapping(row[25]),
+        output_data=_mapping(row[26]),
+    )
 
 
 class PostgresRepository:
@@ -798,42 +861,628 @@ class PostgresRepository:
                         preview: str | None = None,
                         s3_bucket: str | None = None,
                         s3_key: str | None = None,
-                        run_id: str | None = None) -> str:
+                        run_id: str | None = None,
+                        task_id: str | None = None,
+                        idempotency_key: str | None = None,
+                        body: str | None = None) -> str:
+        ensure_task_schema(self._conn)
         try:
             with self._conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO artifact
-                        (find_id, run_id, kind, title, s3_bucket, s3_key, preview)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                    """,
-                    (find_id, run_id, kind, title, s3_bucket, s3_key, preview),
-                )
+                if idempotency_key:
+                    cur.execute(
+                        """
+                        INSERT INTO artifact (
+                            find_id, run_id, kind, title, s3_bucket, s3_key,
+                            preview, task_id, idempotency_key, body
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (idempotency_key) DO UPDATE
+                        SET idempotency_key = excluded.idempotency_key
+                        RETURNING id
+                        """,
+                        (find_id, run_id, kind, title, s3_bucket, s3_key,
+                         preview, task_id, idempotency_key, body),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        INSERT INTO artifact (
+                            find_id, run_id, kind, title, s3_bucket, s3_key,
+                            preview, task_id, body
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                        """,
+                        (find_id, run_id, kind, title, s3_bucket, s3_key,
+                         preview, task_id, body),
+                    )
                 return str(cur.fetchone()[0])
         except psycopg.Error as e:
-            # Almost always the find_id foreign key: an artifact is the
-            # deliverable for a specific promise and cannot outlive it.
             raise RepositoryError(f"could not store artifact: {e}") from e
 
+    @staticmethod
+    def _stored_artifact(row: Sequence[Any]) -> StoredArtifact:
+        return StoredArtifact(
+            artifact_id=str(row[0]), find_id=str(row[1]), kind=row[2],
+            title=row[3], created_at=row[4], preview=row[5],
+            s3_bucket=row[6], s3_key=row[7],
+            task_id=str(row[8]) if row[8] is not None else None,
+            idempotency_key=row[9], body=row[10],
+        )
+
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
+        ensure_task_schema(self._conn)
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT id, find_id, kind, title, created_at, preview,
-                       s3_bucket, s3_key
+                       s3_bucket, s3_key, task_id, idempotency_key, body
                 FROM artifact
                 WHERE find_id = %s
                 ORDER BY created_at DESC
                 """,
                 (find_id,),
             )
+            return [self._stored_artifact(row) for row in cur.fetchall()]
+
+    def get_artifact_by_idempotency_key(
+        self, idempotency_key: str,
+    ) -> StoredArtifact | None:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, find_id, kind, title, created_at, preview,
+                       s3_bucket, s3_key, task_id, idempotency_key, body
+                FROM artifact
+                WHERE idempotency_key = %s
+                """,
+                (idempotency_key,),
+            )
+            row = cur.fetchone()
+        return self._stored_artifact(row) if row is not None else None
+
+    # -- durable tasks ---------------------------------------------------
+    def create_or_get_maker_task(
+        self, business_id: str, *, find_id: str,
+        requested_by_account_id: str | None = None,
+        approved_at: datetime | None = None, priority: int = 100,
+        input_data: Mapping[str, Any] | None = None,
+    ) -> TaskRecord:
+        ensure_task_schema(self._conn)
+        key = maker_task_idempotency_key(find_id)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT title, move, predicted_daily_cents, status, decided_at
+                    FROM find
+                    WHERE id = %s AND business_id = %s
+                    FOR UPDATE
+                    """,
+                    (find_id, business_id),
+                )
+                found = cur.fetchone()
+                if found is None:
+                    raise RepositoryError("recommendation is no longer available")
+                if str(found[3]) != "accepted":
+                    raise RepositoryError("Maker work requires an approved recommendation")
+                payload = dict(input_data or {
+                    "title": found[0],
+                    "move": found[1],
+                    "predicted_daily_cents": int(found[2]),
+                })
+                cur.execute(
+                    f"""
+                    INSERT INTO work_task (
+                        business_id, find_id, requested_by_account_id, agent,
+                        task_type, status, priority, idempotency_key, resource_key,
+                        approval_state, approved_at, input_data
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s, 'queued', %s, %s, %s,
+                        'approved', coalesce(%s, %s, clock_timestamp()), %s
+                    )
+                    ON CONFLICT (idempotency_key) DO NOTHING
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (business_id, find_id, requested_by_account_id,
+                     MAKER_AGENT, MAKER_DRAFT_TASK, int(priority), key,
+                     maker_resource_key(business_id, find_id), approved_at, found[4],
+                     Jsonb(payload)),
+                )
+                row = cur.fetchone()
+                created = row is not None
+                if row is None:
+                    cur.execute(
+                        f"SELECT {_TASK_COLUMNS} FROM work_task WHERE idempotency_key = %s",
+                        (key,),
+                    )
+                    row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError("could not create Maker task")
+                task = _task_record(row)
+                if created:
+                    cur.execute(
+                        """
+                        INSERT INTO task_event
+                            (task_id, business_id, event_type, actor_type, actor_id, data)
+                        VALUES (%s, %s, 'task.created', 'owner', %s, %s)
+                        """,
+                        (task.task_id, business_id, requested_by_account_id,
+                         Jsonb({"find_id": find_id, "task_type": MAKER_DRAFT_TASK})),
+                    )
+        return replace(task, created=created)
+
+    def get_task(
+        self, task_id: str, *, business_id: str | None = None,
+    ) -> TaskRecord | None:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT {_TASK_COLUMNS}
+                FROM work_task
+                WHERE id = %s
+                  AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                """,
+                (task_id, business_id, business_id),
+            )
+            row = cur.fetchone()
+        return _task_record(row) if row is not None else None
+
+    def prepare_task_dispatch(self, task_id: str) -> TaskRecord | None:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE work_task
+                    SET dispatch_count = dispatch_count + 1,
+                        updated_at = clock_timestamp()
+                    WHERE id = %s
+                      AND status IN ('queued', 'retry')
+                      AND (next_attempt_at IS NULL OR next_attempt_at <= clock_timestamp())
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (task_id,),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                task = _task_record(row)
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, data)
+                    VALUES (%s, %s, 'task.dispatched', 'system', %s)
+                    """,
+                    (task.task_id, task.business_id,
+                     Jsonb({"dispatch_count": task.dispatch_count})),
+                )
+        return task
+
+    def record_task_workflow(
+        self, task_id: str, *, execution_arn: str,
+    ) -> TaskRecord | None:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE work_task
+                    SET workflow_execution_arn = %s,
+                        updated_at = clock_timestamp()
+                    WHERE id = %s
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (execution_arn, task_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                task = _task_record(row)
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, data)
+                    VALUES (%s, %s, 'workflow.started', 'orchestrator', %s)
+                    """,
+                    (task.task_id, task.business_id,
+                     Jsonb({"execution_arn": execution_arn})),
+                )
+        return task
+
+    def claim_task(
+        self, task_id: str, *, worker_id: str, lease_seconds: int = 900,
+    ) -> TaskRecord | None:
+        ensure_task_schema(self._conn)
+        claim_token = str(uuid.uuid4())
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE work_task
+                    SET status = 'running',
+                        claimed_by = %s,
+                        claim_token = %s,
+                        lease_expires_at = clock_timestamp() + (%s * INTERVAL '1 second'),
+                        started_at = coalesce(started_at, clock_timestamp()),
+                        attempt_count = attempt_count + 1,
+                        next_attempt_at = NULL,
+                        last_error = NULL,
+                        updated_at = clock_timestamp()
+                    WHERE id = %s
+                      AND (
+                        (status IN ('queued', 'retry')
+                         AND (next_attempt_at IS NULL OR next_attempt_at <= clock_timestamp()))
+                        OR (status = 'running' AND lease_expires_at <= clock_timestamp())
+                      )
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (worker_id, claim_token, max(30, int(lease_seconds)), task_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                task = _task_record(row)
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, actor_id, data)
+                    VALUES (%s, %s, 'task.claimed', 'worker', %s, %s)
+                    """,
+                    (task.task_id, task.business_id, worker_id,
+                     Jsonb({"attempt_count": task.attempt_count,
+                            "claim_token": task.claim_token})),
+                )
+        return task
+
+    def complete_task(
+        self, task_id: str, *, claim_token: str,
+        output_artifact_id: str | None = None,
+        output_data: Mapping[str, Any] | None = None,
+    ) -> TaskRecord:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE work_task
+                    SET status = 'completed',
+                        output_artifact_id = coalesce(%s, output_artifact_id),
+                        output_data = %s,
+                        completed_at = coalesce(completed_at, clock_timestamp()),
+                        updated_at = clock_timestamp(),
+                        claimed_by = NULL,
+                        claim_token = NULL,
+                        lease_expires_at = NULL,
+                        next_attempt_at = NULL,
+                        last_error = NULL
+                    WHERE id = %s
+                      AND (
+                        (status = 'running' AND claim_token = %s)
+                        OR status = 'completed'
+                      )
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (output_artifact_id, Jsonb(dict(output_data or {})),
+                     task_id, claim_token),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError("task claim is no longer valid")
+                task = _task_record(row)
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, data)
+                    VALUES (%s, %s, 'task.completed', 'worker', %s)
+                    """,
+                    (task.task_id, task.business_id,
+                     Jsonb({"output_artifact_id": task.output_artifact_id})),
+                )
+        return task
+
+    def fail_task(
+        self, task_id: str, *, claim_token: str, error: str,
+        retryable: bool = True, retry_after_seconds: int = 60,
+    ) -> TaskRecord:
+        ensure_task_schema(self._conn)
+        status = TASK_RETRY if retryable else TASK_FAILED
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE work_task
+                    SET status = %s,
+                        last_error = %s,
+                        next_attempt_at = CASE WHEN %s
+                          THEN clock_timestamp() + (%s * INTERVAL '1 second')
+                          ELSE NULL END,
+                        updated_at = clock_timestamp(),
+                        claimed_by = NULL,
+                        claim_token = NULL,
+                        lease_expires_at = NULL
+                    WHERE id = %s AND status = 'running' AND claim_token = %s
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (status, str(error), bool(retryable),
+                     max(1, int(retry_after_seconds)), task_id, claim_token),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError("task claim is no longer valid")
+                task = _task_record(row)
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, data)
+                    VALUES (%s, %s, %s, 'worker', %s)
+                    """,
+                    (task.task_id, task.business_id,
+                     "task.retry_scheduled" if retryable else "task.failed",
+                     Jsonb({"error": str(error), "retryable": retryable})),
+                )
+        return task
+
+    def list_tasks(
+        self, business_id: str, *, statuses: Sequence[str] | None = None,
+        limit: int = 100,
+    ) -> list[TaskRecord]:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT {_TASK_COLUMNS}
+                FROM work_task
+                WHERE business_id = %s
+                  AND (%s::STRING[] IS NULL OR status = ANY(%s::STRING[]))
+                ORDER BY priority ASC, created_at DESC
+                LIMIT %s
+                """,
+                (business_id, list(statuses) if statuses else None,
+                 list(statuses) if statuses else None, max(0, int(limit))),
+            )
+            return [_task_record(row) for row in cur.fetchall()]
+
+    def list_dispatchable_tasks(
+        self, *, limit: int = 100, per_business_limit: int = 3,
+    ) -> list[TaskRecord]:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT {_TASK_COLUMNS}
+                FROM (
+                    SELECT {_TASK_COLUMNS},
+                           row_number() OVER (
+                               PARTITION BY business_id
+                               ORDER BY priority ASC, created_at ASC
+                           ) AS tenant_rank
+                    FROM work_task
+                    WHERE status IN ('queued', 'retry')
+                      AND (next_attempt_at IS NULL OR next_attempt_at <= clock_timestamp())
+                ) ranked
+                WHERE tenant_rank <= %s
+                ORDER BY priority ASC, created_at ASC
+                LIMIT %s
+                """,
+                (max(1, int(per_business_limit)), max(0, int(limit))),
+            )
+            return [_task_record(row) for row in cur.fetchall()]
+
+    def recover_stale_tasks(
+        self, *, now: datetime, max_attempts: int = 3,
+    ) -> int:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE work_task
+                    SET status = CASE WHEN attempt_count < %s THEN 'retry' ELSE 'failed' END,
+                        last_error = 'worker lease expired',
+                        next_attempt_at = CASE WHEN attempt_count < %s THEN %s ELSE NULL END,
+                        claimed_by = NULL,
+                        claim_token = NULL,
+                        lease_expires_at = NULL,
+                        updated_at = %s
+                    WHERE status = 'running'
+                      AND lease_expires_at IS NOT NULL
+                      AND lease_expires_at <= %s
+                    RETURNING id, business_id, status, attempt_count
+                    """,
+                    (int(max_attempts), int(max_attempts), now, now, now),
+                )
+                rows = cur.fetchall()
+                for row in rows:
+                    cur.execute(
+                        """
+                        INSERT INTO task_event
+                            (task_id, business_id, event_type, actor_type, data)
+                        VALUES (%s, %s, 'task.lease_expired', 'reconciler', %s)
+                        """,
+                        (row[0], row[1],
+                         Jsonb({"status": str(row[2]),
+                                "attempt_count": int(row[3])})),
+                    )
+        return len(rows)
+
+    def record_task_event(
+        self, task_id: str, *, event_type: str, actor_type: str = "system",
+        actor_id: str | None = None,
+        data: Mapping[str, Any] | None = None,
+    ) -> str:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO task_event
+                    (task_id, business_id, event_type, actor_type, actor_id, data)
+                SELECT id, business_id, %s, %s, %s, %s
+                FROM work_task WHERE id = %s
+                RETURNING id
+                """,
+                (event_type, actor_type, actor_id, Jsonb(dict(data or {})), task_id),
+            )
+            row = cur.fetchone()
+        if row is None:
+            raise RepositoryError(f"unknown task {task_id}")
+        return str(row[0])
+
+    def task_events(self, task_id: str, *, limit: int = 100) -> list[TaskEvent]:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, task_id, business_id, event_type, created_at,
+                       actor_type, actor_id, data
+                FROM task_event
+                WHERE task_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (task_id, max(0, int(limit))),
+            )
             return [
-                StoredArtifact(
-                    artifact_id=str(r[0]), find_id=str(r[1]), kind=r[2],
-                    title=r[3], created_at=r[4], preview=r[5],
-                    s3_bucket=r[6], s3_key=r[7])
-                for r in cur.fetchall()
+                TaskEvent(
+                    event_id=str(row[0]), task_id=str(row[1]),
+                    business_id=str(row[2]), event_type=row[3],
+                    created_at=row[4], actor_type=row[5], actor_id=row[6],
+                    data=_mapping(row[7]),
+                )
+                for row in cur.fetchall()
+            ]
+
+    def start_tool_execution(
+        self, *, task_id: str, business_id: str, tool_name: str,
+        idempotency_key: str, input_data: Mapping[str, Any] | None = None,
+    ) -> ToolExecutionRecord:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO tool_execution
+                        (task_id, business_id, tool_name, status,
+                         idempotency_key, input_data)
+                    VALUES (%s, %s, %s, 'running', %s, %s)
+                    ON CONFLICT (idempotency_key) DO NOTHING
+                    RETURNING id, task_id, business_id, tool_name, status,
+                              idempotency_key, started_at, finished_at,
+                              external_reference, error, input_data, output_data
+                    """,
+                    (task_id, business_id, tool_name, idempotency_key,
+                     Jsonb(dict(input_data or {}))),
+                )
+                row = cur.fetchone()
+                created = row is not None
+                if row is None:
+                    cur.execute(
+                        """
+                        SELECT id, task_id, business_id, tool_name, status,
+                               idempotency_key, started_at, finished_at,
+                               external_reference, error, input_data, output_data
+                        FROM tool_execution WHERE idempotency_key = %s
+                        """,
+                        (idempotency_key,),
+                    )
+                    row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError("could not start tool execution")
+                record = ToolExecutionRecord(
+                    execution_id=str(row[0]), task_id=str(row[1]),
+                    business_id=str(row[2]), tool_name=row[3], status=row[4],
+                    idempotency_key=row[5], started_at=row[6], finished_at=row[7],
+                    external_reference=row[8], error=row[9],
+                    input_data=_mapping(row[10]), output_data=_mapping(row[11]),
+                    created=created,
+                )
+                if record.status == "running" and created:
+                    cur.execute(
+                        """
+                        INSERT INTO task_event
+                            (task_id, business_id, event_type, actor_type, actor_id, data)
+                        VALUES (%s, %s, 'tool.started', 'tool', %s, %s)
+                        """,
+                        (record.task_id, record.business_id, tool_name,
+                         Jsonb({"tool_execution_id": record.execution_id})),
+                    )
+        return record
+
+    def finish_tool_execution(
+        self, execution_id: str, *, status: str,
+        output_data: Mapping[str, Any] | None = None,
+        external_reference: str | None = None, error: str | None = None,
+    ) -> ToolExecutionRecord:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE tool_execution
+                    SET status = %s, output_data = %s,
+                        external_reference = %s, error = %s,
+                        finished_at = clock_timestamp()
+                    WHERE id = %s
+                    RETURNING id, task_id, business_id, tool_name, status,
+                              idempotency_key, started_at, finished_at,
+                              external_reference, error, input_data, output_data
+                    """,
+                    (status, Jsonb(dict(output_data or {})), external_reference,
+                     error, execution_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError(f"unknown tool execution {execution_id}")
+                record = ToolExecutionRecord(
+                    execution_id=str(row[0]), task_id=str(row[1]),
+                    business_id=str(row[2]), tool_name=row[3], status=row[4],
+                    idempotency_key=row[5], started_at=row[6], finished_at=row[7],
+                    external_reference=row[8], error=row[9],
+                    input_data=_mapping(row[10]), output_data=_mapping(row[11]),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, actor_id, data)
+                    VALUES (%s, %s, %s, 'tool', %s, %s)
+                    """,
+                    (record.task_id, record.business_id, f"tool.{status}",
+                     record.tool_name,
+                     Jsonb({"tool_execution_id": record.execution_id,
+                            "external_reference": external_reference,
+                            "error": error})),
+                )
+        return record
+
+    def tool_executions(
+        self, task_id: str, *, limit: int = 100,
+    ) -> list[ToolExecutionRecord]:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, task_id, business_id, tool_name, status,
+                       idempotency_key, started_at, finished_at,
+                       external_reference, error, input_data, output_data
+                FROM tool_execution
+                WHERE task_id = %s
+                ORDER BY started_at DESC
+                LIMIT %s
+                """,
+                (task_id, max(0, int(limit))),
+            )
+            return [
+                ToolExecutionRecord(
+                    execution_id=str(row[0]), task_id=str(row[1]),
+                    business_id=str(row[2]), tool_name=row[3], status=row[4],
+                    idempotency_key=row[5], started_at=row[6], finished_at=row[7],
+                    external_reference=row[8], error=row[9],
+                    input_data=_mapping(row[10]), output_data=_mapping(row[11]),
+                )
+                for row in cur.fetchall()
             ]
 
     # -- ledger ----------------------------------------------------------

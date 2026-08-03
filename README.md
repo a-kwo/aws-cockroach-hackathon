@@ -7,6 +7,11 @@ actually paid. Verdicts go on a permanent ledger, **including the failures**.
 
 Built for the AWS + CockroachDB hackathon.
 
+The production-shaped multi-user execution design is documented in
+[`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md). It
+separates agent reasoning from durable tasks, approval, idempotency, and external
+tools.
+
 The claim this rests on: the Meter judges predictions made on earlier nights by agent
 runs that no longer exist. A stateless advisor can give advice forever and never be
 wrong, because nothing it said was written down. This writes it down first.
@@ -35,11 +40,12 @@ Worth clicking, in this order:
    allowed to appear. In the public build the profile is stored only in the browser and
    the resulting workspace starts honestly at zero signals; a configured, authenticated
    `ONBOARDING_API_ENDPOINT` can persist the same payload later.
-2. **For You** — inspect a recommendation, then choose **Do it** or **Pass**. With the
-   decision API configured, the choice is written back to CockroachDB before the card moves.
-   Memory Engine projects that decision over the first-paint snapshot immediately: **Do it**
-   removes one waiting item and adds one Maker queue item; **Pass** removes one waiting item
-   and records one passed item without entering Maker.
+2. **For You** — inspect a recommendation, then choose **Do it** or **Pass**. The
+   card immediately locks into **Saving**, then shows the recorded decision so repeated clicks
+   are not ambiguous. With the live API configured, CockroachDB commits the decision and creates
+   or reuses one idempotent Maker task before SQS delivery. **Do it** enters the durable task
+   workflow; **Pass** records the choice without entering Maker. A later **Undo Pass** uses the
+   same task contract rather than creating duplicate work.
 3. **Memory Engine** — scan the owner-by-stage pipeline: one row per business owner and
    one column for Radar, Analyst, the decision gate, Maker, and Meter. The highlighted cell
    is the next handoff. Expand an owner row, then open only the agent or CockroachDB receipt
@@ -92,18 +98,24 @@ backend/src/brasstacks/
   agents/radar.py    observe -> embed -> dedup -> store
   agents/analyst.py  retrieve -> reason -> a validated find with its evidence
   analyst_trace.py   structured query/retrieval/token receipt in agent_run.note
-  agents/maker.py    draft the deliverable the find promised, to S3
+  agents/maker.py    create one owner-ready draft after an atomic task claim
   agents/meter.py    read prior predictions -> judge -> the ledger
   agents/ask.py      answer the owner by querying the cluster over MCP
-  handlers/          the Lambda entry points
-  repository_pg.py   transactional SQL used by the agents
+  handlers/          HTTP, queue, workflow-worker, email-tool and scheduler entry points
+  tasks.py           durable task states, idempotency and FIFO resource keys
+  maker_dispatch.py  commit-first task creation and SQS FIFO dispatch
+  tools/              constrained external tools; SES review email is the first
+  repository_pg.py   transactional SQL, atomic claims and execution receipts
   workflow_snapshot.py read-only operator projection for the live dashboard
   meter.py           verdict logic; finds.py validates model output
 
-deploy/              the SAM template, Dockerfile and deploy runbook
+deploy/              SAM, Dockerfile, Step Functions ASL and deployment runbook
 
-db/schema.sql        9 tables; db/seed/ the reproducible demo corpus
+db/schema.sql        14 tables, including work_task/task_event/tool_execution
 db/fixtures/         the exported demo tenant the site build reads
+
+docs/MULTI_TENANT_AGENT_PLATFORM.md
+                     scale, task, tool, security and rollout plan
 
 PRODUCT.md           who this is for and what must never be fabricated
 DESIGN.md            the visual system, with the rules and the reasons
@@ -123,11 +135,24 @@ python scripts/export_fixture.py           # refresh db/fixtures/demo.json
 python scripts/build_web.py                # rebuild the site
 ```
 
+### Durable multi-tenant task execution
+
+An approved recommendation is no longer interpreted as “invoke Maker and hope.” The request
+commits one `work_task` in CockroachDB, SQS FIFO buffers the dispatch, Step Functions Standard
+orchestrates the attempt, and the Maker worker must atomically claim the row before it constructs
+the model client. Duplicate deliveries therefore exit before spending tokens or generating a
+second draft. A five-minute SQL-only reconciler recovers missed messages and expired leases.
+
+The first constrained execution tool sends a completed draft to a configured review inbox through
+Amazon SES. It is disabled by default and never accepts a model-chosen recipient. The full design,
+current implementation boundary, SES test flow, and AgentCore/OAuth/browser roadmap are in
+[`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md).
+
 ## Tests
 
 ```bash
-pytest                  # 420 tests, offline, no credentials needed
-pytest -m integration   # 58 more, against deployed/live services
+python -m pytest backend/tests -q      # 656 offline tests in this version
+python -m pytest -m integration -q      # 65 cloud/live tests when configured
 ```
 
 The unit suite must stay green with no cloud account. `backend/tests/test_site_build.py`
@@ -144,8 +169,9 @@ paint. In a connected build, that snapshot is no longer the operator view's ceil
 - `Do it` / `Pass` writes through the Decision API and is projected into the UI immediately.
 - The app performs one read-only Workflow API sync at startup, then Memory Engine revalidates
   every 15 seconds while its tab remains visible.
-- Decisions from another device, current agent runs, later Maker artifacts, and Meter verdicts
-  are merged into the operator matrix without rebuilding the site.
+- Decisions from another device, durable task states and events, tool receipts, later Maker
+  artifacts, current agent runs, and Meter verdicts are merged into the operator matrix without
+  rebuilding the site.
 - Conditional `ETag` requests return `304` when nothing changed; polling pauses when the tab is
   hidden or the operator leaves Memory Engine.
 - If the endpoint is down, the last good live state remains visible as stale. Before the first
@@ -212,10 +238,13 @@ operator can compare efficiency without mixing one business's memory with anothe
 | Service | Role |
 |---|---|
 | Bedrock | Titan Text Embeddings V2 generates every vector in the index. No embeddings, no retrieval, no memory. |
-| Lambda | Four container-image entry points: `night` runs the whole loop; `ask`, `decision`, and `workflow` serve the request-driven surfaces. |
-| EventBridge Scheduler | Fires `night` on a cron. This is what makes the loop autonomous rather than a button. |
-| S3 | The Maker's artifacts — the drafted deliverables an owner approves. |
-| API Gateway | Throttled HTTP routes for Ask, Do it / Pass, and the read-only live workflow snapshot. |
+| Lambda | Container-image API handlers, queue bridge, atomic Maker worker, email tool, reconciler and scheduled agents. |
+| SQS FIFO | Buffers approved work, orders only conflicting resources, deduplicates one dispatch attempt, and retains exhausted messages in a DLQ. |
+| Step Functions Standard | Runs one durable Maker workflow attempt and records the orchestration receipt. CockroachDB remains the task source of truth. |
+| EventBridge Scheduler | Fires the nightly intelligence loop and the SQL-only Maker reconciliation safety net. |
+| S3 | Stores complete Maker artifacts separately from the public site bucket. |
+| SES | Optional first execution tool: email one completed draft to a server-configured owner/test inbox. |
+| API Gateway | Throttled HTTP routes for Ask, decisions, authentication, onboarding and live workflow state. |
 
 Deployed with AWS SAM — see `deploy/` for the template and the runbook.
 

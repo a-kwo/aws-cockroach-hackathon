@@ -26,6 +26,7 @@ from brasstacks.agents.ask import TRAIL_PREFIX
 from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
 from brasstacks.finds import SUMMARY_MAX_CHARS, clean_owner_copy, owner_card_summary
+from brasstacks.task_schema import ensure_task_schema
 
 PER_MONTH = 30
 RAW_HIT_CEILING = len(ANALYST_QUERIES) * DEFAULT_PER_QUERY_LIMIT
@@ -155,9 +156,15 @@ def _artifacts(row: dict[str, Any]) -> list[dict[str, Any]]:
             "kind": artifact.get("kind") or "draft",
             "title": " ".join((artifact.get("title") or "").split()),
             "preview": " ".join((artifact.get("preview") or "").split()),
+            # The full body is needed by the signed-in owner's task-review
+            # deep link. It is tenant-scoped by /workflow and never enters an
+            # LLM prompt merely because the dashboard refreshes.
+            "body": artifact.get("body") or None,
             "createdAt": _iso(artifact.get("created_at")),
             "stored": bool(bucket and key),
             "location": f"s3://{bucket}/{key}" if bucket and key else None,
+            "taskId": str(artifact.get("task_id") or "") or None,
+            "idempotencyKey": artifact.get("idempotency_key"),
         })
     return result
 
@@ -292,6 +299,80 @@ def card_summary(raw_find: dict) -> str:
     return owner_card_summary(text)
 
 
+def _tasks(data: dict[str, Any], finds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    find_map = {str(found.get("databaseId") or found.get("id")): found for found in finds}
+    result: list[dict[str, Any]] = []
+    for row in data.get("tasks") or []:
+        task_id = str(row.get("id") or row.get("task_id") or "")
+        find_id = str(row.get("find_id") or "")
+        found = find_map.get(find_id) or {}
+        input_data = row.get("input_data") or {}
+        output_data = row.get("output_data") or {}
+        events = sorted(
+            list(row.get("events") or []),
+            key=lambda item: str(item.get("created_at") or ""),
+            reverse=True,
+        )
+        tools = sorted(
+            list(row.get("tools") or []),
+            key=lambda item: str(item.get("started_at") or ""),
+            reverse=True,
+        )
+        result.append({
+            "id": task_id,
+            "shortId": task_id[:8] if task_id else None,
+            "businessId": str(row.get("business_id") or ""),
+            "findId": find_id or None,
+            "findShortId": find_id[:8] if find_id else None,
+            "title": input_data.get("title") or found.get("title") or "Maker task",
+            "agent": row.get("agent") or "maker",
+            "taskType": row.get("task_type") or "maker.generate_draft",
+            "status": row.get("status") or "queued",
+            "priority": _int(row.get("priority"), 100),
+            "approvalState": row.get("approval_state") or "approved",
+            "attemptCount": _int(row.get("attempt_count")),
+            "dispatchCount": _int(row.get("dispatch_count")),
+            "resourceKey": row.get("resource_key"),
+            "requestedByAccountId": (str(row.get("requested_by_account_id"))
+                                     if row.get("requested_by_account_id") else None),
+            "approvedAt": _iso(row.get("approved_at")),
+            "createdAt": _iso(row.get("created_at")),
+            "updatedAt": _iso(row.get("updated_at")),
+            "startedAt": _iso(row.get("started_at")),
+            "completedAt": _iso(row.get("completed_at")),
+            "nextAttemptAt": _iso(row.get("next_attempt_at")),
+            "leaseExpiresAt": _iso(row.get("lease_expires_at")),
+            "claimedBy": row.get("claimed_by"),
+            "workflowExecutionArn": row.get("workflow_execution_arn"),
+            "artifactId": (str(row.get("output_artifact_id"))
+                           if row.get("output_artifact_id") else None),
+            "lastError": row.get("last_error"),
+            "input": input_data,
+            "output": output_data,
+            "events": [{
+                "id": str(item.get("id") or ""),
+                "type": item.get("event_type"),
+                "actorType": item.get("actor_type"),
+                "actorId": item.get("actor_id"),
+                "createdAt": _iso(item.get("created_at")),
+                "data": item.get("data") or {},
+            } for item in events],
+            "tools": [{
+                "id": str(item.get("id") or ""),
+                "name": item.get("tool_name"),
+                "status": item.get("status"),
+                "startedAt": _iso(item.get("started_at")),
+                "finishedAt": _iso(item.get("finished_at")),
+                "externalReference": item.get("external_reference"),
+                "error": item.get("error"),
+                "input": item.get("input_data") or {},
+                "output": item.get("output_data") or {},
+            } for item in tools],
+        })
+    result.sort(key=lambda item: str(item.get("createdAt") or ""), reverse=True)
+    return result
+
+
 def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
     """Shape one business's current rows for the operator UI.
 
@@ -416,6 +497,13 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             {"key": "cited", "label": "cited as evidence", "n": found["evidenceCount"], "source": "cluster"},
         ]
 
+    tasks = _tasks(data, finds)
+    maker_tasks = [task for task in tasks if task["agent"] == "maker"]
+    maker_waiting = [task for task in maker_tasks if task["status"] in {"queued", "retry"}]
+    maker_running = [task for task in maker_tasks if task["status"] == "running"]
+    maker_ready = [task for task in maker_tasks if task["status"] == "completed"]
+    maker_failed = [task for task in maker_tasks if task["status"] == "failed"]
+
     bits = [f"{money(daily)}/day earning now"]
     if proposed:
         bits.append(f"{len(proposed)} waiting on you")
@@ -459,6 +547,20 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
         "statusLine": " · ".join(bits),
         "finds": finds,
         "artifactCount": sum(len(found["artifacts"]) for found in finds),
+        "tasks": tasks,
+        "maker": {
+            "tasks": maker_tasks,
+            "waiting": len(maker_waiting),
+            "running": len(maker_running),
+            "ready": len(maker_ready),
+            "failed": len(maker_failed),
+            "emailSucceeded": sum(
+                1 for task in maker_tasks
+                for tool in task.get("tools", [])
+                if tool.get("name") == "ses.send_review_email"
+                and tool.get("status") == "succeeded"
+            ),
+        },
         "retrieval": {
             "source": "live",
             "queries": list(ANALYST_QUERIES),
@@ -523,6 +625,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
     ids = tuple(dict.fromkeys(str(UUID(value)) for value in business_ids))
     if not ids:
         return []
+    ensure_task_schema(conn)
     placeholders = ",".join(["%s"] * len(ids))
 
     with conn.cursor() as cursor:
@@ -555,11 +658,57 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
 
         artifacts = _rows(cursor, f"""
             SELECT f.business_id, a.id, a.find_id, a.kind, a.title, a.preview,
-                   a.s3_bucket, a.s3_key, a.created_at
+                   a.s3_bucket, a.s3_key, a.created_at, a.task_id,
+                   a.idempotency_key, a.body
             FROM artifact a
             JOIN find f ON f.id = a.find_id
             WHERE f.business_id IN ({placeholders})
             ORDER BY f.business_id, a.created_at DESC
+        """, ids)
+
+        tasks = _rows(cursor, f"""
+            SELECT business_id, id, find_id, requested_by_account_id, agent,
+                   task_type, status, priority, resource_key, approval_state,
+                   attempt_count, dispatch_count, approved_at, created_at,
+                   updated_at, started_at, completed_at, next_attempt_at,
+                   lease_expires_at, claimed_by, workflow_execution_arn,
+                   output_artifact_id, last_error, input_data, output_data
+            FROM work_task
+            WHERE business_id IN ({placeholders})
+            ORDER BY business_id, created_at DESC
+        """, ids)
+
+        # The operational page needs recent receipts, not an unbounded copy
+        # of every historical event. Rank per task so a single long-running
+        # tenant cannot make the multi-owner /workflow response grow forever.
+        task_events = _rows(cursor, f"""
+            SELECT business_id, id, task_id, event_type, actor_type, actor_id,
+                   data, created_at
+            FROM (
+                SELECT te.*,
+                       row_number() OVER (
+                           PARTITION BY task_id ORDER BY created_at DESC
+                       ) AS task_event_rank
+                FROM task_event te
+                WHERE business_id IN ({placeholders})
+            ) ranked
+            WHERE task_event_rank <= 20
+            ORDER BY business_id, task_id, created_at DESC
+        """, ids)
+
+        tool_executions = _rows(cursor, f"""
+            SELECT business_id, id, task_id, tool_name, status, started_at,
+                   finished_at, external_reference, error, input_data, output_data
+            FROM (
+                SELECT tx.*,
+                       row_number() OVER (
+                           PARTITION BY task_id ORDER BY started_at DESC
+                       ) AS tool_execution_rank
+                FROM tool_execution tx
+                WHERE business_id IN ({placeholders})
+            ) ranked
+            WHERE tool_execution_rank <= 10
+            ORDER BY business_id, task_id, started_at DESC
         """, ids)
 
         ledger = _rows(cursor, f"""
@@ -630,6 +779,9 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
     finds_by_business = _group(finds)
     evidence_by_find = _group(evidence, "find_id")
     artifacts_by_find = _group(artifacts, "find_id")
+    tasks_by_business = _group(tasks)
+    events_by_task = _group(task_events, "task_id")
+    tools_by_task = _group(tool_executions, "task_id")
     ledger_by_find = _group(ledger, "find_id")
     runs_by_business = _group(runs)
     corpus_by_business = {str(row["business_id"]): row for row in corpus}
@@ -663,6 +815,22 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
                 raw[key] = latest_ledger.get(key) if latest_ledger else None
             raw_finds.append(raw)
 
+        raw_tasks = []
+        for task in tasks_by_business.get(business_id, []):
+            task_id = str(task["id"])
+            raw_task = dict(task)
+            raw_task["events"] = [
+                {key: value for key, value in item.items()
+                 if key not in {"business_id", "task_id"}}
+                for item in events_by_task.get(task_id, [])
+            ]
+            raw_task["tools"] = [
+                {key: value for key, value in item.items()
+                 if key not in {"business_id", "task_id"}}
+                for item in tools_by_task.get(task_id, [])
+            ]
+            raw_tasks.append(raw_task)
+
         business_ledger = ledger_by_business.get(business_id, [])
         verified = sum(1 for row in business_ledger if str(row.get("verdict")) == "verified")
         estimated = sum(1 for row in business_ledger if str(row.get("verdict")) == "estimated")
@@ -689,6 +857,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
                 "earliest": None, "latest": None,
             }),
             "finds": raw_finds,
+            "tasks": raw_tasks,
             "runs": [
                 {key: value for key, value in row.items()
                  if key not in {"business_id", "workflow_rank", "referenced_find_run"}}

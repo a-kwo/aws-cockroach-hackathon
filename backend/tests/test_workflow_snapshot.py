@@ -173,3 +173,86 @@ def test_workspace_marks_historical_find_without_run_receipt_honestly():
     assert first["runDatabaseId"] is None
     assert first["origin"] == "historical_import"
     assert workspace["analyst"]["latestRun"] is None
+
+
+def test_workspace_exposes_bounded_task_receipts_and_full_draft_for_owner_review():
+    data = demo_data()
+    find = data["finds"][0]
+    task_id = "30000000-0000-0000-0000-000000000003"
+    artifact_id = "40000000-0000-0000-0000-000000000004"
+    find["status"] = "accepted"
+    find["artifacts"] = [{
+        "id": artifact_id,
+        "kind": "review_reply",
+        "title": "Lunch offer email",
+        "preview": "A short preview",
+        "body": "The complete owner-ready draft.\n\nPost this after review.",
+        "s3_bucket": "drafts",
+        "s3_key": f"tasks/{task_id}/review_reply.md",
+        "created_at": "2026-08-02T20:02:00+00:00",
+        "task_id": task_id,
+        "idempotency_key": f"task:{task_id}:artifact:review_reply:v1",
+    }]
+    data["tasks"] = [{
+        "id": task_id,
+        "business_id": data["business"]["id"],
+        "find_id": find["id"],
+        "requested_by_account_id": None,
+        "agent": "maker",
+        "task_type": "maker.generate_draft",
+        "status": "completed",
+        "priority": 100,
+        "resource_key": f"maker:find:{data['business']['id']}:{find['id']}",
+        "approval_state": "approved",
+        "attempt_count": 1,
+        "dispatch_count": 1,
+        "approved_at": "2026-08-02T20:00:00+00:00",
+        "created_at": "2026-08-02T20:00:00+00:00",
+        "updated_at": "2026-08-02T20:02:00+00:00",
+        "started_at": "2026-08-02T20:01:00+00:00",
+        "completed_at": "2026-08-02T20:02:00+00:00",
+        "next_attempt_at": None,
+        "lease_expires_at": None,
+        "claimed_by": None,
+        "workflow_execution_arn": "arn:aws:states:us-east-1:123:execution:maker:task",
+        "output_artifact_id": artifact_id,
+        "last_error": None,
+        "input_data": {"title": find["title"]},
+        "output_data": {"artifact_id": artifact_id},
+        "events": [{
+            "id": "event-1", "event_type": "task.completed",
+            "actor_type": "worker", "actor_id": None,
+            "data": {"output_artifact_id": artifact_id},
+            "created_at": "2026-08-02T20:02:00+00:00",
+        }],
+        "tools": [{
+            "id": "tool-1", "tool_name": "ses.send_review_email",
+            "status": "succeeded", "started_at": "2026-08-02T20:02:01+00:00",
+            "finished_at": "2026-08-02T20:02:02+00:00",
+            "external_reference": "ses-message-id", "error": None,
+            "input_data": {"recipient": "virtual.icfd@gmail.com"},
+            "output_data": {"recipient": "virtual.icfd@gmail.com"},
+        }],
+    }]
+
+    workspace = build_workspace(data)
+    task = workspace["maker"]["tasks"][0]
+    artifact = workspace["finds"][0]["artifacts"][0]
+
+    assert task["id"] == task_id
+    assert task["status"] == "completed"
+    assert task["artifactId"] == artifact_id
+    assert task["tools"][0]["externalReference"] == "ses-message-id"
+    assert artifact["taskId"] == task_id
+    assert artifact["databaseId"] == artifact_id
+    assert artifact["body"].startswith("The complete owner-ready draft")
+
+
+def test_live_task_receipt_queries_are_bounded_per_task():
+    source = (Path(__file__).resolve().parents[1] / "src" / "brasstacks" /
+              "workflow_snapshot.py").read_text(encoding="utf-8")
+
+    assert "PARTITION BY task_id ORDER BY created_at DESC" in source
+    assert "WHERE task_event_rank <= 20" in source
+    assert "PARTITION BY task_id ORDER BY started_at DESC" in source
+    assert "WHERE tool_execution_rank <= 10" in source
