@@ -4,16 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "First request verification, then enable after both emails are verified"
+        description: "Enable Maker email, or request verification for missing SES identities"
         required: true
         default: enable-email
         type: choice
         options:
-          - request-verification
           - enable-email
+          - request-verification
 
 permissions:
   contents: read
+
+concurrency:
+  group: configure-maker-email
+  cancel-in-progress: false
 
 jobs:
   configure-maker-email:
@@ -31,9 +35,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: AKIA42QD7G5IVELIB4FM
-          aws-secret-access-key: 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
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       - name: Confirm AWS account
         run: aws sts get-caller-identity
@@ -66,27 +71,52 @@ jobs:
 
           ensure_identity() {
             local address="$1"
+            local lookup_output
+            local lookup_status
 
-            if aws sesv2 get-email-identity \
+            set +e
+            lookup_output=$(aws sesv2 get-email-identity \
               --email-identity "$address" \
               --region "$AWS_REGION" \
-              >/dev/null 2>&1
-            then
-              status=$(aws sesv2 get-email-identity \
-                --email-identity "$address" \
-                --region "$AWS_REGION" \
-                --query 'VerifiedForSendingStatus' \
-                --output text)
+              --query 'VerifiedForSendingStatus' \
+              --output text 2>&1)
+            lookup_status=$?
+            set -e
 
-              echo "$address already exists. Verified: $status"
+            if [ "$lookup_status" -eq 0 ]; then
+              echo "$address already exists. Verified: $lookup_output"
               return 0
             fi
 
-            aws sesv2 create-email-identity \
-              --email-identity "$address" \
-              --region "$AWS_REGION" >/dev/null
+            if ! grep -q "NotFoundException" <<< "$lookup_output"; then
+              echo "Unable to inspect SES identity: $address"
+              echo "$lookup_output"
+              return "$lookup_status"
+            fi
 
-            echo "Verification email requested for $address."
+            local create_output
+            local create_status
+
+            set +e
+            create_output=$(aws sesv2 create-email-identity \
+              --email-identity "$address" \
+              --region "$AWS_REGION" 2>&1)
+            create_status=$?
+            set -e
+
+            if [ "$create_status" -eq 0 ]; then
+              echo "Verification email requested for $address."
+              return 0
+            fi
+
+            if grep -q "AlreadyExistsException" <<< "$create_output"; then
+              echo "$address was created by another run and already exists."
+              return 0
+            fi
+
+            echo "Unable to create SES identity: $address"
+            echo "$create_output"
+            return "$create_status"
           }
 
           ensure_identity "$MAKER_EMAIL_FROM"
@@ -224,6 +254,7 @@ jobs:
           echo "MakerEmailFunction refreshed and ready."
 
       - name: Summary
+        if: ${{ always() }}
         shell: bash
         run: |
           echo "Action: ${{ inputs.action }}"
