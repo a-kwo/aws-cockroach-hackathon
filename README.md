@@ -126,7 +126,6 @@ docs/RECONSIDER_DECISION_CYCLES.md
 
 PRODUCT.md           who this is for and what must never be fabricated
 DESIGN.md            the visual system, with the rules and the reasons
-Product Demo/        the pre-project mock. Frozen. See Provenance below.
 ```
 
 ## Running it for real
@@ -279,16 +278,16 @@ absences so future work does not invent them.
 
 ## Provenance
 
-`Product Demo/` contains a pitch deck and a clickable front-end mock built **before this
+`Product Demo/` held a pitch deck and a clickable front-end mock built **before this
 project began**, for a different competition that was abandoned. The mock was generated
-with AI and then refined by hand.
+with AI and then refined by hand. The directory has since been **removed from the working
+tree**; it remains in git history, and removing it does not retract anything below.
 
 **The shipped frontend descends from that mock.** After three redesigns were tried and
 rejected, `Product Demo/brasstacks-jar-demo.html` was copied to `site/app.html` and
 rebuilt from there: its data now comes from CockroachDB, its invented panels were
 replaced, and a Ledger screen was added — but its layout, CSS and interaction model
-are descended from that file. `Product Demo/` itself is frozen and is never a build
-input; the build reads `site/`.
+are descended from that file. It was never a build input; the build reads `site/`.
 
 An abandoned React rebuild ("The Night Desk") lived at `frontend/` and was **deleted** —
 it was the third rejected redesign and only caused confusion about which directory was
