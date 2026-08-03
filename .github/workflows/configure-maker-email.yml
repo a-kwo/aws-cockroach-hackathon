@@ -43,6 +43,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           SITE_URL=$(aws cloudformation describe-stacks \
             --stack-name "$STACK_NAME" \
             --region "$AWS_REGION" \
@@ -57,7 +58,6 @@ jobs:
           echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"
           echo "Site URL found: $SITE_URL"
 
-      
       - name: Ensure SES identities exist
         if: ${{ inputs.action == 'request-verification' }}
         shell: bash
@@ -92,28 +92,35 @@ jobs:
           ensure_identity "$MAKER_EMAIL_FROM"
           ensure_identity "$MAKER_REVIEW_EMAIL"
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/MAKER_EMAIL_FROM" \
             --value "$MAKER_EMAIL_FROM" \
             --region "$AWS_REGION" >/dev/null
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/MAKER_REVIEW_EMAIL" \
             --value "$MAKER_REVIEW_EMAIL" \
             --region "$AWS_REGION" >/dev/null
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/BRASSTACKS_SITE_URL" \
             --value "${{ steps.stack.outputs.site_url }}" \
             --region "$AWS_REGION" >/dev/null
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/MAKER_EMAIL_ENABLED" \
             --value "false" \
             --region "$AWS_REGION" >/dev/null
 
           echo "Maker email remains disabled until enable-email is run."
-
 
       - name: Verify identities and enable Maker email
         if: ${{ inputs.action == 'enable-email' }}
@@ -147,22 +154,30 @@ jobs:
             exit 1
           fi
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/MAKER_EMAIL_FROM" \
             --value "$MAKER_EMAIL_FROM" \
             --region "$AWS_REGION" >/dev/null
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/MAKER_REVIEW_EMAIL" \
             --value "$MAKER_REVIEW_EMAIL" \
             --region "$AWS_REGION" >/dev/null
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/BRASSTACKS_SITE_URL" \
             --value "${{ steps.stack.outputs.site_url }}" \
             --region "$AWS_REGION" >/dev/null
 
-          aws ssm put-parameter --type String --overwrite \
+          aws ssm put-parameter \
+            --type String \
+            --overwrite \
             --name "$SSM_PREFIX/MAKER_EMAIL_ENABLED" \
             --value "true" \
             --region "$AWS_REGION" >/dev/null
@@ -202,15 +217,11 @@ jobs:
             --region "$AWS_REGION" \
             --environment file:///tmp/maker-email-env-updated.json >/dev/null
 
-		
-	  aws lambda wait function-updated \
+          aws lambda wait function-updated \
             --function-name "$FUNCTION_NAME" \
             --region "$AWS_REGION"
 
           echo "MakerEmailFunction refreshed and ready."
-
-
-          echo "MakerEmailFunction refreshed to load the new SSM values."
 
       - name: Summary
         shell: bash
