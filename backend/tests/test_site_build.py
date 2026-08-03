@@ -1474,7 +1474,9 @@ def test_a_night_in_progress_says_so():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "The agents are working" in html
-    assert 'myRuns.some(run => String(run.status) === "running")' in html
+    # Bounded: see test_the_board_will_not_claim_work_from_an_abandoned_run for
+    # why an open run row alone stopped being good enough evidence.
+    assert 'const openRuns = myRuns.filter(run => String(run.status) === "running");' in html
     # Same animated ellipsis the trigger button uses.
     assert 'class="working-dots"' in html
 
@@ -1483,10 +1485,10 @@ def test_the_board_can_start_a_night_for_the_signed_in_business():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "runEndpoint" in html
-    assert "startFirstNight" in html
+    assert "startNight" in html
     # Same guard as everywhere else: the tenant comes from the session, so the
     # request carries no business id to spend someone else's money against.
-    start = html.split("async function startFirstNight", 1)[1][:900]
+    start = html.split("async function startNight", 1)[1][:900]
     assert "authHeaders(" in start
     assert "business_id" not in start
 
@@ -2194,3 +2196,103 @@ def test_profile_schema_backfills_only_legacy_business_accounts():
     assert "peter.flp.2006@gmail.com" in schema
     assert "AND (email IS NULL OR trim(email) = '')" in schema
     assert "profile_managed" in schema
+
+
+# ------------------------------------------------- the empty decision queue
+#
+# An empty queue is not an empty business. Every assertion below was written
+# against a real screenshot: Yellow Cow Korean BBQ, three accepted moves,
+# $100/day predicted, and a board that said "The agents are working…" over a
+# night that had died a day and a half earlier.
+
+
+def test_the_board_will_not_claim_work_from_an_abandoned_run():
+    """`status === "running"` is not proof that anything is running.
+
+    A Lambda killed by a timeout cannot close its own agent_run row, so the
+    board has to bound how long it believes one. Unbounded, a single dead run
+    made the product claim work was in progress indefinitely — the same class
+    of untruth as showing money the Meter has not verified.
+    """
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    assert "NIGHT_STALE_AFTER_MS" in html
+    assert "const openRuns = myRuns.filter(run => String(run.status) === \"running\");" in html
+    assert "Date.now() - started) < NIGHT_STALE_AFTER_MS" in html
+    # And it must say so rather than silently showing nothing.
+    assert "Last night didn't finish" in html
+
+
+def test_the_stale_bound_matches_the_one_the_run_endpoint_enforces():
+    """Two different bounds would let the board offer a button the API refuses."""
+    from brasstacks.handlers.run import STALE_RUN_AFTER
+
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+    minutes = int(STALE_RUN_AFTER.total_seconds() // 60)
+
+    assert f"const NIGHT_STALE_AFTER_MS = {minutes} * 60 * 1000;" in html
+
+
+def test_a_decided_queue_shows_the_moves_in_flight_not_a_full_stop():
+    """"All caught up" told an owner with three live moves that there was
+    nothing to see, and offered them Restart demo as the way forward."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    # The rendered heading, not the word: the comment history above the render
+    # explains why that heading was wrong and is worth keeping.
+    assert "<h2>All caught up</h2>" not in html
+    assert "renderInFlightBoard" in html
+    assert "moves are live" in html
+    assert "Look for more tonight" in html
+
+
+def test_the_in_flight_board_keeps_predicted_apart_from_verified():
+    """The honesty rule the headline figure has always had, in the one place
+    an owner is most likely to read a forecast as a fact: right after saying
+    yes to everything."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    board = html.split("function renderInFlightBoard", 1)[1].split(
+        "function renderAutopilot", 1)[0]
+    assert "/day predicted" in board
+    assert "/day verified so far" in board
+    # The forecast is summed from finds; the verified figure comes from the
+    # ledger-backed summary and is never added to it.
+    assert "predictedDaily" in board
+    assert "summary?.dailyTxt" in board
+    assert "predicted + " not in board
+
+
+def test_restart_demo_is_not_offered_to_a_live_owner():
+    """It wipes the owner's decisions out of localStorage. For a demo tenant
+    that is a reset; for a real one it destroys their record."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    board = html.split("function renderInFlightBoard", 1)[1].split(
+        "function renderAutopilot", 1)[0]
+    assert "sampleWorkspaceMode" in board
+    restart = board.split("data-restart-demo", 1)[0]
+    assert restart.rstrip().endswith("? `<button class=\"empty-secondary\" type=\"button\"")
+
+
+def test_a_refused_night_does_not_animate_as_a_started_one():
+    """The endpoint answers 200 with `cooldown` when it declines to spend. The
+    button used to read that as success and animate over a night nobody began."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    assert 'payload.status === "cooldown"' in html
+    assert "Asked already today" in html
+    assert "nextNightAt" in html
+
+
+def test_a_calendar_date_is_not_shifted_into_the_previous_day():
+    """`verify_after` is a DATE. JavaScript parses a bare YYYY-MM-DD as UTC
+    midnight, so an owner in California was shown "verifies Aug 22" for a find
+    the Meter will judge on the 23rd. A date the product commits to has to
+    render as the date in the row."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    shortdate = html.split("function shortDate(iso) {", 1)[1].split(
+        "\n    }", 1)[0]
+    assert "^\\d{4}-\\d{2}-\\d{2}$" in shortdate
+    assert "T00:00:00" in shortdate

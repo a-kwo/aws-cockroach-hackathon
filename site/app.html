@@ -785,6 +785,57 @@
     .empty-primary { border: 0; background: var(--ink); color: #ffffff; }
     .empty-secondary { border: 1px solid var(--line); background: #ffffff; color: var(--ink-soft); }
 
+    /* The in-flight board. An empty decision queue is not an empty business,
+       so this state carries the accepted moves and their dates rather than a
+       full stop. Predicted and verified are two different typographic weights
+       on two different lines because they are two different claims. */
+    .inflight-list {
+      display: grid;
+      gap: 2px;
+      width: min(520px, 100%);
+      margin: 20px auto 0;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+    }
+
+    .inflight-list li {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      align-items: baseline;
+      gap: 4px 10px;
+      padding: 11px 12px;
+      border-radius: 12px;
+      background: rgba(16, 17, 20, .028);
+    }
+
+    .inflight-emoji { grid-row: span 2; font-size: 15px; line-height: 1.2; }
+    .inflight-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .inflight-stage { color: var(--ink-soft); font-size: 11px; font-weight: 650; }
+    .inflight-verify {
+      grid-column: 2 / span 2;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .inflight-money {
+      max-width: none !important;
+      margin: 16px auto 0;
+      display: grid;
+      gap: 3px;
+    }
+    .inflight-money strong { color: var(--ink); font-size: 15px; font-weight: 780; }
+    .inflight-money span { color: var(--muted); font-size: 12px; }
+
     /* GROWTH */
     .growth-inner { padding: 34px 0 40px; }
 
@@ -14178,18 +14229,22 @@
       });
     })();
 
-    //  Asking the agents for a first night from the board, for an owner who
-    //  signed up before the onboarding button existed or who closed the tab
-    //  before pressing it. Same endpoint, same guards: it runs for the signed-in
-    //  business only, and refuses to start a second run.
+    //  Asking the agents for a night from the board — the first one for an owner
+    //  who closed the tab before pressing the onboarding button, and every one
+    //  after that for an owner who has decided on everything they were given.
+    //  Same endpoint, same guards: it runs for the signed-in business only, it
+    //  returns a night already in flight rather than paying for a second, and it
+    //  holds a 24-hour cooldown between manual nights.
     const RUN_ENDPOINT = String(btData.api?.runEndpoint || "").trim();
 
-    async function startFirstNight(button, note) {
+    async function startNight(button, note) {
       const session = readSession();
+      const idle = button.dataset.idleLabel || button.textContent;
       if (!RUN_ENDPOINT || !session) {
         if (note) note.textContent = "Sign in again to start a night.";
         return;
       }
+      button.dataset.idleLabel = idle;
       button.disabled = true;
       button.textContent = "Waking the agents";
       try {
@@ -14198,6 +14253,19 @@
           headers: authHeaders({ "Content-Type": "application/json" }),
         });
         const payload = await response.json().catch(() => ({}));
+        //  A 200 is not by itself good news. The endpoint answers 200 with
+        //  `cooldown` when it declines to spend, and treating that as a start
+        //  left the button animating "Working…" over a night nobody had begun.
+        if (payload.status === "cooldown") {
+          button.textContent = "Asked already today";
+          if (note) {
+            const next = payload.nextNightAt ? shortDate(payload.nextNightAt) : "";
+            note.textContent = next
+              ? `${payload.message || "Already asked today."} Next: ${next}.`
+              : (payload.message || "Already asked today.");
+          }
+          return;
+        }
         if (response.status === 202 || response.status === 200) {
           // No status line under it. The animated label is the status: a
           // paragraph explaining that something started, under a button that
@@ -14207,11 +14275,11 @@
           return;
         }
         button.disabled = false;
-        button.textContent = "Start my first night";
+        button.textContent = idle;
         if (note) note.textContent = payload.error || `Could not start (${response.status}).`;
       } catch (e) {
         button.disabled = false;
-        button.textContent = "Start my first night";
+        button.textContent = idle;
         if (note) note.textContent = "Could not reach the server.";
       }
     }
@@ -15206,6 +15274,107 @@
       bindDynamicActions();
     }
 
+    //  A night runs 60-90 seconds. Past ten minutes an open run row is debris
+    //  from a process that died, not work in progress. The same bound is
+    //  enforced server-side in handlers/run.py so a dead run cannot lock the
+    //  owner out of asking for another night.
+    const NIGHT_STALE_AFTER_MS = 10 * 60 * 1000;
+
+    function dailyMoney(cents) {
+      const value = Math.round(Number(cents) || 0) / 100;
+      return value % 1 === 0
+        ? `$${value.toLocaleString("en-US")}`
+        : `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    /**
+     * How far one accepted move has actually got.
+     *
+     * Read from task and artifact rows rather than from the find's status,
+     * because "accepted" is one word for five different situations and the
+     * owner's next question is always which one they are in.
+     */
+    function moveStage(found, tasks) {
+      const findId = String(found.databaseId || found.id || "");
+      //  Superseded rows belong to an earlier decision cycle. They stay in the
+      //  history; they are not where this move is now.
+      const related = (tasks || []).filter(task =>
+        String(task.findId || "") === findId && !task.supersededAt);
+      const emailed = related.some(task => (task.tools || []).some(tool =>
+        tool.name === "ses.send_review_email" && tool.status === "succeeded"));
+      if (emailed) return "Draft sent to your inbox";
+      const drafts = (found.artifacts || []).filter(item => item.current !== false);
+      if (drafts.length) return drafts.length > 1 ? `${drafts.length} drafts ready` : "Draft ready";
+      if (related.some(task => task.status === "running")) return "Maker is drafting";
+      if (related.some(task => task.status === "queued" || task.status === "retry")) return "Queued for Maker";
+      if (related.some(task => task.status === "failed")) return "Draft failed";
+      return "Accepted";
+    }
+
+    /**
+     * What the board shows when no card is waiting on a decision.
+     *
+     * "All caught up" was the wrong frame and the wrong offer. The queue being
+     * empty is not the business being empty: an owner who has just said yes to
+     * everything has money riding on moves that are still in flight, and the
+     * screen that greets them was a full stop with a Restart demo button on it.
+     *
+     * Every figure here is a row in CockroachDB. Predicted and verified are
+     * named separately and never added together — the headline daily figure is
+     * still only what the Meter has verified, and accepting a find moves
+     * nothing but the forecast.
+     */
+    function renderInFlightBoard(workspace, finds) {
+      const inFlight = (finds || []).filter(found =>
+        !found.verdict && (found.status === "accepted" || found.status === "live"));
+      const tasks = workspace.tasks || [];
+      const predicted = inFlight.reduce((sum, found) => sum + (Number(found.predictedDaily) || 0), 0);
+      const verifiedTxt = workspace.summary?.dailyTxt || "$0";
+      const nextVerdict = inFlight
+        .map(found => found.verifyAfter)
+        .filter(Boolean)
+        .sort()[0];
+
+      const heading = inFlight.length === 1
+        ? "One move is live"
+        : `${inFlight.length} moves are live`;
+
+      const rows = inFlight.map(found => `
+        <li>
+          <span class="inflight-emoji" aria-hidden="true">${escapeHtml(found.emoji || "💡")}</span>
+          <span class="inflight-title">${escapeHtml(found.shortTitle || found.title || "Move")}</span>
+          <span class="inflight-stage">${escapeHtml(moveStage(found, tasks))}</span>
+          <span class="inflight-verify">${found.verifyAfter ? `verifies ${escapeHtml(shortDate(found.verifyAfter))}` : "no verify date"}</span>
+        </li>`).join("");
+
+      const moneyLine = inFlight.length ? `
+        <p class="inflight-money">
+          <strong>${escapeHtml(dailyMoney(predicted))}/day predicted</strong>
+          <span>${escapeHtml(verifiedTxt)}/day verified so far${nextVerdict ? ` · first verdict ${escapeHtml(shortDate(nextVerdict))}` : ""}</span>
+        </p>` : "";
+
+      return `
+        <section class="queue-empty inflight" aria-label="${inFlight.length ? "Accepted moves in flight" : "No moves need a decision"}" data-enter>
+          <div>
+            <div class="empty-icon" aria-hidden="true">${icons.approved}</div>
+            <h2>${inFlight.length ? escapeHtml(heading) : "Nothing waiting on you"}</h2>
+            ${inFlight.length
+              ? `<p>You've decided on everything the agents have found. These are running — the Meter judges each one on its own date.</p>`
+              : `<p>Every recommendation so far has been decided. Passed ideas stay in the decision history.</p>`}
+            ${inFlight.length ? `<ul class="inflight-list">${rows}</ul>` : ""}
+            ${moneyLine}
+            <div class="empty-actions">
+              <button class="empty-primary" type="button" data-start-night>Look for more tonight</button>
+              <button class="empty-secondary" type="button" data-switch-growth>Open Growth</button>
+              ${sampleWorkspaceMode
+                ? `<button class="empty-secondary" type="button" data-restart-demo>Restart demo</button>`
+                : ""}
+            </div>
+            <p class="empty-note"></p>
+          </div>
+        </section>`;
+    }
+
     function renderAutopilot() {
       if (onboardingMode) {
         renderOnboardingWorkspace();
@@ -15238,7 +15407,19 @@
         //  A night takes 60-90 seconds and the board polls every 15. Without
         //  this the owner pressed the button, saw a terminal-sounding message,
         //  and reasonably concluded nothing had happened.
-        const working = myRuns.some(run => String(run.status) === "running");
+        //
+        //  Bounded, because an open run row is not proof that anything is
+        //  running. A Lambda killed by a timeout cannot close its own row, and
+        //  the unbounded version of this line told Yellow Cow Korean BBQ that
+        //  the agents were working for a day and a half after an Analyst run
+        //  died mid-night. Claiming work is in progress when none is, is the
+        //  same class of lie as claiming money the ledger has not verified.
+        const openRuns = myRuns.filter(run => String(run.status) === "running");
+        const working = openRuns.some(run => {
+          const started = Date.parse(run.startedAt || "");
+          return Number.isFinite(started) && (Date.now() - started) < NIGHT_STALE_AFTER_MS;
+        });
+        const stalled = !working && openRuns.length > 0;
         const neverRan = !myFinds.length && !myRuns.length;
         const awaitingLiveOwner = workflowApiConfigured && !liveWorkflowWorkspaces &&
           workflowRefreshState === "loading";
@@ -15272,6 +15453,18 @@
               <p>Radar is reading your market and the Analyst is reasoning over what it finds. This page updates itself — it usually takes a minute or two.</p>
             </div>
           </section>
+        ` : stalled ? `
+          <section class="queue-empty" aria-label="The last night did not finish" data-enter>
+            <div>
+              <div class="empty-icon" aria-hidden="true">${icons.radar || icons.approved}</div>
+              <h2>Last night didn't finish</h2>
+              <p>A run opened and never closed, so the agents stopped partway. Nothing was charged to your record. Asking again starts a fresh night.</p>
+              <div class="empty-actions">
+                <button class="empty-primary" type="button" data-start-night>Try again</button>
+              </div>
+              <p class="empty-note"></p>
+            </div>
+          </section>
         ` : neverRan ? `
           <section class="queue-empty" aria-label="No night has run yet" data-enter>
             <div>
@@ -15284,19 +15477,7 @@
               <p class="empty-note" id="firstNightNote"></p>
             </div>
           </section>
-        ` : `
-          <section class="queue-empty" aria-label="No posts need a decision" data-enter>
-            <div>
-              <div class="empty-icon" aria-hidden="true">${icons.approved}</div>
-              <h2>All caught up</h2>
-              <p>Approved moves continue to Maker. Passed ideas remain in the decision history.</p>
-              <div class="empty-actions">
-                <button class="empty-primary" type="button" data-switch-growth>Open Growth</button>
-                <button class="empty-secondary" type="button" data-restart-demo>Restart demo</button>
-              </div>
-            </div>
-          </section>
-        `;
+        ` : renderInFlightBoard(mine, myFinds);
         bindDynamicActions();
         return;
       }
@@ -18943,7 +19124,15 @@ ledger_entry · artifact · agent_run`,
 
     function shortDate(iso) {
       if (!iso) return "—";
-      const d = new Date(iso);
+      //  A bare YYYY-MM-DD is parsed by JS as UTC midnight, which renders as
+      //  the day BEFORE anywhere west of Greenwich. `verify_after` is a DATE
+      //  column, so an owner in California was told a find "verifies Aug 22"
+      //  when the row — and the Meter — say the 23rd. A calendar date carries
+      //  no timezone; read it in the reader's.
+      const local = /^\d{4}-\d{2}-\d{2}$/.test(String(iso).trim())
+        ? `${String(iso).trim()}T00:00:00`
+        : iso;
+      const d = new Date(local);
       return Number.isNaN(d.getTime())
         ? "—"
         : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -19473,8 +19662,11 @@ ledger_entry · artifact · agent_run`,
 
     function bindDynamicActions() {
       document.querySelectorAll("[data-start-night]").forEach(button => {
-        button.onclick = () => startFirstNight(
-          button, document.getElementById("firstNightNote"));
+        //  The note lives beside the button rather than at one fixed id, so
+        //  the first-night card and the in-flight board can each carry their own.
+        const note = button.closest("section")?.querySelector(".empty-note")
+          || document.getElementById("firstNightNote");
+        button.onclick = () => startNight(button, note);
       });
       document.querySelectorAll("[data-refresh-owner-feed]").forEach(button => {
         button.onclick = () => refreshWorkflowSnapshot({ force: true, silent: false });
