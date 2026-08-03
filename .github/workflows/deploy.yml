@@ -30,6 +30,14 @@ jobs:
           aws-access-key-id: AKIA42QD7G5IVELIB4FM
           aws-secret-access-key: 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
           aws-region: us-east-1
+      
+
+      - name: Request SES sender verification
+        run: |
+          aws sesv2 create-email-identity \
+            --email-identity peter.flp.2006@gmail.com \
+            --region us-east-1
+
 
       - name: Confirm AWS account
         run: aws sts get-caller-identity

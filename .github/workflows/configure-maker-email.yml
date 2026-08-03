@@ -1,0 +1,214 @@
+name: Configure Maker Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "First request verification, then enable after both emails are verified"
+        required: true
+        default: request-verification
+        type: choice
+        options:
+          - request-verification
+          - enable-email
+
+permissions:
+  contents: read
+
+jobs:
+  configure-maker-email:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      AWS_REGION: us-east-1
+      STACK_NAME: brasstacks
+      SSM_PREFIX: /brasstacks
+      MAKER_EMAIL_FROM: peter.flp.2006@gmail.com
+      MAKER_REVIEW_EMAIL: virtual.icfd@gmail.com
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Confirm AWS account
+        run: aws sts get-caller-identity
+
+      - name: Read deployed site URL
+        id: stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE_URL=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='SiteUrl'].OutputValue | [0]" \
+            --output text)
+
+          if [ -z "$SITE_URL" ] || [ "$SITE_URL" = "None" ]; then
+            echo "SiteUrl was not found in the $STACK_NAME stack."
+            exit 1
+          fi
+
+          echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"
+          echo "Site URL found: $SITE_URL"
+
+      - name: Request SES verification emails
+        if: ${{ inputs.action == 'request-verification' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          request_identity() {
+            local address="$1"
+            local status
+            status=$(aws sesv2 get-email-identity \
+              --email-identity "$address" \
+              --region "$AWS_REGION" \
+              --query 'VerifiedForSendingStatus' \
+              --output text 2>/dev/null || echo "MISSING")
+
+            if [ "$status" = "True" ]; then
+              echo "$address is already verified."
+              return
+            fi
+
+            if [ "$status" != "MISSING" ]; then
+              echo "$address exists but is not verified; recreating it to send a fresh verification email."
+              aws sesv2 delete-email-identity \
+                --email-identity "$address" \
+                --region "$AWS_REGION"
+            fi
+
+            aws sesv2 create-email-identity \
+              --email-identity "$address" \
+              --region "$AWS_REGION" >/dev/null
+            echo "Verification email requested for $address."
+          }
+
+          request_identity "$MAKER_EMAIL_FROM"
+          request_identity "$MAKER_REVIEW_EMAIL"
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/MAKER_EMAIL_FROM" \
+            --value "$MAKER_EMAIL_FROM" \
+            --region "$AWS_REGION" >/dev/null
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/MAKER_REVIEW_EMAIL" \
+            --value "$MAKER_REVIEW_EMAIL" \
+            --region "$AWS_REGION" >/dev/null
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/BRASSTACKS_SITE_URL" \
+            --value "${{ steps.stack.outputs.site_url }}" \
+            --region "$AWS_REGION" >/dev/null
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/MAKER_EMAIL_ENABLED" \
+            --value "false" \
+            --region "$AWS_REGION" >/dev/null
+
+          echo "Maker email remains disabled until both verification links are clicked."
+
+      - name: Verify identities and enable Maker email
+        if: ${{ inputs.action == 'enable-email' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sender_verified=$(aws sesv2 get-email-identity \
+            --email-identity "$MAKER_EMAIL_FROM" \
+            --region "$AWS_REGION" \
+            --query 'VerifiedForSendingStatus' \
+            --output text 2>/dev/null || echo "False")
+
+          recipient_verified=$(aws sesv2 get-email-identity \
+            --email-identity "$MAKER_REVIEW_EMAIL" \
+            --region "$AWS_REGION" \
+            --query 'VerifiedForSendingStatus' \
+            --output text 2>/dev/null || echo "False")
+
+          echo "Sender verified: $sender_verified"
+          echo "Recipient verified: $recipient_verified"
+
+          if [ "$sender_verified" != "True" ]; then
+            echo "Sender is not verified: $MAKER_EMAIL_FROM"
+            exit 1
+          fi
+
+          if [ "$recipient_verified" != "True" ]; then
+            echo "Recipient is not verified: $MAKER_REVIEW_EMAIL"
+            echo "This is required while the SES account is in sandbox mode."
+            exit 1
+          fi
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/MAKER_EMAIL_FROM" \
+            --value "$MAKER_EMAIL_FROM" \
+            --region "$AWS_REGION" >/dev/null
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/MAKER_REVIEW_EMAIL" \
+            --value "$MAKER_REVIEW_EMAIL" \
+            --region "$AWS_REGION" >/dev/null
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/BRASSTACKS_SITE_URL" \
+            --value "${{ steps.stack.outputs.site_url }}" \
+            --region "$AWS_REGION" >/dev/null
+
+          aws ssm put-parameter --type String --overwrite \
+            --name "$SSM_PREFIX/MAKER_EMAIL_ENABLED" \
+            --value "true" \
+            --region "$AWS_REGION" >/dev/null
+
+          echo "Maker review email is enabled."
+
+      - name: Force a fresh Maker Email Lambda environment
+        if: ${{ inputs.action == 'enable-email' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FUNCTION_NAME=$(aws cloudformation describe-stack-resource \
+            --stack-name "$STACK_NAME" \
+            --logical-resource-id MakerEmailFunction \
+            --region "$AWS_REGION" \
+            --query 'StackResourceDetail.PhysicalResourceId' \
+            --output text 2>/dev/null || echo "None")
+
+          if [ -z "$FUNCTION_NAME" ] || [ "$FUNCTION_NAME" = "None" ]; then
+            echo "MakerEmailFunction is not deployed yet; skip cold-start refresh."
+            exit 0
+          fi
+
+          aws lambda get-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --region "$AWS_REGION" \
+            --query 'Environment' \
+            --output json > /tmp/maker-email-env.json
+
+          jq --arg nonce "$(date +%s)" \
+            '.Variables = (.Variables // {}) | .Variables.DEPLOY_NONCE = $nonce' \
+            /tmp/maker-email-env.json > /tmp/maker-email-env-updated.json
+
+          aws lambda update-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --region "$AWS_REGION" \
+            --environment file:///tmp/maker-email-env-updated.json >/dev/null
+
+          echo "MakerEmailFunction refreshed to load the new SSM values."
+
+      - name: Summary
+        shell: bash
+        run: |
+          echo "Action: ${{ inputs.action }}"
+          echo "Sender: $MAKER_EMAIL_FROM"
+          echo "Recipient: $MAKER_REVIEW_EMAIL"
+          echo "Region: $AWS_REGION"
+          echo "Site: ${{ steps.stack.outputs.site_url }}"
