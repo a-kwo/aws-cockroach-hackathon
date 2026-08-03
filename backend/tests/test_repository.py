@@ -872,3 +872,52 @@ class TestArtifacts:
 
 def _dt(d: date) -> datetime:
     return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+
+
+def test_owner_email_for_business_prefers_the_account_that_requested_the_task():
+    from brasstacks.repository import InMemoryRepository
+
+    repo = InMemoryRepository()
+    business = repo.create_business(name="Three shops", category="retail")
+    first = repo.create_account(business, username="first", password_hash="x")
+    second = repo.create_account(business, username="second", password_hash="x")
+    repo.update_account_profile(
+        first, display_name="First", email="first@example.com"
+    )
+    repo.update_account_profile(
+        second, display_name="Second", email="peter.flp.2006@gmail.com"
+    )
+
+    assert repo.owner_email_for_business(
+        business, preferred_account_id=second
+    ) == "peter.flp.2006@gmail.com"
+    assert repo.owner_email_for_business(business) == "first@example.com"
+
+
+def test_profile_fact_replacement_preserves_unrelated_owner_memory():
+    from brasstacks.repository import InMemoryRepository
+
+    repo = InMemoryRepository()
+    business = repo.create_business(name="Rosa's", category="restaurant")
+    chat_fact = repo.insert_business_fact(
+        business,
+        fact="The owner will not add weekend headcount.",
+        source="owner_chat",
+        embedding=[1.0] + [0.0] * 1023,
+    )
+    first = repo.replace_business_profile_facts(
+        business,
+        facts=["Rosa's is a restaurant in Columbus."],
+        embeddings=[[1.0] + [0.0] * 1023],
+        source="owner_chat",
+    )
+    second = repo.replace_business_profile_facts(
+        business,
+        facts=["Rosa's serves families in Columbus."],
+        embeddings=[[0.0, 1.0] + [0.0] * 1022],
+        source="owner_chat",
+    )
+
+    assert repo._facts[chat_fact]["superseded_by"] is None
+    assert repo._facts[first[0]]["superseded_by"] == second[0]
+    assert repo._facts[second[0]]["profile_managed"] is True

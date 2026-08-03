@@ -12918,12 +12918,314 @@
       .maker-tool-receipt { margin: 0 16px 16px; }
     }
     @media (prefers-reduced-motion: reduce) { .decision-button.is-saving svg, .visual-flow-particle, .visual-live-dot, .visual-stage-node { animation: none !important; transition: none !important; } }
+
+    /* -----------------------------------------------------------
+       Owner profile menu · one account, one editable business brief
+    ----------------------------------------------------------- */
+    .profile-menu-button {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(255,255,255,.9);
+      color: var(--ink);
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(24,32,44,.05);
+      transition: transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease);
+    }
+    .profile-menu-button:hover { background: #fff; border-color: var(--line-strong); }
+    .profile-menu-button:active { transform: scale(.96); }
+    .profile-menu-button span {
+      width: 15px;
+      height: 1.7px;
+      border-radius: 99px;
+      background: currentColor;
+      pointer-events: none;
+    }
+
+    .profile-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: rgba(12,17,25,.38);
+      opacity: 0;
+      visibility: hidden;
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      transition: opacity .22s ease, visibility .22s ease;
+    }
+    .profile-panel {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 91;
+      width: min(470px, 100vw);
+      display: grid;
+      grid-template-rows: auto minmax(0,1fr) auto;
+      background: #f7f8fb;
+      color: #171b25;
+      box-shadow: 28px 0 72px rgba(8,14,25,.24);
+      transform: translate3d(-102%,0,0);
+      visibility: hidden;
+      transition: transform .34s cubic-bezier(.22,.72,.22,1), visibility .34s ease;
+    }
+    body.profile-menu-open { overflow: hidden; }
+    body.profile-menu-open .profile-scrim { opacity: 1; visibility: visible; }
+    body.profile-menu-open .profile-panel { transform: translate3d(0,0,0); visibility: visible; }
+
+    .profile-panel-head {
+      min-height: 78px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 16px 18px;
+      border-bottom: 1px solid #e2e6ed;
+      background: rgba(255,255,255,.94);
+    }
+    .profile-panel-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 42px;
+      border-radius: 14px;
+      background: #171b25;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+    .profile-panel-title { min-width: 0; flex: 1; }
+    .profile-panel-title strong { display: block; font-size: 16px; line-height: 1.15; letter-spacing: -.025em; }
+    .profile-panel-title span { display: block; margin-top: 5px; color: #6f7784; font-size: 11px; line-height: 1.35; }
+    .profile-close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #dfe3ea;
+      border-radius: 11px;
+      background: #fff;
+      color: #5f6875;
+      cursor: pointer;
+      font-size: 21px;
+      line-height: 1;
+    }
+
+    .profile-panel-body {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 18px;
+      overscroll-behavior: contain;
+    }
+    .profile-loading,
+    .profile-empty {
+      min-height: 240px;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      text-align: center;
+      color: #687180;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .profile-loading::before {
+      content: "";
+      width: 24px;
+      height: 24px;
+      margin: 0 auto 12px;
+      display: block;
+      border: 2px solid #d7dce5;
+      border-top-color: #5567e8;
+      border-radius: 50%;
+      animation: profile-spin .8s linear infinite;
+    }
+    @keyframes profile-spin { to { transform: rotate(360deg); } }
+
+    .profile-identity-card {
+      display: grid;
+      grid-template-columns: 48px minmax(0,1fr);
+      gap: 13px;
+      align-items: center;
+      padding: 15px;
+      margin-bottom: 14px;
+      border: 1px solid #e1e5ec;
+      border-radius: 17px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(24,32,44,.05);
+    }
+    .profile-identity-avatar {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      background: linear-gradient(145deg,#e8eaff,#f7f4ff);
+      color: #4f57c8;
+      font-size: 15px;
+      font-weight: 820;
+    }
+    .profile-identity-card strong { display: block; font-size: 14px; line-height: 1.2; }
+    .profile-identity-card span { display: block; margin-top: 4px; color: #707987; font-size: 11px; overflow-wrap: anywhere; }
+
+    .profile-section {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid #e1e5ec;
+      border-radius: 17px;
+      background: #fff;
+    }
+    .profile-section-head { margin-bottom: 14px; }
+    .profile-section-head strong { display: block; font-size: 12px; letter-spacing: -.01em; }
+    .profile-section-head span { display: block; margin-top: 4px; color: #7a8290; font-size: 10px; line-height: 1.45; }
+    .profile-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .profile-field { display: grid; gap: 6px; min-width: 0; }
+    .profile-field.is-wide { grid-column: 1 / -1; }
+    .profile-field label { color: #596271; font-size: 10px; font-weight: 760; letter-spacing: .02em; }
+    .profile-field input,
+    .profile-field select,
+    .profile-field textarea {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid #dfe3ea;
+      border-radius: 11px;
+      background: #fbfcfe;
+      color: #171b25;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 10px 11px;
+      outline: none;
+      transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+    }
+    .profile-field textarea { min-height: 72px; resize: vertical; }
+    .profile-field input:focus,
+    .profile-field select:focus,
+    .profile-field textarea:focus {
+      border-color: #7a82ef;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(85,103,232,.12);
+    }
+    .profile-field small { color: #8a929f; font-size: 9px; line-height: 1.4; }
+
+    .profile-save-note {
+      min-height: 18px;
+      margin: 0;
+      color: #6f7784;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .profile-save-note.is-error { color: #b74455; }
+    .profile-save-note.is-success { color: #26795b; }
+    .profile-panel-foot {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+      border-top: 1px solid #e2e6ed;
+      background: rgba(255,255,255,.96);
+    }
+    .profile-save {
+      min-width: 128px;
+      height: 40px;
+      border: 0;
+      border-radius: 12px;
+      background: #171b25;
+      color: #fff;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+    .profile-save:disabled { cursor: wait; opacity: .58; }
+
+    .profile-portfolio-summary {
+      display: grid;
+      grid-template-columns: repeat(2,minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .profile-portfolio-summary article {
+      padding: 14px;
+      border: 1px solid #e1e5ec;
+      border-radius: 15px;
+      background: #fff;
+    }
+    .profile-portfolio-summary b { display: block; font-size: 23px; line-height: 1; letter-spacing: -.04em; }
+    .profile-portfolio-summary span { display: block; margin-top: 6px; color: #747d8a; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+    .profile-account-list { display: grid; gap: 10px; }
+    .profile-account-card {
+      display: grid;
+      grid-template-columns: 42px minmax(0,1fr);
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #e1e5ec;
+      border-radius: 16px;
+      background: #fff;
+    }
+    .profile-account-avatar {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: #eef0ff;
+      color: #4f57c8;
+      font-size: 12px;
+      font-weight: 820;
+    }
+    .profile-account-card strong { display: block; font-size: 12px; line-height: 1.25; }
+    .profile-account-card .profile-email { display: block; margin-top: 5px; color: #4f57c8; font-size: 11px; overflow-wrap: anywhere; }
+    .profile-account-card small { display: block; margin-top: 5px; color: #858d99; font-size: 9px; line-height: 1.4; }
+
+    @media (max-width: 640px) {
+      .brand { gap: 6px; }
+      .brand-mark { display: none; }
+      .profile-menu-button { width: 34px; height: 34px; flex-basis: 34px; }
+      /* For You switches to a one-column top bar on phones and previously hid
+         the whole brand slot. Keep the profile trigger available in every view
+         while leaving the product wordmark hidden so the primary tabs retain
+         the full mobile width. */
+      body.autopilot-mode .brand {
+        display: inline-flex;
+        position: absolute;
+        left: 9px;
+        top: 13px;
+        z-index: 4;
+      }
+      body.autopilot-mode .brand-mark,
+      body.autopilot-mode .brand-copy { display: none; }
+      .profile-panel { width: 100vw; }
+      .profile-panel-head { padding: 12px 14px; min-height: 66px; }
+      .profile-panel-body { padding: 13px; }
+      .profile-field-grid { grid-template-columns: 1fr; }
+      .profile-field.is-wide { grid-column: auto; }
+      .profile-panel-foot { padding-left: 14px; padding-right: 14px; }
+      .profile-save { min-width: 112px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .profile-panel, .profile-scrim { transition: none !important; }
+      .profile-loading::before, .visual-flow-particle, .visual-live-dot, .visual-stage-node {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
   </style>
 </head>
 <body>
   <main class="app" id="app">
     <header class="topbar">
       <div class="brand" aria-label="Brass Tacks home">
+        <button class="profile-menu-button" type="button" id="profileMenuButton"
+                aria-label="Open profile menu" aria-controls="profilePanel" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
         <div class="brand-mark" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M7 7h10v10H7z" />
@@ -13294,6 +13596,25 @@
         </form>
       </aside>
 
+      <div class="profile-scrim" id="profileScrim" aria-hidden="true"></div>
+      <aside class="profile-panel" id="profilePanel" aria-hidden="true" aria-labelledby="profilePanelHeading">
+        <header class="profile-panel-head">
+          <div class="profile-panel-mark" id="profilePanelMark">BT</div>
+          <div class="profile-panel-title">
+            <strong id="profilePanelHeading">Business profile</strong>
+            <span id="profilePanelSubtitle">The facts your agents use to understand this business.</span>
+          </div>
+          <button class="profile-close" type="button" id="profileClose" aria-label="Close profile">×</button>
+        </header>
+        <div class="profile-panel-body" id="profileBody">
+          <div class="profile-loading">Loading profile</div>
+        </div>
+        <footer class="profile-panel-foot" id="profileFooter">
+          <p class="profile-save-note" id="profileSaveNote"></p>
+          <button class="profile-save" type="button" id="profileSave">Save profile</button>
+        </footer>
+      </aside>
+
       <div class="toast" id="toast" role="status" aria-live="polite">
         <span class="toast-dot" aria-hidden="true"></span>
         <span id="toastText">Approved.</span>
@@ -13303,7 +13624,7 @@
 
   <script id="bt-data" type="application/json">
   {
-    "api": {"decisionEndpoint": null, "workflowEndpoint": null, "askEndpoint": null},
+    "api": {"decisionEndpoint": null, "workflowEndpoint": null, "askEndpoint": null, "profileEndpoint": null},
     "app": {
       "name": "Brass Tacks",
       "business": "Northstar Coffee",
@@ -13841,6 +14162,271 @@
     const decisionApiBase = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
     const ASK_ENDPOINT = String(btData.api?.askEndpoint || (decisionApiBase ? `${decisionApiBase}/ask` : "")).trim();
     const askApiConfigured = Boolean(ASK_ENDPOINT) && !onboardingMode;
+    const PROFILE_ENDPOINT = String(btData.api?.profileEndpoint || (decisionApiBase ? `${decisionApiBase}/profile` : "")).trim();
+    const profileApiConfigured = Boolean(PROFILE_ENDPOINT) && !onboardingMode;
+
+    const PROFILE_CATEGORY_OPTIONS = [
+      ["restaurant_cafe", "Restaurant or café"],
+      ["retail", "Retail store"],
+      ["salon_wellness", "Salon or wellness"],
+      ["professional_services", "Professional services"],
+      ["home_services", "Home services"],
+      ["fitness", "Fitness or studio"],
+      ["hospitality", "Hospitality"],
+      ["other", "Local business"],
+    ];
+    let loadedOwnerProfile = null;
+
+    function profileInitials(value) {
+      const words = String(value || "BT").trim().split(/\s+/).filter(Boolean);
+      return (words.slice(0, 2).map(word => word[0]).join("") || "BT").toUpperCase();
+    }
+
+    function profileList(value) {
+      return String(value || "").split(",").map(item => item.trim()).filter(Boolean).slice(0, 8);
+    }
+
+    function profileFallback() {
+      const model = (typeof normalizeOwnerWorkspaces === "function" ? normalizeOwnerWorkspaces()[0] : null) || btData || {};
+      const business = model.business || {};
+      const owner = model.owner || {};
+      const saved = onboardingProfile || {};
+      return {
+        owner: {
+          name: owner.name || saved.owner?.name || "Business owner",
+          email: owner.email || saved.owner?.email || "",
+          username: owner.username || "",
+        },
+        business: {
+          id: business.id || saved.business?.id || "",
+          name: business.name || saved.business?.name || "Your business",
+          category: business.category || saved.business?.category || "other",
+          categoryLabel: saved.business?.categoryLabel || "Local business",
+          location: [business.city, business.region].filter(Boolean).join(", ") || saved.business?.location || "",
+          website: saved.business?.website || "",
+        },
+        buyers: {
+          segments: saved.buyers?.segments || [],
+          offers: saved.buyers?.offers || [],
+          channels: saved.buyers?.channels || [],
+        },
+        objective: saved.objective || business.goalNote || "",
+        ownerRules: [],
+      };
+    }
+
+    function profileField(id, label, value, { wide = false, type = "text", placeholder = "", help = "" } = {}) {
+      return `<div class="profile-field${wide ? " is-wide" : ""}">
+        <label for="${id}">${escapeHtml(label)}</label>
+        <input id="${id}" name="${id}" type="${escapeHtml(type)}" value="${escapeHtml(value || "")}" placeholder="${escapeHtml(placeholder)}" ${type === "email" ? "autocomplete=\"email\"" : ""}>
+        ${help ? `<small>${escapeHtml(help)}</small>` : ""}
+      </div>`;
+    }
+
+    function renderOwnerProfile(profile, { fallback = false } = {}) {
+      loadedOwnerProfile = profile;
+      const owner = profile.owner || {};
+      const business = profile.business || {};
+      const buyers = profile.buyers || {};
+      const selectedCategory = String(business.category || "") === "restaurant"
+        ? "restaurant_cafe"
+        : String(business.category || "other");
+      const categories = PROFILE_CATEGORY_OPTIONS.map(([value, label]) =>
+        `<option value="${escapeHtml(value)}" ${selectedCategory === value ? "selected" : ""}>${escapeHtml(label)}</option>`
+      ).join("");
+      document.getElementById("profilePanelHeading").textContent = "Business profile";
+      document.getElementById("profilePanelSubtitle").textContent = "Edit the facts Radar, Analyst and Maker use for this business.";
+      document.getElementById("profilePanelMark").textContent = profileInitials(business.name || owner.name);
+      document.getElementById("profileFooter").hidden = false;
+      document.getElementById("profileSave").hidden = false;
+      document.getElementById("profileSaveNote").textContent = fallback
+        ? "Preview data is shown. Deploy the profile endpoint to save changes."
+        : "Contact details stay private and are never embedded into model memory.";
+      document.getElementById("profileSaveNote").className = "profile-save-note";
+      document.getElementById("profileBody").innerHTML = `
+        <form id="profileForm" novalidate>
+          <section class="profile-identity-card">
+            <span class="profile-identity-avatar">${escapeHtml(profileInitials(business.name || owner.name))}</span>
+            <div><strong>${escapeHtml(business.name || "Your business")}</strong><span>${escapeHtml(owner.email || "Email not recorded")}${owner.username ? ` · @${escapeHtml(owner.username)}` : ""}</span></div>
+          </section>
+          <section class="profile-section">
+            <div class="profile-section-head"><strong>Owner account</strong><span>Where Maker sends review links and task receipts.</span></div>
+            <div class="profile-field-grid">
+              ${profileField("profileOwnerName", "Owner name", owner.name, { placeholder: "Your name" })}
+              ${profileField("profileEmail", "Work email", owner.email, { type: "email", placeholder: "you@business.com" })}
+            </div>
+          </section>
+          <section class="profile-section">
+            <div class="profile-section-head"><strong>Business</strong><span>The boundary Radar uses for local market intelligence.</span></div>
+            <div class="profile-field-grid">
+              ${profileField("profileBusinessName", "Business name", business.name, { placeholder: "Business name" })}
+              <div class="profile-field"><label for="profileCategory">Business type</label><select id="profileCategory" name="profileCategory">${categories}</select></div>
+              ${profileField("profileLocation", "Location", business.location, { wide: true, placeholder: "Street address, city, state" })}
+              ${profileField("profileWebsite", "Website or public page", business.website, { wide: true, placeholder: "https://…", help: "Optional. Used to scope public business context." })}
+            </div>
+          </section>
+          <section class="profile-section">
+            <div class="profile-section-head"><strong>Market focus</strong><span>Short lists keep retrieval precise and reduce unnecessary model context.</span></div>
+            <div class="profile-field-grid">
+              ${profileField("profileSegments", "Best customers", (buyers.segments || []).join(", "), { wide: true, placeholder: "families, office workers", help: "Comma-separated · up to 8" })}
+              ${profileField("profileOffers", "What you sell", (buyers.offers || []).join(", "), { wide: true, placeholder: "lunch sets, catering, private events", help: "Comma-separated · up to 8" })}
+              ${profileField("profileChannels", "How customers find you", (buyers.channels || []).join(", "), { wide: true, placeholder: "Google, walk-ins, Instagram" })}
+              ${profileField("profileObjective", "Current priority", profile.objective, { wide: true, placeholder: "Fill weekday lunch seats" })}
+            </div>
+          </section>
+        </form>`;
+    }
+
+    function renderOperatorProfiles() {
+      const workspaces = typeof normalizeOwnerWorkspaces === "function" ? normalizeOwnerWorkspaces() : [];
+      const withEmail = workspaces.filter(model => Boolean(model.owner?.email)).length;
+      document.getElementById("profilePanelHeading").textContent = "Owner profiles";
+      document.getElementById("profilePanelSubtitle").textContent = "All active businesses and the email recorded for each owner account.";
+      document.getElementById("profilePanelMark").textContent = "ALL";
+      document.getElementById("profileFooter").hidden = true;
+      document.getElementById("profileBody").innerHTML = `
+        <section class="profile-portfolio-summary">
+          <article><b>${escapeHtml(String(workspaces.length))}</b><span>businesses</span></article>
+          <article><b>${escapeHtml(String(withEmail))}</b><span>emails recorded</span></article>
+        </section>
+        <div class="profile-account-list">
+          ${workspaces.length ? workspaces.map(model => {
+            const business = model.business || {};
+            const owner = model.owner || {};
+            const location = [business.city, business.region].filter(Boolean).join(", ");
+            return `<article class="profile-account-card">
+              <span class="profile-account-avatar">${escapeHtml(profileInitials(business.name))}</span>
+              <div>
+                <strong>${escapeHtml(business.name || "Unnamed business")}</strong>
+                <span class="profile-email">${escapeHtml(owner.email || "Email not recorded")}</span>
+                <small>${escapeHtml(owner.name || owner.username || "Business owner")}${location ? ` · ${escapeHtml(location)}` : ""}</small>
+              </div>
+            </article>`;
+          }).join("") : `<div class="profile-empty">No owner profiles are available yet.</div>`}
+        </div>`;
+    }
+
+    async function loadOwnerProfile() {
+      const body = document.getElementById("profileBody");
+      body.innerHTML = `<div class="profile-loading">Loading profile</div>`;
+      if (!profileApiConfigured) {
+        renderOwnerProfile(profileFallback(), { fallback: true });
+        return;
+      }
+      try {
+        const response = await fetch(PROFILE_ENDPOINT, { headers: authHeaders({}) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Profile API returned ${response.status}`);
+        renderOwnerProfile(payload.profile || profileFallback());
+      } catch (error) {
+        renderOwnerProfile(profileFallback(), { fallback: true });
+        const note = document.getElementById("profileSaveNote");
+        note.textContent = error?.message || "Could not load the saved profile.";
+        note.className = "profile-save-note is-error";
+      }
+    }
+
+    function openProfilePanel() {
+      document.body.classList.add("profile-menu-open");
+      document.getElementById("profileMenuButton")?.setAttribute("aria-expanded", "true");
+      document.getElementById("profilePanel")?.setAttribute("aria-hidden", "false");
+      document.getElementById("profileScrim")?.setAttribute("aria-hidden", "false");
+      if (OPERATOR_SESSION) {
+        renderOperatorProfiles();
+        if (workflowApiConfigured && !liveWorkflowWorkspaces) {
+          refreshWorkflowSnapshot({ silent: true }).then(renderOperatorProfiles).catch(() => {});
+        }
+      } else {
+        loadOwnerProfile();
+      }
+      window.setTimeout(() => document.getElementById("profileClose")?.focus(), 30);
+    }
+
+    function closeProfilePanel() {
+      document.body.classList.remove("profile-menu-open");
+      document.getElementById("profileMenuButton")?.setAttribute("aria-expanded", "false");
+      document.getElementById("profilePanel")?.setAttribute("aria-hidden", "true");
+      document.getElementById("profileScrim")?.setAttribute("aria-hidden", "true");
+      document.getElementById("profileMenuButton")?.focus();
+    }
+
+    async function saveOwnerProfile() {
+      const form = document.getElementById("profileForm");
+      if (!form) return;
+      const get = id => String(document.getElementById(id)?.value || "").trim();
+      const email = get("profileEmail").toLowerCase();
+      const note = document.getElementById("profileSaveNote");
+      const button = document.getElementById("profileSave");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        note.textContent = "Enter a valid work email address.";
+        note.className = "profile-save-note is-error";
+        document.getElementById("profileEmail")?.focus();
+        return;
+      }
+      const category = get("profileCategory") || "other";
+      const categoryLabel = PROFILE_CATEGORY_OPTIONS.find(([value]) => value === category)?.[1] || "Local business";
+      const profile = {
+        version: 2,
+        owner: { name: get("profileOwnerName"), email },
+        business: {
+          name: get("profileBusinessName"), category, categoryLabel,
+          location: get("profileLocation"), website: get("profileWebsite") || null,
+        },
+        buyers: {
+          segments: profileList(get("profileSegments")),
+          offers: profileList(get("profileOffers")),
+          channels: profileList(get("profileChannels")),
+        },
+        objective: get("profileObjective"),
+        ownerRules: loadedOwnerProfile?.ownerRules || [],
+      };
+      if (!profile.owner.name || !profile.business.name || !profile.business.location) {
+        note.textContent = "Owner name, business name and location are required.";
+        note.className = "profile-save-note is-error";
+        return;
+      }
+      if (!profileApiConfigured) {
+        note.textContent = "Profile endpoint is not connected in this build.";
+        note.className = "profile-save-note is-error";
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "Saving";
+      note.textContent = "Updating profile memory…";
+      note.className = "profile-save-note";
+      try {
+        const response = await fetch(PROFILE_ENDPOINT, {
+          method: "PUT",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(profile),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Profile API returned ${response.status}`);
+        renderOwnerProfile(payload.profile || profile);
+        const label = document.getElementById("brandBusinessName");
+        if (label) label.textContent = payload.profile?.business?.name || profile.business.name;
+        note.textContent = `Saved · ${Number(payload.factsStored ?? payload.facts_stored ?? 0)} searchable profile facts refreshed.`;
+        note.className = "profile-save-note is-success";
+        if (workflowApiConfigured) refreshWorkflowSnapshot({ silent: true }).catch(() => {});
+      } catch (error) {
+        note.textContent = error?.message || "Could not save the profile.";
+        note.className = "profile-save-note is-error";
+      } finally {
+        button.disabled = false;
+        button.textContent = "Save profile";
+      }
+    }
+
+    (function wireProfileMenu() {
+      document.getElementById("profileMenuButton")?.addEventListener("click", openProfilePanel);
+      document.getElementById("profileClose")?.addEventListener("click", closeProfilePanel);
+      document.getElementById("profileScrim")?.addEventListener("click", closeProfilePanel);
+      document.getElementById("profileSave")?.addEventListener("click", saveOwnerProfile);
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && document.body.classList.contains("profile-menu-open")) closeProfilePanel();
+      });
+    })();
+
     let liveWorkflowWorkspaces = null;
     let workflowEtag = null;
     let workflowLastUpdatedAt = null;
@@ -16816,6 +17402,7 @@
         const focus = memoryFocus(model, stages);
         const accountStatus = memoryAccountStatus(stages, focus);
         const business = model.business || {};
+        const owner = model.owner || {};
         const location = [business.city, business.region].filter(Boolean).join(", ");
         const category = business.category ? String(business.category).replace(/_/g, " ") : "Business";
         const pipeline = stages.map(stage => {
@@ -16829,7 +17416,7 @@
             <span class="business-avatar">${escapeHtml(memoryInitials(business.name))}</span>
             <span class="business-copy">
               <strong>${escapeHtml(business.name || "Unnamed business")}</strong>
-              <small>${escapeHtml([location, category].filter(Boolean).join(" · "))}</small>
+              <small>${escapeHtml([owner.email, location, category].filter(Boolean).join(" · "))}</small>
             </span>
             <span class="business-alert ${accountStatus.className}">${escapeHtml(accountStatus.label)}</span>
             <span class="business-pipeline" aria-label="${escapeHtml(stages.map(stage => `${stage.name}: ${stage.statusLabel}`).join("; "))}">${pipeline}</span>
@@ -16840,6 +17427,7 @@
 
     function renderWorkflowHeader(model) {
       const business = model.business || {};
+      const owner = model.owner || {};
       const location = [business.city, business.region].filter(Boolean).join(", ");
       const category = business.category ? String(business.category).replace(/_/g, " ") : "Business";
       document.getElementById("workflowHeader").innerHTML = `
@@ -16847,7 +17435,7 @@
           <span class="business-avatar">${escapeHtml(memoryInitials(business.name))}</span>
           <div>
             <h2 id="workflowBusinessName">${escapeHtml(business.name || "Unnamed business")}</h2>
-            <p>${escapeHtml([location, category, "Owner account"].filter(Boolean).join(" · "))}</p>
+            <p>${escapeHtml([owner.email, location, category].filter(Boolean).join(" · "))}</p>
           </div>
         </div>
         <div class="workflow-tools" aria-label="Workflow display controls">
@@ -19011,9 +19599,10 @@ ledger_entry · artifact · agent_run`,
       const stages = deriveMemoryStages(model);
       const focus = memoryFocus(model, stages);
       const business = model.business || {};
+      const owner = model.owner || {};
       const location = [business.city, business.region].filter(Boolean).join(", ");
       const category = business.category ? String(business.category).replace(/_/g, " ") : "Business";
-      const searchText = [business.name, business.city, business.region, category, focus.label]
+      const searchText = [business.name, owner.email, owner.name, business.city, business.region, category, focus.label]
         .filter(Boolean).join(" ").toLowerCase();
       const ownerAction = focus.action === "owner"
         ? `<button class="stage-action primary" type="button" data-open-owner-view>${MEMORY_UI_ICONS.arrow}Open For You</button>`
@@ -19025,7 +19614,7 @@ ledger_entry · artifact · agent_run`,
               <span class="owner-avatar">${escapeHtml(memoryInitials(business.name))}</span>
               <span class="owner-cell-copy">
                 <strong>${escapeHtml(business.name || "Unnamed business")}</strong>
-                <small>${escapeHtml([location, category].filter(Boolean).join(" · "))}</small>
+                <small>${escapeHtml([owner.email, location, category].filter(Boolean).join(" · "))}</small>
               </span>
               <span class="owner-focus-line">Next: <b>${escapeHtml(focus.label)}</b></span>
             </div>

@@ -380,6 +380,7 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
     endpoint can be compared in tests without a database or network.
     """
     business = data["business"]
+    owner = data.get("owner") or {}
     raw_summary = data.get("summary") or {}
     raw_corpus = data.get("corpus") or {}
     raw_runs = list(data.get("runs") or [])
@@ -513,6 +514,13 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "source": "live",
         "generatedAt": _iso(data.get("_generated")),
+        "owner": {
+            "id": str(owner.get("id") or "") or None,
+            "username": owner.get("username"),
+            "name": owner.get("display_name") or owner.get("username") or "Business owner",
+            "email": owner.get("email"),
+            "lastLoginAt": _iso(owner.get("last_login_at")),
+        },
         "business": {
             "id": str(business.get("id") or ""),
             "name": business.get("name") or "Unnamed business",
@@ -633,6 +641,13 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             SELECT id, name, category, city, region, goal_monthly_cents, goal_note
             FROM business
             WHERE id IN ({placeholders})
+        """, ids)
+
+        accounts = _rows(cursor, f"""
+            SELECT business_id, id, username, display_name, email, last_login_at
+            FROM owner_account
+            WHERE business_id IN ({placeholders})
+            ORDER BY business_id, created_at
         """, ids)
 
         finds = _rows(cursor, f"""
@@ -776,6 +791,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         """, ids)
 
     business_map = {str(row["id"]): row for row in businesses}
+    accounts_by_business = _group(accounts)
     finds_by_business = _group(finds)
     evidence_by_find = _group(evidence, "find_id")
     artifacts_by_find = _group(artifacts, "find_id")
@@ -842,8 +858,11 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         )
         judged = verified + miss
 
+        owner_rows = accounts_by_business.get(business_id, [])
+        owner = owner_rows[0] if owner_rows else {}
         workspaces.append(build_workspace({
             "business": business,
+            "owner": owner,
             "summary": {
                 "verified": verified,
                 "estimated": estimated,

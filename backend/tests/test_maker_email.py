@@ -21,7 +21,7 @@ class FakeSes:
         return {"MessageId": "ses-message-123"}
 
 
-def completed_task(repo):
+def completed_task(repo, *, owner_email=None):
     business_id = repo.create_business(name="Rosa's", category="restaurant")
     obs = repo.insert_observation(
         business_id, content="Groups ask for a package", kind="review",
@@ -34,7 +34,17 @@ def completed_task(repo):
         verify_after=date(2026, 8, 20), status="accepted",
         evidence=[EvidenceRef(obs, .9)],
     )
-    task = repo.create_or_get_maker_task(business_id, find_id=find_id)
+    account_id = None
+    if owner_email:
+        account_id = repo.create_account(
+            business_id, username="owner", password_hash="not-used"
+        )
+        repo.update_account_profile(
+            account_id, display_name="Owner", email=owner_email,
+        )
+    task = repo.create_or_get_maker_task(
+        business_id, find_id=find_id, requested_by_account_id=account_id,
+    )
     claim = repo.claim_task(task.task_id, worker_id="maker")
     artifact_id = repo.insert_artifact(
         find_id=find_id, kind="review_reply", title="Group package kit",
@@ -119,3 +129,21 @@ def test_provider_failure_is_recorded_without_resending_automatically():
     [receipt] = repo.tool_executions(task_id)
     assert receipt.status == "failed"
     assert "SES unavailable" in receipt.error
+
+
+def test_profile_email_overrides_the_global_test_recipient():
+    repo, task_id = completed_task(
+        InMemoryRepository(), owner_email="peter.flp.2006@gmail.com"
+    )
+    ses = FakeSes()
+
+    result = notify(
+        repo=repo, ses_client=ses, task_id=task_id,
+        env=configured_env(MAKER_REVIEW_EMAIL="fallback@example.com"),
+    )
+
+    assert result["status"] == "succeeded"
+    assert ses.calls[0]["Destination"]["ToAddresses"] == [
+        "peter.flp.2006@gmail.com"
+    ]
+    assert result["data"]["recipient"] == "peter.flp.2006@gmail.com"

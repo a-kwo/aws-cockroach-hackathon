@@ -2140,3 +2140,57 @@ def test_static_artifact_model_preserves_task_identity_and_full_body():
     assert artifact["taskId"].endswith("000000000006")
     assert artifact["body"] == "complete body"
     assert artifact["idempotencyKey"].startswith("task:")
+
+
+def test_build_infers_the_profile_endpoint_from_the_shared_api(monkeypatch, data):
+    monkeypatch.setenv(
+        "DECISION_API_ENDPOINT",
+        "https://example.execute-api.us-east-1.amazonaws.com/v1",
+    )
+    monkeypatch.delenv("PROFILE_API_ENDPOINT", raising=False)
+
+    model = build_web.build_model(data)
+
+    assert model["api"]["profileEndpoint"] == (
+        "https://example.execute-api.us-east-1.amazonaws.com/v1/profile"
+    )
+
+
+def test_app_has_an_accessible_owner_profile_menu_and_editor():
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    assert 'id="profileMenuButton"' in html
+    assert 'aria-controls="profilePanel"' in html
+    assert 'id="profilePanel"' in html
+    assert 'profileField("profileEmail"' in html
+    assert 'id="profileSave"' in html
+    assert 'method: "PUT"' in html
+    assert 'profileApiConfigured' in html
+    assert 'owner.email' in html
+    assert 'body.autopilot-mode .brand {' in html
+    assert 'body.autopilot-mode .brand-copy { display: none; }' in html
+    assert 'All active businesses and the email recorded for each owner account.' in html
+
+
+def test_profile_api_is_deployed_on_the_authenticated_onboarding_lambda():
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    onboarding = template.split("OnboardingFunction:", 1)[1].split(
+        "RunFunction:", 1
+    )[0]
+    assert "Path: /profile" in onboarding
+    assert "Method: GET" in onboarding
+    assert "Method: PUT" in onboarding
+    assert "ProfileEndpoint:" in template
+    assert 'AllowMethods: ["GET", "POST", "PUT", "OPTIONS"]' in template
+
+
+def test_profile_schema_backfills_only_legacy_business_accounts():
+    schema = (build_web.REPO / "db" / "schema.sql").read_text(encoding="utf-8")
+
+    assert "owner_account ADD COLUMN IF NOT EXISTS email" in schema
+    assert "peter.flp.2006@gmail.com" in schema
+    assert "AND (email IS NULL OR trim(email) = '')" in schema
+    assert "profile_managed" in schema

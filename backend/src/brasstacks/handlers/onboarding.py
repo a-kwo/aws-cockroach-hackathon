@@ -30,6 +30,8 @@ from brasstacks.onboarding import (
     geocode_or_none,
     validate,
 )
+from brasstacks.profile import ProfileError, business_profile_data, normalise_profile
+from brasstacks.profile_schema import ensure_profile_schema
 from brasstacks.secrets import hydrate_environment
 
 CORS_HEADERS = {
@@ -38,8 +40,8 @@ CORS_HEADERS = {
     # origins. Without these the signup form fails in a browser and works in
     # curl, which is the most confusing possible way for it to break.
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
 }
 
 #: Owner rules the form does not ask about but every tenant should start with.
@@ -76,8 +78,8 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
     or a network — the same split every other agent in this project uses.
     """
     try:
-        profile = parse_body(event)
-    except ValueError as e:
+        profile = normalise_profile(parse_body(event))
+    except (ValueError, ProfileError) as e:
         return respond(400, {"error": str(e)})
 
     # The session from /register. The invite code was checked there, and this
@@ -118,12 +120,23 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
         longitude=located.longitude if located else None,
     )
 
+    repo.update_account_profile(
+        account["account_id"], display_name=profile["owner"]["name"],
+        email=profile["owner"]["email"],
+    )
+    repo.update_business_profile(
+        business_id,
+        name=business["name"], category=business["category"],
+        city=business["location"], profile_data=business_profile_data(profile),
+        latitude=located.latitude if located else None,
+        longitude=located.longitude if located else None,
+    )
+
     facts = build_profile_facts(profile)
-    if facts:
-        vectors = embedder.embed(facts)
-        for fact, vector in zip(facts, vectors):
-            repo.insert_business_fact(business_id, fact=fact,
-                                      source=FACT_SOURCE, embedding=vector)
+    vectors = embedder.embed(facts) if facts else []
+    repo.replace_business_profile_facts(
+        business_id, facts=facts, embeddings=vectors, source=FACT_SOURCE,
+    )
 
     rules = [str(r).strip() for r in (profile.get("ownerRules") or []) if str(r).strip()]
     for rule in (rules or list(DEFAULT_OWNER_RULES)):
@@ -147,6 +160,12 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
 
 
 def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
+    method = str(((event or {}).get("requestContext") or {})
+                 .get("http", {}).get("method") or "POST").upper()
+    raw_path = str((event or {}).get("rawPath") or "")
+    if method == "OPTIONS":
+        return respond(204, {})
+
     hydrate_environment()
     settings = Settings.load()
 
@@ -158,12 +177,28 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     geocoder = (PlacesGeocoder(api_key=settings.google_maps_api_key)
                 if settings.google_maps_api_key else None)
 
-    # Deliberately NOT autocommit, unlike every other handler here. Signup is
-    # several writes that only mean something together: the first live attempt
-    # created the business, failed inserting a fact, and left an orphan tenant
-    # with no facts and no rules behind. psycopg commits when this block exits
-    # cleanly and rolls back if anything raises through it.
+    # /profile shares the onboarding Lambda: it uses the same profile schema,
+    # geocoder, embedder and transaction boundary without creating another
+    # container image merely to expose two authenticated methods.
+    if raw_path.rstrip("/").endswith("/profile"):
+        from brasstacks.handlers.profile import read_profile, update_profile
+
+        with psycopg.connect(settings.cockroach_url) as conn:
+            ensure_profile_schema(conn)
+            repo = PostgresRepository(conn)
+            if method == "GET":
+                return read_profile(event, repo=repo)
+            if method == "PUT":
+                return update_profile(
+                    event, repo=repo, embedder=build_embedder(settings),
+                    geocoder=geocoder,
+                )
+            return respond(405, {"error": "method not allowed"})
+
+    # Deliberately NOT autocommit. Signup is several writes that only mean
+    # something together; psycopg commits on clean exit and rolls back on error.
     with psycopg.connect(settings.cockroach_url) as conn:
+        ensure_profile_schema(conn)
         return onboard(
             event,
             repo=PostgresRepository(conn),

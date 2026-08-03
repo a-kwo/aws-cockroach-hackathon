@@ -283,3 +283,11 @@ the product. It remains in git history.
 ## Licence
 
 MIT. See `LICENSE`.
+
+## Editable owner profiles
+
+Signed-in owners can open the three-line menu in the app header to view and edit
+the contact and business facts Brass Tacks uses. Operators see the recorded email
+for every owner workspace in Memory Engine. See
+[`docs/OWNER_PROFILE.md`](docs/OWNER_PROFILE.md) for storage, privacy, legacy
+email backfill, and Maker-recipient routing details.

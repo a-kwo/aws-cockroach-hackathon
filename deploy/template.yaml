@@ -646,6 +646,18 @@ Resources:
             ApiId: !Ref AskApi
             Path: /onboarding
             Method: POST
+        ReadProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /profile
+            Method: GET
+        UpdateProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /profile
+            Method: PUT
 
   # --------------------------------------------------------------------
   # "Show me my first night" — the button at the end of onboarding
@@ -754,7 +766,7 @@ Resources:
         # drops the header on the preflight and every authenticated call fails
         # in the page while working perfectly in curl.
         AllowHeaders: ["Content-Type", "If-None-Match", "Authorization"]
-        AllowMethods: ["GET", "POST", "OPTIONS"]
+        AllowMethods: ["GET", "POST", "PUT", "OPTIONS"]
         ExposeHeaders: ["ETag"]
 
   # --------------------------------------------------------------------
@@ -921,6 +933,10 @@ Outputs:
       Signup. Requires the invite code held at
       /brasstacks/BRASSTACKS_INVITE_CODE — without it every request is a 403.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/onboarding
+
+  ProfileEndpoint:
+    Description: Authenticated owner profile read and update endpoint.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/profile
 
   NightFunctionName:
     Description: Invoke manually to prove a night end to end before waiting for 6 AM.

@@ -365,7 +365,10 @@ class TestOnboardingRequiresASession:
 
         body = json.loads(self._bare(event, repo)["body"])
 
-        assert repo.find_account("sam")["business_id"] == body["business_id"]
+        account_row = repo.find_account("sam")
+        assert account_row["business_id"] == body["business_id"]
+        assert account_row["display_name"] == "Sam"
+        assert account_row["email"] == "sam@example.com"
         # The live session moves with it, so the board loads signed in.
         assert repo.business_for_session(fingerprint, now=NOW) == body["business_id"]
 

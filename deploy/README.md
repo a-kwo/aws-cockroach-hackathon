@@ -375,3 +375,21 @@ Before using real owner data at production scale, put a managed identity boundar
 to allowed businesses server-side, and retain the same repository-level tenant
 checks. Do not put passwords, provider tokens or permanent API secrets in static
 HTML or model prompts.
+
+## Owner profile endpoint
+
+The onboarding image also serves authenticated profile reads and updates:
+
+```text
+GET /v1/profile
+PUT /v1/profile
+```
+
+The same Lambda is used because onboarding and profile editing share validation,
+geocoding, embeddings, and the transaction boundary. `ProfileEndpoint` is
+published as a stack output, while `scripts/build_web.py` can also infer
+`$DECISION_API_ENDPOINT/profile`.
+
+The additive profile bootstrap backfills business-bound legacy owner accounts
+whose email is blank with `peter.flp.2006@gmail.com`. It never overwrites a
+nonblank email; future signups persist the address entered during onboarding.

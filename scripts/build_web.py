@@ -408,6 +408,7 @@ def retrieval_funnel(finds: list[dict]) -> dict:
 
 def build_model(data: dict) -> dict:
     business = data["business"]
+    owner = data.get("owner") or {}
     summary = data["summary"]
     corpus = data["corpus"]
 
@@ -542,6 +543,7 @@ def build_model(data: dict) -> dict:
     workflow_endpoint = (os.environ.get("WORKFLOW_API_ENDPOINT") or "").rstrip("/")
     ask_endpoint = (os.environ.get("ASK_API_ENDPOINT") or "").rstrip("/")
     onboarding_endpoint = (os.environ.get("ONBOARDING_API_ENDPOINT") or "").rstrip("/")
+    profile_endpoint = (os.environ.get("PROFILE_API_ENDPOINT") or "").rstrip("/")
     login_endpoint = (os.environ.get("LOGIN_API_ENDPOINT") or "").rstrip("/")
     if not login_endpoint and decision_endpoint:
         login_endpoint = f"{decision_endpoint}/login"
@@ -558,16 +560,26 @@ def build_model(data: dict) -> dict:
         workflow_endpoint = f"{decision_endpoint}/workflow"
     if not ask_endpoint and decision_endpoint:
         ask_endpoint = f"{decision_endpoint}/ask"
+    if not profile_endpoint and decision_endpoint:
+        profile_endpoint = f"{decision_endpoint}/profile"
     return {
         "api": {
             "decisionEndpoint": decision_endpoint or None,
             "workflowEndpoint": workflow_endpoint or None,
             "askEndpoint": ask_endpoint or None,
             "onboardingEndpoint": onboarding_endpoint or None,
+            "profileEndpoint": profile_endpoint or None,
             "loginEndpoint": login_endpoint or None,
             "registerEndpoint": register_endpoint or None,
             "runEndpoint": run_endpoint or None,
             "adminEndpoint": admin_endpoint or None,
+        },
+        "owner": {
+            "id": owner.get("id"),
+            "username": owner.get("username"),
+            "name": owner.get("display_name") or owner.get("username") or "Business owner",
+            "email": owner.get("email"),
+            "lastLoginAt": owner.get("last_login_at"),
         },
         "business": {
             "id": business.get("id"),

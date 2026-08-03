@@ -18,6 +18,7 @@ from uuid import UUID
 
 
 from brasstacks.config import Settings
+from brasstacks.profile_schema import ensure_profile_schema
 from brasstacks.secrets import hydrate_environment
 from brasstacks.workflow_snapshot import load_workspaces
 
@@ -146,6 +147,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
         with driver.connect(settings.cockroach_url, autocommit=True) as conn:
             from brasstacks.repository_pg import PostgresRepository
 
+            ensure_profile_schema(conn)
             business_id = PostgresRepository(conn).business_for_session(
                 token_fingerprint(token), now=datetime.now(timezone.utc))
             if business_id is None:

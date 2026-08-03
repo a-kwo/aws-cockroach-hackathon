@@ -73,6 +73,10 @@ CREATE TABLE IF NOT EXISTS business (
   -- both of them at the same street. Geocoded from the address at signup.
   latitude     FLOAT,
   longitude    FLOAT,
+  -- Structured business brief used by the profile editor. Contact details stay
+  -- on owner_account and are never embedded or exposed to other tenants.
+  profile_data JSONB NOT NULL DEFAULT '{}'::JSONB,
+  profile_updated_at TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
@@ -81,6 +85,8 @@ CREATE TABLE IF NOT EXISTS business (
 -- Deleting a tenant's rows does not drop the table.
 ALTER TABLE business ADD COLUMN IF NOT EXISTS latitude FLOAT;
 ALTER TABLE business ADD COLUMN IF NOT EXISTS longitude FLOAT;
+ALTER TABLE business ADD COLUMN IF NOT EXISTS profile_data JSONB NOT NULL DEFAULT '{}'::JSONB;
+ALTER TABLE business ADD COLUMN IF NOT EXISTS profile_updated_at TIMESTAMPTZ;
 
 -- "The leash you hold" — constraints the autopilot obeys on every run.
 CREATE TABLE IF NOT EXISTS owner_rule (
@@ -103,11 +109,19 @@ CREATE TABLE IF NOT EXISTS business_fact (
   confidence    FLOAT NOT NULL DEFAULT 1.0,
   learned_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   superseded_by UUID REFERENCES business_fact(id),
+  -- True only for the bounded facts generated from the editable profile. This
+  -- lets a profile edit supersede its own prior facts without retiring owner
+  -- chat such as costs, capacity, or operational constraints.
+  profile_managed BOOL NOT NULL DEFAULT false,
   embedding     VECTOR(1024),
 
   INDEX (business_id, superseded_by),
+  INDEX (business_id, profile_managed, superseded_by),
   VECTOR INDEX business_fact_embed_idx (business_id, embedding vector_cosine_ops)
 );
+ALTER TABLE business_fact ADD COLUMN IF NOT EXISTS profile_managed BOOL NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS business_fact_profile_managed_idx
+  ON business_fact (business_id, profile_managed, superseded_by, learned_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- Audit trail
@@ -267,6 +281,9 @@ CREATE TABLE IF NOT EXISTS owner_account (
   -- scrypt, as 'scrypt$n$r$p$salt$hash'. Never the password itself, and never
   -- anything reversible.
   password_hash STRING NOT NULL,
+  -- Owner contact data is deterministic profile state, not vector memory.
+  display_name  STRING,
+  email         STRING,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   last_login_at TIMESTAMPTZ,
 
@@ -275,6 +292,23 @@ CREATE TABLE IF NOT EXISTS owner_account (
 
 -- A login session. The token itself is never stored — only its SHA-256 — so
 -- that read access to this table is not enough to impersonate an owner.
+-- Existing demo tenants predate the profile fields. Seed the three current
+-- owner workspaces with the requested review inbox; new signups overwrite this
+-- with the email collected during onboarding. The address is deliberately not
+-- unique because one operator may own more than one business.
+ALTER TABLE owner_account ADD COLUMN IF NOT EXISTS display_name STRING;
+ALTER TABLE owner_account ADD COLUMN IF NOT EXISTS email STRING;
+CREATE INDEX IF NOT EXISTS owner_account_business_profile_idx
+  ON owner_account (business_id, email);
+UPDATE owner_account
+SET display_name = username
+WHERE business_id IS NOT NULL
+  AND (display_name IS NULL OR trim(display_name) = '');
+UPDATE owner_account
+SET email = 'peter.flp.2006@gmail.com'
+WHERE business_id IS NOT NULL
+  AND (email IS NULL OR trim(email) = '');
+
 CREATE TABLE IF NOT EXISTS owner_session (
   token_hash    STRING PRIMARY KEY,
   -- Nullable for the same reason as owner_account.business_id: the owner is

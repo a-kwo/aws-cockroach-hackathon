@@ -167,10 +167,14 @@ class SendReviewEmailTool:
         )
 
 
-def build_email_tool(env: Mapping[str, str]) -> SendReviewEmailTool:
+def build_email_tool(
+    env: Mapping[str, str], *, recipient: str | None = None,
+) -> SendReviewEmailTool:
     return SendReviewEmailTool(
         source=env.get("MAKER_EMAIL_FROM"),
-        recipient=env.get("MAKER_REVIEW_EMAIL", "virtual.icfd@gmail.com"),
+        # The authenticated owner's profile is authoritative. The deployment
+        # value remains a test fallback for imported or system-created tasks.
+        recipient=recipient or env.get("MAKER_REVIEW_EMAIL", "virtual.icfd@gmail.com"),
         site_url=env.get("BRASSTACKS_SITE_URL"),
         enabled=_truthy(env.get("MAKER_EMAIL_ENABLED")),
     )

@@ -26,6 +26,7 @@ OUT_PATH = REPO_ROOT / "db" / "fixtures" / "demo.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from brasstacks.config import Settings  # noqa: E402
+from brasstacks.profile_schema import ensure_profile_schema  # noqa: E402
 
 
 def jsonable(value):
@@ -51,11 +52,21 @@ def main() -> int:
         raise SystemExit("BRASSTACKS_BUSINESS_ID is not set. Run scripts/seed.py.")
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+        ensure_profile_schema(conn)
         with conn.cursor() as cur:
             [business] = rows(cur, """
                 SELECT id, name, category, city, region, goal_monthly_cents, goal_note
                 FROM business WHERE id = %s
             """, (settings.business_id,))
+
+            owner_rows = rows(cur, """
+                SELECT id, username, display_name, email, last_login_at
+                FROM owner_account
+                WHERE business_id = %s
+                ORDER BY created_at
+                LIMIT 1
+            """, (settings.business_id,))
+            owner = owner_rows[0] if owner_rows else {}
 
             finds = rows(cur, """
                 SELECT f.id, f.run_id, f.emoji, f.title, f.summary, f.rationale, f.move,
@@ -206,6 +217,7 @@ def main() -> int:
                     "paint; the live workflow endpoint overlays current state "
                     "using the same browser contract.",
         "business": business,
+        "owner": owner,
         "summary": summary,
         "corpus": corpus,
         "finds": finds,

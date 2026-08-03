@@ -145,7 +145,8 @@ class PostgresRepository:
             cur.execute(
                 """
                 SELECT id, name, category, city, region, goal_monthly_cents,
-                       goal_note, latitude, longitude
+                       goal_note, latitude, longitude, profile_data,
+                       profile_updated_at
                 FROM business WHERE id = %s
                 """,
                 (business_id,),
@@ -154,8 +155,126 @@ class PostgresRepository:
         if row is None:
             return None
         keys = ("id", "name", "category", "city", "region",
-                "goal_monthly_cents", "goal_note", "latitude", "longitude")
+                "goal_monthly_cents", "goal_note", "latitude", "longitude",
+                "profile_data", "profile_updated_at")
         return {k: (str(v) if k == "id" else v) for k, v in zip(keys, row)}
+
+    def get_owner_profile(self, account_id: str, *, business_id: str) -> dict[str, Any] | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT a.id, a.business_id, a.username, a.display_name, a.email,
+                       b.name, b.category, b.city, b.profile_data,
+                       b.profile_updated_at
+                FROM owner_account a
+                JOIN business b ON b.id = a.business_id
+                WHERE a.id = %s AND a.business_id = %s
+                """,
+                (account_id, business_id),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {
+            "account_id": str(row[0]), "business_id": str(row[1]),
+            "username": row[2], "display_name": row[3], "email": row[4],
+            "business_name": row[5], "category": row[6], "city": row[7],
+            "profile_data": row[8] or {}, "profile_updated_at": row[9],
+        }
+
+    def update_account_profile(self, account_id: str, *, display_name: str,
+                               email: str) -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE owner_account
+                SET display_name = %s, email = %s
+                WHERE id = %s
+                """,
+                (display_name, email, account_id),
+            )
+            if cur.rowcount == 0:
+                raise RepositoryError(f"unknown account {account_id}")
+
+    def owner_email_for_business(
+        self, business_id: str, *, preferred_account_id: str | None = None
+    ) -> str | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT email
+                FROM owner_account
+                WHERE business_id = %s
+                  AND email IS NOT NULL
+                  AND trim(email) <> ''
+                ORDER BY CASE WHEN id = %s THEN 0 ELSE 1 END, created_at
+                LIMIT 1
+                """,
+                (business_id, preferred_account_id),
+            )
+            row = cur.fetchone()
+        return str(row[0]).strip() if row and row[0] else None
+
+    def update_business_profile(
+        self, business_id: str, *, name: str, category: str, city: str,
+        profile_data: Mapping[str, Any], latitude: float | None = None,
+        longitude: float | None = None,
+    ) -> None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE business
+                SET name = %s,
+                    category = %s,
+                    city = %s,
+                    profile_data = %s,
+                    profile_updated_at = clock_timestamp(),
+                    latitude = CASE WHEN %s IS NULL THEN latitude ELSE %s END,
+                    longitude = CASE WHEN %s IS NULL THEN longitude ELSE %s END
+                WHERE id = %s
+                """,
+                (name, category, city, Jsonb(dict(profile_data)),
+                 latitude, latitude, longitude, longitude, business_id),
+            )
+            if cur.rowcount == 0:
+                raise RepositoryError(f"unknown business {business_id}")
+
+    def replace_business_profile_facts(
+        self, business_id: str, *, facts: Sequence[str],
+        embeddings: Sequence[Sequence[float]], source: str,
+    ) -> list[str]:
+        if len(facts) != len(embeddings):
+            raise RepositoryError("profile facts and embeddings must have the same length")
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM business_fact
+                WHERE business_id = %s AND source = %s
+                  AND profile_managed = true AND superseded_by IS NULL
+                """,
+                (business_id, source),
+            )
+            old_ids = [str(row[0]) for row in cur.fetchall()]
+            new_ids: list[str] = []
+            for fact, embedding in zip(facts, embeddings):
+                cur.execute(
+                    """
+                    INSERT INTO business_fact
+                        (business_id, fact, source, confidence, profile_managed, embedding)
+                    VALUES (%s, %s, %s, 1.0, true, %s::VECTOR)
+                    RETURNING id
+                    """,
+                    (business_id, fact, source, _vector_literal(embedding)),
+                )
+                new_ids.append(str(cur.fetchone()[0]))
+            if old_ids and new_ids:
+                placeholders = ",".join(["%s"] * len(old_ids))
+                cur.execute(
+                    f"UPDATE business_fact SET superseded_by = %s WHERE id IN ({placeholders})",
+                    (new_ids[0], *old_ids),
+                )
+        return new_ids
 
     # -- owners ----------------------------------------------------------
     def create_account(self, business_id: str | None, *, username: str,

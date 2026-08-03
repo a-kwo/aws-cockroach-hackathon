@@ -223,6 +223,26 @@ class Repository(Protocol):
 
     def get_business(self, business_id: str) -> dict[str, Any] | None: ...
 
+    def get_owner_profile(self, account_id: str, *, business_id: str) -> dict[str, Any] | None: ...
+
+    def update_account_profile(self, account_id: str, *, display_name: str,
+                               email: str) -> None: ...
+
+    def owner_email_for_business(
+        self, business_id: str, *, preferred_account_id: str | None = ...
+    ) -> str | None: ...
+
+    def update_business_profile(
+        self, business_id: str, *, name: str, category: str, city: str,
+        profile_data: Mapping[str, Any], latitude: float | None = ...,
+        longitude: float | None = ...,
+    ) -> None: ...
+
+    def replace_business_profile_facts(
+        self, business_id: str, *, facts: Sequence[str],
+        embeddings: Sequence[Sequence[float]], source: str,
+    ) -> list[str]: ...
+
     def insert_business_fact(self, business_id: str, *, fact: str, source: str,
                              embedding: Sequence[float],
                              confidence: float = ...) -> str: ...
@@ -543,6 +563,7 @@ class InMemoryRepository:
             "name": name, "category": category, "city": city,
             "goal_monthly_cents": goal_monthly_cents,
             "latitude": latitude, "longitude": longitude,
+            "profile_data": {}, "profile_updated_at": None,
         }
         return business_id
 
@@ -551,6 +572,78 @@ class InMemoryRepository:
         if business is None:
             return None
         return {"id": business_id, **dict(business)}
+
+    def get_owner_profile(self, account_id: str, *, business_id: str) -> dict[str, Any] | None:
+        account = next((row for row in self._accounts.values()
+                        if row["id"] == account_id and row.get("business_id") == business_id), None)
+        business = self._businesses.get(business_id)
+        if account is None or business is None:
+            return None
+        return {
+            "account_id": account_id, "business_id": business_id,
+            "username": account.get("username"),
+            "display_name": account.get("display_name"),
+            "email": account.get("email"),
+            "business_name": business.get("name"),
+            "category": business.get("category"),
+            "city": business.get("city"),
+            "profile_data": dict(business.get("profile_data") or {}),
+            "profile_updated_at": business.get("profile_updated_at"),
+        }
+
+    def update_account_profile(self, account_id: str, *, display_name: str,
+                               email: str) -> None:
+        for row in self._accounts.values():
+            if row["id"] == account_id:
+                row["display_name"] = display_name
+                row["email"] = email
+                return
+        raise RepositoryError(f"unknown account {account_id}")
+
+    def owner_email_for_business(
+        self, business_id: str, *, preferred_account_id: str | None = None
+    ) -> str | None:
+        candidates = [row for row in self._accounts.values()
+                      if row.get("business_id") == business_id and str(row.get("email") or "").strip()]
+        candidates.sort(key=lambda row: 0 if preferred_account_id and row["id"] == preferred_account_id else 1)
+        return str(candidates[0]["email"]).strip() if candidates else None
+
+    def update_business_profile(
+        self, business_id: str, *, name: str, category: str, city: str,
+        profile_data: Mapping[str, Any], latitude: float | None = None,
+        longitude: float | None = None,
+    ) -> None:
+        row = self._businesses.get(business_id)
+        if row is None:
+            raise RepositoryError(f"unknown business {business_id}")
+        row.update({
+            "name": name, "category": category, "city": city,
+            "profile_data": dict(profile_data), "profile_updated_at": self._now(),
+        })
+        if latitude is not None and longitude is not None:
+            row["latitude"], row["longitude"] = latitude, longitude
+
+    def replace_business_profile_facts(
+        self, business_id: str, *, facts: Sequence[str],
+        embeddings: Sequence[Sequence[float]], source: str,
+    ) -> list[str]:
+        if len(facts) != len(embeddings):
+            raise RepositoryError("profile facts and embeddings must have the same length")
+        old_ids = [fact_id for fact_id, row in self._facts.items()
+                   if row["business_id"] == business_id and row["source"] == source
+                   and row.get("profile_managed", False)
+                   and row.get("superseded_by") is None]
+        new_ids = []
+        for fact, embedding in zip(facts, embeddings):
+            fact_id = self.insert_business_fact(
+                business_id, fact=fact, source=source, embedding=embedding
+            )
+            self._facts[fact_id]["profile_managed"] = True
+            new_ids.append(fact_id)
+        if new_ids:
+            for fact_id in old_ids:
+                self._facts[fact_id]["superseded_by"] = new_ids[0]
+        return new_ids
 
     # -- owners ----------------------------------------------------------
     def create_account(self, business_id: str | None, *, username: str,
@@ -561,6 +654,7 @@ class InMemoryRepository:
         self._accounts[username] = {
             "id": account_id, "business_id": business_id,
             "username": username, "password_hash": password_hash,
+            "display_name": None, "email": None,
             "is_admin": False,
         }
         return account_id
@@ -650,6 +744,7 @@ class InMemoryRepository:
         self._facts[fact_id] = {
             "business_id": business_id, "fact": fact, "source": source,
             "confidence": confidence, "embedding": list(embedding),
+            "profile_managed": False,
             "superseded_by": None, "learned_at": self._now(),
         }
         return fact_id

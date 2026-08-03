@@ -29,6 +29,7 @@ from typing import Any
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
+from brasstacks.profile_schema import ensure_profile_schema
 from brasstacks.secrets import hydrate_environment
 
 CORS_HEADERS = {
@@ -100,6 +101,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     from brasstacks.workflow_snapshot import load_workspaces
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+        ensure_profile_schema(conn)
         return list_workspaces(
             event,
             repo=PostgresRepository(conn),

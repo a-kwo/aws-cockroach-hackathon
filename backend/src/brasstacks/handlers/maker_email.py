@@ -12,6 +12,7 @@ import os
 from typing import Any
 
 from brasstacks.config import Settings
+from brasstacks.profile_schema import ensure_profile_schema
 from brasstacks.secrets import hydrate_environment
 from brasstacks.tools import ToolContext, build_email_tool
 
@@ -42,7 +43,15 @@ def notify(
     if artifact is None:
         return {"status": "skipped", "reason": "artifact_not_found", "task_id": task_id}
 
-    result = build_email_tool(env).execute(
+    # Resolve the destination inside the authenticated tenant. New tasks prefer
+    # the account that approved the recommendation; imported/system tasks fall
+    # back to the first owner email for that same business. The global setting
+    # remains only a last-resort test inbox.
+    owner_recipient = repo.owner_email_for_business(
+        task.business_id, preferred_account_id=task.requested_by_account_id,
+    )
+
+    result = build_email_tool(env, recipient=owner_recipient).execute(
         ToolContext(
             repo=repo,
             business_id=task.business_id,
@@ -82,6 +91,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     from brasstacks.repository_pg import PostgresRepository
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+        ensure_profile_schema(conn)
         return notify(
             repo=PostgresRepository(conn),
             ses_client=boto3.client("ses", region_name=settings.aws_region),

@@ -256,3 +256,24 @@ def test_live_task_receipt_queries_are_bounded_per_task():
     assert "WHERE task_event_rank <= 20" in source
     assert "PARTITION BY task_id ORDER BY started_at DESC" in source
     assert "WHERE tool_execution_rank <= 10" in source
+
+
+def test_workspace_exposes_owner_identity_and_email_for_operator_traceability():
+    data = demo_data()
+    data["owner"] = {
+        "id": "50000000-0000-0000-0000-000000000005",
+        "username": "rosa",
+        "display_name": "Rosa Owner",
+        "email": "peter.flp.2006@gmail.com",
+        "last_login_at": "2026-08-03T11:30:00+00:00",
+    }
+
+    workspace = build_workspace(data)
+
+    assert workspace["owner"] == {
+        "id": "50000000-0000-0000-0000-000000000005",
+        "username": "rosa",
+        "name": "Rosa Owner",
+        "email": "peter.flp.2006@gmail.com",
+        "lastLoginAt": "2026-08-03T11:30:00+00:00",
+    }
