@@ -6,7 +6,7 @@ on:
       action:
         description: "First request verification, then enable after both emails are verified"
         required: true
-        default: request-verification
+        default: enable-email
         type: choice
         options:
           - request-verification
