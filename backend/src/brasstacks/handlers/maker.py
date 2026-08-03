@@ -56,6 +56,13 @@ def process_task(
     if workflow_execution_arn:
         repo.record_task_workflow(task_id, execution_arn=workflow_execution_arn)
 
+    if task.superseded_at is not None or task.cancel_requested_at is not None:
+        return {
+            "status": "cancelled",
+            "task_id": task_id,
+            "reason": "owner_reconsidered",
+            "artifact_id": task.output_artifact_id,
+        }
     if task.status == "completed":
         return {
             "status": "completed",
@@ -101,9 +108,34 @@ def process_task(
         artifact_idempotency_key=maker_artifact_idempotency_key(
             claim.task_id, kind=ARTIFACT_KIND
         ),
+        can_continue=lambda: repo.task_can_continue(
+            claim.task_id, claim_token=claim.claim_token or ""
+        ),
     )
 
+    if result.cancelled:
+        # reconsider_find already made the task terminal and preserved the
+        # generated run receipt. Do not turn an intentional owner cancellation
+        # into a failed retry or try to complete a superseded claim.
+        current = repo.get_task(task_id)
+        return {
+            "status": current.status if current else "cancelled",
+            "task_id": task_id,
+            "reason": "owner_reconsidered",
+            "run_id": result.run_id,
+        }
+
     if result.error:
+        current = repo.get_task(task_id)
+        if current is not None and (
+            current.status == "cancelled" or current.superseded_at is not None
+        ):
+            return {
+                "status": "cancelled",
+                "task_id": task_id,
+                "reason": "owner_reconsidered",
+                "run_id": result.run_id,
+            }
         retryable = claim.attempt_count < MAX_ATTEMPTS
         repo.fail_task(
             task_id,
@@ -120,17 +152,47 @@ def process_task(
             raise RuntimeError(result.error)
         return {"status": "failed", "task_id": task_id, "error": result.error}
 
-    completed = repo.complete_task(
-        task_id,
-        claim_token=claim.claim_token or "",
-        output_artifact_id=result.artifact_id,
-        output_data={
-            "artifact_id": result.artifact_id,
+    # Re-check the claim after the artifact write. Reconsider may have raced
+    # the final few milliseconds of the worker; in that case the artifact is
+    # already marked superseded and the old task must not be resurrected as
+    # completed.
+    if not repo.task_can_continue(
+        claim.task_id, claim_token=claim.claim_token or ""
+    ):
+        current = repo.get_task(task_id)
+        return {
+            "status": "cancelled",
+            "task_id": task_id,
+            "reason": "owner_reconsidered",
             "run_id": result.run_id,
-            "location": result.location,
-            "reused": result.reused,
-        },
-    )
+            "artifact_id": result.artifact_id,
+        }
+
+    try:
+        completed = repo.complete_task(
+            task_id,
+            claim_token=claim.claim_token or "",
+            output_artifact_id=result.artifact_id,
+            output_data={
+                "artifact_id": result.artifact_id,
+                "run_id": result.run_id,
+                "location": result.location,
+                "reused": result.reused,
+            },
+        )
+    except RepositoryError:
+        current = repo.get_task(task_id)
+        if current is not None and (
+            current.status == "cancelled" or current.superseded_at is not None
+        ):
+            return {
+                "status": "cancelled",
+                "task_id": task_id,
+                "reason": "owner_reconsidered",
+                "run_id": result.run_id,
+                "artifact_id": result.artifact_id,
+            }
+        raise
     return {
         "status": "completed",
         "task_id": completed.task_id,

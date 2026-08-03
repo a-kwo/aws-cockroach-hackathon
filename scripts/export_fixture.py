@@ -26,7 +26,9 @@ OUT_PATH = REPO_ROOT / "db" / "fixtures" / "demo.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from brasstacks.config import Settings  # noqa: E402
+from brasstacks.decision_schema import ensure_decision_schema  # noqa: E402
 from brasstacks.profile_schema import ensure_profile_schema  # noqa: E402
+from brasstacks.task_schema import ensure_task_schema  # noqa: E402
 
 
 def jsonable(value):
@@ -53,6 +55,8 @@ def main() -> int:
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
         ensure_profile_schema(conn)
+        ensure_task_schema(conn)
+        ensure_decision_schema(conn)
         with conn.cursor() as cur:
             [business] = rows(cur, """
                 SELECT id, name, category, city, region, goal_monthly_cents, goal_note
@@ -71,7 +75,8 @@ def main() -> int:
             finds = rows(cur, """
                 SELECT f.id, f.run_id, f.emoji, f.title, f.summary, f.rationale, f.move,
                        f.predicted_daily_cents, f.confidence, f.verify_after,
-                       f.status, f.decided_at, f.created_at,
+                       f.status, f.decided_at, f.decision_cycle, f.reopened_at,
+                       f.reopen_reason_code, f.reopen_reason_note, f.created_at,
                        le.verdict, le.actual_daily_cents, le.method, le.note,
                        le.measured_at, le.period_start, le.period_end
                 FROM find f
@@ -97,11 +102,21 @@ def main() -> int:
             artifacts = rows(cur, """
                 SELECT a.id, a.find_id, a.kind, a.title, a.preview,
                        a.s3_bucket, a.s3_key, a.created_at, a.task_id,
-                       a.idempotency_key, a.body
+                       a.idempotency_key, a.body, a.decision_cycle,
+                       a.superseded_at
                 FROM artifact a
                 JOIN find f ON f.id = a.find_id
                 WHERE f.business_id = %s
                 ORDER BY a.created_at DESC
+            """, (settings.business_id,))
+
+            decisions = rows(cur, """
+                SELECT id, find_id, decision_cycle, event_type, previous_status,
+                       new_status, actor_account_id, reason_code, reason_note,
+                       source, data, created_at
+                FROM decision_event
+                WHERE business_id = %s
+                ORDER BY find_id, created_at DESC
             """, (settings.business_id,))
 
             [summary] = rows(cur, """
@@ -206,6 +221,12 @@ def main() -> int:
         drafts.setdefault(row.pop("find_id"), []).append(row)
     for find in finds:
         find["artifacts"] = drafts.get(find["id"], [])
+
+    by_find_decisions: dict[str, list[dict]] = {}
+    for row in decisions:
+        by_find_decisions.setdefault(row.pop("find_id"), []).append(row)
+    for find in finds:
+        find["decision_events"] = by_find_decisions.get(find["id"], [])
 
     judged = summary["verified"] + summary["miss"]
     summary["hit_rate"] = (summary["verified"] / judged) if judged else None

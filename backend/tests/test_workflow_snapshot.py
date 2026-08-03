@@ -277,3 +277,125 @@ def test_workspace_exposes_owner_identity_and_email_for_operator_traceability():
         "email": "peter.flp.2006@gmail.com",
         "lastLoginAt": "2026-08-03T11:30:00+00:00",
     }
+
+
+def test_workspace_projects_reopened_cycle_without_counting_archived_maker_work_as_current():
+    data = demo_data()
+    found = data["finds"][0]
+    find_id = found["id"]
+    task_id = "61000000-0000-0000-0000-000000000006"
+    artifact_id = "62000000-0000-0000-0000-000000000006"
+    reopened_at = "2026-08-02T20:10:00+00:00"
+
+    found.update({
+        "status": "proposed",
+        "decision_cycle": 2,
+        "decided_at": reopened_at,
+        "reopened_at": reopened_at,
+        "reopen_reason_code": "needs_revision",
+        "reopen_reason_note": "Use a lower price.",
+        "decision_events": [
+            {
+                "id": "63000000-0000-0000-0000-000000000006",
+                "event_type": "owner.reopened",
+                "decision_cycle": 2,
+                "previous_status": "accepted",
+                "new_status": "proposed",
+                "actor_account_id": None,
+                "reason_code": "needs_revision",
+                "reason_note": "Use a lower price.",
+                "source": "owner_reconsider",
+                "data": {"previous_cycle": 1},
+                "created_at": reopened_at,
+            },
+            {
+                "id": "64000000-0000-0000-0000-000000000006",
+                "event_type": "owner.accepted",
+                "decision_cycle": 1,
+                "previous_status": "proposed",
+                "new_status": "accepted",
+                "actor_account_id": None,
+                "reason_code": None,
+                "reason_note": None,
+                "source": "owner_decision",
+                "data": {},
+                "created_at": "2026-08-02T20:00:00+00:00",
+            },
+        ],
+        "artifacts": [{
+            "id": artifact_id,
+            "kind": "review_reply",
+            "title": "Archived cycle-one draft",
+            "preview": "The previous draft remains visible.",
+            "body": "Complete archived draft",
+            "s3_bucket": "drafts",
+            "s3_key": f"tasks/{task_id}/review_reply.md",
+            "created_at": "2026-08-02T20:02:00+00:00",
+            "task_id": task_id,
+            "idempotency_key": f"task:{task_id}:artifact:review_reply:v1",
+            "decision_cycle": 1,
+            "superseded_at": reopened_at,
+        }],
+    })
+    data["tasks"] = [{
+        "id": task_id,
+        "business_id": data["business"]["id"],
+        "find_id": find_id,
+        "requested_by_account_id": None,
+        "agent": "maker",
+        "task_type": "maker.generate_draft",
+        "status": "completed",
+        "priority": 100,
+        "resource_key": f"maker:find:{data['business']['id']}:{find_id}",
+        "approval_state": "approved",
+        "decision_cycle": 1,
+        "attempt_count": 1,
+        "dispatch_count": 1,
+        "approved_at": "2026-08-02T20:00:00+00:00",
+        "created_at": "2026-08-02T20:00:00+00:00",
+        "updated_at": reopened_at,
+        "started_at": "2026-08-02T20:01:00+00:00",
+        "completed_at": "2026-08-02T20:02:00+00:00",
+        "cancel_requested_at": None,
+        "cancelled_at": None,
+        "superseded_at": reopened_at,
+        "next_attempt_at": None,
+        "lease_expires_at": None,
+        "claimed_by": None,
+        "workflow_execution_arn": "arn:aws:states:us-east-1:123:execution:maker:cycle-1",
+        "output_artifact_id": artifact_id,
+        "last_error": None,
+        "input_data": {"title": found["title"], "decision_cycle": 1},
+        "output_data": {"artifact_id": artifact_id},
+        "events": [],
+        "tools": [{
+            "id": "65000000-0000-0000-0000-000000000006",
+            "tool_name": "ses.send_review_email",
+            "status": "succeeded",
+            "started_at": "2026-08-02T20:02:01+00:00",
+            "finished_at": "2026-08-02T20:02:02+00:00",
+            "external_reference": "ses-cycle-1",
+            "error": None,
+            "input_data": {"recipient": "owner@example.com"},
+            "output_data": {"recipient": "owner@example.com"},
+        }],
+    }]
+
+    workspace = build_workspace(data)
+    projected = next(item for item in workspace["finds"] if item["databaseId"] == find_id)
+    task = workspace["maker"]["tasks"][0]
+    artifact = projected["artifacts"][0]
+
+    assert projected["status"] == "proposed"
+    assert projected["decisionCycle"] == 2
+    assert projected["reopenedAt"] == reopened_at
+    assert [event["type"] for event in projected["decisionEvents"]] == [
+        "owner.reopened", "owner.accepted",
+    ]
+    assert task["decisionCycle"] == 1
+    assert task["supersededAt"] == reopened_at
+    assert artifact["decisionCycle"] == 1
+    assert artifact["current"] is False
+    assert workspace["maker"]["ready"] == 0
+    assert workspace["maker"]["superseded"] == 1
+    assert workspace["maker"]["emailSucceeded"] == 0

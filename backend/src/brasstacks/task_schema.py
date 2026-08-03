@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS work_task (
                              'not_required', 'pending', 'approved', 'rejected'
                            )),
   approved_at              TIMESTAMPTZ,
+  decision_cycle           INT NOT NULL DEFAULT 1,
   attempt_count            INT NOT NULL DEFAULT 0,
   dispatch_count           INT NOT NULL DEFAULT 0,
   claimed_by               STRING,
@@ -54,6 +55,9 @@ CREATE TABLE IF NOT EXISTS work_task (
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   started_at               TIMESTAMPTZ,
   completed_at             TIMESTAMPTZ,
+  cancel_requested_at      TIMESTAMPTZ,
+  cancelled_at             TIMESTAMPTZ,
+  superseded_at            TIMESTAMPTZ,
   UNIQUE INDEX work_task_idempotency_idx (idempotency_key),
   INDEX work_task_business_status_idx (business_id, status, created_at DESC),
   INDEX work_task_dispatch_idx (status, next_attempt_at, priority, created_at),
@@ -94,9 +98,17 @@ CREATE TABLE IF NOT EXISTS tool_execution (
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES work_task(id) ON DELETE SET NULL;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS idempotency_key STRING;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS body STRING;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS artifact_idempotency_idx
   ON artifact (idempotency_key);
 CREATE INDEX IF NOT EXISTS artifact_task_idx ON artifact (task_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS artifact_current_idx ON artifact (find_id, superseded_at, created_at DESC);
+CREATE INDEX IF NOT EXISTS work_task_cycle_idx ON work_task (find_id, decision_cycle, created_at DESC);
 """
 
 

@@ -28,6 +28,7 @@ CORS_HEADERS = {
 }
 
 UI_TO_DB = {"approved": "accepted", "rejected": "rejected"}
+RECONSIDER = "reconsider"
 
 
 def respond(status: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -51,9 +52,19 @@ def parse_request(event: Any) -> tuple[str, str]:
     if not isinstance(payload, dict):
         raise ValueError("body must be a JSON object")
     decision = str(payload.get("decision") or "").strip().lower()
-    if decision not in UI_TO_DB:
-        raise ValueError("decision must be 'approved' or 'rejected'")
+    if decision not in {*UI_TO_DB, RECONSIDER}:
+        raise ValueError("decision must be 'approved', 'rejected', or 'reconsider'")
     return find_id, decision
+
+
+def reconsider_reason(event: Any) -> tuple[str | None, str | None]:
+    raw = (event or {}).get("body")
+    payload = json.loads(raw) if isinstance(raw, (str, bytes)) else (raw or {})
+    reason_code = str(payload.get("reason_code") or "").strip() or None
+    reason_note = " ".join(str(payload.get("reason_note") or "").split()) or None
+    if reason_note and len(reason_note) > 280:
+        raise ValueError("reconsideration note is too long (280 character limit)")
+    return reason_code, reason_note
 
 
 def record_decision(
@@ -88,12 +99,48 @@ def record_decision(
     if not business_id:
         return respond(409, {"error": "finish setting up your business first"})
 
+    if decision == RECONSIDER:
+        try:
+            reason_code, reason_note = reconsider_reason(event)
+            reopened = repo.reconsider_find(
+                find_id,
+                business_id=business_id,
+                actor_account_id=account.get("account_id"),
+                reason_code=reason_code,
+                reason_note=reason_note,
+                source="memory_engine_reconsider",
+                reopened_at=moment,
+            )
+        except ValueError as exc:
+            return respond(400, {"error": str(exc)})
+        except RepositoryError as exc:
+            return respond(409, {"error": str(exc)})
+        return respond(200, {
+            "find_id": find_id,
+            "decision": RECONSIDER,
+            "status": reopened.status,
+            "previous_status": reopened.previous_status,
+            "changed": reopened.changed,
+            "reopened_at": reopened.reopened_at.isoformat(),
+            "previous_cycle": reopened.previous_cycle,
+            "decision_cycle": reopened.decision_cycle,
+            "decision_event_id": reopened.event_id,
+            "reason_code": reason_code,
+            "reason_note": reason_note,
+            "cancelled_task_ids": list(reopened.cancelled_task_ids),
+            "superseded_task_ids": list(reopened.superseded_task_ids),
+            "superseded_artifact_ids": list(reopened.superseded_artifact_ids),
+            "maker": "cancelled_or_superseded",
+        })
+
     try:
         transition = repo.set_find_status(
             find_id,
             status=UI_TO_DB[decision],
             decided_at=moment,
             business_id=business_id,
+            actor_account_id=account.get("account_id"),
+            source="owner_decision",
         )
     except RepositoryError as exc:
         # Do not reveal whether a UUID belongs to another tenant. The repository
@@ -127,6 +174,8 @@ def record_decision(
             transition.previous_decided_at.isoformat()
             if transition.previous_decided_at else None
         ),
+        "decision_cycle": transition.decision_cycle,
+        "decision_event_id": transition.event_id,
         "maker": maker,
         "maker_task": maker_task,
     })
@@ -159,5 +208,5 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
 
 __all__ = [
     "handler", "record_decision", "parse_request", "respond", "UI_TO_DB",
-    "MAKER_QUEUE_URL_VAR",
+    "MAKER_QUEUE_URL_VAR", "RECONSIDER", "reconsider_reason",
 ]

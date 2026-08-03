@@ -37,7 +37,10 @@ def reconcile(
                 continue
             # Legacy artifacts already represent completed Maker work. Do not
             # create a task merely to reproduce them.
-            if repo.get_artifacts(find.find_id):
+            if any(
+                artifact.superseded_at is None
+                for artifact in repo.get_artifacts(find.find_id)
+            ):
                 continue
             before = repo.create_or_get_maker_task(
                 business_id, find_id=find.find_id,

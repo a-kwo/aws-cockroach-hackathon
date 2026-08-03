@@ -25,6 +25,7 @@ from brasstacks.agents.analyst import ANALYST_QUERIES, DEFAULT_PER_QUERY_LIMIT
 from brasstacks.agents.ask import TRAIL_PREFIX
 from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
+from brasstacks.decision_schema import ensure_decision_schema
 from brasstacks.finds import SUMMARY_MAX_CHARS, clean_owner_copy, owner_card_summary
 from brasstacks.task_schema import ensure_task_schema
 
@@ -165,6 +166,9 @@ def _artifacts(row: dict[str, Any]) -> list[dict[str, Any]]:
             "location": f"s3://{bucket}/{key}" if bucket and key else None,
             "taskId": str(artifact.get("task_id") or "") or None,
             "idempotencyKey": artifact.get("idempotency_key"),
+            "decisionCycle": _int(artifact.get("decision_cycle"), 1),
+            "supersededAt": _iso(artifact.get("superseded_at")),
+            "current": artifact.get("superseded_at") is None,
         })
     return result
 
@@ -330,6 +334,7 @@ def _tasks(data: dict[str, Any], finds: list[dict[str, Any]]) -> list[dict[str, 
             "status": row.get("status") or "queued",
             "priority": _int(row.get("priority"), 100),
             "approvalState": row.get("approval_state") or "approved",
+            "decisionCycle": _int(row.get("decision_cycle"), 1),
             "attemptCount": _int(row.get("attempt_count")),
             "dispatchCount": _int(row.get("dispatch_count")),
             "resourceKey": row.get("resource_key"),
@@ -340,6 +345,9 @@ def _tasks(data: dict[str, Any], finds: list[dict[str, Any]]) -> list[dict[str, 
             "updatedAt": _iso(row.get("updated_at")),
             "startedAt": _iso(row.get("started_at")),
             "completedAt": _iso(row.get("completed_at")),
+            "cancelRequestedAt": _iso(row.get("cancel_requested_at")),
+            "cancelledAt": _iso(row.get("cancelled_at")),
+            "supersededAt": _iso(row.get("superseded_at")),
             "nextAttemptAt": _iso(row.get("next_attempt_at")),
             "leaseExpiresAt": _iso(row.get("lease_expires_at")),
             "claimedBy": row.get("claimed_by"),
@@ -438,6 +446,26 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             "verifyAfter": _iso(raw_find.get("verify_after")),
             "createdAt": _iso(raw_find.get("created_at")),
             "decidedAt": _iso(raw_find.get("decided_at")),
+            "decisionCycle": _int(raw_find.get("decision_cycle"), 1),
+            "reopenedAt": _iso(raw_find.get("reopened_at")),
+            "reopenReasonCode": raw_find.get("reopen_reason_code"),
+            "reopenReasonNote": raw_find.get("reopen_reason_note"),
+            "decisionEvents": [{
+                "id": str(event.get("id") or ""),
+                "type": event.get("event_type"),
+                "decisionCycle": _int(event.get("decision_cycle"), 1),
+                "previousStatus": event.get("previous_status"),
+                "newStatus": event.get("new_status"),
+                "actorAccountId": (
+                    str(event.get("actor_account_id"))
+                    if event.get("actor_account_id") else None
+                ),
+                "reasonCode": event.get("reason_code"),
+                "reasonNote": event.get("reason_note"),
+                "source": event.get("source"),
+                "data": event.get("data") or {},
+                "createdAt": _iso(event.get("created_at")),
+            } for event in raw_find.get("decision_events") or []],
             "periodStart": _iso(raw_find.get("period_start")),
             "periodEnd": _iso(raw_find.get("period_end")),
             "artifacts": _artifacts(raw_find),
@@ -500,10 +528,12 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
 
     tasks = _tasks(data, finds)
     maker_tasks = [task for task in tasks if task["agent"] == "maker"]
-    maker_waiting = [task for task in maker_tasks if task["status"] in {"queued", "retry"}]
-    maker_running = [task for task in maker_tasks if task["status"] == "running"]
-    maker_ready = [task for task in maker_tasks if task["status"] == "completed"]
-    maker_failed = [task for task in maker_tasks if task["status"] == "failed"]
+    maker_current = [task for task in maker_tasks if not task.get("supersededAt")]
+    maker_waiting = [task for task in maker_current if task["status"] in {"queued", "retry"}]
+    maker_running = [task for task in maker_current if task["status"] == "running"]
+    maker_ready = [task for task in maker_current if task["status"] == "completed"]
+    maker_failed = [task for task in maker_current if task["status"] == "failed"]
+    maker_superseded = [task for task in maker_tasks if task.get("supersededAt")]
 
     bits = [f"{money(daily)}/day earning now"]
     if proposed:
@@ -562,8 +592,9 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             "running": len(maker_running),
             "ready": len(maker_ready),
             "failed": len(maker_failed),
+            "superseded": len(maker_superseded),
             "emailSucceeded": sum(
-                1 for task in maker_tasks
+                1 for task in maker_current
                 for tool in task.get("tools", [])
                 if tool.get("name") == "ses.send_review_email"
                 and tool.get("status") == "succeeded"
@@ -634,6 +665,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
     if not ids:
         return []
     ensure_task_schema(conn)
+    ensure_decision_schema(conn)
     placeholders = ",".join(["%s"] * len(ids))
 
     with conn.cursor() as cursor:
@@ -654,7 +686,8 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             SELECT business_id, id, run_id, emoji, title, summary,
                    rationale, move,
                    predicted_daily_cents, confidence, verify_after, status,
-                   decided_at, created_at
+                   decided_at, decision_cycle, reopened_at,
+                   reopen_reason_code, reopen_reason_note, created_at
             FROM find
             WHERE business_id IN ({placeholders})
             ORDER BY business_id, created_at DESC
@@ -674,7 +707,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         artifacts = _rows(cursor, f"""
             SELECT f.business_id, a.id, a.find_id, a.kind, a.title, a.preview,
                    a.s3_bucket, a.s3_key, a.created_at, a.task_id,
-                   a.idempotency_key, a.body
+                   a.idempotency_key, a.body, a.decision_cycle, a.superseded_at
             FROM artifact a
             JOIN find f ON f.id = a.find_id
             WHERE f.business_id IN ({placeholders})
@@ -684,8 +717,9 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         tasks = _rows(cursor, f"""
             SELECT business_id, id, find_id, requested_by_account_id, agent,
                    task_type, status, priority, resource_key, approval_state,
-                   attempt_count, dispatch_count, approved_at, created_at,
-                   updated_at, started_at, completed_at, next_attempt_at,
+                   decision_cycle, attempt_count, dispatch_count, approved_at,
+                   created_at, updated_at, started_at, completed_at,
+                   cancel_requested_at, cancelled_at, superseded_at, next_attempt_at,
                    lease_expires_at, claimed_by, workflow_execution_arn,
                    output_artifact_id, last_error, input_data, output_data
             FROM work_task
@@ -724,6 +758,22 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             ) ranked
             WHERE tool_execution_rank <= 10
             ORDER BY business_id, task_id, started_at DESC
+        """, ids)
+
+        decision_events = _rows(cursor, f"""
+            SELECT business_id, id, find_id, decision_cycle, event_type,
+                   previous_status, new_status, actor_account_id,
+                   reason_code, reason_note, source, data, created_at
+            FROM (
+                SELECT de.*,
+                       row_number() OVER (
+                           PARTITION BY find_id ORDER BY created_at DESC
+                       ) AS decision_event_rank
+                FROM decision_event de
+                WHERE business_id IN ({placeholders})
+            ) ranked
+            WHERE decision_event_rank <= 50
+            ORDER BY business_id, find_id, created_at DESC
         """, ids)
 
         ledger = _rows(cursor, f"""
@@ -798,6 +848,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
     tasks_by_business = _group(tasks)
     events_by_task = _group(task_events, "task_id")
     tools_by_task = _group(tool_executions, "task_id")
+    decisions_by_find = _group(decision_events, "find_id")
     ledger_by_find = _group(ledger, "find_id")
     runs_by_business = _group(runs)
     corpus_by_business = {str(row["business_id"]): row for row in corpus}
@@ -823,6 +874,11 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             raw["artifacts"] = [
                 {key: value for key, value in item.items() if key != "business_id"}
                 for item in artifacts_by_find.get(find_id, [])
+            ]
+            raw["decision_events"] = [
+                {key: value for key, value in item.items()
+                 if key not in {"business_id", "find_id", "decision_event_rank"}}
+                for item in decisions_by_find.get(find_id, [])
             ]
             for key in (
                 "verdict", "actual_daily_cents", "method", "note",

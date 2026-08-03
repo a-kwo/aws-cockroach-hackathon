@@ -65,6 +65,7 @@ class TaskRecord:
     idempotency_key: str
     resource_key: str
     approval_state: str
+    decision_cycle: int
     attempt_count: int
     dispatch_count: int
     created_at: datetime
@@ -72,6 +73,9 @@ class TaskRecord:
     approved_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    cancel_requested_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    superseded_at: datetime | None = None
     next_attempt_at: datetime | None = None
     lease_expires_at: datetime | None = None
     claimed_by: str | None = None
@@ -123,15 +127,34 @@ class ToolExecutionRecord:
     created: bool = False
 
 
-def maker_task_idempotency_key(find_id: str, *, version: int = MAKER_TASK_VERSION) -> str:
-    return f"maker:draft:{find_id}:v{int(version)}"
+def maker_task_idempotency_key(
+    find_id: str,
+    *,
+    decision_cycle: int = 1,
+    version: int = MAKER_TASK_VERSION,
+) -> str:
+    """Return a stable task key for one recommendation decision cycle.
+
+    Cycle one deliberately keeps the original key so already-deployed tasks do
+    not duplicate after this migration. A reopened recommendation increments
+    the cycle and therefore receives a fresh, independently idempotent task.
+    """
+    cycle = max(1, int(decision_cycle))
+    if cycle == 1:
+        return f"maker:draft:{find_id}:v{int(version)}"
+    return f"maker:draft:{find_id}:cycle:{cycle}:v{int(version)}"
 
 
 def maker_artifact_idempotency_key(task_id: str, *, kind: str, version: int = 1) -> str:
     return f"task:{task_id}:artifact:{kind}:v{int(version)}"
 
 
-def maker_resource_key(business_id: str, find_id: str) -> str:
+def maker_resource_key(
+    business_id: str,
+    find_id: str,
+    *,
+    decision_cycle: int = 1,
+) -> str:
     """Order retries for one recommendation while unrelated work runs in parallel.
 
     Draft generation does not mutate a shared external account, so two different
@@ -139,7 +162,9 @@ def maker_resource_key(business_id: str, find_id: str) -> str:
     publishing tools use their own resource keys (for example, one Google profile)
     when ordering is required.
     """
-    return f"maker:find:{business_id}:{find_id}"
+    cycle = max(1, int(decision_cycle))
+    suffix = "" if cycle == 1 else f":cycle:{cycle}"
+    return f"maker:find:{business_id}:{find_id}{suffix}"
 
 
 def execution_name(task_id: str, dispatch_count: int) -> str:

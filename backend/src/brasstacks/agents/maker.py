@@ -20,6 +20,7 @@ Two rules it does not get to break:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 from brasstacks.artifacts import ArtifactStore, ArtifactStoreError
 from brasstacks.providers import ProviderError, Reasoner
@@ -71,9 +72,12 @@ class MakerResult:
     location: str | None = None
     error: str | None = None
     reused: bool = False
+    cancelled: bool = False
 
     @property
     def note(self) -> str:
+        if self.cancelled:
+            return "draft discarded because the owner reopened the recommendation"
         if self.error:
             return f"no artifact produced — {self.error}"
         if not self.artifact_id:
@@ -99,7 +103,14 @@ def next_undrafted_find(repo: Repository, business_id: str, *,
     ]
     # Oldest first: the one she has been waiting on longest.
     for find in sorted(accepted, key=lambda f: f.created_at):
-        if not repo.get_artifacts(find.find_id):
+        # A previous decision cycle may have produced a draft that was later
+        # superseded when the owner reopened the recommendation. Only a current
+        # artifact satisfies the new decision cycle.
+        current_artifacts = [
+            artifact for artifact in repo.get_artifacts(find.find_id)
+            if artifact.superseded_at is None
+        ]
+        if not current_artifacts:
             return find
     return None
 
@@ -137,6 +148,7 @@ def run_maker(
     model_id: str | None = None,
     task_id: str | None = None,
     artifact_idempotency_key: str | None = None,
+    can_continue: Callable[[], bool] | None = None,
 ) -> MakerResult:
     """Draft the deliverable for one accepted find."""
     run_id = repo.start_run(business_id, agent="maker", model_id=model_id)
@@ -187,6 +199,21 @@ def run_maker(
         result = MakerResult(run_id=run_id, error=error)
         repo.finish_run(run_id, status="failed", error=error, note=result.note,
                         **_token_receipt(reasoner))
+        return result
+
+    # The owner may reopen the recommendation while the model is generating.
+    # The generated text is not an external side effect, so discard it before
+    # S3 or CockroachDB writes instead of allowing a stale draft to appear in
+    # the new decision cycle. This guard is deliberately checked *after* the
+    # model call as well as by insert_artifact's transactional task/cycle check.
+    if can_continue is not None and not can_continue():
+        result = MakerResult(run_id=run_id, cancelled=True)
+        repo.finish_run(
+            run_id,
+            status="ok",
+            note=result.note,
+            **_token_receipt(reasoner),
+        )
         return result
 
     # Upload first so the row can record where it landed — but a failure here

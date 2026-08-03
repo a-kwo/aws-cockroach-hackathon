@@ -27,6 +27,13 @@ def notify(
     task = repo.get_task(task_id)
     if task is None:
         return {"status": "ignored", "reason": "task_not_found", "task_id": task_id}
+    if task.superseded_at is not None or task.cancelled_at is not None:
+        return {
+            "status": "skipped",
+            "reason": "task_superseded",
+            "task_id": task_id,
+            "task_status": task.status,
+        }
     if task.status != "completed" or not task.output_artifact_id or not task.find_id:
         return {
             "status": "skipped",
@@ -42,6 +49,12 @@ def notify(
     )
     if artifact is None:
         return {"status": "skipped", "reason": "artifact_not_found", "task_id": task_id}
+    if artifact.superseded_at is not None:
+        return {
+            "status": "skipped",
+            "reason": "artifact_superseded",
+            "task_id": task_id,
+        }
 
     # Resolve the destination inside the authenticated tenant. New tasks prefer
     # the account that approved the recommendation; imported/system tasks fall

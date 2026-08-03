@@ -9254,6 +9254,16 @@
       background: var(--engine-red-soft);
     }
 
+    .memory-engine .owner-decision-badge.reopened {
+      color: var(--engine-teal);
+      background: var(--engine-teal-soft);
+    }
+
+    .memory-engine .owner-decision-badge.later {
+      color: var(--engine-amber);
+      background: var(--engine-amber-soft);
+    }
+
     .memory-engine .owner-decision-copy { min-width: 0; }
     .memory-engine .owner-decision-copy strong {
       display: block;
@@ -12795,6 +12805,7 @@
     .maker-task-status.queued, .maker-task-status.retry { background: #f8edd7; color: #93651d; }
     .maker-task-status.completed { background: #e3f1eb; color: #267561; }
     .maker-task-status.failed { background: #f8e7e6; color: #a33f3b; }
+    .maker-task-status.superseded, .maker-task-status.cancelled { background: #ece9f2; color: #655f75; }
     .maker-task-copy { min-width: 0; display: grid; gap: 3px; }
     .maker-task-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .maker-task-copy small { color: var(--muted); }
@@ -12856,6 +12867,18 @@
       color: #8a611f;
     }
     .maker-review-state.failed { background: #f8e7e6; color: #a33f3b; }
+    .maker-review-state.superseded { background: #ece9f2; color: #655f75; }
+    .maker-review-panel.is-archived {
+      border-color: rgba(101,95,117,.2);
+      background: linear-gradient(145deg, rgba(244,242,247,.96), rgba(255,255,255,.96));
+      box-shadow: none;
+    }
+    .maker-review-panel.is-archived .maker-review-head {
+      border-bottom-color: rgba(101,95,117,.14);
+    }
+    .maker-review-panel.is-archived .maker-review-head small { color: #655f75; }
+    .maker-review-actions.is-archived,
+    .maker-tool-receipt.is-archived { border-color: rgba(101,95,117,.12); }
     .maker-review-body { padding: 20px; }
     .maker-review-body pre {
       margin: 0;
@@ -13216,6 +13239,55 @@
       }
     }
 
+  </style>
+  <style id="reconsider-decision-v30">
+    .reconsider-panel {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border: 1px solid rgba(47, 116, 104, .18);
+      border-radius: 18px;
+      background: rgba(47, 116, 104, .055);
+    }
+    .reconsider-panel strong { color: var(--ink); }
+    .reconsider-panel p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .reconsider-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 10px; }
+    .reconsider-fields select,
+    .reconsider-fields input {
+      width: 100%; min-width: 0; min-height: 44px; padding: 0 12px;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--paper);
+      color: var(--ink); font: inherit;
+    }
+    .reconsider-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 44px; padding: 0 16px; border: 1px solid rgba(47, 116, 104, .28);
+      border-radius: 12px; background: var(--paper); color: #24695f;
+      font: 700 14px/1 inherit; cursor: pointer;
+    }
+    .reconsider-button:hover { background: rgba(47, 116, 104, .08); }
+    .reconsider-button:disabled { opacity: .58; cursor: wait; }
+    .reopened-chip {
+      display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+      margin-bottom: 8px; padding: 5px 9px; border-radius: 999px;
+      background: rgba(47, 116, 104, .09); color: #24695f;
+      font: 750 11px/1.2 var(--sans); letter-spacing: .04em; text-transform: uppercase;
+    }
+    .owner-decision-reconsider {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      margin: 0 14px 14px; padding: 12px 14px; border-radius: 12px;
+      background: rgba(47, 116, 104, .055); color: var(--muted);
+    }
+    .owner-decision-reconsider span { font-size: 12px; line-height: 1.45; }
+    .owner-decision-reconsider .reconsider-panel {
+      flex: 1 1 520px; padding: 12px; border-radius: 12px; background: var(--paper);
+    }
+    .owner-decision-reconsider .reconsider-panel > div:first-child { display: none; }
+    .owner-decision-reconsider .reconsider-fields { grid-template-columns: minmax(150px, .8fr) minmax(180px, 1.2fr); }
+    @media (max-width: 700px) {
+      .reconsider-fields { grid-template-columns: 1fr; }
+      .owner-decision-reconsider { align-items: stretch; flex-direction: column; }
+      .reconsider-button { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -13952,6 +14024,12 @@
         evidence: find.evidence || [],
         artifacts: Array.isArray(find.artifacts) ? find.artifacts : [],
         verifyAfter: find.verifyAfter,
+        workflowStatus: String(find.status || "proposed"),
+        decisionCycle: Number(find.decisionCycle || 1),
+        reopenedAt: find.reopenedAt || null,
+        reopenReasonCode: find.reopenReasonCode || null,
+        reopenReasonNote: find.reopenReasonNote || null,
+        decisionEvents: Array.isArray(find.decisionEvents) ? find.decisionEvents : [],
         accent: style.accent,
         accentRgb: style.accentRgb
       };
@@ -14457,7 +14535,7 @@
     if (!decisionApiConfigured) {
       try { localStorage.removeItem(STORAGE_KEY); } catch (error) {}
     }
-    let state = decisionApiConfigured ? loadState() : { decisions: {} };
+    let state = decisionApiConfigured ? loadState() : { decisions: {}, reopened: {} };
     let currentIndex = 0;
     let activeView = INITIAL_VIEW;
     let dragStartX = null;
@@ -14490,13 +14568,16 @@
     function loadState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return { decisions: {} };
+        if (!raw) return { decisions: {}, reopened: {} };
         const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === "object" && parsed.decisions && typeof parsed.decisions === "object"
-          ? parsed
-          : { decisions: {} };
+        if (!parsed || typeof parsed !== "object") return { decisions: {}, reopened: {} };
+        return {
+          ...parsed,
+          decisions: parsed.decisions && typeof parsed.decisions === "object" ? parsed.decisions : {},
+          reopened: parsed.reopened && typeof parsed.reopened === "object" ? parsed.reopened : {},
+        };
       } catch (error) {
-        return { decisions: {} };
+        return { decisions: {}, reopened: {} };
       }
     }
 
@@ -14523,7 +14604,14 @@
       // The live CockroachDB read is authoritative when it contains a decision
       // made on another device. The local receipt remains the immediate overlay
       // between a successful POST and the next conditional workflow refresh.
-      return liveDecisionState[postId] || state.decisions[postId] || null;
+      const decision = liveDecisionState[postId] || state.decisions[postId] || null;
+      const reopened = state.reopened?.[postId] || null;
+      if (decision && reopened && Number(reopened.at || 0) >= Number(decision.at || 0)) return null;
+      return decision;
+    }
+
+    function getReopened(postId) {
+      return state.reopened?.[postId] || null;
     }
 
     function decisionForFind(find) {
@@ -14547,6 +14635,17 @@
 
       const finds = model.finds.map(find => {
         const decision = decisionForFind(find);
+        const reopened = getReopened(find.id) || getReopened(find.databaseId);
+        if (reopened && !find.verdict && ["accepted", "live"].includes(find.status)) {
+          return {
+            ...find,
+            status: "proposed",
+            reopenedAt: find.reopenedAt || new Date(reopened.at || Date.now()).toISOString(),
+            reopenReasonCode: reopened.reasonCode || find.reopenReasonCode || null,
+            reopenReasonNote: reopened.reasonNote || find.reopenReasonNote || null,
+            decisionCycle: Number(reopened.decisionCycle || find.decisionCycle || 1),
+          };
+        }
         // Browser receipts bridge an undecided snapshot and the brief interval
         // after Undo Pass while /workflow still reports the old rejected row.
         // Later stages (live, retired, judged) remain cluster-authoritative.
@@ -14706,6 +14805,21 @@
               delete state.decisions[String(id)];
               stateChanged = true;
             }
+            if (id && find.reopenedAt) {
+              const next = {
+                at: new Date(find.reopenedAt).getTime() || Date.now(),
+                persisted: true,
+                server: true,
+                decisionCycle: Number(find.decisionCycle || 1),
+                reasonCode: find.reopenReasonCode || null,
+                reasonNote: find.reopenReasonNote || null,
+              };
+              const existingReopen = state.reopened?.[String(id)];
+              if (!existingReopen || Number(existingReopen.at || 0) !== Number(next.at || 0)) {
+                state.reopened[String(id)] = next;
+                stateChanged = true;
+              }
+            }
           }
         }
         const decision = status === "accepted" || status === "live"
@@ -14723,6 +14837,10 @@
         };
         for (const id of [find.id, find.databaseId]) {
           if (id) nextLiveDecisions[String(id)] = receipt;
+          if (id && state.reopened?.[String(id)] && Number(receipt.at || 0) >= Number(state.reopened[String(id)].at || 0)) {
+            delete state.reopened[String(id)];
+            stateChanged = true;
+          }
         }
 
         // Keep the authoritative lifecycle receipt across a reload. Later is
@@ -15323,6 +15441,7 @@
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
                   </button>
                 </div>
+                ${post.reopenedAt ? `<span class="reopened-chip">Reopened · previously approved</span>` : ""}
                 <h2 class="post-title">${post.title}</h2>
                 <p class="signal-text">${escapeHtml(post.signal || "")}</p>
                 <div class="recommendation">
@@ -15861,6 +15980,124 @@
       return payload;
     }
 
+    const RECONSIDER_REASONS = [
+      ["approved_by_mistake", "Approved by mistake"],
+      ["timing_changed", "Timing changed"],
+      ["cost_or_staffing", "Cost or staffing concern"],
+      ["needs_revision", "Recommendation needs revision"],
+      ["other", "Other"],
+    ];
+
+    function reconsiderPanelHtml(post, { compact = false } = {}) {
+      return `
+        <div class="reconsider-panel${compact ? " is-compact" : ""}" data-reconsider-panel data-post-id="${escapeHtml(post.id)}">
+          <div>
+            <strong>Return this move to For You</strong>
+            <p>The original Do it, Maker task, draft, and email receipt stay in history. Current work is cancelled or archived, and a new decision cycle opens.</p>
+          </div>
+          <div class="reconsider-fields">
+            <select data-reconsider-reason aria-label="Reason for reconsidering">
+              ${RECONSIDER_REASONS.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}
+            </select>
+            <input data-reconsider-note maxlength="280" placeholder="Optional note for future recommendations" aria-label="Optional reconsideration note">
+          </div>
+          <button class="reconsider-button" type="button" data-reconsider data-post-id="${escapeHtml(post.id)}">Return to For You</button>
+        </div>`;
+    }
+
+    async function persistReconsider(post, reasonCode, reasonNote) {
+      const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
+      if (!base) throw new Error("Reconsider needs the connected decision service.");
+      const response = await fetch(`${base}/finds/${encodeURIComponent(post.databaseId || post.id)}/decision`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          decision: "reconsider",
+          reason_code: reasonCode || "other",
+          reason_note: reasonNote || null,
+        }),
+      });
+      let payload = {};
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) throw new Error(payload.error || `Reconsider failed (${response.status})`);
+      return payload;
+    }
+
+    function applyReconsiderReceipt(post, payload, { returnToFeed = true } = {}) {
+      const serverRecordedAt = payload?.reopened_at ? new Date(payload.reopened_at).getTime() : NaN;
+      const recordedAt = Number.isFinite(serverRecordedAt) ? serverRecordedAt : Date.now();
+      const receipt = {
+        at: recordedAt,
+        persisted: true,
+        server: true,
+        decisionCycle: Number(payload?.decision_cycle || post.decisionCycle || 1),
+        reasonCode: payload?.reason_code || null,
+        reasonNote: payload?.reason_note || null,
+      };
+      state.reopened ||= {};
+      for (const id of [post.id, post.databaseId]) {
+        if (!id) continue;
+        state.reopened[String(id)] = receipt;
+        delete state.decisions[String(id)];
+        delete liveDecisionState[String(id)];
+      }
+      post.workflowStatus = "proposed";
+      post.reopenedAt = payload?.reopened_at || new Date(recordedAt).toISOString();
+      post.decisionCycle = receipt.decisionCycle;
+      post.reopenReasonCode = receipt.reasonCode;
+      post.reopenReasonNote = receipt.reasonNote;
+      saveState();
+      const pending = getPendingPosts();
+      const reopenedIndex = pending.findIndex(item => item.id === post.id);
+      if (reopenedIndex >= 0) currentIndex = reopenedIndex;
+      showToast("Returned to For You. Prior work remains in history.", "approved");
+      if (returnToFeed) {
+        closeDrawer();
+        switchView("autopilot");
+      } else {
+        renderApp();
+      }
+      if (workflowApiConfigured) {
+        refreshWorkflowSnapshot({ force: true, silent: true }).finally(scheduleWorkflowRefresh);
+      }
+    }
+
+    async function reconsider(postId, button) {
+      const post = posts.find(item => item.id === postId);
+      if (!post || button?.disabled) return;
+      const currentDecision = getDecision(post.id) || getDecision(post.databaseId);
+      const liveAccepted = ["accepted", "live"].includes(String(post.workflowStatus || ""));
+      if (currentDecision?.status !== "approved" && !liveAccepted) {
+        showToast("Only an approved move can be reconsidered.", "rejected");
+        return;
+      }
+      const panel = button?.closest("[data-reconsider-panel]");
+      const reasonCode = panel?.querySelector("[data-reconsider-reason]")?.value || "other";
+      const reasonNote = panel?.querySelector("[data-reconsider-note]")?.value?.trim() || "";
+      const confirmed = window.confirm(
+        "Return this recommendation to For You?\n\nThe original decision, draft, and email receipt will stay in history."
+      );
+      if (!confirmed) return;
+
+      const original = button?.textContent || "Return to For You";
+      if (button) {
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.textContent = "Reopening…";
+      }
+      try {
+        const payload = await persistReconsider(post, reasonCode, reasonNote);
+        applyReconsiderReceipt(post, { ...payload, reason_code: reasonCode, reason_note: reasonNote });
+      } catch (error) {
+        showToast(error.message || "Could not reopen this recommendation.", "rejected");
+        if (button) {
+          button.disabled = false;
+          button.removeAttribute("aria-busy");
+          button.textContent = original;
+        }
+      }
+    }
+
     async function decide(postId, status, animate = true) {
       if (isAnimating || getDecision(postId)) return;
 
@@ -15914,7 +16151,17 @@
           if (statusCopy) statusCopy.textContent = status === "approved" ? "Approved · Maker task created" : "Passed · decision saved";
           const serverRecordedAt = receipt.decided_at ? new Date(receipt.decided_at).getTime() : NaN;
           const recordedAt = Number.isFinite(serverRecordedAt) ? serverRecordedAt : Date.now();
-          state.decisions[postId] = { status, at: recordedAt, persisted: !receipt.demoOnly };
+          const decisionReceipt = {
+            status,
+            at: recordedAt,
+            persisted: !receipt.demoOnly,
+            decisionCycle: Number(receipt.decision_cycle || post.decisionCycle || 1),
+          };
+          for (const id of [post.id, post.databaseId]) {
+            if (!id) continue;
+            state.decisions[String(id)] = decisionReceipt;
+            delete state.reopened?.[String(id)];
+          }
           saveState();
           const pending = getPendingPosts();
           if (currentIndex >= pending.length) currentIndex = Math.max(0, pending.length - 1);
@@ -16516,70 +16763,125 @@
     }
 
     function memoryOwnerDecisionRecords(model) {
-      return (model.finds || []).map(find => {
+      const records = [];
+      for (const find of model.finds || []) {
+        const events = Array.isArray(find.decisionEvents)
+          ? [...find.decisionEvents].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          : [];
+        if (events.length) {
+          events.forEach((event, index) => {
+            const type = String(event.type || "");
+            const choice = ["owner.accepted", "owner.undo_pass"].includes(type)
+              ? "approved"
+              : type === "owner.passed"
+                ? "rejected"
+                : type === "owner.reopened"
+                  ? "reopened"
+                  : type === "owner.saved_later" ? "later" : null;
+            if (!choice) return;
+            const decidedAt = event.createdAt || null;
+            const timestamp = decidedAt ? new Date(decidedAt).getTime() : 0;
+            const currentArtifacts = (find.artifacts || []).filter(item => !item.supersededAt);
+            const route = choice === "reopened"
+              ? "Returned to For You · prior work preserved"
+              : choice === "rejected"
+                ? "Closed · Maker not requested"
+                : choice === "later"
+                  ? "Saved for later"
+                  : currentArtifacts.length
+                    ? "Do it · draft stored by Maker"
+                    : find.verdict
+                      ? "Do it · result recorded by Meter"
+                      : "Do it · sent to Maker";
+            records.push({
+              find,
+              choice,
+              eventType: type,
+              decisionCycle: Number(event.decisionCycle || find.decisionCycle || 1),
+              decidedAt,
+              timestamp: Number.isFinite(timestamp) ? timestamp : 0,
+              source: event.source === "legacy_projection_backfill"
+                ? "CockroachDB · inferred from legacy find projection"
+                : "CockroachDB · immutable decision event",
+              route,
+              reasonCode: event.reasonCode || null,
+              reasonNote: event.reasonNote || null,
+              canReconsider: index === 0 && choice === "approved" && find.status === "accepted" && !find.verdict,
+            });
+          });
+          continue;
+        }
+
+        // Legacy imports predate the append-only decision_event table. Keep the
+        // current projection visible, and label its provenance honestly.
         const browserReceipt = decisionForFind(find);
         const status = String(find.status || "");
         const choice = ["accepted", "live"].includes(status)
           ? "approved"
           : status === "rejected" ? "rejected" : null;
-        if (!choice) return null;
-
-        // Historical imports may predate decision receipts.  Keep currently
-        // active accepted/rejected rows visible and show the missing timestamp
-        // honestly; once live writes are used, every row carries decidedAt.
+        if (!choice) continue;
         const decidedAt = find.decidedAt || (browserReceipt?.at
           ? new Date(browserReceipt.at).toISOString()
           : null);
-        const hasTrace = Boolean(decidedAt) || ["accepted", "rejected"].includes(status);
-        if (!hasTrace) return null;
-
-        const persisted = browserReceipt?.persisted;
-        const source = persisted === false
-          ? "This browser · demo only"
-          : liveWorkflowWorkspaces
-            ? "CockroachDB · live workflow read"
-            : "CockroachDB record";
-        const route = choice === "rejected"
-          ? "Closed · Maker not requested"
-          : (find.artifacts || []).length
-            ? "Do it · draft stored by Maker"
-            : find.verdict
-              ? "Do it · result recorded by Meter"
-              : "Do it · sent to Maker";
         const timestamp = decidedAt ? new Date(decidedAt).getTime() : 0;
-        return {
+        records.push({
           find,
           choice,
+          eventType: "legacy_projection",
+          decisionCycle: Number(find.decisionCycle || 1),
           decidedAt,
           timestamp: Number.isFinite(timestamp) ? timestamp : 0,
-          source,
-          route,
-        };
-      }).filter(Boolean).sort((a, b) => b.timestamp - a.timestamp);
+          source: browserReceipt?.persisted === false
+            ? "This browser · demo only"
+            : liveWorkflowWorkspaces ? "CockroachDB · live workflow read" : "CockroachDB record",
+          route: choice === "rejected"
+            ? "Closed · Maker not requested"
+            : (find.artifacts || []).some(item => !item.supersededAt)
+              ? "Do it · draft stored by Maker"
+              : "Do it · sent to Maker",
+          canReconsider: choice === "approved" && status === "accepted" && !find.verdict,
+        });
+      }
+      return records.sort((a, b) => b.timestamp - a.timestamp);
     }
 
     function memoryOwnerDecisionLogHtml(model, records) {
       if (!records.length) {
-        return `<div class="owner-decision-empty"><strong>No Do it or Pass recorded yet</strong><span>When the owner acts, the recommendation, choice, time, routing, and CockroachDB find ID will appear here.</span></div>`;
+        return `<div class="owner-decision-empty"><strong>No owner decisions recorded yet</strong><span>When the owner acts, every Do it, Pass, Undo Pass, and Reconsider event will appear here without overwriting the prior history.</span></div>`;
       }
 
       const actor = model.business?.name
         ? `${model.business.name} owner`
         : "Business owner";
-      const rows = records.slice(0, 8).map(record => {
-        const approved = record.choice === "approved";
-        const label = approved ? "Do it" : "Pass";
-        const tone = approved ? "approved" : "rejected";
+      const ownerCanAct = !OPERATOR_SESSION && (!signedInBusinessId || signedInBusinessId === String(model.business?.id || ""));
+      const rows = records.slice(0, 12).map(record => {
+        const labels = {
+          approved: "Do it",
+          rejected: "Pass",
+          reopened: "Reopened",
+          later: "Later",
+        };
+        const label = labels[record.choice] || "Decision";
+        const tone = record.choice;
         const find = record.find;
         const recordId = String(find.databaseId || find.id || "Not recorded");
         const recorded = memoryDecisionDateTime(record.decidedAt);
+        const reason = record.reasonNote || (record.reasonCode
+          ? String(record.reasonCode).replace(/_/g, " ")
+          : null);
+        const post = posts.find(item => item.id === find.id || item.databaseId === find.databaseId);
+        const reconsiderAction = record.canReconsider
+          ? ownerCanAct && post
+            ? `<div class="owner-decision-reconsider"><span>Return this approved move to For You without deleting its task, draft, or email receipt.</span>${reconsiderPanelHtml(post, { compact: true })}</div>`
+            : `<div class="owner-decision-reconsider"><span>Only the authenticated business owner can reopen this decision. The operator can inspect the full history but cannot impersonate the owner.</span></div>`
+          : "";
         return `
           <details class="owner-decision-record ${tone}">
             <summary>
               <span class="owner-decision-badge ${tone}">${escapeHtml(label)}</span>
               <span class="owner-decision-copy">
                 <strong>${escapeHtml(String(find.title || "Untitled recommendation"))}</strong>
-                <small>${escapeHtml(actor)} · ${escapeHtml(recorded)}</small>
+                <small>${escapeHtml(actor)} · ${escapeHtml(recorded)} · cycle ${escapeHtml(String(record.decisionCycle || 1))}</small>
               </span>
               <span class="owner-decision-route">${escapeHtml(record.route)}</span>
               <span class="owner-decision-chevron" aria-hidden="true">${MEMORY_UI_ICONS.chevron}</span>
@@ -16588,18 +16890,21 @@
               <div><span>Decision</span><strong>${escapeHtml(label)}</strong></div>
               <div><span>Actor</span><strong>${escapeHtml(actor)}</strong></div>
               <div><span>Recorded</span><strong>${escapeHtml(recorded)}</strong></div>
-              <div><span>Routing</span><strong>${escapeHtml(record.route)}</strong></div>
+              <div><span>Decision cycle</span><strong>${escapeHtml(String(record.decisionCycle || 1))}</strong></div>
+              <div class="wide"><span>Routing</span><strong>${escapeHtml(record.route)}</strong></div>
+              ${reason ? `<div class="wide"><span>Reason</span><strong>${escapeHtml(reason)}</strong></div>` : ""}
               <div class="wide"><span>Source</span><strong>${escapeHtml(record.source)}</strong></div>
-              <div class="wide"><span>CockroachDB record</span><code>${escapeHtml(recordId)}</code></div>
+              <div class="wide"><span>CockroachDB find</span><code>${escapeHtml(recordId)}</code></div>
             </div>
+            ${reconsiderAction}
           </details>`;
       }).join("");
 
-      const remainder = records.length > 8
-        ? `<p class="owner-decision-log-note">Showing the 8 newest decisions. ${records.length - 8} older records remain in CockroachDB.</p>`
+      const remainder = records.length > 12
+        ? `<p class="owner-decision-log-note">Showing the 12 newest events. ${records.length - 12} older events remain in CockroachDB.</p>`
         : "";
       return `<div class="owner-decision-log">${rows}</div>
-        <p class="owner-decision-log-note">Times are shown in this browser's local time zone. <b>Time not recorded</b> means a historical import predates the decision receipt.</p>${remainder}`;
+        <p class="owner-decision-log-note">Decision history is append-only. Reconsider opens a new cycle; it never deletes the original Do it, task, artifact, or tool receipt.</p>${remainder}`;
     }
 
     function memoryDuration(run) {
@@ -17043,6 +17348,7 @@
     }
 
     function makerTaskCurrentStep(task) {
+      if (task.supersededAt) return "Superseded by a newer owner decision cycle";
       if (task.status === "running") return "Generating the owner-ready draft";
       if (task.status === "queued") return "Waiting for an available Maker worker";
       if (task.status === "retry") return task.nextAttemptAt
@@ -17066,9 +17372,10 @@
       return `<div class="maker-task-list">${tasks.map(task => {
         const tool = (task.tools || [])[0] || null;
         const updated = task.completedAt || task.startedAt || task.updatedAt || task.createdAt;
+        const visibleStatus = task.supersededAt ? "superseded" : task.status;
         return `<details class="maker-task-item" data-task-id="${escapeHtml(task.id || "")}">
           <summary>
-            <span class="maker-task-status ${escapeHtml(task.status || "")}">${escapeHtml(makerTaskLabel(task.status))}</span>
+            <span class="maker-task-status ${escapeHtml(visibleStatus || "")}">${escapeHtml(task.supersededAt ? "Superseded" : makerTaskLabel(task.status))}</span>
             <span class="maker-task-copy"><strong>${escapeHtml(task.title || "Maker task")}</strong><small>${escapeHtml(makerTaskCurrentStep(task))}</small></span>
             <time class="maker-task-time">${escapeHtml(memoryDateTime(updated))}</time>
             <span class="analyst-output-chevron" aria-hidden="true">${MEMORY_UI_ICONS.chevron}</span>
@@ -17076,9 +17383,11 @@
           <div class="maker-task-detail">
             <span><small>Task receipt</small><b>${escapeHtml(task.shortId || task.id || "—")}</b></span>
             <span><small>Recommendation</small><b>${escapeHtml(task.findShortId || "—")}</b></span>
+            <span><small>Decision cycle</small><b>${escapeHtml(String(task.decisionCycle || 1))}</b></span>
             <span><small>Attempts</small><b>${escapeHtml(String(task.attemptCount || 0))} worker · ${escapeHtml(String(task.dispatchCount || 0))} dispatch</b></span>
             <span><small>Started</small><b>${escapeHtml(memoryDateTime(task.startedAt))}</b></span>
             <span><small>Completed</small><b>${escapeHtml(memoryDateTime(task.completedAt))}</b></span>
+            ${task.supersededAt ? `<span><small>Superseded</small><b>${escapeHtml(memoryDateTime(task.supersededAt))}</b></span>` : ""}
             <span><small>Workflow</small><b>${escapeHtml(task.workflowExecutionArn ? "Step Functions Standard" : "Waiting for workflow")}</b></span>
             ${task.lastError ? `<span class="maker-task-tool"><small>Last error</small><b>${escapeHtml(task.lastError)}</b></span>` : ""}
             ${tool ? `<span class="maker-task-tool"><small>Latest tool receipt</small><b>${escapeHtml(tool.name || "tool")} · ${escapeHtml(tool.status || "—")}${tool.externalReference ? ` · ${escapeHtml(tool.externalReference)}` : ""}</b></span>` : ""}
@@ -17101,13 +17410,14 @@
       const ownerDecisionRecords = memoryOwnerDecisionRecords(model);
       const doItRecorded = ownerDecisionRecords.filter(record => record.choice === "approved");
       const passRecorded = ownerDecisionRecords.filter(record => record.choice === "rejected");
-      const acceptedUndrafted = approved.filter(f => !(f.artifacts || []).length);
+      const acceptedUndrafted = approved.filter(f => !(f.artifacts || []).some(artifact => !artifact.supersededAt));
       const makerTasks = Array.isArray(model.maker?.tasks) ? model.maker.tasks : [];
+      const currentMakerTasks = makerTasks.filter(task => !task.supersededAt);
       const makerTaskLedgerAvailable = makerTasks.length > 0;
-      const makerWaiting = makerTasks.filter(task => ["queued", "retry"].includes(task.status));
-      const makerRunning = makerTasks.filter(task => task.status === "running");
-      const makerReady = makerTasks.filter(task => task.status === "completed");
-      const makerFailed = makerTasks.filter(task => task.status === "failed");
+      const makerWaiting = currentMakerTasks.filter(task => ["queued", "retry"].includes(task.status));
+      const makerRunning = currentMakerTasks.filter(task => task.status === "running");
+      const makerReady = currentMakerTasks.filter(task => task.status === "completed");
+      const makerFailed = currentMakerTasks.filter(task => task.status === "failed");
       const makerWaitingCount = makerTaskLedgerAvailable ? makerWaiting.length : acceptedUndrafted.length;
       const makerReadyCount = makerTaskLedgerAvailable ? makerReady.length : Number(model.artifactCount || 0);
       const topFind = proposed[0] || finds[0] || null;
@@ -17190,14 +17500,19 @@
         memoryDetailSection("Decision routing", `<p class="stage-note"><b>Do it → send to Maker.</b> <b>Pass → close and remember.</b>${saved.length ? ` ${saved.length} recommendation${saved.length === 1 ? " is" : "s are"} saved for later and ${saved.length === 1 ? "remains" : "remain"} outside both outcomes.` : ""}</p>`),
       ].join("");
 
-      const artifactRows = finds.flatMap(find => (find.artifacts || []).map(artifact => ({
+      const artifactRows = finds.flatMap(find => (find.artifacts || []).filter(artifact => !artifact.supersededAt).map(artifact => ({
         label: escapeHtml(clampText(artifact.title || `${artifact.kind} draft`, 58)),
         value: artifact.stored ? "S3" : "database",
+      }))).slice(0, 6);
+      const archivedArtifactRows = finds.flatMap(find => (find.artifacts || []).filter(artifact => artifact.supersededAt).map(artifact => ({
+        label: escapeHtml(clampText(artifact.title || `${artifact.kind} draft`, 58)),
+        value: "superseded",
       }))).slice(0, 6);
       const makerDetails = [
         memoryDetailSection("Live task ledger · exact work per owner", memoryMakerTasksHtml(model)),
         memoryDetailSection("Execution model", `<p class="stage-note"><b>Do it and Undo Pass create one idempotent CockroachDB task.</b> SQS FIFO buffers bursts, Step Functions Standard orchestrates the task, and Maker must atomically claim it before any model call. A reconciliation pass recovers missed delivery without creating duplicate drafts.</p>`),
         memoryDetailSection("Ready-to-review drafts", memoryRows(artifactRows)),
+        archivedArtifactRows.length ? memoryDetailSection("Superseded draft history", memoryRows(archivedArtifactRows)) : "",
       ].join("");
 
       const meterRows = measuring.slice(0, 4).map(find => ({
@@ -18692,7 +19007,7 @@ ledger_entry · artifact · agent_run`,
       return artifacts.find(artifact =>
         String(artifact.taskId || "") === String(task?.id || "")
         || String(artifact.databaseId || artifact.id || "") === String(task?.artifactId || "")
-      ) || artifacts[0];
+      ) || artifacts.find(artifact => !artifact.supersededAt) || artifacts[0];
     }
 
     function makerReviewPanel(post) {
@@ -18701,23 +19016,24 @@ ledger_entry · artifact · agent_run`,
       const artifact = makerArtifactForTask(post, task);
       const body = String(artifact?.body || artifact?.preview || "").trim();
       const email = (task.tools || []).find(tool => tool.name === "ses.send_review_email") || null;
-      const statusLabel = makerTaskLabel(task.status);
-      const stateClass = escapeHtml(task.status || "queued");
+      const archived = Boolean(task.supersededAt || artifact?.supersededAt);
+      const statusLabel = archived ? "Archived" : makerTaskLabel(task.status);
+      const stateClass = escapeHtml(archived ? "superseded" : (task.status || "queued"));
       const receipt = email ? `
-        <div class="maker-tool-receipt">
-          <strong>${email.status === "succeeded" ? "Review email accepted by Amazon SES" : email.status === "failed" ? "Review email needs attention" : "Review email receipt"}</strong>
+        <div class="maker-tool-receipt${archived ? " is-archived" : ""}">
+          <strong>${archived ? "Previous review-email receipt preserved" : email.status === "succeeded" ? "Review email accepted by Amazon SES" : email.status === "failed" ? "Review email needs attention" : "Review email receipt"}</strong>
           <span>${escapeHtml(email.output?.recipient || email.input?.recipient || "Configured owner inbox")}${email.externalReference ? ` · receipt ${escapeHtml(email.externalReference)}` : ""}</span>
         </div>` : "";
       const copy = body ? `
-        <div class="maker-review-actions">
-          <p>Copy this owner-ready draft and post it manually. Connected-account publishing remains approval-gated and is not enabled in this release.</p>
-          <button class="maker-copy-button" type="button" data-copy-maker-draft>Copy draft</button>
+        <div class="maker-review-actions${archived ? " is-archived" : ""}">
+          <p>${archived ? `This is the preserved draft from decision cycle ${escapeHtml(String(task.decisionCycle || artifact?.decisionCycle || 1))}. It is reference history, not the active version.` : "Copy this owner-ready draft and post it manually. Connected-account publishing remains approval-gated and is not enabled in this release."}</p>
+          <button class="maker-copy-button" type="button" data-copy-maker-draft>${archived ? "Copy archived draft" : "Copy draft"}</button>
         </div>` : "";
       return `
-        <section class="maker-review-panel" data-maker-task-review="${escapeHtml(task.id || "")}" aria-label="Maker task review">
+        <section class="maker-review-panel${archived ? " is-archived" : ""}" data-maker-task-review="${escapeHtml(task.id || "")}" aria-label="${archived ? "Archived Maker task review" : "Maker task review"}">
           <header class="maker-review-head">
             <div>
-              <small>Maker task · ${escapeHtml(task.shortId || String(task.id || "").slice(0, 8))}</small>
+              <small>${archived ? "Previous Maker cycle" : "Maker task"} · ${escapeHtml(task.shortId || String(task.id || "").slice(0, 8))}</small>
               <strong>${escapeHtml(artifact?.title || task.title || "Owner-ready draft")}</strong>
               <span>${escapeHtml(makerTaskCurrentStep(task))}</span>
             </div>
@@ -18788,7 +19104,7 @@ ledger_entry · artifact · agent_run`,
       const statusContent = status === "approved"
         ? {
             title: "Approved",
-            note: "Added to Growth for ongoing tracking.",
+            note: "Maker work is preserved. You can return this move to For You without erasing history.",
             icon: icons.approved,
             className: "approved"
           }
@@ -18862,7 +19178,7 @@ ledger_entry · artifact · agent_run`,
                 ${icons.approved}<span>Undo Pass</span>
               </button>
             </div>
-          ` : ""}
+          ` : status === "approved" ? reconsiderPanelHtml(post) : ""}
         </section>
 
         ${status === "pending" ? `
@@ -19082,6 +19398,8 @@ ledger_entry · artifact · agent_run`,
         if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
         if (payload?.action?.type === "undo_pass") {
           applyUndoPassReceipt(post, payload);
+        } else if (payload?.action?.type === "reconsider") {
+          applyReconsiderReceipt(post, payload);
         } else {
           appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
           appendChatReceipt(payload);
@@ -19175,6 +19493,9 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-undo-pass]").forEach(button => {
         button.onclick = () => undoPass(button.dataset.postId, button);
+      });
+      document.querySelectorAll("[data-reconsider]").forEach(button => {
+        button.onclick = () => reconsider(button.dataset.postId, button);
       });
       document.querySelectorAll("[data-copy-maker-draft]").forEach(button => {
         button.onclick = async () => {

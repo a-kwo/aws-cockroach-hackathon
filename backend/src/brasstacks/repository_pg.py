@@ -21,6 +21,18 @@ from typing import Any, Mapping
 import psycopg
 from psycopg.types.json import Jsonb
 
+from brasstacks.decision_schema import ensure_decision_schema
+from brasstacks.decisions import (
+    DECISION_ACCEPTED,
+    DECISION_PASSED,
+    DECISION_REOPENED,
+    DECISION_SAVED_LATER,
+    DECISION_UNDO_PASS,
+    RECONSIDER_REASON_CODES,
+    REVERSIBLE_REVIEW_TOOLS,
+    DecisionEvent,
+    ReconsiderResult,
+)
 from brasstacks.repository import (
     CHAT_ASSISTANT_SOURCE,
     CHAT_OWNER_SOURCE,
@@ -70,10 +82,10 @@ def _vector_literal(embedding: Sequence[float]) -> str:
 _TASK_COLUMNS = """
     id, business_id, find_id, requested_by_account_id, agent, task_type,
     status, priority, idempotency_key, resource_key, approval_state,
-    attempt_count, dispatch_count, created_at, updated_at, approved_at,
-    started_at, completed_at, next_attempt_at, lease_expires_at, claimed_by,
-    claim_token, workflow_execution_arn, output_artifact_id, last_error,
-    input_data, output_data
+    decision_cycle, attempt_count, dispatch_count, created_at, updated_at,
+    approved_at, started_at, completed_at, cancel_requested_at, cancelled_at,
+    superseded_at, next_attempt_at, lease_expires_at, claimed_by, claim_token,
+    workflow_execution_arn, output_artifact_id, last_error, input_data, output_data
 """
 
 
@@ -99,15 +111,18 @@ def _task_record(row: Sequence[Any]) -> TaskRecord:
         agent=str(row[4]), task_type=str(row[5]), status=str(row[6]),
         priority=int(row[7]), idempotency_key=str(row[8]),
         resource_key=str(row[9]), approval_state=str(row[10]),
-        attempt_count=int(row[11]), dispatch_count=int(row[12]),
-        created_at=row[13], updated_at=row[14], approved_at=row[15],
-        started_at=row[16], completed_at=row[17], next_attempt_at=row[18],
-        lease_expires_at=row[19], claimed_by=row[20],
-        claim_token=str(row[21]) if row[21] is not None else None,
-        workflow_execution_arn=row[22],
-        output_artifact_id=str(row[23]) if row[23] is not None else None,
-        last_error=row[24], input_data=_mapping(row[25]),
-        output_data=_mapping(row[26]),
+        decision_cycle=int(row[11] or 1),
+        attempt_count=int(row[12]), dispatch_count=int(row[13]),
+        created_at=row[14], updated_at=row[15], approved_at=row[16],
+        started_at=row[17], completed_at=row[18],
+        cancel_requested_at=row[19], cancelled_at=row[20],
+        superseded_at=row[21], next_attempt_at=row[22],
+        lease_expires_at=row[23], claimed_by=row[24],
+        claim_token=str(row[25]) if row[25] is not None else None,
+        workflow_execution_arn=row[26],
+        output_artifact_id=str(row[27]) if row[27] is not None else None,
+        last_error=row[28], input_data=_mapping(row[29]),
+        output_data=_mapping(row[30]),
     )
 
 
@@ -745,12 +760,14 @@ class PostgresRepository:
             return int(cur.fetchone()[0])
 
     def get_find_context(self, business_id: str, find_id: str) -> FindContext | None:
+        ensure_decision_schema(self._conn)
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT id, title, summary, rationale, move, status,
                        predicted_daily_cents, confidence, verify_after,
-                       decided_at
+                       decided_at, decision_cycle, reopened_at,
+                       reopen_reason_code, reopen_reason_note
                 FROM find
                 WHERE id = %s AND business_id = %s
                 """,
@@ -764,6 +781,8 @@ class PostgresRepository:
             move=row[4] or "", status=str(row[5]),
             predicted_daily_cents=int(row[6]), confidence=float(row[7]),
             verify_after=row[8], decided_at=row[9],
+            decision_cycle=int(row[10] or 1), reopened_at=row[11],
+            reopen_reason_code=row[12], reopen_reason_note=row[13],
         )
 
     # -- finds -----------------------------------------------------------
@@ -829,19 +848,17 @@ class PostgresRepository:
 
     def set_find_status(self, find_id: str, *, status: str,
                         decided_at: datetime | None = None,
-                        business_id: str | None = None) -> DecisionTransition:
-        """Record the owner's decision on a find.
-
-        ``business_id`` scopes browser-originated writes to the configured
-        tenant. Agent-internal callers may omit it because they already operate
-        on repository objects retrieved for that tenant.
-        """
+                        business_id: str | None = None,
+                        actor_account_id: str | None = None,
+                        source: str = "owner_decision") -> DecisionTransition:
+        """Record one immutable owner decision and update the current projection."""
+        ensure_decision_schema(self._conn)
         moment = decided_at or datetime.now(timezone.utc)
         with self._conn.transaction():
             with self._conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT status, decided_at
+                    SELECT business_id, status, decided_at, decision_cycle
                     FROM find
                     WHERE id = %s
                       AND (%s::UUID IS NULL OR business_id = %s::UUID)
@@ -853,8 +870,10 @@ class PostgresRepository:
                 if row is None:
                     raise RepositoryError("recommendation is no longer available")
 
-                previous_status = str(row[0])
-                previous_decided_at = row[1]
+                resolved_business_id = str(row[0])
+                previous_status = str(row[1])
+                previous_decided_at = row[2]
+                decision_cycle = int(row[3] or 1)
                 if previous_status == status:
                     return DecisionTransition(
                         find_id=find_id,
@@ -862,6 +881,7 @@ class PostgresRepository:
                         status=status,
                         decided_at=previous_decided_at or moment,
                         previous_decided_at=previous_decided_at,
+                        decision_cycle=decision_cycle,
                         changed=False,
                     )
 
@@ -877,16 +897,38 @@ class PostgresRepository:
                     UPDATE find
                     SET status = %s, decided_at = %s
                     WHERE id = %s
-                      AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                      AND business_id = %s
                       AND status = %s
                     """,
-                    (status, moment, find_id, business_id, business_id,
-                     previous_status),
+                    (status, moment, find_id, resolved_business_id, previous_status),
                 )
                 if cur.rowcount != 1:
                     raise RepositoryError(
                         "recommendation changed while the decision was saving"
                     )
+
+                if undo_pass:
+                    event_type = DECISION_UNDO_PASS
+                elif status == "accepted":
+                    event_type = DECISION_ACCEPTED
+                elif status == "rejected":
+                    event_type = DECISION_PASSED
+                else:
+                    event_type = DECISION_SAVED_LATER
+                cur.execute(
+                    """
+                    INSERT INTO decision_event (
+                        business_id, find_id, decision_cycle, event_type,
+                        previous_status, new_status, actor_account_id, source,
+                        created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (resolved_business_id, find_id, decision_cycle, event_type,
+                     previous_status, status, actor_account_id, source, moment),
+                )
+                event_id = str(cur.fetchone()[0])
 
         return DecisionTransition(
             find_id=find_id,
@@ -894,8 +936,290 @@ class PostgresRepository:
             status=status,
             decided_at=moment,
             previous_decided_at=previous_decided_at,
+            decision_cycle=decision_cycle,
+            event_id=event_id,
             changed=True,
         )
+
+    def reconsider_find(
+        self, find_id: str, *, business_id: str,
+        actor_account_id: str | None = None,
+        reason_code: str | None = None, reason_note: str | None = None,
+        source: str = "owner_reconsider",
+        reopened_at: datetime | None = None,
+    ) -> ReconsiderResult:
+        """Open a new decision cycle without rewriting the prior Do it history."""
+        ensure_decision_schema(self._conn)
+        ensure_task_schema(self._conn)
+        if reason_code and reason_code not in RECONSIDER_REASON_CODES:
+            raise RepositoryError("choose a valid reconsideration reason")
+        moment = reopened_at or datetime.now(timezone.utc)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT status, decision_cycle, reopened_at, decided_at, created_at
+                    FROM find
+                    WHERE id = %s AND business_id = %s
+                    FOR UPDATE
+                    """,
+                    (find_id, business_id),
+                )
+                found = cur.fetchone()
+                if found is None:
+                    raise RepositoryError("recommendation is no longer available")
+                previous_status = str(found[0])
+                previous_cycle = int(found[1] or 1)
+                prior_reopened_at = found[2]
+                previous_decided_at = found[3]
+                find_created_at = found[4]
+                if previous_decided_at is not None and moment <= previous_decided_at:
+                    moment = previous_decided_at + timedelta(microseconds=1)
+                if previous_status == "proposed" and prior_reopened_at is not None:
+                    return ReconsiderResult(
+                        find_id=find_id,
+                        previous_status="accepted",
+                        status="proposed",
+                        previous_cycle=max(1, previous_cycle - 1),
+                        decision_cycle=previous_cycle,
+                        reopened_at=prior_reopened_at,
+                        changed=False,
+                    )
+                if previous_status != "accepted":
+                    raise RepositoryError(
+                        "only an approved recommendation that has not changed a customer-facing system can be reconsidered"
+                    )
+
+                cur.execute(
+                    "SELECT 1 FROM ledger_entry WHERE find_id = %s LIMIT 1",
+                    (find_id,),
+                )
+                if cur.fetchone() is not None:
+                    raise RepositoryError(
+                        "this move already has a Meter result; create a new recommendation revision instead"
+                    )
+
+                # Older imported rows can predate decision_event. Mark the
+                # backfill as inferred instead of attributing it to the owner
+                # who is performing today's reconsideration.
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM decision_event
+                    WHERE find_id = %s
+                      AND decision_cycle = %s
+                      AND event_type = ANY(%s::STRING[])
+                    LIMIT 1
+                    """,
+                    (find_id, previous_cycle, [DECISION_ACCEPTED, DECISION_UNDO_PASS]),
+                )
+                if cur.fetchone() is None:
+                    cur.execute(
+                        """
+                        INSERT INTO decision_event (
+                            business_id, find_id, decision_cycle, event_type,
+                            previous_status, new_status, actor_account_id,
+                            source, data, created_at
+                        )
+                        VALUES (%s, %s, %s, %s, 'proposed', 'accepted', NULL,
+                                'legacy_projection_backfill', %s, %s)
+                        """,
+                        (business_id, find_id, previous_cycle, DECISION_ACCEPTED,
+                         Jsonb({"inferred_from_find_projection": True}),
+                         previous_decided_at or find_created_at or moment),
+                    )
+
+                safe_tools = list(REVERSIBLE_REVIEW_TOOLS)
+                cur.execute(
+                    """
+                    SELECT DISTINCT tx.tool_name
+                    FROM tool_execution tx
+                    JOIN work_task wt ON wt.id = tx.task_id
+                    WHERE wt.business_id = %s
+                      AND wt.find_id = %s
+                      AND wt.decision_cycle <= %s
+                      AND tx.status IN ('running', 'succeeded')
+                      AND NOT (tx.tool_name = ANY(%s::STRING[]))
+                    ORDER BY tx.tool_name
+                    """,
+                    (business_id, find_id, previous_cycle, safe_tools),
+                )
+                irreversible = [str(row[0]) for row in cur.fetchall()]
+                if irreversible:
+                    raise RepositoryError(
+                        "an external action is already running or completed; create a corrective task instead"
+                    )
+
+                cur.execute(
+                    """
+                    SELECT id, status
+                    FROM work_task
+                    WHERE business_id = %s
+                      AND find_id = %s
+                      AND decision_cycle <= %s
+                      AND superseded_at IS NULL
+                    FOR UPDATE
+                    """,
+                    (business_id, find_id, previous_cycle),
+                )
+                task_rows = [(str(row[0]), str(row[1])) for row in cur.fetchall()]
+                active_statuses = {"queued", "retry", "running", "waiting_user"}
+                cancelled_ids = [task_id for task_id, task_status in task_rows
+                                 if task_status in active_statuses]
+                superseded_ids = [task_id for task_id, _ in task_rows]
+
+                if superseded_ids:
+                    cur.execute(
+                        """
+                        UPDATE work_task
+                        SET status = CASE
+                              WHEN status IN ('queued','retry','running','waiting_user')
+                                THEN 'cancelled'
+                              ELSE status
+                            END,
+                            approval_state = CASE
+                              WHEN status IN ('queued','retry','running','waiting_user')
+                                THEN 'rejected'
+                              ELSE approval_state
+                            END,
+                            cancel_requested_at = CASE
+                              WHEN status IN ('queued','retry','running','waiting_user')
+                                THEN %s
+                              ELSE cancel_requested_at
+                            END,
+                            cancelled_at = CASE
+                              WHEN status IN ('queued','retry','running','waiting_user')
+                                THEN %s
+                              ELSE cancelled_at
+                            END,
+                            superseded_at = %s,
+                            claimed_by = NULL,
+                            claim_token = NULL,
+                            lease_expires_at = NULL,
+                            next_attempt_at = NULL,
+                            last_error = CASE
+                              WHEN status IN ('queued','retry','running','waiting_user')
+                                THEN 'superseded when the owner reopened the recommendation'
+                              ELSE last_error
+                            END,
+                            updated_at = %s
+                        WHERE id = ANY(%s::UUID[])
+                        """,
+                        (moment, moment, moment, moment, superseded_ids),
+                    )
+                    for task_id, task_status in task_rows:
+                        event_type = (
+                            "task.cancelled_by_reconsider"
+                            if task_status in active_statuses
+                            else "task.superseded_by_reconsider"
+                        )
+                        cur.execute(
+                            """
+                            INSERT INTO task_event
+                                (task_id, business_id, event_type, actor_type, actor_id, data)
+                            VALUES (%s, %s, %s, 'owner', %s, %s)
+                            """,
+                            (task_id, business_id, event_type, actor_account_id,
+                             Jsonb({"decision_cycle": previous_cycle})),
+                        )
+
+                cur.execute(
+                    """
+                    UPDATE artifact
+                    SET superseded_at = %s
+                    WHERE find_id = %s
+                      AND decision_cycle <= %s
+                      AND superseded_at IS NULL
+                    RETURNING id
+                    """,
+                    (moment, find_id, previous_cycle),
+                )
+                superseded_artifact_ids = tuple(str(row[0]) for row in cur.fetchall())
+
+                next_cycle = previous_cycle + 1
+                cur.execute(
+                    """
+                    UPDATE find
+                    SET status = 'proposed',
+                        decision_cycle = %s,
+                        decided_at = %s,
+                        reopened_at = %s,
+                        reopen_reason_code = %s,
+                        reopen_reason_note = %s
+                    WHERE id = %s AND business_id = %s AND status = 'accepted'
+                    """,
+                    (next_cycle, moment, moment, reason_code, reason_note,
+                     find_id, business_id),
+                )
+                if cur.rowcount != 1:
+                    raise RepositoryError(
+                        "recommendation changed while it was being reopened"
+                    )
+                event_data = {
+                    "previous_cycle": previous_cycle,
+                    "cancelled_task_ids": cancelled_ids,
+                    "superseded_task_ids": superseded_ids,
+                    "superseded_artifact_ids": list(superseded_artifact_ids),
+                }
+                cur.execute(
+                    """
+                    INSERT INTO decision_event (
+                        business_id, find_id, decision_cycle, event_type,
+                        previous_status, new_status, actor_account_id,
+                        reason_code, reason_note, source, data, created_at
+                    )
+                    VALUES (%s, %s, %s, %s, 'accepted', 'proposed', %s,
+                            %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (business_id, find_id, next_cycle, DECISION_REOPENED,
+                     actor_account_id, reason_code, reason_note, source,
+                     Jsonb(event_data), moment),
+                )
+                event_id = str(cur.fetchone()[0])
+
+        return ReconsiderResult(
+            find_id=find_id,
+            previous_status="accepted",
+            status="proposed",
+            previous_cycle=previous_cycle,
+            decision_cycle=next_cycle,
+            reopened_at=moment,
+            event_id=event_id,
+            cancelled_task_ids=tuple(cancelled_ids),
+            superseded_task_ids=tuple(superseded_ids),
+            superseded_artifact_ids=superseded_artifact_ids,
+        )
+
+    def decision_events(
+        self, find_id: str, *, business_id: str | None = None,
+        limit: int = 100,
+    ) -> list[DecisionEvent]:
+        ensure_decision_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, business_id, find_id, decision_cycle, event_type,
+                       previous_status, new_status, actor_account_id,
+                       reason_code, reason_note, source, data, created_at
+                FROM decision_event
+                WHERE find_id = %s
+                  AND (%s::UUID IS NULL OR business_id = %s::UUID)
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (find_id, business_id, business_id, max(0, int(limit))),
+            )
+            rows = cur.fetchall()
+        return [DecisionEvent(
+            event_id=str(row[0]), business_id=str(row[1]), find_id=str(row[2]),
+            decision_cycle=int(row[3]), event_type=str(row[4]),
+            previous_status=str(row[5]) if row[5] is not None else None,
+            new_status=str(row[6]),
+            actor_account_id=str(row[7]) if row[7] is not None else None,
+            reason_code=row[8], reason_note=row[9], source=str(row[10]),
+            data=_mapping(row[11]), created_at=row[12],
+        ) for row in rows]
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         with self._conn.cursor() as cur:
@@ -983,39 +1307,70 @@ class PostgresRepository:
                         run_id: str | None = None,
                         task_id: str | None = None,
                         idempotency_key: str | None = None,
-                        body: str | None = None) -> str:
+                        body: str | None = None,
+                        decision_cycle: int = 1) -> str:
         ensure_task_schema(self._conn)
+        ensure_decision_schema(self._conn)
         try:
-            with self._conn.cursor() as cur:
-                if idempotency_key:
-                    cur.execute(
-                        """
-                        INSERT INTO artifact (
-                            find_id, run_id, kind, title, s3_bucket, s3_key,
-                            preview, task_id, idempotency_key, body
+            with self._conn.transaction():
+                with self._conn.cursor() as cur:
+                    artifact_cycle = max(1, int(decision_cycle))
+                    if task_id is not None:
+                        cur.execute(
+                            """
+                            SELECT wt.status, wt.decision_cycle, wt.superseded_at,
+                                   f.status, f.decision_cycle
+                            FROM work_task wt
+                            JOIN find f ON f.id = wt.find_id
+                            WHERE wt.id = %s AND f.id = %s
+                            FOR UPDATE
+                            """,
+                            (task_id, find_id),
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (idempotency_key) DO UPDATE
-                        SET idempotency_key = excluded.idempotency_key
-                        RETURNING id
-                        """,
-                        (find_id, run_id, kind, title, s3_bucket, s3_key,
-                         preview, task_id, idempotency_key, body),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO artifact (
-                            find_id, run_id, kind, title, s3_bucket, s3_key,
-                            preview, task_id, body
+                        guard = cur.fetchone()
+                        if guard is None:
+                            raise RepositoryError("Maker task is no longer available")
+                        artifact_cycle = int(guard[1] or 1)
+                        if (
+                            str(guard[0]) != TASK_RUNNING
+                            or guard[2] is not None
+                            or str(guard[3]) != "accepted"
+                            or int(guard[4] or 1) != artifact_cycle
+                        ):
+                            raise RepositoryError("Maker task was cancelled or superseded")
+                    if idempotency_key:
+                        cur.execute(
+                            """
+                            INSERT INTO artifact (
+                                find_id, run_id, kind, title, s3_bucket, s3_key,
+                                preview, task_id, idempotency_key, body,
+                                decision_cycle
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (idempotency_key) DO UPDATE
+                            SET idempotency_key = excluded.idempotency_key
+                            RETURNING id
+                            """,
+                            (find_id, run_id, kind, title, s3_bucket, s3_key,
+                             preview, task_id, idempotency_key, body,
+                             artifact_cycle),
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                        """,
-                        (find_id, run_id, kind, title, s3_bucket, s3_key,
-                         preview, task_id, body),
-                    )
-                return str(cur.fetchone()[0])
+                    else:
+                        cur.execute(
+                            """
+                            INSERT INTO artifact (
+                                find_id, run_id, kind, title, s3_bucket, s3_key,
+                                preview, task_id, body, decision_cycle
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id
+                            """,
+                            (find_id, run_id, kind, title, s3_bucket, s3_key,
+                             preview, task_id, body, artifact_cycle),
+                        )
+                    return str(cur.fetchone()[0])
+        except RepositoryError:
+            raise
         except psycopg.Error as e:
             raise RepositoryError(f"could not store artifact: {e}") from e
 
@@ -1027,6 +1382,7 @@ class PostgresRepository:
             s3_bucket=row[6], s3_key=row[7],
             task_id=str(row[8]) if row[8] is not None else None,
             idempotency_key=row[9], body=row[10],
+            decision_cycle=int(row[11] or 1), superseded_at=row[12],
         )
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
@@ -1035,7 +1391,8 @@ class PostgresRepository:
             cur.execute(
                 """
                 SELECT id, find_id, kind, title, created_at, preview,
-                       s3_bucket, s3_key, task_id, idempotency_key, body
+                       s3_bucket, s3_key, task_id, idempotency_key, body,
+                       decision_cycle, superseded_at
                 FROM artifact
                 WHERE find_id = %s
                 ORDER BY created_at DESC
@@ -1052,7 +1409,8 @@ class PostgresRepository:
             cur.execute(
                 """
                 SELECT id, find_id, kind, title, created_at, preview,
-                       s3_bucket, s3_key, task_id, idempotency_key, body
+                       s3_bucket, s3_key, task_id, idempotency_key, body,
+                       decision_cycle, superseded_at
                 FROM artifact
                 WHERE idempotency_key = %s
                 """,
@@ -1069,12 +1427,13 @@ class PostgresRepository:
         input_data: Mapping[str, Any] | None = None,
     ) -> TaskRecord:
         ensure_task_schema(self._conn)
-        key = maker_task_idempotency_key(find_id)
+        ensure_decision_schema(self._conn)
         with self._conn.transaction():
             with self._conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT title, move, predicted_daily_cents, status, decided_at
+                    SELECT title, move, predicted_daily_cents, status, decided_at,
+                           decision_cycle
                     FROM find
                     WHERE id = %s AND business_id = %s
                     FOR UPDATE
@@ -1086,28 +1445,35 @@ class PostgresRepository:
                     raise RepositoryError("recommendation is no longer available")
                 if str(found[3]) != "accepted":
                     raise RepositoryError("Maker work requires an approved recommendation")
+                decision_cycle = int(found[5] or 1)
+                key = maker_task_idempotency_key(
+                    find_id, decision_cycle=decision_cycle
+                )
                 payload = dict(input_data or {
                     "title": found[0],
                     "move": found[1],
                     "predicted_daily_cents": int(found[2]),
+                    "decision_cycle": decision_cycle,
                 })
                 cur.execute(
                     f"""
                     INSERT INTO work_task (
                         business_id, find_id, requested_by_account_id, agent,
                         task_type, status, priority, idempotency_key, resource_key,
-                        approval_state, approved_at, input_data
+                        approval_state, approved_at, decision_cycle, input_data
                     )
                     VALUES (
                         %s, %s, %s, %s, %s, 'queued', %s, %s, %s,
-                        'approved', coalesce(%s, %s, clock_timestamp()), %s
+                        'approved', coalesce(%s, %s, clock_timestamp()), %s, %s
                     )
                     ON CONFLICT (idempotency_key) DO NOTHING
                     RETURNING {_TASK_COLUMNS}
                     """,
                     (business_id, find_id, requested_by_account_id,
                      MAKER_AGENT, MAKER_DRAFT_TASK, int(priority), key,
-                     maker_resource_key(business_id, find_id), approved_at, found[4],
+                     maker_resource_key(
+                         business_id, find_id, decision_cycle=decision_cycle
+                     ), approved_at, found[4], decision_cycle,
                      Jsonb(payload)),
                 )
                 row = cur.fetchone()
@@ -1129,7 +1495,11 @@ class PostgresRepository:
                         VALUES (%s, %s, 'task.created', 'owner', %s, %s)
                         """,
                         (task.task_id, business_id, requested_by_account_id,
-                         Jsonb({"find_id": find_id, "task_type": MAKER_DRAFT_TASK})),
+                         Jsonb({
+                             "find_id": find_id,
+                             "task_type": MAKER_DRAFT_TASK,
+                             "decision_cycle": decision_cycle,
+                         })),
                     )
         return replace(task, created=created)
 
@@ -1161,6 +1531,8 @@ class PostgresRepository:
                         updated_at = clock_timestamp()
                     WHERE id = %s
                       AND status IN ('queued', 'retry')
+                      AND superseded_at IS NULL
+                      AND cancel_requested_at IS NULL
                       AND (next_attempt_at IS NULL OR next_attempt_at <= clock_timestamp())
                     RETURNING {_TASK_COLUMNS}
                     """,
@@ -1232,6 +1604,8 @@ class PostgresRepository:
                         last_error = NULL,
                         updated_at = clock_timestamp()
                     WHERE id = %s
+                      AND superseded_at IS NULL
+                      AND cancel_requested_at IS NULL
                       AND (
                         (status IN ('queued', 'retry')
                          AND (next_attempt_at IS NULL OR next_attempt_at <= clock_timestamp()))
@@ -1256,6 +1630,29 @@ class PostgresRepository:
                             "claim_token": task.claim_token})),
                 )
         return task
+
+    def task_can_continue(
+        self, task_id: str, *, claim_token: str,
+    ) -> bool:
+        ensure_task_schema(self._conn)
+        ensure_decision_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1
+                FROM work_task wt
+                JOIN find f ON f.id = wt.find_id
+                WHERE wt.id = %s
+                  AND wt.status = 'running'
+                  AND wt.claim_token = %s
+                  AND wt.superseded_at IS NULL
+                  AND wt.cancel_requested_at IS NULL
+                  AND f.status = 'accepted'
+                  AND f.decision_cycle = wt.decision_cycle
+                """,
+                (task_id, claim_token),
+            )
+            return cur.fetchone() is not None
 
     def complete_task(
         self, task_id: str, *, claim_token: str,
@@ -1381,6 +1778,8 @@ class PostgresRepository:
                            ) AS tenant_rank
                     FROM work_task
                     WHERE status IN ('queued', 'retry')
+                      AND superseded_at IS NULL
+                      AND cancel_requested_at IS NULL
                       AND (next_attempt_at IS NULL OR next_attempt_at <= clock_timestamp())
                 ) ranked
                 WHERE tenant_rank <= %s
@@ -1408,6 +1807,8 @@ class PostgresRepository:
                         lease_expires_at = NULL,
                         updated_at = %s
                     WHERE status = 'running'
+                      AND superseded_at IS NULL
+                      AND cancel_requested_at IS NULL
                       AND lease_expires_at IS NOT NULL
                       AND lease_expires_at <= %s
                     RETURNING id, business_id, status, attempt_count
@@ -1481,6 +1882,21 @@ class PostgresRepository:
         ensure_task_schema(self._conn)
         with self._conn.transaction():
             with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM work_task
+                    WHERE id = %s AND business_id = %s
+                      AND superseded_at IS NULL
+                      AND cancel_requested_at IS NULL
+                      AND status <> 'cancelled'
+                    """,
+                    (task_id, business_id),
+                )
+                if cur.fetchone() is None:
+                    raise RepositoryError(
+                        "task was superseded by a newer owner decision"
+                    )
                 cur.execute(
                     """
                     INSERT INTO tool_execution

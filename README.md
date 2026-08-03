@@ -10,7 +10,8 @@ Built for the AWS + CockroachDB hackathon.
 The production-shaped multi-user execution design is documented in
 [`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md). It
 separates agent reasoning from durable tasks, approval, idempotency, and external
-tools.
+tools. The append-only redo/reconsider policy is documented in
+[`docs/RECONSIDER_DECISION_CYCLES.md`](docs/RECONSIDER_DECISION_CYCLES.md).
 
 The claim this rests on: the Meter judges predictions made on earlier nights by agent
 runs that no longer exist. A stateless advisor can give advice forever and never be
@@ -45,7 +46,9 @@ Worth clicking, in this order:
    are not ambiguous. With the live API configured, CockroachDB commits the decision and creates
    or reuses one idempotent Maker task before SQS delivery. **Do it** enters the durable task
    workflow; **Pass** records the choice without entering Maker. A later **Undo Pass** uses the
-   same task contract rather than creating duplicate work.
+   same task contract rather than creating duplicate work. After **Do it**, the owner may
+   choose **Return to For You** from the recommendation chat or Memory Engine. That opens a
+   new decision cycle without deleting the original approval, task, draft, or email receipt.
 3. **Memory Engine** — scan the owner-by-stage pipeline: one row per business owner and
    one column for Radar, Analyst, the decision gate, Maker, and Meter. The highlighted cell
    is the next handoff. Expand an owner row, then open only the agent or CockroachDB receipt
@@ -102,7 +105,9 @@ backend/src/brasstacks/
   agents/meter.py    read prior predictions -> judge -> the ledger
   agents/ask.py      answer the owner by querying the cluster over MCP
   handlers/          HTTP, queue, workflow-worker, email-tool and scheduler entry points
-  tasks.py           durable task states, idempotency and FIFO resource keys
+  decisions.py       append-only owner-decision events and reconsider policy
+  decision_schema.py runtime bootstrap for decision cycles and event history
+  tasks.py           durable task states, cycle-aware idempotency and FIFO resource keys
   maker_dispatch.py  commit-first task creation and SQS FIFO dispatch
   tools/              constrained external tools; SES review email is the first
   repository_pg.py   transactional SQL, atomic claims and execution receipts
@@ -111,11 +116,13 @@ backend/src/brasstacks/
 
 deploy/              SAM, Dockerfile, Step Functions ASL and deployment runbook
 
-db/schema.sql        14 tables, including work_task/task_event/tool_execution
+db/schema.sql        15 tables, including decision_event/work_task/task_event/tool_execution
 db/fixtures/         the exported demo tenant the site build reads
 
 docs/MULTI_TENANT_AGENT_PLATFORM.md
                      scale, task, tool, security and rollout plan
+docs/RECONSIDER_DECISION_CYCLES.md
+                     append-only redo policy, cancellation rules and acceptance test
 
 PRODUCT.md           who this is for and what must never be fabricated
 DESIGN.md            the visual system, with the rules and the reasons
@@ -143,6 +150,12 @@ orchestrates the attempt, and the Maker worker must atomically claim the row bef
 the model client. Duplicate deliveries therefore exit before spending tokens or generating a
 second draft. A five-minute SQL-only reconciler recovers missed messages and expired leases.
 
+An accepted recommendation can be returned to For You safely. Brass Tacks appends a
+`owner.reopened` event, supersedes the old task and artifact, increments the decision cycle,
+and leaves the earlier Do it and tool receipts intact. A later approval creates a new
+cycle-aware Maker task. Customer-facing actions and Meter results cannot be erased; they
+require a corrective task or recommendation revision.
+
 The first constrained execution tool sends a completed draft to a configured review inbox through
 Amazon SES. It is disabled by default and never accepts a model-chosen recipient. The full design,
 current implementation boundary, SES test flow, and AgentCore/OAuth/browser roadmap are in
@@ -151,7 +164,7 @@ current implementation boundary, SES test flow, and AgentCore/OAuth/browser road
 ## Tests
 
 ```bash
-python -m pytest backend/tests -q      # 656 offline tests in this version
+python -m pytest backend/tests -q      # 681 offline tests in this version
 python -m pytest -m integration -q      # 65 cloud/live tests when configured
 ```
 
@@ -169,8 +182,9 @@ paint. In a connected build, that snapshot is no longer the operator view's ceil
 - `Do it` / `Pass` writes through the Decision API and is projected into the UI immediately.
 - The app performs one read-only Workflow API sync at startup, then Memory Engine revalidates
   every 15 seconds while its tab remains visible.
-- Decisions from another device, durable task states and events, tool receipts, later Maker
-  artifacts, current agent runs, and Meter verdicts are merged into the operator matrix without
+- Decisions from another device, immutable decision-cycle events, durable task states and
+  events, tool receipts, current and superseded Maker artifacts, current agent runs, and Meter
+  verdicts are merged into the operator matrix without
   rebuilding the site.
 - Conditional `ETag` requests return `304` when nothing changed; polling pauses when the tab is
   hidden or the operator leaves Memory Engine.

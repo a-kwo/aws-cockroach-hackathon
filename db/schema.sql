@@ -197,6 +197,12 @@ CREATE TABLE IF NOT EXISTS find (
 
   status                find_status NOT NULL DEFAULT 'proposed',
   decided_at            TIMESTAMPTZ,
+  -- The first owner decision is cycle 1. Reconsidering an accepted move opens
+  -- a new cycle instead of erasing the original Do it, Maker task or receipt.
+  decision_cycle        INT NOT NULL DEFAULT 1,
+  reopened_at           TIMESTAMPTZ,
+  reopen_reason_code    STRING,
+  reopen_reason_note    STRING,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
   INDEX (business_id, status, verify_after),
@@ -323,6 +329,32 @@ CREATE TABLE IF NOT EXISTS owner_session (
 );
 
 -- ---------------------------------------------------------------------------
+-- Immutable owner decision history
+-- ---------------------------------------------------------------------------
+
+-- Append-only owner decision history. ``find.status`` is the current feed
+-- projection; this table is the audit record that explains every Do it, Pass,
+-- Undo Pass and Reconsider transition across decision cycles.
+CREATE TABLE IF NOT EXISTS decision_event (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id        UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  find_id            UUID NOT NULL REFERENCES find(id) ON DELETE CASCADE,
+  decision_cycle     INT NOT NULL,
+  event_type         STRING NOT NULL,
+  previous_status    STRING,
+  new_status         STRING NOT NULL,
+  actor_account_id   UUID REFERENCES owner_account(id) ON DELETE SET NULL,
+  reason_code        STRING,
+  reason_note        STRING,
+  source             STRING NOT NULL DEFAULT 'owner_decision',
+  data               JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+
+  INDEX decision_event_find_idx (find_id, created_at DESC),
+  INDEX decision_event_business_idx (business_id, created_at DESC)
+);
+
+-- ---------------------------------------------------------------------------
 -- Durable multi-tenant task control plane
 -- ---------------------------------------------------------------------------
 
@@ -350,6 +382,7 @@ CREATE TABLE IF NOT EXISTS work_task (
                              'not_required', 'pending', 'approved', 'rejected'
                            )),
   approved_at              TIMESTAMPTZ,
+  decision_cycle           INT NOT NULL DEFAULT 1,
   attempt_count            INT NOT NULL DEFAULT 0,
   dispatch_count           INT NOT NULL DEFAULT 0,
   claimed_by               STRING,
@@ -365,6 +398,9 @@ CREATE TABLE IF NOT EXISTS work_task (
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   started_at               TIMESTAMPTZ,
   completed_at             TIMESTAMPTZ,
+  cancel_requested_at      TIMESTAMPTZ,
+  cancelled_at             TIMESTAMPTZ,
+  superseded_at            TIMESTAMPTZ,
 
   UNIQUE INDEX work_task_idempotency_idx (idempotency_key),
   INDEX work_task_business_status_idx (business_id, status, created_at DESC),
@@ -420,9 +456,25 @@ CREATE TABLE IF NOT EXISTS tool_execution (
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES work_task(id) ON DELETE SET NULL;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS idempotency_key STRING;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS body STRING;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE work_task ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS reopened_at TIMESTAMPTZ;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS reopen_reason_code STRING;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS reopen_reason_note STRING;
 CREATE UNIQUE INDEX IF NOT EXISTS artifact_idempotency_idx
   ON artifact (idempotency_key);
 CREATE INDEX IF NOT EXISTS artifact_task_idx ON artifact (task_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS artifact_current_idx
+  ON artifact (find_id, superseded_at, created_at DESC);
+CREATE INDEX IF NOT EXISTS work_task_cycle_idx
+  ON work_task (find_id, decision_cycle, created_at DESC);
+CREATE INDEX IF NOT EXISTS find_reopened_idx
+  ON find (business_id, reopened_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- Additive migrations for clusters provisioned before a column existed.

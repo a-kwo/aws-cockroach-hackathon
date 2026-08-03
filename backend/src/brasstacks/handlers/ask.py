@@ -31,6 +31,7 @@ HISTORY_LIMIT = 30
 MESSAGE_PREVIEW_CHARS = 360
 CONTEXT_CHAR_BUDGET = 3600
 UNDO_PASS_ACTION = "undo_pass"
+RECONSIDER_ACTION = "reconsider"
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -88,11 +89,11 @@ def parse_action(event: Any) -> tuple[str, str, str | None] | None:
     action = str(payload.get("action") or "").strip().lower()
     if not action:
         return None
-    if action != UNDO_PASS_ACTION:
+    if action not in {UNDO_PASS_ACTION, RECONSIDER_ACTION}:
         raise ValueError(f"unsupported action {action!r}")
     find_id = str(payload.get("find_id") or "").strip()
     if not find_id:
-        raise ValueError("find_id is required for Undo Pass")
+        raise ValueError("find_id is required for this action")
     question = str(payload.get("question") or "").strip() or None
     if question and len(question) > MAX_QUESTION_CHARS:
         raise ValueError(
@@ -133,6 +134,26 @@ def is_undo_pass_request(question: str) -> bool:
         "go ahead with this after all",
     )
     return text in exact_imperatives or any(phrase in text for phrase in phrases)
+
+
+def is_reconsider_request(question: str) -> bool:
+    """Recognise an explicit request to reopen an already-approved move."""
+    text = re.sub(r"[^a-z0-9]+", " ", question.lower()).strip()
+    phrases = (
+        "reconsider this",
+        "reconsider this move",
+        "undo do it",
+        "undo my do it",
+        "put this back in for you",
+        "return this to for you",
+        "send this back to for you",
+        "i approved this by mistake",
+        "i approved too quickly",
+        "let me decide again",
+        "let me reconsider",
+        "reopen this recommendation",
+    )
+    return any(phrase in text for phrase in phrases)
 
 
 def parse_question(event: Any) -> str:
@@ -356,6 +377,8 @@ def perform_undo_pass(
             status="accepted",
             decided_at=timestamp,
             business_id=business_id,
+            actor_account_id=requested_by_account_id,
+            source="chat_undo_pass",
         )
     except RepositoryError as exc:
         return respond(409, {"error": str(exc)})
@@ -492,6 +515,139 @@ def perform_undo_pass(
     })
 
 
+def perform_reconsider(
+    *,
+    repo: Any,
+    business_id: str,
+    find_id: str,
+    request_text: str,
+    timestamp: datetime,
+    requested_by_account_id: str | None = None,
+    reason_code: str | None = None,
+    reason_note: str | None = None,
+    model_id: str | None = None,
+) -> dict[str, Any]:
+    """Reopen an approved recommendation and preserve every prior receipt.
+
+    This is a deterministic zero-token action. The current task/draft becomes
+    cancelled or superseded, while the original Do it, review email and tool
+    receipts remain immutable history.
+    """
+    context = repo.get_find_context(business_id, find_id)
+    if context is None:
+        return respond(404, {"error": "recommendation is no longer available"})
+    if context.status not in {"accepted", "proposed"}:
+        return respond(409, {"error": "only an approved recommendation can be reconsidered"})
+    try:
+        reopened = repo.reconsider_find(
+            find_id,
+            business_id=business_id,
+            actor_account_id=requested_by_account_id,
+            reason_code=reason_code or "other",
+            reason_note=reason_note or request_text,
+            source="chat_reconsider",
+            reopened_at=timestamp,
+        )
+    except RepositoryError as exc:
+        return respond(409, {"error": str(exc)})
+
+    answer = (
+        "Returned to For You. The original Do it, Maker draft, and review-email "
+        "receipt remain in history, and a new decision cycle is now open."
+        if reopened.changed else
+        "This recommendation is already back in For You for a new decision."
+    )
+    run_id = None
+    owner_message_id = None
+    assistant_message_id = None
+    storage_error = None
+    try:
+        run_id = repo.start_run(business_id, agent="ask", model_id=model_id)
+        owner_message_id = repo.insert_chat_message(
+            business_id, role="user", content=request_text,
+            created_at=timestamp, embedding=None, find_id=find_id, run_id=run_id,
+        )
+        assistant_message_id = repo.insert_chat_message(
+            business_id, role="assistant", content=answer,
+            created_at=timestamp, embedding=None, find_id=find_id, run_id=run_id,
+        )
+        action_receipt = json.dumps({
+            "type": RECONSIDER_ACTION,
+            "find_id": find_id,
+            "previous_status": reopened.previous_status,
+            "status": reopened.status,
+            "previous_cycle": reopened.previous_cycle,
+            "decision_cycle": reopened.decision_cycle,
+            "reopened_at": reopened.reopened_at.isoformat(),
+            "changed": reopened.changed,
+            "cancelled_task_ids": list(reopened.cancelled_task_ids),
+            "superseded_task_ids": list(reopened.superseded_task_ids),
+            "superseded_artifact_ids": list(reopened.superseded_artifact_ids),
+            "model_tokens": 0,
+        }, separators=(",", ":"), sort_keys=True)
+        note = encode_ask_trace(
+            question=request_text, answer=answer, find_id=find_id,
+            recent_message_ids=(), relevant_message_ids=(),
+            stored_message_ids=(owner_message_id, assistant_message_id),
+            queried_the_cluster=False,
+        ) + f"\naction> {action_receipt}"
+        repo.finish_run(
+            run_id, status="ok", note=note, input_tokens=0, output_tokens=0,
+        )
+    except Exception as exc:
+        storage_error = f"{type(exc).__name__}: {exc}"
+        if run_id:
+            try:
+                repo.finish_run(
+                    run_id, status="failed", error=storage_error,
+                    note="Reconsider succeeded, but its conversation receipt was incomplete",
+                    input_tokens=0, output_tokens=0,
+                )
+            except Exception:
+                pass
+    try:
+        stored_total = repo.count_chat_messages(business_id)
+    except Exception:
+        stored_total = None
+    return respond(200, {
+        "answer": answer,
+        "action": {
+            "type": RECONSIDER_ACTION,
+            "status": "completed",
+            "changed": reopened.changed,
+        },
+        "find_id": find_id,
+        "decision": RECONSIDER_ACTION,
+        "status": reopened.status,
+        "previous_status": reopened.previous_status,
+        "reopened_at": reopened.reopened_at.isoformat(),
+        "previous_cycle": reopened.previous_cycle,
+        "decision_cycle": reopened.decision_cycle,
+        "cancelled_task_ids": list(reopened.cancelled_task_ids),
+        "superseded_task_ids": list(reopened.superseded_task_ids),
+        "superseded_artifact_ids": list(reopened.superseded_artifact_ids),
+        "queried_the_cluster": False,
+        "trail": [],
+        "run_id": run_id,
+        "messages": {"owner": owner_message_id, "assistant": assistant_message_id},
+        "memory": {
+            "stored": assistant_message_id is not None,
+            "ownerScoped": True,
+            "analystBridge": True,
+            "storedThisTurn": int(owner_message_id is not None) + int(assistant_message_id is not None),
+            "storedMessages": stored_total,
+            "recentMessages": 0,
+            "relevantMessages": 0,
+            "contextMessages": 0,
+            "retrievalLimit": 0,
+            "embeddingCalls": 0,
+            "embeddingFallback": False,
+            "storageError": storage_error,
+        },
+        "tokens": {"input": 0, "output": 0, "total": 0},
+    })
+
+
 def undo_pass_action(
     event: Any,
     *,
@@ -522,6 +678,37 @@ def undo_pass_action(
         queue_client=queue_client,
         maker_queue_url=maker_queue_url,
         requested_by_account_id=account.get("account_id"),
+        model_id=model_id,
+    )
+
+
+def reconsider_action(
+    event: Any,
+    *,
+    repo: Any,
+    model_id: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    try:
+        parsed = parse_action(event)
+    except ValueError as exc:
+        return respond(400, {"error": str(exc)})
+    if parsed is None:
+        return respond(400, {"error": "an action is required"})
+    _, find_id, question = parsed
+    timestamp = now or datetime.now(timezone.utc)
+    account, error = _business_for_event(event, repo=repo, now=timestamp)
+    if error:
+        return error
+    return perform_reconsider(
+        repo=repo,
+        business_id=account["business_id"],
+        find_id=find_id,
+        request_text=question or "Return this recommendation to For You.",
+        timestamp=timestamp,
+        requested_by_account_id=account.get("account_id"),
+        reason_code="other",
+        reason_note=question,
         model_id=model_id,
     )
 
@@ -571,6 +758,23 @@ def answer_question(
             queue_client=queue_client,
             maker_queue_url=maker_queue_url,
             requested_by_account_id=account.get("account_id"),
+            model_id=getattr(settings, "anthropic_model_id", None),
+        )
+
+    if (
+        find_context is not None
+        and find_context.status == "accepted"
+        and is_reconsider_request(question)
+    ):
+        return perform_reconsider(
+            repo=repo,
+            business_id=business_id,
+            find_id=find_id,
+            request_text=question,
+            timestamp=timestamp,
+            requested_by_account_id=account.get("account_id"),
+            reason_code="other",
+            reason_note=question,
             model_id=getattr(settings, "anthropic_model_id", None),
         )
 
@@ -754,6 +958,12 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             except ValueError as exc:
                 return respond(400, {"error": str(exc)})
             if action is not None:
+                if action[0] == RECONSIDER_ACTION:
+                    return reconsider_action(
+                        event,
+                        repo=repo,
+                        model_id=getattr(settings, "anthropic_model_id", None),
+                    )
                 return undo_pass_action(
                     event,
                     repo=repo,
@@ -786,8 +996,12 @@ __all__ = [
     "respond",
     "build_context_question",
     "undo_pass_action",
+    "reconsider_action",
     "perform_undo_pass",
+    "perform_reconsider",
     "is_undo_pass_request",
+    "is_reconsider_request",
     "UNDO_PASS_ACTION",
+    "RECONSIDER_ACTION",
     "MAX_QUESTION_CHARS",
 ]

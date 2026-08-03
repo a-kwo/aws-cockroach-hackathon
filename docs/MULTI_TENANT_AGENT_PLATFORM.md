@@ -102,11 +102,26 @@ An owner approval is written to CockroachDB before a Maker task is created. The 
 
 Undo Pass is a deterministic status transition from rejected to accepted. Once a task proceeds into external execution, later reversal requires a separate cancellation or compensating action rather than rewriting history.
 
-### 2.5 Models create; deterministic tools execute
+### 2.5 Decisions may be reconsidered; history may not be rewritten
+
+An owner can return an approved recommendation to For You while its effects are
+still internal and reversible. The transition opens a new `decision_cycle` and
+appends an immutable `owner.reopened` event. Previous tasks, artifacts, emails
+and receipts are superseded rather than deleted.
+
+A second Do it creates a new cycle-aware idempotency key, so the original task
+and the new task can never collide. A customer-facing tool that is already
+running or complete, or a recommendation with a Meter result, cannot be
+silently undone; it requires a corrective task or a refreshed recommendation.
+
+The complete state policy, schema, UI contract and acceptance test are in
+[`RECONSIDER_DECISION_CYCLES.md`](RECONSIDER_DECISION_CYCLES.md).
+
+### 2.6 Models create; deterministic tools execute
 
 Maker creates a deliverable. An Executor/tool performs a constrained side effect. The model is never handed unrestricted SDK credentials or arbitrary API access.
 
-### 2.6 The operator can always answer “what is happening?”
+### 2.7 The operator can always answer “what is happening?”
 
 For every task, Memory Engine should reveal:
 

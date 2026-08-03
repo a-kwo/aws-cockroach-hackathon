@@ -20,9 +20,21 @@ from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Mapping, Protocol, runtime_checkable
 
+from brasstacks.decisions import (
+    DECISION_ACCEPTED,
+    DECISION_PASSED,
+    DECISION_REOPENED,
+    DECISION_SAVED_LATER,
+    DECISION_UNDO_PASS,
+    RECONSIDER_REASON_CODES,
+    REVERSIBLE_REVIEW_TOOLS,
+    DecisionEvent,
+    ReconsiderResult,
+)
 from brasstacks.tasks import (
     MAKER_AGENT,
     MAKER_DRAFT_TASK,
+    TASK_CANCELLED,
     TASK_COMPLETED,
     TASK_FAILED,
     TASK_QUEUED,
@@ -115,6 +127,8 @@ class DecisionTransition:
     status: str
     decided_at: datetime
     previous_decided_at: datetime | None = None
+    decision_cycle: int = 1
+    event_id: str | None = None
     changed: bool = True
 
 
@@ -151,6 +165,10 @@ class FindContext:
     confidence: float
     verify_after: date
     decided_at: datetime | None = None
+    decision_cycle: int = 1
+    reopened_at: datetime | None = None
+    reopen_reason_code: str | None = None
+    reopen_reason_note: str | None = None
 
 
 @dataclass(frozen=True)
@@ -173,6 +191,8 @@ class StoredArtifact:
     task_id: str | None = None
     idempotency_key: str | None = None
     body: str | None = None
+    decision_cycle: int = 1
+    superseded_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -308,7 +328,20 @@ class Repository(Protocol):
 
     def set_find_status(self, find_id: str, *, status: str,
                         decided_at: datetime | None = ...,
-                        business_id: str | None = ...) -> DecisionTransition: ...
+                        business_id: str | None = ...,
+                        actor_account_id: str | None = ...,
+                        source: str = ...) -> DecisionTransition: ...
+
+    def reconsider_find(
+        self, find_id: str, *, business_id: str,
+        actor_account_id: str | None = ...,
+        reason_code: str | None = ..., reason_note: str | None = ...,
+        source: str = ..., reopened_at: datetime | None = ...,
+    ) -> ReconsiderResult: ...
+
+    def decision_events(
+        self, find_id: str, *, business_id: str | None = ..., limit: int = ...,
+    ) -> list[DecisionEvent]: ...
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]: ...
 
@@ -323,7 +356,8 @@ class Repository(Protocol):
                         s3_key: str | None = ..., run_id: str | None = ...,
                         task_id: str | None = ...,
                         idempotency_key: str | None = ...,
-                        body: str | None = ...) -> str: ...
+                        body: str | None = ...,
+                        decision_cycle: int = ...) -> str: ...
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]: ...
 
@@ -351,6 +385,10 @@ class Repository(Protocol):
     def claim_task(
         self, task_id: str, *, worker_id: str, lease_seconds: int = ...,
     ) -> TaskRecord | None: ...
+
+    def task_can_continue(
+        self, task_id: str, *, claim_token: str,
+    ) -> bool: ...
 
     def complete_task(
         self, task_id: str, *, claim_token: str,
@@ -480,6 +518,10 @@ class _Find:
     status: str
     created_at: datetime
     decided_at: datetime | None = None
+    decision_cycle: int = 1
+    reopened_at: datetime | None = None
+    reopen_reason_code: str | None = None
+    reopen_reason_note: str | None = None
     run_id: str | None = None
     #: One sentence for the card face; the rationale is the full argument.
     summary: str | None = None
@@ -500,6 +542,8 @@ class _Artifact:
     task_id: str | None = None
     idempotency_key: str | None = None
     body: str | None = None
+    decision_cycle: int = 1
+    superseded_at: datetime | None = None
 
 
 @dataclass
@@ -533,6 +577,7 @@ class InMemoryRepository:
         self._run_business: dict[str, str] = {}
         self._observations: list[_Observation] = []
         self._finds: dict[str, _Find] = {}
+        self._decision_events: list[DecisionEvent] = []
         self._artifacts: list[_Artifact] = []
         self._tasks: dict[str, dict[str, Any]] = {}
         self._task_by_idempotency: dict[str, str] = {}
@@ -957,7 +1002,10 @@ class InMemoryRepository:
             rationale=found.rationale, move=found.move, status=found.status,
             predicted_daily_cents=found.predicted_daily_cents,
             confidence=found.confidence, verify_after=found.verify_after,
-            decided_at=found.decided_at,
+            decided_at=found.decided_at, decision_cycle=found.decision_cycle,
+            reopened_at=found.reopened_at,
+            reopen_reason_code=found.reopen_reason_code,
+            reopen_reason_note=found.reopen_reason_note,
         )
 
     # -- finds -----------------------------------------------------------
@@ -1001,9 +1049,37 @@ class InMemoryRepository:
         )
         return find_id
 
+    def _append_decision_event(
+        self, *, found: _Find, event_type: str,
+        previous_status: str | None, new_status: str,
+        actor_account_id: str | None, source: str,
+        created_at: datetime, reason_code: str | None = None,
+        reason_note: str | None = None,
+        data: Mapping[str, Any] | None = None,
+    ) -> str:
+        event_id = str(uuid.uuid4())
+        self._decision_events.append(DecisionEvent(
+            event_id=event_id,
+            business_id=found.business_id,
+            find_id=found.find_id,
+            decision_cycle=found.decision_cycle,
+            event_type=event_type,
+            previous_status=previous_status,
+            new_status=new_status,
+            actor_account_id=actor_account_id,
+            reason_code=reason_code,
+            reason_note=reason_note,
+            source=source,
+            data=dict(data or {}),
+            created_at=created_at,
+        ))
+        return event_id
+
     def set_find_status(self, find_id: str, *, status: str,
                         decided_at: datetime | None = None,
-                        business_id: str | None = None) -> DecisionTransition:
+                        business_id: str | None = None,
+                        actor_account_id: str | None = None,
+                        source: str = "owner_decision") -> DecisionTransition:
         found = self._finds.get(find_id)
         if found is None or (business_id is not None and found.business_id != business_id):
             raise RepositoryError("recommendation is no longer available")
@@ -1018,6 +1094,7 @@ class InMemoryRepository:
                 status=status,
                 decided_at=previous_decided_at or moment,
                 previous_decided_at=previous_decided_at,
+                decision_cycle=found.decision_cycle,
                 changed=False,
             )
 
@@ -1031,15 +1108,198 @@ class InMemoryRepository:
             # later be rewritten as rejected once Maker or Meter may have acted.
             found.status = status
             found.decided_at = moment
+            if undo_pass:
+                event_type = DECISION_UNDO_PASS
+            elif status == "accepted":
+                event_type = DECISION_ACCEPTED
+            elif status == "rejected":
+                event_type = DECISION_PASSED
+            else:
+                event_type = DECISION_SAVED_LATER
+            event_id = self._append_decision_event(
+                found=found,
+                event_type=event_type,
+                previous_status=previous_status,
+                new_status=status,
+                actor_account_id=actor_account_id,
+                source=source,
+                created_at=moment,
+            )
             return DecisionTransition(
                 find_id=find_id,
                 previous_status=previous_status,
                 status=status,
                 decided_at=moment,
                 previous_decided_at=previous_decided_at,
+                decision_cycle=found.decision_cycle,
+                event_id=event_id,
                 changed=True,
             )
         raise RepositoryError(f"find already decided as {found.status}")
+
+    def reconsider_find(
+        self, find_id: str, *, business_id: str,
+        actor_account_id: str | None = None,
+        reason_code: str | None = None, reason_note: str | None = None,
+        source: str = "owner_reconsider",
+        reopened_at: datetime | None = None,
+    ) -> ReconsiderResult:
+        found = self._finds.get(find_id)
+        if found is None or found.business_id != business_id:
+            raise RepositoryError("recommendation is no longer available")
+        if reason_code and reason_code not in RECONSIDER_REASON_CODES:
+            raise RepositoryError("choose a valid reconsideration reason")
+        moment = reopened_at or self._now()
+        # Preserve causal ordering even when an imported decision timestamp is
+        # ahead of the local synthetic/test clock or a worker clock is skewed.
+        if found.decided_at is not None and moment <= found.decided_at:
+            moment = found.decided_at + timedelta(microseconds=1)
+        if found.status == "proposed" and found.reopened_at is not None:
+            return ReconsiderResult(
+                find_id=find_id,
+                previous_status="accepted",
+                status="proposed",
+                previous_cycle=max(1, found.decision_cycle - 1),
+                decision_cycle=found.decision_cycle,
+                reopened_at=found.reopened_at,
+                changed=False,
+            )
+        if found.status != "accepted":
+            raise RepositoryError(
+                "only an approved recommendation that has not changed a customer-facing system can be reconsidered"
+            )
+
+        if any(entry.find_id == find_id for entry in self._ledger):
+            raise RepositoryError(
+                "this move already has a Meter result; create a new recommendation revision instead"
+            )
+
+        previous_cycle = found.decision_cycle
+        # Imported or pre-migration decisions may have only the current find
+        # projection. Before opening a new cycle, backfill an explicitly marked
+        # accepted event so the original Do it can never disappear from history.
+        has_accept_event = any(
+            event.find_id == find_id
+            and event.decision_cycle == previous_cycle
+            and event.event_type in {DECISION_ACCEPTED, DECISION_UNDO_PASS}
+            for event in self._decision_events
+        )
+        if not has_accept_event:
+            self._append_decision_event(
+                found=found,
+                event_type=DECISION_ACCEPTED,
+                previous_status="proposed",
+                new_status="accepted",
+                actor_account_id=None,
+                source="legacy_projection_backfill",
+                created_at=found.decided_at or found.created_at,
+                data={"inferred_from_find_projection": True},
+            )
+
+        task_rows = [
+            row for row in self._tasks.values()
+            if row.get("find_id") == find_id
+            and int(row.get("decision_cycle") or 1) <= previous_cycle
+            and row.get("superseded_at") is None
+        ]
+        irreversible = sorted({
+            execution.tool_name
+            for execution in self._tool_executions.values()
+            if execution.status in {"running", "succeeded"}
+            and execution.tool_name not in REVERSIBLE_REVIEW_TOOLS
+            and any(row["task_id"] == execution.task_id for row in task_rows)
+        })
+        if irreversible:
+            raise RepositoryError(
+                "an external action is already running or completed; create a corrective task instead"
+            )
+
+        cancelled: list[str] = []
+        superseded_tasks: list[str] = []
+        for row in task_rows:
+            row["superseded_at"] = moment
+            superseded_tasks.append(row["task_id"])
+            if row["status"] in {TASK_QUEUED, TASK_RETRY, TASK_RUNNING, "waiting_user"}:
+                row.update({
+                    "status": "cancelled",
+                    "approval_state": "rejected",
+                    "cancel_requested_at": moment,
+                    "cancelled_at": moment,
+                    "claimed_by": None,
+                    "claim_token": None,
+                    "lease_expires_at": None,
+                    "next_attempt_at": None,
+                    "updated_at": moment,
+                    "last_error": "superseded when the owner reopened the recommendation",
+                })
+                cancelled.append(row["task_id"])
+                event_type = "task.cancelled_by_reconsider"
+            else:
+                row["updated_at"] = moment
+                event_type = "task.superseded_by_reconsider"
+            self.record_task_event(
+                row["task_id"], event_type=event_type,
+                actor_type="owner", actor_id=actor_account_id,
+                data={"decision_cycle": previous_cycle},
+            )
+
+        superseded_artifacts: list[str] = []
+        for artifact in self._artifacts:
+            if (
+                artifact.find_id == find_id
+                and artifact.superseded_at is None
+                and artifact.decision_cycle <= previous_cycle
+            ):
+                artifact.superseded_at = moment
+                superseded_artifacts.append(artifact.artifact_id)
+
+        found.decision_cycle = previous_cycle + 1
+        found.status = "proposed"
+        found.decided_at = moment
+        found.reopened_at = moment
+        found.reopen_reason_code = reason_code
+        found.reopen_reason_note = reason_note
+        event_id = self._append_decision_event(
+            found=found,
+            event_type=DECISION_REOPENED,
+            previous_status="accepted",
+            new_status="proposed",
+            actor_account_id=actor_account_id,
+            source=source,
+            created_at=moment,
+            reason_code=reason_code,
+            reason_note=reason_note,
+            data={
+                "previous_cycle": previous_cycle,
+                "cancelled_task_ids": cancelled,
+                "superseded_task_ids": superseded_tasks,
+                "superseded_artifact_ids": superseded_artifacts,
+            },
+        )
+        return ReconsiderResult(
+            find_id=find_id,
+            previous_status="accepted",
+            status="proposed",
+            previous_cycle=previous_cycle,
+            decision_cycle=found.decision_cycle,
+            reopened_at=moment,
+            event_id=event_id,
+            cancelled_task_ids=tuple(cancelled),
+            superseded_task_ids=tuple(superseded_tasks),
+            superseded_artifact_ids=tuple(superseded_artifacts),
+        )
+
+    def decision_events(
+        self, find_id: str, *, business_id: str | None = None,
+        limit: int = 100,
+    ) -> list[DecisionEvent]:
+        rows = [
+            event for event in self._decision_events
+            if event.find_id == find_id
+            and (business_id is None or event.business_id == business_id)
+        ]
+        rows.sort(key=lambda event: event.created_at, reverse=True)
+        return rows[: max(0, int(limit))]
 
     def get_find_evidence(self, find_id: str) -> list[StoredEvidence]:
         found = self._finds.get(find_id)
@@ -1095,14 +1355,27 @@ class InMemoryRepository:
                         run_id: str | None = None,
                         task_id: str | None = None,
                         idempotency_key: str | None = None,
-                        body: str | None = None) -> str:
-        if find_id not in self._finds:
+                        body: str | None = None,
+                        decision_cycle: int = 1) -> str:
+        found = self._finds.get(find_id)
+        if found is None:
             raise RepositoryError(
                 f"no find {find_id} — an artifact is the deliverable for a "
                 "specific promise, so it cannot outlive the find that made it"
             )
-        if task_id is not None and task_id not in self._tasks:
-            raise RepositoryError(f"unknown task {task_id}")
+        artifact_cycle = max(1, int(decision_cycle))
+        if task_id is not None:
+            task = self._tasks.get(task_id)
+            if task is None:
+                raise RepositoryError(f"unknown task {task_id}")
+            artifact_cycle = int(task.get("decision_cycle") or 1)
+            if (
+                task.get("status") != TASK_RUNNING
+                or task.get("superseded_at") is not None
+                or found.status != "accepted"
+                or found.decision_cycle != artifact_cycle
+            ):
+                raise RepositoryError("Maker task was cancelled or superseded")
         if idempotency_key:
             existing = self.get_artifact_by_idempotency_key(idempotency_key)
             if existing is not None:
@@ -1114,6 +1387,7 @@ class InMemoryRepository:
             created_at=self._now(), preview=preview, s3_bucket=s3_bucket,
             s3_key=s3_key, run_id=run_id, task_id=task_id,
             idempotency_key=idempotency_key, body=body,
+            decision_cycle=artifact_cycle,
         ))
         return artifact_id
 
@@ -1124,7 +1398,8 @@ class InMemoryRepository:
             created_at=artifact.created_at, preview=artifact.preview,
             s3_bucket=artifact.s3_bucket, s3_key=artifact.s3_key,
             task_id=artifact.task_id, idempotency_key=artifact.idempotency_key,
-            body=artifact.body,
+            body=artifact.body, decision_cycle=artifact.decision_cycle,
+            superseded_at=artifact.superseded_at,
         )
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
@@ -1153,11 +1428,15 @@ class InMemoryRepository:
             idempotency_key=row["idempotency_key"],
             resource_key=row["resource_key"],
             approval_state=row["approval_state"],
+            decision_cycle=int(row.get("decision_cycle") or 1),
             attempt_count=row["attempt_count"],
             dispatch_count=row["dispatch_count"],
             created_at=row["created_at"], updated_at=row["updated_at"],
             approved_at=row.get("approved_at"), started_at=row.get("started_at"),
             completed_at=row.get("completed_at"),
+            cancel_requested_at=row.get("cancel_requested_at"),
+            cancelled_at=row.get("cancelled_at"),
+            superseded_at=row.get("superseded_at"),
             next_attempt_at=row.get("next_attempt_at"),
             lease_expires_at=row.get("lease_expires_at"),
             claimed_by=row.get("claimed_by"), claim_token=row.get("claim_token"),
@@ -1180,7 +1459,8 @@ class InMemoryRepository:
         if found.status != "accepted":
             raise RepositoryError("Maker work requires an approved recommendation")
 
-        key = maker_task_idempotency_key(find_id)
+        cycle = max(1, int(found.decision_cycle))
+        key = maker_task_idempotency_key(find_id, decision_cycle=cycle)
         existing_id = self._task_by_idempotency.get(key)
         if existing_id:
             return self._task_record(self._tasks[existing_id])
@@ -1197,9 +1477,12 @@ class InMemoryRepository:
             "status": TASK_QUEUED,
             "priority": int(priority),
             "idempotency_key": key,
-            "resource_key": maker_resource_key(business_id, find_id),
+            "resource_key": maker_resource_key(
+                business_id, find_id, decision_cycle=cycle
+            ),
             "approval_state": "approved",
             "approved_at": approved_at or found.decided_at or now,
+            "decision_cycle": cycle,
             "attempt_count": 0,
             "dispatch_count": 0,
             "claimed_by": None,
@@ -1212,6 +1495,7 @@ class InMemoryRepository:
                 "title": found.title,
                 "move": found.move,
                 "predicted_daily_cents": found.predicted_daily_cents,
+                "decision_cycle": cycle,
             }),
             "output_data": {},
             "last_error": None,
@@ -1219,13 +1503,20 @@ class InMemoryRepository:
             "updated_at": now,
             "started_at": None,
             "completed_at": None,
+            "cancel_requested_at": None,
+            "cancelled_at": None,
+            "superseded_at": None,
         }
         self._tasks[task_id] = row
         self._task_by_idempotency[key] = task_id
         self.record_task_event(
             task_id, event_type="task.created", actor_type="owner",
             actor_id=requested_by_account_id,
-            data={"find_id": find_id, "task_type": MAKER_DRAFT_TASK},
+            data={
+                "find_id": find_id,
+                "task_type": MAKER_DRAFT_TASK,
+                "decision_cycle": cycle,
+            },
         )
         return replace(self._task_record(row), created=True)
 
@@ -1301,6 +1592,23 @@ class InMemoryRepository:
             data={"attempt_count": row["attempt_count"], "claim_token": claim_token},
         )
         return self._task_record(row)
+
+    def task_can_continue(
+        self, task_id: str, *, claim_token: str,
+    ) -> bool:
+        row = self._tasks.get(task_id)
+        if row is None or row.get("find_id") is None:
+            return False
+        found = self._finds.get(str(row["find_id"]))
+        return bool(
+            found is not None
+            and row.get("status") == TASK_RUNNING
+            and row.get("claim_token") == claim_token
+            and row.get("superseded_at") is None
+            and row.get("cancel_requested_at") is None
+            and found.status == "accepted"
+            and found.decision_cycle == int(row.get("decision_cycle") or 1)
+        )
 
     def complete_task(
         self, task_id: str, *, claim_token: str,
@@ -1382,6 +1690,8 @@ class InMemoryRepository:
         rows = [
             row for row in self._tasks.values()
             if row["status"] in {TASK_QUEUED, TASK_RETRY}
+            and row.get("superseded_at") is None
+            and row.get("cancel_requested_at") is None
             and (row.get("next_attempt_at") is None or row["next_attempt_at"] <= now)
         ]
         rows.sort(key=lambda row: (row["priority"], row["created_at"]))
@@ -1411,6 +1721,8 @@ class InMemoryRepository:
         for task_id, row in self._tasks.items():
             if (
                 row["status"] == TASK_RUNNING
+                and row.get("superseded_at") is None
+                and row.get("cancel_requested_at") is None
                 and row.get("lease_expires_at") is not None
                 and row["lease_expires_at"] <= now
             ):
@@ -1458,6 +1770,13 @@ class InMemoryRepository:
     ) -> ToolExecutionRecord:
         if task_id not in self._tasks or self._tasks[task_id]["business_id"] != business_id:
             raise RepositoryError("task is no longer available")
+        task = self._tasks[task_id]
+        if (
+            task.get("superseded_at") is not None
+            or task.get("cancel_requested_at") is not None
+            or task.get("status") == TASK_CANCELLED
+        ):
+            raise RepositoryError("task was superseded by a newer owner decision")
         existing_id = self._tool_by_idempotency.get(idempotency_key)
         if existing_id:
             existing = self._tool_executions[existing_id]
