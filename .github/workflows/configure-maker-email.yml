@@ -57,41 +57,40 @@ jobs:
           echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"
           echo "Site URL found: $SITE_URL"
 
-      - name: Request SES verification emails
+      
+      - name: Ensure SES identities exist
         if: ${{ inputs.action == 'request-verification' }}
         shell: bash
         run: |
           set -euo pipefail
 
-          request_identity() {
+          ensure_identity() {
             local address="$1"
-            local status
-            status=$(aws sesv2 get-email-identity \
+
+            if aws sesv2 get-email-identity \
               --email-identity "$address" \
               --region "$AWS_REGION" \
-              --query 'VerifiedForSendingStatus' \
-              --output text 2>/dev/null || echo "MISSING")
-
-            if [ "$status" = "True" ]; then
-              echo "$address is already verified."
-              return
-            fi
-
-            if [ "$status" != "MISSING" ]; then
-              echo "$address exists but is not verified; recreating it to send a fresh verification email."
-              aws sesv2 delete-email-identity \
+              >/dev/null 2>&1
+            then
+              status=$(aws sesv2 get-email-identity \
                 --email-identity "$address" \
-                --region "$AWS_REGION"
+                --region "$AWS_REGION" \
+                --query 'VerifiedForSendingStatus' \
+                --output text)
+
+              echo "$address already exists. Verified: $status"
+              return 0
             fi
 
             aws sesv2 create-email-identity \
               --email-identity "$address" \
               --region "$AWS_REGION" >/dev/null
+
             echo "Verification email requested for $address."
           }
 
-          request_identity "$MAKER_EMAIL_FROM"
-          request_identity "$MAKER_REVIEW_EMAIL"
+          ensure_identity "$MAKER_EMAIL_FROM"
+          ensure_identity "$MAKER_REVIEW_EMAIL"
 
           aws ssm put-parameter --type String --overwrite \
             --name "$SSM_PREFIX/MAKER_EMAIL_FROM" \
@@ -113,7 +112,8 @@ jobs:
             --value "false" \
             --region "$AWS_REGION" >/dev/null
 
-          echo "Maker email remains disabled until both verification links are clicked."
+          echo "Maker email remains disabled until enable-email is run."
+
 
       - name: Verify identities and enable Maker email
         if: ${{ inputs.action == 'enable-email' }}
@@ -201,6 +201,14 @@ jobs:
             --function-name "$FUNCTION_NAME" \
             --region "$AWS_REGION" \
             --environment file:///tmp/maker-email-env-updated.json >/dev/null
+
+		
+	  aws lambda wait function-updated \
+            --function-name "$FUNCTION_NAME" \
+            --region "$AWS_REGION"
+
+          echo "MakerEmailFunction refreshed and ready."
+
 
           echo "MakerEmailFunction refreshed to load the new SSM values."
 
