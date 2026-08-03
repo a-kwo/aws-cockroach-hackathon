@@ -40,6 +40,9 @@ Hard requirements:
 - Money is stored as INTEGER CENTS. Convert for display: 12650 is $126.50.
 - Only ledger_entry.verdict = 'verified' is measured money. 'estimated' is
   modelled and must be labelled that way. Never present an estimate as earned.
+- ledger_entry.actual_daily_cents is NULL wherever nothing was measured, and
+  NULL is not zero. Say "not measured yet"; never report it as $0 earned, and
+  never coalesce it to 0 in a total.
 - If the available data does not support an answer, say "I don't know yet" and
   name what information is missing.
 - When the question concerns a For You recommendation, explain how to execute,
@@ -62,14 +65,18 @@ business(id, name, category, city, region, goal_monthly_cents, goal_note)
 business_fact(id, business_id, fact, source, confidence, learned_at,
               superseded_by)
 owner_rule(id, business_id, rule, enabled, cap_cents)
-observation(id, business_id, kind, content, source_name, subject, rating,
-            observed_at)
+observation(id, business_id, kind, content, source_name, source_url, subject,
+            rating, observed_at)
 find(id, business_id, title, summary, rationale, move, emoji,
+     alternative_explanation = the rival reading the Analyst rejected,
+     NULL on finds written before 2026-08-03,
      predicted_daily_cents, confidence, verify_after, status, created_at)
-find_evidence(find_id, observation_id, similarity, rank)
+find_evidence(find_id, observation_id, similarity,
+              rank = position in the retrieved set, so it can skip numbers)
 ledger_entry(id, business_id, find_id, verdict verified|estimated|miss,
              predicted_daily_cents,
-             actual_daily_cents, measured_at, period_start, period_end, method)
+             actual_daily_cents NULL when unmeasured,
+             measured_at, period_start, period_end, method)
 artifact(id, find_id, kind, title, preview, s3_bucket, s3_key, created_at)
 agent_run(id, business_id, agent, status, started_at, finished_at, note,
           input_tokens, output_tokens)

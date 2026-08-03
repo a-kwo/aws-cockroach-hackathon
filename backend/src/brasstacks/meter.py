@@ -41,7 +41,7 @@ def _require_cents(name: str, value: object) -> int:
 def judge(
     *,
     predicted_daily_cents: int,
-    actual_daily_cents: int,
+    actual_daily_cents: int | None,
     has_outcome_data: bool,
     miss_threshold: float = DEFAULT_MISS_THRESHOLD,
 ) -> Verdict:
@@ -51,7 +51,7 @@ def judge(
         predicted_daily_cents: What the Analyst predicted this move would earn
             per day. Must be a non-negative integer.
         actual_daily_cents: What we measured. May be negative — a move can cost
-            money.
+            money — and may be ``None``, which means nothing was measured.
         has_outcome_data: Whether real outcome data exists yet. When False the
             result is always ESTIMATED, regardless of what `actual` says. We do
             not guess at a verdict we cannot support.
@@ -59,12 +59,20 @@ def judge(
             positive result to count as verified.
 
     Raises:
-        TypeError: if either cent amount is not an int.
-        ValueError: if the prediction is negative, or the threshold is outside
-            the unit interval.
+        TypeError: if either cent amount is neither an int nor absent.
+        ValueError: if the prediction is negative, if outcome data is claimed
+            without a number behind it, or if the threshold is outside the unit
+            interval.
     """
     predicted = _require_cents("predicted_daily_cents", predicted_daily_cents)
-    actual = _require_cents("actual_daily_cents", actual_daily_cents)
+    # ``None`` is absence, not corruption. It is what an unmeasured find now
+    # carries, since the Meter stopped writing the prediction into the actual
+    # column. A *claimed* measurement with no number is still corrupt, so that
+    # case is caught below rather than waved through.
+    actual = (
+        None if actual_daily_cents is None
+        else _require_cents("actual_daily_cents", actual_daily_cents)
+    )
 
     if predicted < 0:
         raise ValueError(
@@ -81,6 +89,13 @@ def judge(
     # bug worth surfacing even on a run we could not have scored anyway.
     if not has_outcome_data:
         return Verdict.ESTIMATED
+
+    if actual is None:
+        raise ValueError(
+            "has_outcome_data is True but actual_daily_cents is missing. The "
+            "outcome source contradicted itself; we fail loudly rather than "
+            "score a find on nothing."
+        )
 
     if actual <= 0:
         return Verdict.MISS

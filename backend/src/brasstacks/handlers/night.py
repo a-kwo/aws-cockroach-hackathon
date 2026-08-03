@@ -113,6 +113,11 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                     today=today,
                     sources=sources,
                     model_id=settings.reasoning_model_id,
+                    # The real instant, not the simulated 02:00. A signal with
+                    # no time of its own is stamped with this, and the Analyst
+                    # now reads capture times against opening hours before it
+                    # will call anything broken.
+                    now=datetime.now(timezone.utc),
                 )
             except Exception as e:
                 # One tenant's night must not cost the others theirs. The error

@@ -18,6 +18,21 @@ DECISION_SCHEMA_STATEMENTS = (
     "ALTER TABLE find ADD COLUMN IF NOT EXISTS reopened_at TIMESTAMPTZ",
     "ALTER TABLE find ADD COLUMN IF NOT EXISTS reopen_reason_code STRING",
     "ALTER TABLE find ADD COLUMN IF NOT EXISTS reopen_reason_note STRING",
+    # Not a decision column, but the same `find` table and the same hazard: the
+    # Analyst names it in every INSERT, so a cluster the migration has not
+    # reached would store no finds at all rather than one without a rejected
+    # alternative.
+    "ALTER TABLE find ADD COLUMN IF NOT EXISTS alternative_explanation STRING",
+    # Same hazard again, at the other end of the loop. The Meter now writes NULL
+    # into `actual_daily_cents` for a verdict with no measurement, because
+    # storing the prediction there was the ledger reporting a forecast back as
+    # the thing it was supposed to check. Against a cluster still carrying the
+    # old NOT NULL DEFAULT 0 that INSERT raises, the Meter counts the find as
+    # failed, and nothing is ever judged. Nine finds fall due between
+    # 2026-08-22 and 2026-09-01, so the window where deploy order matters is
+    # this month.
+    "ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP NOT NULL",
+    "ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP DEFAULT",
     "CREATE INDEX IF NOT EXISTS find_reopened_idx ON find (business_id, reopened_at DESC)",
     """
     CREATE TABLE IF NOT EXISTS decision_event (

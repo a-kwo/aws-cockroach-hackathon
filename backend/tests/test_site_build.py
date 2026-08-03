@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 
 import pytest
 
@@ -246,6 +247,24 @@ def test_a_miss_survives_into_the_model(data):
     assert f["verdict"] == "miss"
     assert f["actualDailyTxt"] == "$0"
     assert model["summary"]["miss"] == 1
+
+
+def test_an_estimated_verdict_carries_no_actual_anywhere(data):
+    """An estimate is a verdict with no measurement behind it, so the Meter
+    stores nothing in `actual_daily_cents`. Every surface built from that row —
+    the card and the admin timeline — has to say nothing rather than $0, which
+    the owner would read as "this move earned nothing"."""
+    data["finds"] = [find(verdict="estimated", actual_daily_cents=None,
+                          note="No sales data connected.")]
+    data["summary"] = {"verified": 0, "estimated": 1, "miss": 0,
+                       "verified_daily_cents": 0, "hit_rate": None, "judged": 0}
+    model = build_web.build_model(data)
+    [f] = model["finds"]
+    assert f["verdict"] == "estimated"
+    assert f["actualDaily"] is None
+    assert f["actualDailyTxt"] is None
+    measured = [e for e in model["timeline"] if e["kind"] == "measured"]
+    assert [e["amount"] for e in measured] == [None]
 
 
 def test_money_never_becomes_a_float_in_the_model(data):
@@ -856,6 +875,12 @@ def test_no_ask_runs_is_an_empty_session_list_not_a_missing_block(data):
 APP = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 SCHEMA = (build_web.REPO / "db" / "schema.sql").read_text(encoding="utf-8")
 
+# Comments in this repo quote the copy they replaced, so "this sentence is gone
+# from the page" cannot be asserted against the file — the comment recording its
+# removal contains it. Same problem, and the same fix, as the scoped assertion in
+# test_card_copy_spacing_is_fixed_and_never_a_leftover.
+APP_MARKUP = re.sub(r"<!--.*?-->", "", APP, flags=re.S)
+
 
 def test_card_copy_spacing_is_fixed_and_never_a_leftover():
     """The deck is a fixed height, so a short card has room left over. When that
@@ -1106,6 +1131,32 @@ def test_deploy_template_exposes_the_workflow_read_route():
     assert 'Path: /workflow' in template
     assert 'Method: GET' in template
     assert "WorkflowEndpoint:" in template
+
+
+def test_the_sweep_wakes_while_the_businesses_it_watches_are_open():
+    """Every observation in the corpus was captured before its tenant opened.
+
+    The three sweeps that ever ran fired at 06:28, 08:07 and 08:40 local,
+    because the schedule was `cron(0 6 …)` — so Radar only ever saw shut
+    restaurants, and a delivery page reading "not available right now" reached
+    the Analyst as a broken storefront. A bot that only looks at closed
+    businesses will keep finding outages.
+    """
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+
+    hour = int(re.search(r"Default: cron\(0 (\d+) \* \* \? \*\)", template).group(1))
+    # Trading hours, with room for a 900s night that must not cross midnight UTC
+    # from America/New_York: 18:00 EST is 23:00 UTC.
+    assert 11 <= hour <= 18, f"cron hour {hour} is outside local trading hours"
+    assert "ScheduleExpressionTimezone: !Ref ScheduleTimezone" in template
+
+    schedule = template.split("ScheduleExpression:", 1)[1].split(
+        "ScheduleState:", 1)[0]
+    assert "closed" in schedule, "the template must say why this hour was chosen"
+
+    # The owner turned the autopilot off. Re-timing it is not re-enabling it.
+    state = template.split("ScheduleState:", 1)[1].split("MakerSweepExpression:", 1)[0]
+    assert "Default: DISABLED" in state
 
 
 def test_live_overlay_rederives_all_lifecycle_buckets_from_rows():
@@ -2296,3 +2347,95 @@ def test_a_calendar_date_is_not_shifted_into_the_previous_day():
         "\n    }", 1)[0]
     assert "^\\d{4}-\\d{2}-\\d{2}$" in shortdate
     assert "T00:00:00" in shortdate
+
+
+# ------------------------------- the Growth board's headline is a forecast
+#
+# The three tests below are one rule seen from three sides. `approvedAmount` is
+# summed from `predicted_daily_cents` — the Analyst's guess, never a measurement
+# — and it goes up the moment the owner presses Do it. It was captioned "Added
+# by the moves you approved", set in the same green the product uses for
+# verified money, badged "approved impact", and itemised under a heading that
+# called each one a win. `ledger_entry` had no rows at all.
+#
+# That is the mock's third original sin — a projection that grows when the owner
+# answers — wearing the vocabulary of the first two.
+
+
+def test_the_growth_headline_names_itself_a_forecast():
+    """CLAUDE.md: a modelled figure is labelled Modelled, never Actual, and
+    nothing the owner does in the UI may increase the verified record."""
+    slide = APP.split('class="growth-slide growth-slide-summary"', 1)[1].split(
+        "</article>", 1)[0]
+
+    assert "Added by the moves you approved" not in APP_MARKUP
+    assert 'id="approvedAmount"' in slide
+    # A label of its own, a tag of its own, and copy that says where earned
+    # money actually comes from.
+    assert "Forecast" in slide
+    assert "Projected · not measured" in slide
+    assert "Only a verified verdict on the Ledger is money you have earned." in slide
+
+
+def test_the_forecast_total_is_not_dressed_as_earned_money():
+    """Two ways the figure claimed to be earnings without saying so: a leading
+    plus sign, and the verified green. It now renders in the chart's projected
+    indigo — the same mark language as the one dashed month — and without the
+    `+` that `formatMoney` puts in front of money that arrived."""
+    growth = APP.split("function renderGrowth() {", 1)[1].split(
+        "\n    }", 1)[0]
+
+    assert "projectedMoney(" in growth
+    assert "formatMoney(" not in growth
+    assert '"+$0"' not in growth
+    # The forecast is never added to, or drawn from, the ledger-backed summary.
+    assert "dailyTxt" not in growth
+
+    rule = APP.split(".growth-total.forecast strong,", 1)[1].split("}", 1)[0]
+    assert "#4a58d6" in rule
+    assert "var(--approve)" not in rule
+
+
+def test_the_approved_list_does_not_call_a_forecast_a_win():
+    """"Your wins" over rows reading "+$690/mo" is the same untrue claim,
+    itemised. The panel keeps the figures — an owner wants to know what they
+    committed to — under a heading that says what they are."""
+    panel = APP.split('class="list-panel approved-panel"', 1)[1].split(
+        "</article>", 1)[0]
+
+    assert "Your wins" not in APP_MARKUP
+    assert "<h2>Approved moves</h2>" in panel
+    assert "Projected · not yet measured" in panel
+
+    row = APP.split("function renderDecisionRow(post, status) {", 1)[1].split(
+        "\n    }", 1)[0]
+    assert "projectedMoney(post.amount)" in row
+    assert "formatMoney(" not in row
+    assert "projected, not yet measured" in row      # the screen-reader label
+
+
+def test_the_forecast_colour_actually_wins_the_cascade():
+    """A rule that loses the cascade is a comment, not a safeguard.
+
+    The forecast block was written last in the head on the reasoning that later
+    wins. It does not: four earlier blocks set the verified green with
+    `!important` on these exact elements, and `!important` beats source order
+    regardless of position. The board kept rendering projected money in the
+    colour this product reserves for money the Meter has verified — while the
+    test asserting the fix passed, because it only checked that the declaration
+    existed in the file.
+    """
+    import re
+
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+    before, _, rest = html.partition('<style id="forecast-not-earned-v31">')
+    block, _, _ = rest.partition("</style>")
+
+    # The competing declarations are real, so the override has to outrank them.
+    assert "color: var(--theme-demand) !important" in before
+    assert "color: #77827f !important" in before
+
+    colours = re.findall(r"\bcolor:[^;}]+", block)
+    assert colours, "the forecast block sets no colour at all"
+    for declaration in colours:
+        assert "!important" in declaration, declaration

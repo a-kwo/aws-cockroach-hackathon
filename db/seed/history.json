@@ -167,7 +167,7 @@
       "evidence": ["trend-20", "trend-11", "trend-08", "rev-tira-14"],
       "ledger": {
         "verdict": "estimated",
-        "actual_daily_cents": 610,
+        "actual_daily_cents": null,
         "method": "modelled from dessert attach rate; item-level verification pending at month end",
         "note": "Not yet verifiable — the measurement window closes at month end. Shown as an estimate rather than counted as a win."
       }

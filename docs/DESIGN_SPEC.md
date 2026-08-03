@@ -125,7 +125,9 @@ Exactly **1 of 17** titles contains a colon (`8629ea6d`, the one quoted in the b
 
 ### 1.7 `evidence[].rank` is not similarity order — **sort on similarity**
 
-In `8629ea6d`, rank 0 = 0.312 while rank 4 = 0.512. The display promise is "strongest first", so **display order is `similarity` descending**. `rank` is retained on the wire (it is the DB's retrieval order) and is not used for display. Do not change the API.
+In `8629ea6d`, rank 0 = 0.312 while rank 4 = 0.512. The display promise is "strongest first", so **display order is `similarity` descending**. `rank` is retained on the wire and is not used for display. Do not change the API.
+
+The cause was found on 2026-08-03: `rank` was storing the order the model happened to cite in, not retrieval position, despite the schema and the Memory Engine both describing it as position. The Analyst now writes the retrieval position, so for finds written after that date the two orders agree — which makes this rule a no-op for new finds and still load-bearing for every find written before it. Ranks are also no longer contiguous: a find citing the 1st and 6th retrieved rows stores 0 and 5.
 
 ### 1.8 Parser diagnostics — **never shown to Rosa**
 

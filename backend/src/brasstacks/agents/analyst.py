@@ -16,19 +16,36 @@ strategic query is a design bug.
 **The model may only cite what retrieval returned.** Observation ids go into the
 prompt and citations are validated against that exact set, so a find's evidence
 trail cannot contain anything the search did not surface.
+
+**No source may fill the prompt.** Find 7c4a9124 cited four rows that were one
+Grubhub storefront — three fragments of a single fetch plus the same store on
+Seamless — and read as four confirmations. The rows are capped per source after
+ranking, and what the cap removed goes in the run receipt.
+
+**The model must say what would beat its own reading.** The same find called
+that storefront broken on a page fetched at 08:07, an hour before the
+restaurant opened. "The bot looked while we were shut" fits that evidence
+better, and nothing in the find recorded that the question had been asked. So
+the prompt now demands the local capture time and the open/closed answer before
+any outage claim, and `alternative_explanation` is stored beside the
+prediction. Rules and a column, not a gate: gating this rejected 9 of 9 finds
+in review, and an owner with an empty deck is not better served than an owner
+with a weak one.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timezone
 
 from brasstacks.agent_runs import closing_run
 from brasstacks.analyst_trace import encode_analyst_trace
 from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
 from brasstacks.providers import Embedder, ProviderError, Reasoner
+from brasstacks.provenance import source_host, source_identity
 from brasstacks.repository import ChatMessage, EvidenceRef, Repository, Retrieved
 
 #: Concrete hypotheses, one per line of business inquiry. Each is phrased the way
@@ -44,6 +61,13 @@ ANALYST_QUERIES = (
 )
 
 DEFAULT_PER_QUERY_LIMIT = 6
+
+#: How many rows one source may put in a night's prompt. Two rather than one,
+#: because a second fragment of a long page does often carry something the first
+#: did not; two rather than three, because the three captures find 7c4a9124
+#: cited shared a 492-character prefix and two of them shared 980. Applied after
+#: ranking, so a source keeps its strongest rows and loses only the repetition.
+MAX_ROWS_PER_SOURCE = 2
 
 #: How many prior finds to show the Analyst so it does not repeat itself.
 #: `recent_finds` sorts in-play moves ahead of proposals, so this needs to be
@@ -67,16 +91,24 @@ _FIND_PROPERTIES = {
     "summary": {"type": "string"},
     "rationale": {"type": "string"},
     "move": {"type": "string"},
+    "alternative_explanation": {"type": "string"},
     "predicted_daily_cents": {"type": "integer"},
     "confidence": {"type": "number"},
     "verify_after_days": {"type": "integer"},
     "evidence_observation_ids": {"type": "array", "items": {"type": "string"}},
 }
 
+#: `alternative_explanation` is required *of the model* and optional *of the
+#: parser*. Asking for it in the schema is how the check actually gets run —
+#: writing down the reading that beats yours is the step find 7c4a9124 never
+#: took. Failing a night because the field came back empty would be a rejection
+#: gate, and the gates as designed withheld 9 of 9 finds, so `parse_find`
+#: tolerates its absence.
 FIND_SCHEMA = {
     "type": "object",
     "properties": dict(_FIND_PROPERTIES),
     "required": ["title", "summary", "rationale", "move",
+                 "alternative_explanation",
                  "predicted_daily_cents", "confidence", "verify_after_days",
                  "evidence_observation_ids"],
     "additionalProperties": False,
@@ -140,6 +172,8 @@ record. Reference observation ids here only, never in the title or summary. Do \
 not repeat the same point merely to make the paragraph longer.
 - `move`: the steps to take. Write them as separate short sentences, one action \
 each, so they can be shown as a checklist. No numbered lists inside a paragraph.
+- `alternative_explanation`: the operator record, not the card. One or two \
+sentences: the rival reading, then why you reject it.
 
 Hard requirements:
 - Money is INTEGER CENTS PER DAY. $23/day is 2300. Never dollars, never a month.
@@ -157,7 +191,32 @@ combine it with market observations before making a revenue claim.
 for operational changes, longer for anything seasonal.
 - Do NOT propose something already on the recent-finds list. If the obvious move \
 is taken, find the next best one. A move the owner already rejected is the worst \
-thing to propose again."""
+thing to propose again.
+
+Checks every find must survive. Each of these exists because a find was \
+published that could not survive it:
+- WAS IT OPEN? Before you claim that any storefront, listing, menu, page or \
+service is broken, unavailable, down, missing or failing, state in the rationale \
+the capture time in the business's own local time and whether the business was \
+open at that instant. Capture times are given to you in UTC. If the business was \
+closed then, or the hours you were given do not settle it, do not make the claim \
+at all — say what you would need to see instead. A shut restaurant's delivery \
+page reading "not available right now" is the shop being shut, not a broken \
+storefront.
+- ONE PAGE IS ONE DOCUMENT. Rows sharing a source and a capture time are one \
+document read once, however many ids they carry. Never present them as separate \
+captures, multiple sources, several platforms, a pattern, or independent \
+confirmation. One document is one signal even when it is four rows.
+- NO UNCITED SPECIFICS. Every dish, price, opening hour, competitor and \
+availability state you name in `move` or `rationale` must be carried by an \
+observation you cite in evidence_observation_ids. If you take a detail from a \
+retrieved row, cite that row; if you cannot cite it, do not name it.
+- NAME THE ALTERNATIVE. `alternative_explanation` is the strongest rival reading \
+of the same evidence — the one a sceptical owner would give — and why you reject \
+it. Required for your lead find and worth writing for all three. "The bot looked \
+while we were shut" is a real alternative and is often the right one. If the \
+evidence you have cannot reject the alternative, propose a different move rather \
+than defend this one."""
 
 
 @dataclass(frozen=True)
@@ -183,9 +242,36 @@ class RetrievalReceipt:
     hits: tuple[Retrieved, ...]
     query_hits: tuple[int, ...]
     raw_hits: int
+    #: Deduplicated rows dropped because their source was already at the cap.
+    source_capped: int = 0
     # Reused for one owner-memory search. This adds no embedding model call:
     # the centroid is derived from the six market-query vectors already paid for.
     query_vectors: tuple[tuple[float, ...], ...] = ()
+
+
+def _cap_per_source(
+    ordered: Sequence[Retrieved], limit: int,
+) -> tuple[list[Retrieved], int]:
+    """Keep at most *limit* rows per source, strongest first.
+
+    Applied to the already-ranked merged set, so a source that genuinely
+    dominates on relevance still leads the prompt — it just cannot own it. A
+    row with no usable URL has no identity and is never capped: the seeded
+    corpus and every owner upload are URL-less, and grouping them together
+    would delete most of memory on the way to the model.
+    """
+    kept: list[Retrieved] = []
+    dropped = 0
+    seen: Counter[str] = Counter()
+    for hit in ordered:
+        identity = source_identity(hit.source_url)
+        if identity is not None:
+            if seen[identity] >= limit:
+                dropped += 1
+                continue
+            seen[identity] += 1
+        kept.append(hit)
+    return kept, dropped
 
 
 def _retrieve_with_receipt(
@@ -199,7 +285,8 @@ def _retrieve_with_receipt(
 
     ``query_hits`` tells an operator what each market question returned.
     ``raw_hits`` counts repeated matches across all questions. ``hits`` is the
-    deduplicated set that actually enters the prompt.
+    deduplicated, source-capped set that actually enters the prompt, and
+    ``source_capped`` is how many rows the cap took out of it.
     """
     best: dict[str, Retrieved] = {}
     query_hits: list[int] = []
@@ -215,19 +302,24 @@ def _retrieve_with_receipt(
                 best[hit.observation_id] = hit
 
     ordered = sorted(best.values(), key=lambda r: r.similarity, reverse=True)
+    kept, capped = _cap_per_source(ordered, MAX_ROWS_PER_SOURCE)
     # Re-rank so `rank` reflects position in the merged set, not in one query.
+    # This is the number that reaches `find_evidence.rank`, so it is numbered
+    # after the cap: a row the model never saw has no retrieval position.
     merged = tuple(
         Retrieved(
             observation_id=r.observation_id, content=r.content, kind=r.kind,
             similarity=r.similarity, rank=rank, observed_at=r.observed_at,
-            source_name=r.source_name, subject=r.subject,
+            source_name=r.source_name, source_url=r.source_url,
+            subject=r.subject,
         )
-        for rank, r in enumerate(ordered)
+        for rank, r in enumerate(kept)
     )
     return RetrievalReceipt(
         hits=merged,
         query_hits=tuple(query_hits),
         raw_hits=sum(query_hits),
+        source_capped=capped,
         query_vectors=tuple(tuple(float(value) for value in vector) for vector in vectors),
     )
 
@@ -293,6 +385,40 @@ def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
     ).hits)
 
 
+def _observed_stamp(moment) -> str:
+    """Where the row came from in time, to the second.
+
+    A date was all the prompt carried, which is why three rows written by one
+    fetch — identical to the microsecond — could read as three sightings on one
+    day. Seconds are enough to make a shared fetch obvious without spending a
+    line on it.
+    """
+    if moment is None:
+        return "unknown"
+    if moment.tzinfo is not None:
+        return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return moment.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _observation_line(hit: Retrieved) -> str:
+    """One retrieved row, with enough provenance to weigh it.
+
+    Kept to a single line because this repeats ~20 times per prompt: kind,
+    subject, source, when, similarity, content. The source is the host rather
+    than the full URL — every Tavily row is stored under source_name "web", so
+    the host is the only thing that tells one storefront from another, and the
+    path would cost more tokens than it earns.
+    """
+    subject = f" about {hit.subject}" if hit.subject else ""
+    source = source_host(hit.source_url) or hit.source_name
+    origin = f", {source}" if source else ""
+    return (
+        f"- id={hit.observation_id} [{hit.kind}{subject}{origin}, "
+        f"{_observed_stamp(hit.observed_at)}, "
+        f"similarity {hit.similarity:.2f}] {hit.content}"
+    )
+
+
 def build_prompt(*, business: dict | None, facts: Sequence[str],
                  rules: Sequence, retrieved: Sequence[Retrieved],
                  today: date, recent_finds: Sequence = (),
@@ -356,13 +482,35 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
         f"\nObservations retrieved from memory ({len(retrieved)}), most relevant "
         "first. Cite by id:"
     )
-    for hit in retrieved:
-        stamp = hit.observed_at.date().isoformat() if hit.observed_at else "unknown"
-        subject = f" about {hit.subject}" if hit.subject else ""
-        lines.append(
-            f"- id={hit.observation_id} [{hit.kind}{subject}, {stamp}, "
-            f"similarity {hit.similarity:.2f}] {hit.content}"
-        )
+    lines.extend(_observation_line(hit) for hit in retrieved)
+    # Rows sharing a source and a timestamp are one page read once, not
+    # independent confirmations. Said plainly because the model cannot see the
+    # capture boundaries, only the rows.
+    lines.append(
+        "Rows with the same source and the same time came from one capture of "
+        "one page. Count them as one signal, however many ids they carry."
+    )
+    # Everything the "was it open?" check needs, and an honest account of what
+    # is missing. Nothing in this system stores opening hours or a timezone: a
+    # business row has a city and that is all, so the model is told to name the
+    # timezone it assumed rather than silently pick one. The distinction in the
+    # first line is load-bearing — a web row's time is when Radar fetched the
+    # page, which is the only time that can settle whether a storefront was
+    # shut, while a review's time is when the customer wrote it.
+    lines.append(
+        "\nThe times above are UTC. For a web page it is the moment Radar "
+        "fetched it; for a review it is when the customer wrote it. Convert a "
+        f"capture time to local time in {city or 'the business city above'} "
+        "before you read anything as an outage, and name the timezone you "
+        "used — no business record stores one."
+    )
+    lines.append(
+        "Opening hours are not a stored field either. What you have is "
+        "whatever the owner facts and the rows above happen to say about when "
+        "this business trades. If they do not settle whether it was open at a "
+        "capture time, that capture cannot carry a claim that something is "
+        "broken."
+    )
 
     lines.append(
         "\nPropose three distinct moves, best first, as JSON matching the schema. "
@@ -402,6 +550,7 @@ def _run_note(
             queries=queries,
             per_query_limit=per_query_limit,
             owner_memory_ids=owner_memory_ids,
+            source_capped=receipt.source_capped,
         ),
     ))
 
@@ -494,6 +643,11 @@ def _analyst_night(
     )
 
     similarity_by_id = {r.observation_id: r.similarity for r in retrieved}
+    # `find_evidence.rank` says, in the schema and on screen, that it is the
+    # row's position in the retrieved set. It was the order the model wrote its
+    # citations in, which put a 0.088 row at rank 0 of find 8b4009e5 while its
+    # 0.299 row sat at rank 4.
+    rank_by_id = {r.observation_id: r.rank for r in retrieved}
 
     try:
         payload = reasoner.complete_json(system=SYSTEM_PROMPT, user=prompt,
@@ -544,6 +698,7 @@ def _analyst_night(
             summary=proposal.summary,
             rationale=proposal.rationale,
             move=proposal.move,
+            alternative_explanation=proposal.alternative_explanation,
             predicted_daily_cents=proposal.predicted_daily_cents,
             confidence=proposal.confidence,
             verify_after=proposal.verify_after,
@@ -552,7 +707,8 @@ def _analyst_night(
             status="proposed",
             run_id=run_id,
             evidence=[
-                EvidenceRef(observation_id, similarity_by_id[observation_id])
+                EvidenceRef(observation_id, similarity_by_id[observation_id],
+                            rank=rank_by_id[observation_id])
                 for observation_id in proposal.evidence_observation_ids
             ],
         )

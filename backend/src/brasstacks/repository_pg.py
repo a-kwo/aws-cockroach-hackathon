@@ -642,7 +642,8 @@ class PostgresRepository:
             cur.execute(
                 """
                 SELECT id, content, kind, source_name, subject, observed_at,
-                       1 - (embedding <=> %s::VECTOR) AS similarity
+                       1 - (embedding <=> %s::VECTOR) AS similarity,
+                       source_url
                 FROM observation
                 WHERE business_id = %s AND embedding IS NOT NULL
                   AND coalesce(source_name, '') NOT IN (%s, %s)
@@ -658,7 +659,7 @@ class PostgresRepository:
             Retrieved(
                 observation_id=str(r[0]), content=r[1], kind=str(r[2]),
                 source_name=r[3], subject=r[4], observed_at=r[5],
-                similarity=float(r[6]), rank=rank,
+                similarity=float(r[6]), rank=rank, source_url=r[7],
             )
             for rank, r in enumerate(rows)
         ]
@@ -767,7 +768,8 @@ class PostgresRepository:
                 SELECT id, title, summary, rationale, move, status,
                        predicted_daily_cents, confidence, verify_after,
                        decided_at, decision_cycle, reopened_at,
-                       reopen_reason_code, reopen_reason_note
+                       reopen_reason_code, reopen_reason_note,
+                       alternative_explanation
                 FROM find
                 WHERE id = %s AND business_id = %s
                 """,
@@ -783,6 +785,7 @@ class PostgresRepository:
             verify_after=row[8], decided_at=row[9],
             decision_cycle=int(row[10] or 1), reopened_at=row[11],
             reopen_reason_code=row[12], reopen_reason_note=row[13],
+            alternative_explanation=row[14],
         )
 
     # -- finds -----------------------------------------------------------
@@ -791,6 +794,7 @@ class PostgresRepository:
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = None,
+        alternative_explanation: str | None = None,
         status: str = "proposed", run_id: str | None = None,
         created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
@@ -808,6 +812,12 @@ class PostgresRepository:
                 "recommendation with no traceable source cannot be defended"
             )
 
+        # The night writes `alternative_explanation`, and a cluster that has not
+        # had the migration applied has no such column: the INSERT would fail
+        # and the night would store nothing at all. Every other writer of `find`
+        # already self-heals this way.
+        ensure_decision_schema(self._conn)
+
         try:
             with self._conn.transaction():
                 with self._conn.cursor() as cur:
@@ -817,16 +827,16 @@ class PostgresRepository:
                         """
                         INSERT INTO find (
                             business_id, run_id, emoji, title, summary,
-                            rationale, move,
+                            rationale, move, alternative_explanation,
                             predicted_daily_cents, confidence, verify_after,
                             status, created_at, decided_at
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                                 coalesce(%s, clock_timestamp()), %s)
                         RETURNING id
                         """,
                         (business_id, run_id, emoji, title, summary,
-                         rationale, move,
+                         rationale, move, alternative_explanation,
                          predicted_daily_cents, confidence, verify_after, status,
                          created_at, decided_at),
                     )
@@ -838,8 +848,13 @@ class PostgresRepository:
                             (find_id, observation_id, similarity, rank)
                         VALUES (%s, %s, %s, %s)
                         """,
-                        [(find_id, ref.observation_id, ref.similarity, rank)
-                         for rank, ref in enumerate(evidence)],
+                        # rank is retrieval position, supplied by the caller.
+                        # The citation index is only a fallback for callers with
+                        # no retrieval position to give; citation order is not
+                        # stored, because nothing reads the column that way.
+                        [(find_id, ref.observation_id, ref.similarity,
+                          cited if ref.rank is None else int(ref.rank))
+                         for cited, ref in enumerate(evidence)],
                     )
         except psycopg.Error as e:
             raise RepositoryError(f"could not store find with evidence: {e}") from e
@@ -2036,11 +2051,16 @@ class PostgresRepository:
     # -- ledger ----------------------------------------------------------
     def insert_ledger_entry(
         self, business_id: str, *, find_id: str, verdict: str,
-        predicted_daily_cents: int, actual_daily_cents: int,
+        predicted_daily_cents: int, actual_daily_cents: int | None,
         period_start: date, period_end: date, method: str,
         note: str | None = None, run_id: str | None = None,
         measured_at: datetime | None = None,
     ) -> str:
+        # An unmeasured verdict writes NULL here, which a cluster still carrying
+        # the old NOT NULL DEFAULT 0 rejects — and a rejected INSERT means the
+        # Meter judges nothing at all. Self-heal on the way in, as every other
+        # writer that outran a migration already does.
+        ensure_decision_schema(self._conn)
         try:
             with self._conn.transaction():
                 with self._conn.cursor() as cur:

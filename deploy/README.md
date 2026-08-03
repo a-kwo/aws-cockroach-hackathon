@@ -253,7 +253,7 @@ It prints the site/API outputs plus the Maker function, Step Functions workflow,
 ## 6. Prove it works
 
 ```bash
-# A night, on demand, rather than waiting until 6 AM.
+# A night, on demand, rather than waiting for the 6 PM sweep.
 aws lambda invoke \
   --function-name <NightFunctionName from the stack outputs> /dev/stdout
 

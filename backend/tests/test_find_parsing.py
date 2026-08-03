@@ -163,6 +163,50 @@ class TestEvidence:
         assert find.evidence_observation_ids == ("obs-2", "obs-1")
 
 
+class TestAlternativeExplanation:
+    """The one check that would have killed find 7c4a9124.
+
+    That find read three fragments of one Grubhub page, captured at 08:07 while
+    the restaurant was shut, as a broken storefront. "The bot looked while we
+    were closed" explains the same evidence better — and nothing in the find
+    recorded that the question had been asked. So the model now writes its
+    strongest rival reading down, and it is stored next to the prediction.
+    """
+
+    def test_the_alternative_survives_parsing(self):
+        find = parse_find(
+            payload(alternative_explanation=(
+                "The page was fetched at 08:07 local, before opening — the "
+                "storefront may be fine. Rejected: two later captures during "
+                "service show the same message."
+            )),
+            today=TODAY, known_observation_ids=KNOWN_IDS)
+
+        assert find.alternative_explanation.startswith("The page was fetched")
+
+    def test_a_missing_alternative_does_not_cost_the_night(self):
+        # Rules in the prompt, not a rejection gate: an adversarial review
+        # measured the gates as originally designed withholding 9 of 9 finds.
+        # An older row, or a model that skips the field, still gets stored.
+        find = parse_find(payload(), today=TODAY,
+                          known_observation_ids=KNOWN_IDS)
+
+        assert find.alternative_explanation is None
+
+    def test_a_blank_alternative_is_absence_not_an_empty_claim(self):
+        find = parse_find(payload(alternative_explanation="   "), today=TODAY,
+                          known_observation_ids=KNOWN_IDS)
+
+        assert find.alternative_explanation is None
+
+    def test_the_alternative_gets_the_same_escape_repair_as_every_other_field(self):
+        find = parse_find(
+            payload(alternative_explanation=r"Closed at capture \u2014 rejected"),
+            today=TODAY, known_observation_ids=KNOWN_IDS)
+
+        assert find.alternative_explanation == "Closed at capture — rejected"
+
+
 class TestEscapeSequenceRepair:
     """Models sometimes double-escape their own JSON.
 

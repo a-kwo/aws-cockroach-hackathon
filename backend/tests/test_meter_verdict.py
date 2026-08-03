@@ -28,6 +28,35 @@ class TestNoOutcomeData:
                      has_outcome_data=False) is Verdict.ESTIMATED
 
 
+class TestAbsentMeasurement:
+    """``None`` is how "we never measured this" travels.
+
+    It exists because the Meter used to hand the prediction back as the actual
+    when nothing was connected, which put a forecast in a column named actual.
+    The honest value there is nothing at all, so the judge has to accept
+    nothing — and has to refuse it when the caller claims a measurement.
+    """
+
+    def test_absent_actual_without_outcome_data_is_estimated(self):
+        assert judge(predicted_daily_cents=2300, actual_daily_cents=None,
+                     has_outcome_data=False) is Verdict.ESTIMATED
+
+    def test_claiming_outcome_data_with_no_number_is_rejected(self):
+        # has_outcome_data=True is an assertion that a measurement exists. If
+        # the number is missing, the source contradicted itself and we fail
+        # loudly rather than score a find on nothing.
+        with pytest.raises(ValueError):
+            judge(predicted_daily_cents=2300, actual_daily_cents=None,
+                  has_outcome_data=True)
+
+    def test_a_corrupt_prediction_still_fails_first(self):
+        # Validation order is load-bearing: a negative prediction is a bug worth
+        # surfacing even on a run that had no measurement to score.
+        with pytest.raises(ValueError):
+            judge(predicted_daily_cents=-100, actual_daily_cents=None,
+                  has_outcome_data=False)
+
+
 class TestMiss:
     """We publish misses. That is the differentiator, so the logic that produces
     them must be strict."""

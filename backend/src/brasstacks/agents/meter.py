@@ -86,6 +86,12 @@ def _meter_pass(
             has_outcome_data=outcome.has_outcome_data,
         )
 
+        # The judge already ignores a figure a source supplied while admitting
+        # it has no data; the write has to ignore it too, or the ledger stores
+        # a number its own verdict says does not exist. A measured zero is a
+        # different fact and survives — that is what a published miss is.
+        measured = outcome.actual_daily_cents if outcome.has_outcome_data else None
+
         try:
             repo.insert_ledger_entry(
                 business_id,
@@ -95,7 +101,7 @@ def _meter_pass(
                 # honest even if the find is edited later. A miss must remain a
                 # miss against the number that was actually predicted.
                 predicted_daily_cents=find.predicted_daily_cents,
-                actual_daily_cents=outcome.actual_daily_cents,
+                actual_daily_cents=measured,
                 period_start=find.created_at.date(),
                 period_end=find.verify_after,
                 method=outcome.method,

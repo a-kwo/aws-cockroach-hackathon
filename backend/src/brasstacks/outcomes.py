@@ -25,9 +25,12 @@ class Outcome:
 
     ``has_outcome_data=False`` is a first-class answer, not an error: it is the
     honest state before a sales integration exists, and it maps to an ESTIMATE.
+    Such an outcome carries ``actual_daily_cents=None``, because the alternative
+    — any number at all — is a figure the ledger would store in a column named
+    actual and the owner would read as measured.
     """
 
-    actual_daily_cents: int
+    actual_daily_cents: int | None
     has_outcome_data: bool
     method: str
     note: str | None = None
@@ -48,7 +51,11 @@ class NoOutcomeSource:
 
     def measure(self, find: DueFind, *, business_id: str) -> Outcome:
         return Outcome(
-            actual_daily_cents=find.predicted_daily_cents,
+            # Not `find.predicted_daily_cents`. Handing the prediction back as
+            # the outcome made the ledger's actual column a copy of the
+            # forecast, so the first find to come due would have reported the
+            # agent's own guess to the owner as a measurement.
+            actual_daily_cents=None,
             has_outcome_data=False,
             method="modelled from the prediction; no sales data connected",
             note=(

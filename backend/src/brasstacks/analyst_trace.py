@@ -35,30 +35,37 @@ def encode_analyst_trace(
     queries: Sequence[str] | None = None,
     per_query_limit: int | None = None,
     owner_memory_ids: Sequence[str] = (),
+    source_capped: int = 0,
 ) -> str:
     """Encode one compact, versioned Analyst run receipt.
 
     `query_hits` counts what each vector search returned before the union is
     deduplicated.  `unique_hits` is the number of observations actually placed
     in the model prompt, and `cited_hits` is the smaller set persisted on the
-    resulting find.
+    resulting find.  `source_capped` is how many deduplicated rows were dropped
+    because one source had already contributed its limit — a row the model
+    never saw has to be visible as removed rather than quietly absent.
     """
     hits = [_non_negative(value, "query_hits") for value in query_hits]
     raw = _non_negative(raw_hits, "raw_hits")
     unique = _non_negative(unique_hits, "unique_hits")
     cited = _non_negative(cited_hits, "cited_hits")
+    capped = _non_negative(source_capped, "source_capped")
     if raw != sum(hits):
         raise ValueError("raw_hits must equal the sum of query_hits")
     if unique > raw:
         raise ValueError("unique_hits cannot exceed raw_hits")
     if cited > unique:
         raise ValueError("cited_hits cannot exceed unique_hits")
+    if unique + capped > raw:
+        raise ValueError("unique_hits plus source_capped cannot exceed raw_hits")
 
     payload: dict[str, Any] = {
         "query_hits": hits,
         "raw_hits": raw,
         "unique_hits": unique,
         "cited_hits": cited,
+        "source_capped": capped,
         "find_id": str(find_id) if find_id else None,
     }
     if queries is not None:
@@ -86,15 +93,21 @@ def parse_analyst_trace(note: str | None) -> dict[str, Any] | None:
             raw = int(payload["raw_hits"])
             unique = int(payload["unique_hits"])
             cited = int(payload["cited_hits"])
-            if any(value < 0 for value in (*hits, raw, unique, cited)):
+            # Runs recorded before the per-source cap existed have no such key,
+            # and for them zero is the truth rather than a default.
+            capped = int(payload.get("source_capped") or 0)
+            if any(value < 0 for value in (*hits, raw, unique, cited, capped)):
                 return None
             if raw != sum(hits) or unique > raw or cited > unique:
+                return None
+            if unique + capped > raw:
                 return None
             result: dict[str, Any] = {
                 "query_hits": hits,
                 "raw_hits": raw,
                 "unique_hits": unique,
                 "cited_hits": cited,
+                "source_capped": capped,
                 "find_id": payload.get("find_id"),
             }
             if isinstance(payload.get("queries"), list):

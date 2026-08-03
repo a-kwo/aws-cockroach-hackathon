@@ -218,6 +218,36 @@ class TestVectorSearch:
         self._seed(repo, business)
         assert len(repo.search_observations(business, DESSERT, limit=2)) == 2
 
+    def test_retrieval_carries_the_url_the_row_came_from(self, repo, business):
+        # Without this the Analyst cannot tell one page from another: every web
+        # observation reaches the model as source_name "web". Find 7c4a9124
+        # cited three fragments of one Grubhub fetch as three separate signals
+        # because the URL stopped at insert_observation.
+        repo.insert_observation(
+            business, content="menu is not available right now", kind="trend",
+            embedding=DESSERT, observed_at=_dt(TODAY), source_name="web",
+            source_url="https://www.grubhub.com/restaurant/rosas/2033337")
+
+        [hit] = repo.search_observations(business, DESSERT, limit=1)
+        assert hit.source_url == "https://www.grubhub.com/restaurant/rosas/2033337"
+
+    def test_a_row_stored_without_a_url_retrieves_without_one(self, repo, business):
+        repo.insert_observation(business, content="hand seeded", kind="review",
+                                embedding=DESSERT, observed_at=_dt(TODAY))
+        [hit] = repo.search_observations(business, DESSERT, limit=1)
+        assert hit.source_url is None
+
+    def test_retrieval_carries_the_time_of_day_not_only_the_date(self, repo, business):
+        # Three rows sharing an observed_at to the second are one fetch, not
+        # three sightings. Truncating to a date is what let that read as three.
+        moment = datetime(2026, 7, 28, 2, 14, 9, tzinfo=timezone.utc)
+        repo.insert_observation(business, content="one fetch", kind="trend",
+                                embedding=DESSERT, observed_at=moment)
+        [hit] = repo.search_observations(business, DESSERT, limit=1)
+        assert hit.observed_at.hour == 2
+        assert hit.observed_at.minute == 14
+        assert hit.observed_at.second == 9
+
     def test_never_returns_another_businesss_observations(self, repo, business):
         # The vector index is prefixed on business_id. A leak here would be a
         # cross-tenant data breach, so it gets an explicit test.
@@ -283,6 +313,66 @@ class TestFindsAndEvidence:
         evidence = repo.get_find_evidence(find_id)
         assert [e.rank for e in evidence] == [0, 1]
         assert evidence[0].observation_id == b.observation_id
+
+    def test_rank_is_the_retrieval_position_when_one_is_given(self, repo, business):
+        # `rank` claims, in the schema comment and on screen, to be position in
+        # the retrieved set. It was the order the model happened to cite in:
+        # find 8b4009e5 carries a 0.088 row at rank 0 and its 0.299 row at
+        # rank 4. A judge checks exactly this, so the column now stores what it
+        # says, and citation order is not preserved anywhere — it carries no
+        # claim about retrieval.
+        a = self._observation(repo, business, "first")
+        repo.insert_observation(business, content="second", kind="review",
+                                embedding=DESSERT_ISH, observed_at=_dt(TODAY))
+        b = [r for r in repo.search_observations(business, DESSERT_ISH, limit=2)
+             if r.content == "second"][0]
+
+        find_id = repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=100, confidence=0.5,
+            verify_after=TODAY + timedelta(days=7),
+            # Cited second-then-first, retrieved fourth-then-zeroth.
+            evidence=[EvidenceRef(b.observation_id, 0.91, rank=4),
+                      EvidenceRef(a.observation_id, 0.88, rank=0)],
+        )
+
+        evidence = repo.get_find_evidence(find_id)
+        assert [e.rank for e in evidence] == [0, 4]
+        assert [e.observation_id for e in evidence] == [a.observation_id,
+                                                        b.observation_id]
+
+    def test_the_rejected_alternative_is_stored_with_the_prediction(self, repo, business):
+        # "The bot looked while we were shut" fits find 7c4a9124's evidence
+        # better than "the storefront is broken", and the find recorded no sign
+        # that the question was ever asked. The rival reading is now part of the
+        # row, so a later reader can see what was considered and rejected.
+        obs = self._observation(repo, business)
+        find_id = repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=100, confidence=0.5,
+            verify_after=TODAY + timedelta(days=7),
+            alternative_explanation=(
+                "The page was captured at 08:07 local, before opening. "
+                "Rejected: a 13:40 capture during service says the same."
+            ),
+            evidence=[EvidenceRef(obs.observation_id, 0.9)],
+        )
+
+        context = repo.get_find_context(business, find_id)
+        assert context.alternative_explanation.startswith("The page was captured")
+
+    def test_a_find_with_no_alternative_reads_back_as_none(self, repo, business):
+        # Rules in the prompt, not a gate: a night that produced no alternative
+        # still produces a find, and the column says nothing rather than "".
+        obs = self._observation(repo, business)
+        find_id = repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=100, confidence=0.5,
+            verify_after=TODAY + timedelta(days=7),
+            evidence=[EvidenceRef(obs.observation_id, 0.9)],
+        )
+
+        assert repo.get_find_context(business, find_id).alternative_explanation is None
 
     def test_a_find_cannot_be_stored_without_evidence(self, repo, business):
         # This is the claim the submission rests on: every recommendation is
@@ -571,6 +661,25 @@ class TestBackdating:
 # The ledger
 # ---------------------------------------------------------------------------
 
+def _stored_actuals(repo, business_id):
+    """Read `actual_daily_cents` straight out of whichever store is under test.
+
+    The application reads ledger rows with the snapshot query in
+    workflow_snapshot.py, not through Repository, so there is no interface
+    method to assert against. Growing one for a test's sake would be inventing
+    API; going to the store directly is what these two lines do instead.
+    """
+    ledger = getattr(repo, "_ledger", None)
+    if ledger is not None:
+        return [e.actual_daily_cents for e in ledger if e.business_id == business_id]
+    with repo._conn.cursor() as cur:
+        cur.execute(
+            "SELECT actual_daily_cents FROM ledger_entry WHERE business_id = %s",
+            (business_id,),
+        )
+        return [row[0] for row in cur.fetchall()]
+
+
 class TestLedger:
     def _judged(self, repo, business, verdict, predicted, actual):
         repo.insert_observation(business, content=f"o {uuid.uuid4().hex[:6]}",
@@ -620,6 +729,31 @@ class TestLedger:
         self._judged(repo, business, "verified", 2300, 2500)
         self._judged(repo, business, "miss", 900, 0)
         assert repo.ledger_summary(business).verified_daily_cents == 2500
+
+    def test_an_unmeasured_verdict_round_trips_as_no_actual(self, repo, business):
+        # `actual_daily_cents` was NOT NULL DEFAULT 0, so an estimate could only
+        # be stored as a number — which is how the Meter ended up writing its
+        # own prediction there. Both stores have to keep absence absent.
+        self._judged(repo, business, "estimated", 610, None)
+        assert _stored_actuals(repo, business) == [None]
+
+    def test_a_measured_zero_is_kept_apart_from_no_measurement(self, repo, business):
+        # These are different facts about the owner's money: one move earned
+        # nothing, the other has never been checked.
+        self._judged(repo, business, "miss", 900, 0)
+        self._judged(repo, business, "estimated", 610, None)
+        stored = _stored_actuals(repo, business)
+        assert len(stored) == 2
+        assert 0 in stored
+        assert None in stored
+
+    def test_verified_total_is_unmoved_by_rows_with_no_measurement(
+            self, repo, business):
+        self._judged(repo, business, "verified", 2300, 2500)
+        self._judged(repo, business, "estimated", 4000, None)
+        summary = repo.ledger_summary(business)
+        assert summary.verified_daily_cents == 2500
+        assert summary.estimated_count == 1
 
     def test_a_find_cannot_be_judged_twice_for_one_period(self, repo, business):
         # The ledger must be append-only per measurement window; a second

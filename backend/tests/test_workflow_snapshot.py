@@ -399,3 +399,19 @@ def test_workspace_projects_reopened_cycle_without_counting_archived_maker_work_
     assert workspace["maker"]["ready"] == 0
     assert workspace["maker"]["superseded"] == 1
     assert workspace["maker"]["emailSucceeded"] == 0
+
+
+def test_an_estimated_ledger_row_reports_no_actual():
+    """The Meter stores no `actual_daily_cents` for a verdict it could not
+    measure. `_int(None)` is 0, and a 0 on this screen reads as a measurement
+    that came back empty — a different fact from never having been measured."""
+    data = demo_data()
+    data["finds"][0]["verdict"] = "estimated"
+    data["finds"][0]["actual_daily_cents"] = None
+    data["finds"][0]["measured_at"] = "2026-08-02T06:00:00+00:00"
+
+    first = build_workspace(data)["finds"][0]
+
+    assert first["verdict"] == "estimated"
+    assert first["actualDaily"] is None
+    assert first["actualDailyTxt"] is None

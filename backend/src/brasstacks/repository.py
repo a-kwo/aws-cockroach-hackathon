@@ -71,15 +71,25 @@ class Retrieved:
     rank: int
     observed_at: datetime
     source_name: str | None = None
+    #: The page this came from. Carried through retrieval because without it
+    #: every web observation reaches the Analyst as source_name "web", and three
+    #: fragments of one fetch read as three independent signals.
+    source_url: str | None = None
     subject: str | None = None
 
 
 @dataclass(frozen=True)
 class EvidenceRef:
-    """An observation the Analyst cited, and how close retrieval scored it."""
+    """An observation the Analyst cited, and how close retrieval scored it.
+
+    ``rank`` is the row's position in the merged retrieved set, which is what
+    ``find_evidence.rank`` claims to hold. ``None`` means the caller has no
+    retrieval position to offer and the citation order stands in for it.
+    """
 
     observation_id: str
     similarity: float
+    rank: int | None = None
 
 
 @dataclass(frozen=True)
@@ -169,6 +179,10 @@ class FindContext:
     reopened_at: datetime | None = None
     reopen_reason_code: str | None = None
     reopen_reason_note: str | None = None
+    #: The rival reading of the same evidence the Analyst rejected. NULL for
+    #: every find written before 2026-08-03, and for any night where the model
+    #: skipped the field — absent, not "none considered".
+    alternative_explanation: str | None = None
 
 
 @dataclass(frozen=True)
@@ -322,6 +336,7 @@ class Repository(Protocol):
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = ...,
+        alternative_explanation: str | None = ...,
         status: str = ..., run_id: str | None = ...,
         created_at: datetime | None = ..., decided_at: datetime | None = ...,
     ) -> str: ...
@@ -440,7 +455,7 @@ class Repository(Protocol):
 
     def insert_ledger_entry(
         self, business_id: str, *, find_id: str, verdict: str,
-        predicted_daily_cents: int, actual_daily_cents: int,
+        predicted_daily_cents: int, actual_daily_cents: int | None,
         period_start: date, period_end: date, method: str,
         note: str | None = ..., run_id: str | None = ...,
         measured_at: datetime | None = ...,
@@ -527,6 +542,8 @@ class _Find:
     run_id: str | None = None
     #: One sentence for the card face; the rationale is the full argument.
     summary: str | None = None
+    #: The strongest rival reading of the evidence, and why it was rejected.
+    alternative_explanation: str | None = None
     evidence: list[StoredEvidence] = field(default_factory=list)
 
 
@@ -555,7 +572,10 @@ class _LedgerEntry:
     find_id: str
     verdict: str
     predicted_daily_cents: int
-    actual_daily_cents: int
+    # None where nothing was measured. Mirrors the nullable column: an estimate
+    # has no actual, and storing 0 for one would report an unchecked move as a
+    # move that earned nothing.
+    actual_daily_cents: int | None
     period_start: date
     period_end: date
     method: str
@@ -916,7 +936,8 @@ class InMemoryRepository:
             Retrieved(
                 observation_id=o.observation_id, content=o.content, kind=o.kind,
                 similarity=similarity, rank=rank, observed_at=o.observed_at,
-                source_name=o.source_name, subject=o.subject,
+                source_name=o.source_name, source_url=o.source_url,
+                subject=o.subject,
             )
             for rank, (similarity, o) in enumerate(scored[:limit])
         ]
@@ -1008,6 +1029,7 @@ class InMemoryRepository:
             reopened_at=found.reopened_at,
             reopen_reason_code=found.reopen_reason_code,
             reopen_reason_note=found.reopen_reason_note,
+            alternative_explanation=found.alternative_explanation,
         )
 
     # -- finds -----------------------------------------------------------
@@ -1016,6 +1038,7 @@ class InMemoryRepository:
         emoji: str, predicted_daily_cents: int, confidence: float,
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = None,
+        alternative_explanation: str | None = None,
         status: str = "proposed", run_id: str | None = None,
         created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
@@ -1043,10 +1066,17 @@ class InMemoryRepository:
             created_at=created_at if created_at is not None else self._now(),
             decided_at=decided_at,
             run_id=run_id,
+            alternative_explanation=alternative_explanation,
+            # rank is the row's position in what retrieval returned, not the
+            # order the model happened to cite in. Falling back to the citation
+            # index only covers callers with no retrieval position to give;
+            # citation order itself is deliberately not stored, because it
+            # carries no claim anyone reads it as making.
             evidence=[
                 StoredEvidence(observation_id=ref.observation_id,
-                               similarity=ref.similarity, rank=rank)
-                for rank, ref in enumerate(evidence)
+                               similarity=ref.similarity,
+                               rank=cited if ref.rank is None else int(ref.rank))
+                for cited, ref in enumerate(evidence)
             ],
         )
         return find_id
@@ -1837,7 +1867,7 @@ class InMemoryRepository:
     # -- ledger ----------------------------------------------------------
     def insert_ledger_entry(
         self, business_id: str, *, find_id: str, verdict: str,
-        predicted_daily_cents: int, actual_daily_cents: int,
+        predicted_daily_cents: int, actual_daily_cents: int | None,
         period_start: date, period_end: date, method: str,
         note: str | None = None, run_id: str | None = None,
         measured_at: datetime | None = None,
@@ -1867,7 +1897,12 @@ class InMemoryRepository:
             verified_count=len(verified),
             estimated_count=sum(1 for e in entries if e.verdict == "estimated"),
             miss_count=sum(1 for e in entries if e.verdict == "miss"),
-            verified_daily_cents=sum(e.actual_daily_cents for e in verified),
+            # An unmeasured row contributes nothing, exactly as SQL `sum` skips
+            # NULL. A verified verdict always has a number behind it, so this
+            # only matters if something writes one that does not.
+            verified_daily_cents=sum(
+                e.actual_daily_cents for e in verified
+                if e.actual_daily_cents is not None),
             hit_rate=compute_hit_rate(
                 len(verified), sum(1 for e in entries if e.verdict == "miss")),
         )

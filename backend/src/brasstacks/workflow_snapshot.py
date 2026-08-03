@@ -279,6 +279,10 @@ def _analyst_run_receipt(raw_runs: list[dict[str, Any]]) -> dict[str, Any] | Non
         "rawHits": trace.get("raw_hits") if trace else None,
         "uniqueHits": trace.get("unique_hits") if trace else parse_retrieved_count(run.get("note")),
         "citedHits": trace.get("cited_hits") if trace else None,
+        # None only when the run has no structured receipt at all. A receipt
+        # written before the per-source cap existed reports 0, which is the
+        # truth for it: nothing was dropped because nothing could be.
+        "sourceCapped": trace.get("source_capped") if trace else None,
         "findId": trace.get("find_id") if trace else None,
         "queries": trace.get("queries") if trace else None,
         "perQueryLimit": trace.get("per_query_limit") if trace else None,

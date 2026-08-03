@@ -113,14 +113,28 @@ def validate(observations: list[dict], finds: list[dict]) -> None:
                     f"{find['id']}: has a verdict but status {find['status']!r} is "
                     "not judgeable, so due_finds would never have surfaced it"
                 )
+            verdict = find["ledger"]["verdict"]
+            actual = find["ledger"]["actual_daily_cents"]
+            # An estimate is a verdict reached without a measurement, so there
+            # is no actual to seed. The row here used to carry the prediction
+            # back as the actual — the same thing the Meter was doing in
+            # production, and the reason the column is nullable now.
+            if verdict == "estimated" and actual is not None:
+                problems.append(
+                    f"{find['id']}: labelled an estimate but carries an actual "
+                    f"of {actual} — an estimate has nothing measured behind it"
+                )
             # A verified verdict with zero actual money would be scored a MISS by
             # meter.judge, contradicting the seeded label.
-            if (find["ledger"]["verdict"] == "verified"
-                    and find["ledger"]["actual_daily_cents"] <= 0):
+            if verdict == "verified" and (actual is None or actual <= 0):
                 problems.append(
                     f"{find['id']}: labelled verified but actual is "
-                    f"{find['ledger']['actual_daily_cents']} — the Meter's rules "
-                    "would score that a miss"
+                    f"{actual} — the Meter's rules would score that a miss"
+                )
+            if verdict == "miss" and actual is None:
+                problems.append(
+                    f"{find['id']}: labelled a miss but nothing was measured — "
+                    "a miss is a measured outcome, not an absent one"
                 )
 
     if problems:

@@ -169,6 +169,19 @@ def find_payload(**overrides):
     return base
 
 
+def _blend(embedder, query, *, step):
+    """A vector near *query*'s embedding, one notch further away per step.
+
+    FakeEmbedder is deliberately not semantic, so a test that needs a known
+    retrieval order has to build one. Mixing a growing fraction of an unrelated
+    vector into the query's own embedding walks similarity down a predictable
+    line without any test pinning an exact score.
+    """
+    target, away = embedder.embed([query, "an entirely unrelated sentence"])
+    weight = 0.05 * step
+    return [(1 - weight) * a + weight * b for a, b in zip(target, away)]
+
+
 class TestAnalyst:
     def _corpus(self, repo, business):
         embedder = FakeEmbedder()
@@ -208,7 +221,12 @@ class TestAnalyst:
 
         assert result.find_id
         evidence = repo.get_find_evidence(result.find_id)
-        assert [e.observation_id for e in evidence] == [ids[0], ids[1]]
+        # Both cited rows are stored, and they come back ordered by retrieval
+        # position. This read `== [ids[0], ids[1]]` — the order the model wrote
+        # its citations in — which is exactly the meaning `rank` was carrying
+        # while claiming to be position in the retrieved set.
+        assert {e.observation_id for e in evidence} == {ids[0], ids[1]}
+        assert [e.rank for e in evidence] == sorted(e.rank for e in evidence)
 
     def test_evidence_carries_the_retrieval_similarity(self, repo, business):
         # find_evidence.similarity must be the real retrieval score, not a
@@ -354,6 +372,259 @@ class TestAnalyst:
         assert "do not repeat" in prompt.lower()
         assert "Tiramisu → $9" in prompt
 
+    def test_the_prompt_says_where_and_when_each_row_came_from(self, repo, business):
+        # Every one of the 124 stored web observations reached the model as
+        # source_name "web", with the time truncated to a date. So three
+        # fragments of one Grubhub fetch, sharing a URL and an observed_at to
+        # the microsecond, presented as three independent signals — and find
+        # 7c4a9124 counted them as three.
+        embedder = FakeEmbedder()
+        [vector] = embedder.embed(["menu unavailable"])
+        repo.insert_observation(
+            business, content="This menu is not available right now",
+            kind="trend", embedding=vector, observed_at=NOW, source_name="web",
+            source_url="https://www.grubhub.com/restaurant/rosas/2033337")
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=embedder, reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        prompt = reasoner.calls[0]["user"]
+        assert "grubhub.com" in prompt
+        assert "2026-07-28T02:00:00Z" in prompt
+
+    def test_a_row_with_no_url_falls_back_to_the_source_that_stored_it(self, repo, business):
+        # Yelp rows and owner uploads have a source but no URL. Showing nothing
+        # for them would be a second kind of blindness.
+        embedder = FakeEmbedder()
+        [vector] = embedder.embed(["a slow saturday"])
+        repo.insert_observation(
+            business, content="waited an hour on Saturday", kind="review",
+            embedding=vector, observed_at=NOW, source_name="yelp_fusion")
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=embedder, reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        assert "yelp_fusion" in reasoner.calls[0]["user"]
+
+    def test_one_page_cannot_take_over_the_prompt(self, repo, business):
+        # Four of the five rows find 7c4a9124 cited were one storefront on one
+        # platform. The cap runs after ranking, so the strongest two fragments
+        # of a page survive and the rest make room for a different source.
+        embedder = FakeEmbedder()
+        storefront = "https://www.grubhub.com/restaurant/rosas/2033337"
+        ids = [
+            repo.insert_observation(
+                business, content=f"storefront fragment {index}", kind="trend",
+                embedding=_blend(embedder, ANALYST_QUERIES[0], step=index),
+                observed_at=NOW, source_name="web", source_url=storefront)
+            for index in range(3)
+        ]
+        elsewhere = repo.insert_observation(
+            business, content="a rival raised its lunch price", kind="rival_price",
+            embedding=_blend(embedder, ANALYST_QUERIES[0], step=5),
+            observed_at=NOW, source_name="web",
+            source_url="https://www.yelp.com/biz/luccas")
+        reasoner = FakeReasoner([find_payload()])
+
+        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                             business_id=business, today=TODAY)
+
+        prompt = reasoner.calls[0]["user"]
+        assert ids[0] in prompt and ids[1] in prompt
+        assert ids[2] not in prompt
+        assert elsewhere in prompt
+        assert result.retrieved == 3
+
+    def test_the_mirror_of_a_storefront_counts_against_the_same_cap(self, repo, business):
+        # seamless.com/menu/…/2033337 is grubhub.com/restaurant/…/2033337. Two
+        # rows from the pair are two rows from one storefront.
+        embedder = FakeEmbedder()
+        first = repo.insert_observation(
+            business, content="grubhub says the menu is unavailable", kind="trend",
+            embedding=_blend(embedder, ANALYST_QUERIES[0], step=0),
+            observed_at=NOW, source_name="web",
+            source_url="https://www.grubhub.com/restaurant/rosas/2033337")
+        second = repo.insert_observation(
+            business, content="seamless shows the same closed menu", kind="trend",
+            embedding=_blend(embedder, ANALYST_QUERIES[0], step=1),
+            observed_at=NOW, source_name="web",
+            source_url="https://www.seamless.com/menu/rosas/2033337")
+        third = repo.insert_observation(
+            business, content="seamless lists no delivery window", kind="trend",
+            embedding=_blend(embedder, ANALYST_QUERIES[0], step=2),
+            observed_at=NOW, source_name="web",
+            source_url="https://www.seamless.com/menu/rosas/2033337?tab=hours")
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        prompt = reasoner.calls[0]["user"]
+        assert first in prompt and second in prompt
+        assert third not in prompt
+
+    def test_the_receipt_counts_what_the_source_cap_removed(self, repo, business):
+        # The receipt is the honest half of the cap: a row that never reached
+        # the model must be visible as removed, not quietly absent.
+        from brasstacks.analyst_trace import parse_analyst_trace
+
+        embedder = FakeEmbedder()
+        storefront = "https://www.grubhub.com/restaurant/rosas/2033337"
+        for index in range(4):
+            repo.insert_observation(
+                business, content=f"storefront fragment {index}", kind="trend",
+                embedding=_blend(embedder, ANALYST_QUERIES[0], step=index),
+                observed_at=NOW, source_name="web", source_url=storefront)
+        reasoner = FakeReasoner([find_payload()])
+
+        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                             business_id=business, today=TODAY)
+
+        [run] = repo.recent_runs(business, limit=1)
+        trace = parse_analyst_trace(run.note)
+        assert trace["source_capped"] == 2
+        assert trace["unique_hits"] == 2 == result.retrieved
+
+    def test_a_corpus_with_no_urls_is_never_capped(self, repo, business):
+        # The live seeded rows carry no URL. If a missing URL grouped them, the
+        # cap would delete most of memory on the way to the prompt — this stage
+        # must not suppress a find.
+        from brasstacks.analyst_trace import parse_analyst_trace
+
+        ids = self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload()])
+
+        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                             business_id=business, today=TODAY)
+
+        [run] = repo.recent_runs(business, limit=1)
+        assert parse_analyst_trace(run.note)["source_capped"] == 0
+        assert result.retrieved == len(ids)
+
+    def test_stored_rank_is_the_retrieval_position_not_the_citation_order(
+        self, repo, business
+    ):
+        # find_evidence.rank claimed to be retrieval position and stored the
+        # order the model happened to write its citations in — find 8b4009e5
+        # has a 0.088 row at rank 0 and its 0.299 row at rank 4.
+        embedder = FakeEmbedder()
+        ids = [
+            repo.insert_observation(
+                business, content=f"row {index}", kind="review",
+                embedding=_blend(embedder, ANALYST_QUERIES[0], step=index),
+                observed_at=NOW)
+            for index in range(3)
+        ]
+        # Cited weakest first, which is what the model did.
+        reasoner = FakeReasoner([
+            find_payload(evidence_observation_ids=[ids[2], ids[0]])])
+
+        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                             business_id=business, today=TODAY)
+
+        evidence = repo.get_find_evidence(result.find_id)
+        assert [e.observation_id for e in evidence] == [ids[0], ids[2]]
+        assert [e.rank for e in evidence] == [0, 2]
+
+    def test_no_outage_claim_without_the_local_time_and_the_open_question(
+        self, repo, business
+    ):
+        # The root cause of find 7c4a9124, one level up from the schedule: the
+        # model was handed UTC stamps, no hours and no timezone, and read a
+        # storefront captured at 08:07 local — an hour before opening — as
+        # broken. It cannot check what it was never given.
+        self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        system = reasoner.calls[0]["system"]
+        assert "unavailable" in system and "broken" in system
+        assert "whether the business was open at that instant" in system
+        assert "do not make the claim" in system
+
+        prompt = reasoner.calls[0]["user"]
+        # The two things the check needs, and the honest note that neither is a
+        # stored field: hours live in owner facts and in the rows, and no
+        # business row carries a timezone.
+        assert "UTC" in prompt
+        assert "Columbus" in prompt                  # the only timezone clue there is
+        assert "Opening hours are not a stored field" in prompt
+
+    def test_the_prompt_forbids_calling_one_page_several_sources(self, repo, business):
+        # Find 7c4a9124 cited four rows that were one storefront — three
+        # fragments of a single fetch plus the same store on Seamless — and its
+        # rationale called them corroborating platforms.
+        self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        system = reasoner.calls[0]["system"]
+        assert "one document read once" in system
+        assert "independent confirmation" in system
+
+    def test_the_prompt_forbids_a_specific_the_find_does_not_cite(self, repo, business):
+        # A dish, a price or an opening hour taken from a retrieved row the
+        # find does not cite is untraceable: find_evidence is the receipt, and
+        # a detail outside it cannot be checked by anyone.
+        self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        system = reasoner.calls[0]["system"]
+        assert "must be carried by an observation you cite" in system
+
+    def test_the_lead_find_must_name_the_alternative_it_rejects(self, repo, business):
+        from brasstacks.agents.analyst import FIND_SCHEMA
+
+        self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload()])
+
+        run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                    business_id=business, today=TODAY)
+
+        system = reasoner.calls[0]["system"]
+        assert "alternative_explanation" in system
+        assert "strongest rival reading" in system
+        assert "alternative_explanation" in FIND_SCHEMA["properties"]
+        assert "alternative_explanation" in FIND_SCHEMA["required"]
+
+    def test_the_alternative_the_model_wrote_is_stored_on_the_find(self, repo, business):
+        ids = self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload(
+            evidence_observation_ids=[ids[0]],
+            alternative_explanation=(
+                "The shop was shut when the page was fetched. Rejected: the "
+                "same message appears in a 13:40 capture during service."
+            ))])
+
+        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                             business_id=business, today=TODAY)
+
+        context = repo.get_find_context(business, result.find_id)
+        assert context.alternative_explanation.startswith("The shop was shut")
+
+    def test_a_night_without_an_alternative_still_produces_its_finds(self, repo, business):
+        # This stage adds rules to the prompt and a column, not a gate. The
+        # gates as originally designed withheld 9 of 9 finds, so a model that
+        # ignores the field must still leave the owner with a deck.
+        ids = self._corpus(repo, business)
+        reasoner = FakeReasoner([find_payload(evidence_observation_ids=[ids[0]])])
+
+        result = run_analyst(repo=repo, embedder=FakeEmbedder(), reasoner=reasoner,
+                             business_id=business, today=TODAY)
+
+        assert result.find_id is not None
+        assert repo.count_finds(business) == 1
+        assert repo.get_find_context(business, result.find_id).alternative_explanation is None
+
     def test_a_find_defaults_to_proposed_awaiting_the_owner(self, repo, business):
         # The owner holds the leash: a fresh find is a proposal, not a decision.
         ids = self._corpus(repo, business)
@@ -458,6 +729,82 @@ class TestMeter:
 
         entries = repo._ledger  # in-memory introspection is fine in a unit test
         assert entries[0].predicted_daily_cents == 2300
+
+    def test_an_estimated_verdict_stores_no_actual(self, repo, business):
+        # The defect this class of test exists for: `NoOutcomeSource` returned
+        # the prediction as the outcome, and the Meter wrote it into a column
+        # called `actual`. The first find to come due would have had its own
+        # forecast reported back to the owner as a measurement. Nothing
+        # measured means nothing stored.
+        self._live_find(repo, business, predicted=2300)
+
+        run_meter(repo=repo, outcomes=NoOutcomeSource(), business_id=business,
+                  today=TODAY)
+
+        [entry] = repo._ledger
+        assert entry.verdict == "estimated"
+        assert entry.actual_daily_cents is None
+        assert entry.predicted_daily_cents == 2300
+
+    def test_a_verified_verdict_stores_the_measured_actual(self, repo, business):
+        find_id = self._live_find(repo, business, predicted=2300)
+        outcomes = RecordedOutcomeSource({
+            find_id: Outcome(actual_daily_cents=2500, has_outcome_data=True,
+                             method="owner-reported item sales")})
+
+        run_meter(repo=repo, outcomes=outcomes, business_id=business, today=TODAY)
+
+        [entry] = repo._ledger
+        assert entry.actual_daily_cents == 2500
+
+    def test_a_miss_keeps_the_prediction_and_records_the_real_zero(
+            self, repo, business):
+        # A measured zero is a fact, not an absence. Blanking it would make a
+        # published miss indistinguishable from a find nobody has checked.
+        find_id = self._live_find(repo, business, predicted=1200)
+        outcomes = RecordedOutcomeSource({
+            find_id: Outcome(actual_daily_cents=0, has_outcome_data=True,
+                             method="owner-reported item sales")})
+
+        run_meter(repo=repo, outcomes=outcomes, business_id=business, today=TODAY)
+
+        [entry] = repo._ledger
+        assert entry.verdict == "miss"
+        assert entry.predicted_daily_cents == 1200
+        assert entry.actual_daily_cents == 0
+
+    def test_a_find_with_no_recorded_outcome_stores_no_actual(self, repo, business):
+        # The realistic case once one owner has reported sales and another has
+        # not: the unreported find falls through to an estimate and must not
+        # pick up a number on the way.
+        self._live_find(repo, business, predicted=2300)
+
+        run_meter(repo=repo, outcomes=RecordedOutcomeSource({}),
+                  business_id=business, today=TODAY)
+
+        [entry] = repo._ledger
+        assert entry.verdict == "estimated"
+        assert entry.actual_daily_cents is None
+
+    def test_a_source_that_disclaims_its_number_cannot_smuggle_it_into_actual(
+            self, repo, business):
+        # Mirrors the judge's rule that has_outcome_data=False beats a supplied
+        # figure. The write has to obey it too, or the ledger records a number
+        # the verdict says does not exist.
+        find_id = self._live_find(repo, business, predicted=2300)
+
+        class Overconfident:
+            def measure(self, find, *, business_id):
+                return Outcome(actual_daily_cents=9999, has_outcome_data=False,
+                               method="guessed")
+
+        run_meter(repo=repo, outcomes=Overconfident(), business_id=business,
+                  today=TODAY)
+
+        [entry] = repo._ledger
+        assert entry.find_id == find_id
+        assert entry.verdict == "estimated"
+        assert entry.actual_daily_cents is None
 
     def test_one_unmeasurable_find_does_not_abort_the_others(self, repo, business):
         good = self._live_find(repo, business, predicted=2300)

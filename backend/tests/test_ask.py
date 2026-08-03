@@ -476,6 +476,24 @@ class TestAskSystemPrompt:
         assert "INTEGER CENTS" in prompt
         assert "verified" in prompt
 
+    def test_says_a_null_actual_is_not_a_measured_zero(self):
+        # ledger_entry.actual_daily_cents is NULL wherever nothing was measured.
+        # A model reading that column with SUM or coalesce would answer "$0
+        # earned" — the exact claim the nullable column exists to prevent — so
+        # the prompt states the distinction rather than hoping it is inferred.
+        prompt = ask_system_prompt(cluster_id=self.CLUSTER)
+
+        assert "actual_daily_cents" in prompt
+        assert "NULL" in prompt
+
+    def test_the_schema_names_the_column_holding_the_rejected_alternative(self):
+        # "Why did you think that?" is an owner question, and the answer to it
+        # now has a column. A schema hint that omits the column means the model
+        # never selects it and answers from the rationale alone.
+        prompt = ask_system_prompt(cluster_id=self.CLUSTER)
+
+        assert "alternative_explanation" in prompt
+
     def test_falls_back_cleanly_when_the_cluster_is_unknown(self):
         # Without a configured id it must still work — just slower, by
         # discovering the cluster itself.

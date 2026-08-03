@@ -3658,19 +3658,10 @@
       font-size:clamp(54px,7vw,78px);
       line-height:.9;
     }
-    body.growth-mode .growth-total::after {
-      content:"approved impact";
-      display:inline-flex;
-      align-items:center;
-      min-height:30px;
-      margin-top:18px;
-      padding:0 11px;
-      border-radius:999px;
-      background:#e8f7f1;
-      color:#0c8e68;
-      font-size:10px;
-      font-weight:760;
-    }
+    /* The badge that used to live here read "approved impact" in the verified
+       green. Impact is what the Meter measures; this number is a prediction.
+       Its replacement is a real element, .growth-total-tag, so the copy is in
+       the markup where it can be read and tested. */
     body.growth-mode .growth-counts {
       gap:8px;
     }
@@ -13340,6 +13331,72 @@
       .reconsider-button { width: 100%; }
     }
   </style>
+
+  <style id="forecast-not-earned-v31">
+    /* Every figure on the Growth board is a sum of `predicted_daily_cents`, so
+       none of them may wear the green this product uses for verified money. The
+       ink is #4a58d6 and the dashes are the chart's projected mark language —
+       the same treatment as the single dashed month, chosen so an owner who has
+       learned that dashed indigo means "not measured yet" over there reads it
+       the same way here.
+
+       Every colour here carries !important, and that is not tidiness. This
+       block was written last in the head on the reasoning that later wins. It
+       does not: four earlier blocks set the verified green with !important on
+       these exact elements, and !important outranks source order however far
+       down the file a rule sits. The board went on rendering projected money in
+       the colour reserved for money the Meter has verified, while the test
+       covering the fix passed — it asserted the declaration was in the file,
+       not that it won. */
+    .growth-total.forecast strong,
+    body.growth-mode .growth-total.forecast strong,
+    body.growth-mode .growth-slide-summary .growth-total.forecast strong {
+      background: none !important;
+      -webkit-background-clip: border-box !important;
+      background-clip: border-box !important;
+      color: #4a58d6 !important;
+      filter: none !important;
+    }
+
+    .growth-total.forecast > span,
+    body.growth-mode .growth-slide-summary .growth-total.forecast > span {
+      color: #5f6875 !important;
+    }
+
+    .growth-total-tag,
+    body.growth-mode .growth-slide-summary .growth-total .growth-total-tag {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      margin: 14px 0 0;
+      padding: 5px 11px;
+      border: 1px dashed #5567e8;
+      border-radius: 999px;
+      background: rgba(85, 103, 232, .07);
+      color: #4a58d6 !important;
+      font-size: 10px;
+      font-weight: 780;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .growth-total.forecast p:not(.growth-total-tag),
+    body.growth-mode .growth-slide-summary .growth-total.forecast p:not(.growth-total-tag) {
+      max-width: 42ch;
+      margin: 12px 0 0;
+      color: #6b7481 !important;
+      font-size: 12.5px;
+      font-weight: 620;
+      line-height: 1.45;
+    }
+
+    /* The rows under the total are the same forecast, itemised. */
+    .decision-row-value.forecast,
+    body.growth-mode .decision-row-value.forecast:not(.rejected) {
+      color: #4a58d6 !important;
+      border-bottom: 1.5px dashed rgba(85, 103, 232, .5);
+    }
+  </style>
 </head>
 <body>
   <main class="app" id="app">
@@ -13429,12 +13486,22 @@
           <section class="growth-carousel" aria-label="Growth highlights" data-enter>
             <div class="growth-swipe" id="growthSwipe">
               <div class="growth-swipe-track" id="growthSwipeTrack">
-                <article class="growth-slide growth-slide-summary" aria-label="This month">
+                <!--
+                  This figure is a forecast and nothing else: it is the sum of
+                  `predicted_daily_cents` over the moves the owner approved, and
+                  it moves the instant they press Do it. It used to be captioned
+                  "Added by the moves you approved" in the verified green, above
+                  a list headed "Your wins", on a board whose ledger held zero
+                  rows. Everything here — label, tag, colour, copy — exists to
+                  keep it apart from the money the Meter has actually verified.
+                -->
+                <article class="growth-slide growth-slide-summary" aria-label="Forecast from approved moves">
                   <div class="growth-overview">
-                    <div class="growth-total">
-                      <span>This month</span>
-                      <strong id="approvedAmount">+$0</strong>
-                      <p>Added by the moves you approved</p>
+                    <div class="growth-total forecast">
+                      <span>Forecast · not earned</span>
+                      <strong id="approvedAmount">$0</strong>
+                      <p class="growth-total-tag">Projected · not measured</p>
+                      <p>Predicted monthly value of the moves you approved. Only a verified verdict on the Ledger is money you have earned.</p>
                     </div>
                     <div class="growth-counts" hidden aria-hidden="true">
                       <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
@@ -13460,7 +13527,7 @@
                 </article>
               </div>
               <div class="growth-swipe-arrows">
-                <button class="growth-swipe-arrow" type="button" data-growth-nav="-1" aria-label="Show this month" disabled>
+                <button class="growth-swipe-arrow" type="button" data-growth-nav="-1" aria-label="Show the forecast" disabled>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
                 </button>
                 <button class="growth-swipe-arrow" type="button" data-growth-nav="1" aria-label="Show your progress chart">
@@ -13469,7 +13536,7 @@
               </div>
             </div>
             <nav class="growth-swipe-nav" aria-label="Growth cards">
-              <button class="growth-swipe-dot active" type="button" data-growth-slide="0" aria-label="Show this month"></button>
+              <button class="growth-swipe-dot active" type="button" data-growth-slide="0" aria-label="Show the forecast"></button>
               <button class="growth-swipe-dot" type="button" data-growth-slide="1" aria-label="Show your progress"></button>
             </nav>
           </section>
@@ -13478,8 +13545,8 @@
             <article class="list-panel approved-panel">
               <header class="list-panel-header">
                 <div class="list-panel-title">
-                  <h2>Your wins</h2>
-                  <p>Approved moves</p>
+                  <h2>Approved moves</h2>
+                  <p>Projected · not yet measured</p>
                 </div>
                 <span class="list-count" id="approvedListCount">0</span>
               </header>
@@ -14655,6 +14722,14 @@
 
     function formatMoney(value) {
       return `+$${value.toLocaleString("en-US")}`;
+    }
+
+    // Same number, no plus sign. The `+` in formatMoney reads as money that
+    // arrived, and every figure derived from `predicted_daily_cents` is a
+    // forecast the Meter has not judged — so the Growth board renders those
+    // through here instead.
+    function projectedMoney(value) {
+      return `$${Number(value || 0).toLocaleString("en-US")}`;
     }
 
     // One canonical action list is rendered on every viewport. Desktop and
@@ -16393,7 +16468,7 @@
 
     function renderGrowth() {
       if (onboardingMode) {
-        document.getElementById("approvedAmount").textContent = "+$0";
+        document.getElementById("approvedAmount").textContent = projectedMoney(0);
         ["approvedCount", "rejectedCount", "remainingCount", "approvedListCount", "rejectedListCount"].forEach(id => {
           const node = document.getElementById(id);
           if (node) node.textContent = "0";
@@ -16408,9 +16483,12 @@
       const approved = getApprovedPosts();
       const rejected = getRejectedPosts();
       const pending = getPendingPosts();
-      const approvedTotal = approved.reduce((sum, post) => sum + post.amount, 0);
+      // Named for what it is. `approvedTotal` beside a green `+$690` was read,
+      // reasonably, as a total the business had taken in; it is a sum of
+      // predictions and never touches the ledger-backed summary.
+      const forecastTotal = approved.reduce((sum, post) => sum + post.amount, 0);
 
-      document.getElementById("approvedAmount").textContent = formatMoney(approvedTotal);
+      document.getElementById("approvedAmount").textContent = projectedMoney(forecastTotal);
       document.getElementById("approvedCount").textContent = approved.length;
       document.getElementById("rejectedCount").textContent = rejected.length;
       document.getElementById("remainingCount").textContent = pending.length;
@@ -17410,7 +17488,7 @@
             <li><i>4</i><span><b>${escapeHtml(uniqueValue)}</b><small>unique context sent</small></span></li>
             <li><i>5</i><span><b>${escapeHtml(cited == null ? "—" : String(cited))}</b><small>evidence rows saved</small></span></li>
           </ol>
-          <p class="analyst-memory-note"><strong>These are CockroachDB memory searches, not six internet searches.</strong> Radar made ${escapeHtml(searchable.toLocaleString("en-US"))} signals searchable for this owner. Analyst embeds each question, retrieves up to ${escapeHtml(String(config.perQueryLimit || 0))} matches per question, removes duplicate observations, sends only the compact unique context to the model, and stores the final citations with the recommendation.</p>
+          <p class="analyst-memory-note"><strong>These are CockroachDB memory searches, not six internet searches.</strong> Radar made ${escapeHtml(searchable.toLocaleString("en-US"))} signals searchable for this owner. Analyst embeds each question, retrieves up to ${escapeHtml(String(config.perQueryLimit || 0))} matches per question, removes duplicate observations, keeps at most two rows from any one source so a single page cannot fill the prompt, sends only the compact unique context to the model, and stores the final citations with the recommendation.</p>
         </div>`;
     }
 
@@ -18480,8 +18558,12 @@ LIMIT 6`,
                constants rather than a count.`,
               `The union is deduplicated by observation, each kept at its <b>highest</b>
                similarity across the six queries.`,
+              `At most <b>two rows per source</b>, applied after ranking — three fragments
+               of one page fetch are one signal, and a mirrored storefront
+               (seamless.com is grubhub.com) counts against the same source.`,
               `Re-ranked over the merged set, so rank means position in what the Analyst
-               saw, not position within one query.`,
+               saw, not position within one query — and that is the number stored in
+               <code>find_evidence.rank</code>.`,
               `The model may only cite ids that were actually retrieved; anything else is
                rejected before the find is written.`,
             ],
@@ -18493,7 +18575,7 @@ LIMIT 6`,
               ["Owner rules", "The constraints it must respect, with any spend cap."],
               ["Recent finds", "The last 20, as <b>do not repeat any of these</b>."],
               ["Competitors", "Context only — explicitly not citable, because they are not stored observations."],
-              ["Retrieved rows", "Each as <code>id=… [kind, date, similarity 0.74] content</code>."],
+              ["Retrieved rows", "Each as <code>id=… [kind, grubhub.com, 2026-08-02T09:14:07Z, similarity 0.74] content</code> — the source and the time to the second, so rows from one page fetch cannot read as separate signals."],
             ],
           },
           {
@@ -19142,14 +19224,22 @@ ledger_entry · artifact · agent_run`,
       return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
     }
     function renderDecisionRow(post, status) {
+      // The row's figure is the find's prediction, so it says so twice: in the
+      // dashed forecast treatment a sighted owner sees, and in the label a
+      // screen reader reads, which otherwise announced a bare "+$690 a month".
+      const projected = status === "approved";
+      const value = projected ? `${projectedMoney(post.amount)}/mo` : "Not pursued";
+      const spoken = projected
+        ? `${value}, projected, not yet measured`
+        : value;
       return `
-        <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}.">
+        <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}. ${spoken}.">
           <span class="decision-row-icon" aria-hidden="true">${icons[post.featureKey]}</span>
           <span class="decision-row-copy">
             <strong>${post.title}</strong>
             <span>${post.recommendation}</span>
           </span>
-          <span class="decision-row-value ${status === "rejected" ? "rejected" : ""}">${status === "approved" ? `${formatMoney(post.amount)}/mo` : "Not pursued"}</span>
+          <span class="decision-row-value ${projected ? "forecast" : status === "rejected" ? "rejected" : ""}" aria-hidden="true">${value}</span>
         </button>
       `;
     }

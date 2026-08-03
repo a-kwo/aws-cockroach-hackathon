@@ -30,15 +30,26 @@ Parameters:
 
   ScheduleExpression:
     Type: String
-    Default: cron(0 6 * * ? *)
+    Default: cron(0 18 * * ? *)
     Description: >
-      The 6 AM Radar. This is what makes the loop autonomous rather than a
-      button, which is the claim the whole product rests on.
+      6 PM local — dinner service, not dawn. This was cron(0 6 * * ? *) until
+      2026-08-03, and the consequence is in the data: the only three sweeps
+      that ever ran fired at 06:28, 08:07 and 08:40 local, so every observation
+      in the corpus was captured while its tenant was closed. Radar read shut
+      storefronts, "not available right now" reached the Analyst as an outage,
+      and a find was published on it. 18:00 is inside trading hours for a
+      restaurant, a shop and a salon alike, and the owner still wakes up to
+      finished work — the run costs single-digit minutes and everything after
+      it is asleep. Not later than 18:00: a 900-second night starting at 18:00
+      EST ends at 23:15 UTC, and pushing it past the UTC midnight boundary
+      would date tonight's observations tomorrow.
 
   ScheduleTimezone:
     Type: String
     Default: America/New_York
-    Description: The owner's timezone — 6 AM should mean her morning.
+    Description: >
+      The owner's timezone. The hour above is chosen against local trading
+      hours, so it is meaningless without this.
 
   ScheduleState:
     Type: String
@@ -47,8 +58,8 @@ Parameters:
     Description: >
       Whether the nightly run actually fires. Defaults to DISABLED because the
       schedule spends money on embeddings and reasoning every night, and a
-      deploy that silently switched it on would be discovered at 6 AM. Turning
-      the autopilot on is a deliberate act: deploy with
+      deploy that silently switched it on would be discovered the next morning.
+      Turning the autopilot on is a deliberate act: deploy with
       ScheduleState=ENABLED, or flip it in the console.
 
   MakerSweepExpression:
@@ -939,7 +950,7 @@ Outputs:
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/profile
 
   NightFunctionName:
-    Description: Invoke manually to prove a night end to end before waiting for 6 AM.
+    Description: Invoke manually to prove a night end to end before the scheduled sweep.
     Value: !Ref NightFunction
 
   MakerFunctionName:

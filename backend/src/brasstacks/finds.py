@@ -67,8 +67,16 @@ class ParsedFind:
     predicted_daily_cents: int
     confidence: float
     verify_after: date
-    #: Retrieval order preserved — `find_evidence.rank` depends on it.
+    #: The ids the model chose to cite, in the order it wrote them. That order
+    #: is not stored: `find_evidence.rank` is the row's position in what
+    #: retrieval returned, looked up per id by the Analyst.
     evidence_observation_ids: tuple[str, ...]
+    #: The strongest rival reading of the same evidence, and why it was
+    #: rejected. Optional rather than required: this is a prompt rule, not a
+    #: gate, and losing a whole night's deck because a model skipped a field
+    #: would trade a real deck for a procedural one. Absent means the model
+    #: said nothing, which is not the same as having no alternative.
+    alternative_explanation: str | None = None
 
 
 def repair_escapes(text: str) -> str:
@@ -164,6 +172,19 @@ def _summary(payload: Mapping[str, Any], rationale: str) -> str:
             text += "."
 
     return owner_card_summary(text)
+
+
+def _optional_text(payload: Mapping[str, Any], field: str) -> str | None:
+    """A field the ledger can live without, cleaned the same way as the rest.
+
+    Blank collapses to absence: an empty string in the column would read as
+    "the model considered the alternative and had nothing to say", which is a
+    claim, and a stronger one than the model made.
+    """
+    value = payload.get(field)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return repair_escapes(value.strip())
 
 
 def _require_cents(payload: Mapping[str, Any]) -> int:
@@ -285,4 +306,5 @@ def parse_find(
         confidence=_require_confidence(payload),
         verify_after=_require_verify_after(payload, today),
         evidence_observation_ids=_require_evidence(payload, known_observation_ids),
+        alternative_explanation=_optional_text(payload, "alternative_explanation"),
     )

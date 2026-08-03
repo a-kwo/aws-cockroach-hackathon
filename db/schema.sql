@@ -189,6 +189,13 @@ CREATE TABLE IF NOT EXISTS find (
   summary               STRING,
   rationale             STRING NOT NULL,     -- why the agent believes it
   move                  STRING,              -- what we will actually do
+  -- The strongest rival reading of the same evidence, and why the Analyst
+  -- rejected it. Find 7c4a9124 called a Grubhub storefront broken on three
+  -- fragments of one page fetched at 08:07, an hour before the restaurant
+  -- opened; "the bot looked while we were shut" fits that evidence better and
+  -- was never written down. NULL on every find older than 2026-08-03, and on
+  -- any night the model skipped the field — absent, not "none considered".
+  alternative_explanation STRING,
 
   -- The prediction. This is what makes the Meter possible.
   predicted_daily_cents BIGINT NOT NULL,
@@ -215,7 +222,13 @@ CREATE TABLE IF NOT EXISTS find_evidence (
   find_id        UUID NOT NULL REFERENCES find(id) ON DELETE CASCADE,
   observation_id UUID NOT NULL REFERENCES observation(id) ON DELETE CASCADE,
   similarity     FLOAT NOT NULL,             -- 1 - cosine_distance, at query time
-  rank           INT NOT NULL,               -- position in the retrieved set
+  -- 0-based position in the merged, source-capped set the Analyst was shown.
+  -- It held the order the model happened to cite in until 2026-08-03, which put
+  -- a 0.088 row at rank 0 of find 8b4009e5 while its 0.299 row sat at rank 4 —
+  -- and retrieval position is the claim the schema, the UI and a judge read it
+  -- as making. Rows are therefore neither contiguous nor complete: a find that
+  -- cites the 1st and 6th rows stores 0 and 5. Citation order is not kept.
+  rank           INT NOT NULL,
 
   PRIMARY KEY (find_id, observation_id)
 );
@@ -253,7 +266,10 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
   -- Snapshot of what we predicted, so the ledger stays honest even if the find
   -- is later edited. A miss must remain a miss.
   predicted_daily_cents BIGINT NOT NULL,
-  actual_daily_cents    BIGINT NOT NULL DEFAULT 0,
+  -- NULL where nothing was measured. A measured 0 means the move earned
+  -- nothing; NULL means nobody has checked. Collapsing the two is how a
+  -- forecast gets reported back as a result — see the migration at the bottom.
+  actual_daily_cents    BIGINT,
 
   measured_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   period_start          DATE NOT NULL,
@@ -500,5 +516,20 @@ ALTER TABLE owner_account ADD COLUMN IF NOT EXISTS is_admin BOOL NOT NULL DEFAUL
 -- spend control as much as a lifecycle flag. Defaults to active: a business
 -- that just signed up wants a night.
 ALTER TABLE business ADD COLUMN IF NOT EXISTS status STRING NOT NULL DEFAULT 'active';
+
+-- The ledger's actual column was NOT NULL DEFAULT 0, so an estimated verdict
+-- had to store *some* number — and the Meter stored the prediction, which put
+-- the agent's own forecast in a column the owner reads as measured. The column
+-- has to be able to say nothing. Dropping the default as well as the
+-- constraint: a default of 0 would silently reinstate the same lie, because 0
+-- is the measurable outcome of a move that flopped.
+ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP NOT NULL;
+ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP DEFAULT;
+
+-- The rival reading the Analyst rejected, stored beside the prediction it
+-- survived. Also in decision_schema.py's request-time bootstrap, because the
+-- night now names this column in every INSERT INTO find: a cluster without it
+-- would store no finds at all until someone ran this file.
+ALTER TABLE find ADD COLUMN IF NOT EXISTS alternative_explanation STRING;
 
 COMMIT;

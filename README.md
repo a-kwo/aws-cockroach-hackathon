@@ -101,6 +101,7 @@ backend/src/brasstacks/
   agents/radar.py    observe -> embed -> dedup -> store
   agents/analyst.py  retrieve -> reason -> a validated find with its evidence
   analyst_trace.py   structured query/retrieval/token receipt in agent_run.note
+  provenance.py      which retrieved rows are one page or one storefront
   agents/maker.py    create one owner-ready draft after an atomic task claim
   agents/meter.py    read prior predictions -> judge -> the ledger
   agents/ask.py      answer the owner by querying the cluster over MCP
@@ -214,7 +215,9 @@ Memory Engine keeps the competition evidence above the fold for the selected own
 
 1. **Persistent memory** — the number of owner-scoped observations searchable in CockroachDB.
 2. **Candidate retrieval** — six concrete vector questions, each with a bounded result set.
-3. **Model context** — the deduplicated rows that actually enter the Analyst prompt.
+3. **Model context** — the deduplicated rows that actually enter the Analyst prompt, at
+   most two from any one source so a single long page cannot fill it. Each row carries its
+   host and the time it was observed, to the second.
 4. **Cited evidence** — the smaller set persisted with the recommendation for auditability.
 5. **Actual model usage** — provider-reported input and output tokens stored on the linked
    `agent_run` row.

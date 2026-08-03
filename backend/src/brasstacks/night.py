@@ -73,6 +73,7 @@ def run_night(
     scout: Any | None = None,
     accept_proposals: bool = False,
     model_id: str | None = None,
+    now: datetime | None = None,
 ) -> NightResult:
     """Run the agents in order: observe, reason, do, measure.
 
@@ -86,7 +87,15 @@ def run_night(
     Maker is skipped rather than failing the night.
     """
     business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
-    now = datetime.combine(today, time(hour=2), tzinfo=timezone.utc)
+    # 02:00 UTC is the local harness stepping a simulated calendar, and it is
+    # wrong for a real sweep. A signal that carries no time of its own is
+    # stamped with this, and the Analyst is now told to convert a capture time
+    # to local before reading anything as an outage — so a real 18:00 sweep
+    # stamped 02:00 UTC reads as the previous evening, after closing, and the
+    # model would rightly refuse the claim or assert the shop was shut. The
+    # deployed handler passes the real instant; `today` keeps driving the
+    # simulated nights.
+    now = now or datetime.combine(today, time(hour=2), tzinfo=timezone.utc)
 
     radar = run_radar(
         repo=repo, embedder=embedder, business_id=business_id, sources=sources,
