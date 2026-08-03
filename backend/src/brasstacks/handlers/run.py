@@ -1,8 +1,9 @@
-"""The owner asking for their first night, now.
+"""The owner asking for a night, now.
 
 The nightly schedule is the product's spine, but a business that signed up this
-afternoon should not have to wait until 6 AM to see whether any of this works.
-This is the button at the end of onboarding.
+afternoon should not have to wait until 6 AM to see whether any of this works —
+and an owner who has decided on everything the agents found should not have to
+wait for a schedule that may be switched off.
 
 **Asynchronous, and it has to be.** API Gateway caps an HTTP integration at 30
 seconds; a night runs 60-90. A synchronous trigger would return 504 while the
@@ -15,17 +16,30 @@ roughly fifty Bedrock embeddings and a Claude call:
 
 * The caller must hold a session, and gets a night only for *their own* business
   — a business id in the request body would let anyone spend against any tenant.
-* One first run per business. Repeated presses return the run already in flight
-  rather than starting a second one, which is what a double-click and an
-  impatient reload would otherwise do.
-* The nightly schedule remains the only unattended path.
+* A night already in flight is returned rather than started again, which is what
+  a double-click and an impatient reload would otherwise do.
+* One night's worth of recommendations per day. Not one ever.
+
+**Why a cooldown rather than the lifetime guard it replaces.** The original rule
+was "this business has already had a night", which was right while this was the
+last step of onboarding and wrong the moment an owner acted on everything they
+were given. Yellow Cow Korean BBQ accepted all three of its finds, the nightly
+schedule was disabled, and the account had no path to a fourth recommendation
+from any direction. A cooldown keeps the spend bounded without making the
+product terminal.
+
+**Why the in-flight check is bounded too.** A Lambda killed by a timeout cannot
+close its own `agent_run` row, so `running` is not by itself proof that anything
+is running. An unbounded check turned one abandoned row into a permanent refusal.
+Past `STALE_RUN_AFTER` the row is treated as debris; `brasstacks.agent_runs`
+closes it in-process wherever that is still possible.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from brasstacks.auth import token_fingerprint
@@ -35,6 +49,26 @@ from brasstacks.secrets import hydrate_environment
 
 #: Set on this function by the template so it knows what to invoke.
 NIGHT_FUNCTION_VAR = "BRASSTACKS_NIGHT_FUNCTION"
+
+#: A night runs 60-90 seconds. Well past that, an open run row is debris left
+#: by a process that died rather than work anyone is waiting on.
+STALE_RUN_AFTER = timedelta(minutes=10)
+
+#: One night's recommendations per day per tenant. Manual presses are capped
+#: here; the 6 AM schedule is unaffected.
+NIGHT_COOLDOWN = timedelta(hours=24)
+
+
+def _fresh(started_at: datetime | None, moment: datetime) -> bool:
+    """Is an open run recent enough to be believed?
+
+    A missing or unparseable start is treated as stale. The failure mode of
+    guessing "fresh" is an owner locked out of their own agents; the failure
+    mode of guessing "stale" is one duplicated night.
+    """
+    if started_at is None:
+        return False
+    return moment - started_at < STALE_RUN_AFTER
 
 
 def start_night(event: Any, *, repo: Any, invoker: Any,
@@ -63,18 +97,23 @@ def start_night(event: Any, *, repo: Any, invoker: Any,
     # caller would let any signed-in owner spend model calls against any other
     # business in the cluster.
     runs = repo.recent_runs(business_id, limit=1)
-    if runs and runs[0].status == "running":
+    if runs and runs[0].status == "running" and _fresh(runs[0].started_at, moment):
         return respond(202, {"status": "running",
                              "message": "the agents are already working"})
 
     # Whether a night HAPPENED is the wrong question; whether it produced
-    # anything is the right one. This checked for any prior run, so a business
-    # whose first night failed — a truncated model response, a search outage —
-    # was refused forever, having never seen a single recommendation. The
-    # failure is recorded on the agent_run row either way.
-    if repo.count_finds(business_id):
-        return respond(200, {"status": "done",
-                             "message": "this business has already had a night"})
+    # anything, and how recently, is the right one. A business whose night
+    # failed — a truncated model response, a search outage — has seen no
+    # recommendation and waits for nothing. The failure is recorded on the
+    # agent_run row either way.
+    latest_find = repo.latest_find_created_at(business_id)
+    if latest_find is not None and moment - latest_find < NIGHT_COOLDOWN:
+        return respond(200, {
+            "status": "cooldown",
+            "message": "tonight's moves are already in. The agents look again "
+                       "tomorrow.",
+            "nextNightAt": (latest_find + NIGHT_COOLDOWN).isoformat(),
+        })
 
     if not night_function:
         return respond(503, {"error": "the night runner is not configured"})

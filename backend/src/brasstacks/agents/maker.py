@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from brasstacks.agent_runs import closing_run
 from brasstacks.artifacts import ArtifactStore, ArtifactStoreError
 from brasstacks.providers import ProviderError, Reasoner
 from brasstacks.repository import FindSummary, Repository, RepositoryError
@@ -152,7 +153,27 @@ def run_maker(
 ) -> MakerResult:
     """Draft the deliverable for one accepted find."""
     run_id = repo.start_run(business_id, agent="maker", model_id=model_id)
+    with closing_run(repo, run_id):
+        return _maker_draft(
+            run_id=run_id, repo=repo, reasoner=reasoner, store=store,
+            business_id=business_id, find=find, task_id=task_id,
+            artifact_idempotency_key=artifact_idempotency_key,
+            can_continue=can_continue,
+        )
 
+
+def _maker_draft(
+    *,
+    run_id: str,
+    repo: Repository,
+    reasoner: Reasoner,
+    store: ArtifactStore,
+    business_id: str,
+    find: FindSummary | None,
+    task_id: str | None,
+    artifact_idempotency_key: str | None,
+    can_continue: Callable[[], bool] | None,
+) -> MakerResult:
     # No accepted, undrafted find is the common case on most nights, not a
     # failure. Marking the run failed would make the audit trail cry wolf.
     if find is None:

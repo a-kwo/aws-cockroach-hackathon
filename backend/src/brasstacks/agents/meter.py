@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from brasstacks.agent_runs import closing_run
 from brasstacks.meter import Verdict, judge
 from brasstacks.outcomes import OutcomeSource
 from brasstacks.repository import Repository, RepositoryError
@@ -54,7 +55,19 @@ def run_meter(
     today: date,
 ) -> MeterResult:
     run_id = repo.start_run(business_id, agent="meter")
+    with closing_run(repo, run_id):
+        return _meter_pass(run_id=run_id, repo=repo, outcomes=outcomes,
+                           business_id=business_id, today=today)
 
+
+def _meter_pass(
+    *,
+    run_id: str,
+    repo: Repository,
+    outcomes: OutcomeSource,
+    business_id: str,
+    today: date,
+) -> MeterResult:
     due = repo.due_finds(business_id, today=today)
     verified = misses = estimated = failed = 0
 

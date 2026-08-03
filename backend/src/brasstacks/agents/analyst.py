@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
+from brasstacks.agent_runs import closing_run
 from brasstacks.analyst_trace import encode_analyst_trace
 from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
@@ -417,8 +418,33 @@ def run_analyst(
     model_id: str | None = None,
     competitors: Sequence = (),
 ) -> AnalystResult:
-    run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
+    """Retrieve, reason, and store one night's find.
 
+    The run row is opened here and closed by whichever path below ends the
+    night. `closing_run` covers the paths that do not exist yet: an abandoned
+    row reads to the owner as "the agents are working", forever.
+    """
+    run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
+    with closing_run(repo, run_id):
+        return _analyst_night(
+            run_id=run_id, repo=repo, embedder=embedder, reasoner=reasoner,
+            business_id=business_id, today=today, queries=queries,
+            per_query_limit=per_query_limit, competitors=competitors,
+        )
+
+
+def _analyst_night(
+    *,
+    run_id: str,
+    repo: Repository,
+    embedder: Embedder,
+    reasoner: Reasoner,
+    business_id: str,
+    today: date,
+    queries: Sequence[str],
+    per_query_limit: int,
+    competitors: Sequence,
+) -> AnalystResult:
     retrieval = _retrieve_with_receipt(
         repo, embedder, business_id, queries, per_query_limit
     )

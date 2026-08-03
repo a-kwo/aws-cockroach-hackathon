@@ -1245,6 +1245,19 @@ class PostgresRepository:
                         (business_id,))
             return int(cur.fetchone()[0])
 
+    def latest_find_created_at(self, business_id: str) -> datetime | None:
+        """When this business last got a recommendation.
+
+        Not `recent_finds`: that one sorts in-play moves first so the Analyst
+        can see what is already running, which is the wrong order for a
+        question about time.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT max(created_at) FROM find WHERE business_id = %s",
+                (business_id,))
+            return cur.fetchone()[0]
+
     def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
         """What the Analyst has already proposed, so it does not repeat itself.
 

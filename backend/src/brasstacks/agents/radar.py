@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from brasstacks.agent_runs import closing_run
 from brasstacks.providers import Embedder, EmbeddingError
 from brasstacks.repository import Repository, content_hash
 from brasstacks.signals import RawSignal, SignalSource
@@ -124,6 +125,28 @@ def run_radar(
     today: date | None = None,
 ) -> RadarResult:
     run_id = repo.start_run(business_id, agent="radar")
+    with closing_run(repo, run_id):
+        return _radar_sweep(
+            run_id=run_id, repo=repo, embedder=embedder, business_id=business_id,
+            sources=sources, now=now, limit_per_source=limit_per_source,
+            business_name=business_name, city=city, scout=scout, today=today,
+        )
+
+
+def _radar_sweep(
+    *,
+    run_id: str,
+    repo: Repository,
+    embedder: Embedder,
+    business_id: str,
+    sources: Sequence[SignalSource],
+    now: datetime | None,
+    limit_per_source: int,
+    business_name: str,
+    city: str | None,
+    scout: Any | None,
+    today: date | None,
+) -> RadarResult:
     observed_at_default = now or datetime.now(timezone.utc)
 
     # The one thing Radar looks at and does not remember. Google's Places terms
@@ -145,27 +168,25 @@ def run_radar(
     stored = 0
     within_batch_duplicates = len(signals) - len(candidates)
 
-    try:
-        if candidates:
-            vectors = embedder.embed([s.content for s in candidates])
-            for signal, vector in zip(candidates, vectors):
-                observation_id = repo.insert_observation(
-                    business_id,
-                    content=signal.content,
-                    kind=signal.kind,
-                    embedding=vector,
-                    observed_at=signal.observed_at or observed_at_default,
-                    source_name=signal.source_name,
-                    source_url=signal.source_url,
-                    subject=signal.subject,
-                    rating=signal.rating,
-                    run_id=run_id,
-                )
-                if observation_id is not None:
-                    stored += 1
-    except EmbeddingError as e:
-        repo.finish_run(run_id, status="failed", error=str(e))
-        raise
+    # An embedding outage ends the sweep. `closing_run` in the caller marks the
+    # run failed on the way out — an inner handler here would only duplicate it.
+    if candidates:
+        vectors = embedder.embed([s.content for s in candidates])
+        for signal, vector in zip(candidates, vectors):
+            observation_id = repo.insert_observation(
+                business_id,
+                content=signal.content,
+                kind=signal.kind,
+                embedding=vector,
+                observed_at=signal.observed_at or observed_at_default,
+                source_name=signal.source_name,
+                source_url=signal.source_url,
+                subject=signal.subject,
+                rating=signal.rating,
+                run_id=run_id,
+            )
+            if observation_id is not None:
+                stored += 1
 
     duplicates = len(signals) - stored
     expired = _enforce_retention(repo, business_id, sources, observed_at_default)

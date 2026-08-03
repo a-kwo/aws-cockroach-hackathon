@@ -1,18 +1,25 @@
-"""The button that asks for a first night, now.
+"""The button that asks for another night, now.
 
 Every guard here exists because this endpoint spends money: a Tavily search,
 roughly fifty Bedrock embeddings and a Claude call per press.
+
+It began as a one-shot: any business that had ever produced a find was refused
+forever. That was defensible while it was the last step of onboarding, and
+wrong the moment an owner decided on everything the agents had found. Yellow
+Cow Korean BBQ accepted all three of its recommendations and had no way to ask
+for a fourth — the nightly schedule was off, and this endpoint said "already
+had a night". So the lifetime guard is now a cooldown.
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from brasstacks.auth import hash_password, issue_session_token
-from brasstacks.handlers.run import start_night
+from brasstacks.handlers.run import NIGHT_COOLDOWN, STALE_RUN_AFTER, start_night
 from brasstacks.repository import InMemoryRepository
 
 NOW = datetime(2026, 8, 2, 12, tzinfo=timezone.utc)
@@ -44,10 +51,39 @@ def signed_in(repo, *, with_business=True):
     return token, business
 
 
-def call(repo, token, invoker):
+def call(repo, token, invoker, now=NOW):
     event = {"headers": {"Authorization": f"Bearer {token}"}} if token else {}
     return start_night(event, repo=repo, invoker=invoker,
-                       night_function=NIGHT_FN, now=NOW)
+                       night_function=NIGHT_FN, now=now)
+
+
+def body(response):
+    return json.loads(response["body"])
+
+
+def a_find(repo, business):
+    """Store one find and return when it was written.
+
+    The in-memory repository stamps rows from its own synthetic clock, so the
+    tests read the timestamp back rather than assuming it matches NOW.
+    """
+    from brasstacks.providers import FakeEmbedder
+    from brasstacks.repository import EvidenceRef
+
+    observation = repo.insert_observation(
+        business, content="something observed", kind="review",
+        embedding=FakeEmbedder().embed(["x"])[0], observed_at=NOW)
+    repo.insert_find_with_evidence(
+        business, title="A find", rationale="Because.", move="Do it.",
+        emoji="x", predicted_daily_cents=100, confidence=0.5,
+        verify_after=NOW.date(), evidence=[EvidenceRef(observation, 0.5)])
+    return repo.recent_finds(business, limit=1)[0].created_at
+
+
+def a_running_night(repo, business):
+    """Open a run and return when it started."""
+    repo.start_run(business, agent="radar")
+    return repo.recent_runs(business, limit=1)[0].started_at
 
 
 class TestStartNight:
@@ -107,33 +143,64 @@ class TestStartNight:
     def test_a_second_press_does_not_start_a_second_night(self, repo):
         # A double-click, or an impatient reload, would otherwise pay twice.
         token, business = signed_in(repo)
-        repo.start_run(business, agent="radar")
+        started = a_running_night(repo, business)
         invoker = FakeInvoker()
 
-        response = call(repo, token, invoker)
+        response = call(repo, token, invoker, now=started + timedelta(seconds=30))
 
         assert response["statusCode"] == 202
-        assert json.loads(response["body"])["status"] == "running"
+        assert body(response)["status"] == "running"
         assert invoker.calls == []
 
-    def test_a_business_that_already_has_finds_is_not_re_run(self, repo):
-        from brasstacks.providers import FakeEmbedder
-        from brasstacks.repository import EvidenceRef
+    def test_a_run_that_died_does_not_lock_the_button_forever(self, repo):
+        """A killed Lambda cannot close its own run row.
 
+        Trusting `running` without a bound left Yellow Cow's board claiming the
+        agents were working for a day and a half, and — because an open run also
+        blocks this endpoint — with no way to ask for another night.
+        """
         token, business = signed_in(repo)
-        observation = repo.insert_observation(
-            business, content="something observed", kind="review",
-            embedding=FakeEmbedder().embed(["x"])[0], observed_at=NOW)
-        repo.insert_find_with_evidence(
-            business, title="A find", rationale="Because.", move="Do it.",
-            emoji="x", predicted_daily_cents=100, confidence=0.5,
-            verify_after=NOW.date(), evidence=[EvidenceRef(observation, 0.5)])
+        started = a_running_night(repo, business)
         invoker = FakeInvoker()
 
-        response = call(repo, token, invoker)
+        response = call(repo, token, invoker,
+                        now=started + STALE_RUN_AFTER + timedelta(minutes=1))
 
-        assert json.loads(response["body"])["status"] == "done"
+        assert body(response)["status"] == "started"
+        assert len(invoker.calls) == 1
+
+    def test_a_night_is_refused_while_today_s_finds_are_still_fresh(self, repo):
+        """Not "you have had a night" — "you have had one today"."""
+        token, business = signed_in(repo)
+        created = a_find(repo, business)
+        invoker = FakeInvoker()
+
+        response = call(repo, token, invoker, now=created + timedelta(hours=2))
+
+        assert body(response)["status"] == "cooldown"
         assert invoker.calls == []
+
+    def test_the_cooldown_says_when_the_next_night_can_be_asked_for(self, repo):
+        """A refusal with no date is a dead end. This is what the board prints."""
+        token, business = signed_in(repo)
+        created = a_find(repo, business)
+        invoker = FakeInvoker()
+
+        response = call(repo, token, invoker, now=created + timedelta(hours=2))
+
+        expected = (created + NIGHT_COOLDOWN).isoformat()
+        assert body(response)["nextNightAt"] == expected
+
+    def test_a_night_can_be_asked_for_again_once_the_cooldown_passes(self, repo):
+        token, business = signed_in(repo)
+        created = a_find(repo, business)
+        invoker = FakeInvoker()
+
+        response = call(repo, token, invoker,
+                        now=created + NIGHT_COOLDOWN + timedelta(minutes=1))
+
+        assert body(response)["status"] == "started"
+        assert len(invoker.calls) == 1
 
     def test_a_night_that_failed_can_be_retried(self, repo):
         """The first live signup's Analyst blew its token budget and stored no

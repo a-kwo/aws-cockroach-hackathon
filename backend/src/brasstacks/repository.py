@@ -347,6 +347,8 @@ class Repository(Protocol):
 
     def count_finds(self, business_id: str) -> int: ...
 
+    def latest_find_created_at(self, business_id: str) -> datetime | None: ...
+
     def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]: ...
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]: ...
@@ -1314,6 +1316,11 @@ class InMemoryRepository:
 
     def count_finds(self, business_id: str) -> int:
         return sum(1 for f in self._finds.values() if f.business_id == business_id)
+
+    def latest_find_created_at(self, business_id: str) -> datetime | None:
+        stamps = [f.created_at for f in self._finds.values()
+                  if f.business_id == business_id]
+        return max(stamps) if stamps else None
 
     def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
         mine = [f for f in self._finds.values() if f.business_id == business_id]
