@@ -37,6 +37,7 @@ from brasstacks.repository import (
     CHAT_ASSISTANT_SOURCE,
     CHAT_OWNER_SOURCE,
     JUDGEABLE_STATUSES,
+    OWNER_SEEN_STATUSES,
     ChatMessage,
     DecisionTransition,
     DueFind,
@@ -50,6 +51,7 @@ from brasstacks.repository import (
     RunRecord,
     StoredArtifact,
     StoredEvidence,
+    StoredObservation,
     compute_hit_rate,
     content_hash,
 )
@@ -562,28 +564,38 @@ class PostgresRepository:
                            source_name: str | None = None,
                            source_url: str | None = None,
                            subject: str | None = None, rating: float | None = None,
-                           run_id: str | None = None) -> str | None:
+                           run_id: str | None = None,
+                           statement_type: str | None = None) -> str | None:
         """Store an observation. Returns its id, or None if it was a duplicate.
 
         A duplicate is normal operation — Radar re-reads the same review nightly —
         so the unique index absorbs it via ON CONFLICT rather than raising and
         aborting a run. Returning the id rather than a bool lets a caller wire
         the stored row straight into find_evidence without a second lookup.
+
+        `statement_type` is what the row asserts rather than where it came from.
+        The column arrived before this parameter did, so Radar classified every
+        row and the write dropped the answer on the floor — the label existed
+        nowhere but in a log line. Bootstrap the column here for the same reason
+        the ledger does: a deploy that outruns the migration must not cost a
+        night's observations.
         """
+        ensure_decision_schema(self._conn)
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO observation (
                     business_id, run_id, kind, content, source_name, source_url,
-                    subject, rating, observed_at, content_hash, embedding
+                    subject, rating, observed_at, content_hash, statement_type,
+                    embedding
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::VECTOR)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::VECTOR)
                 ON CONFLICT (business_id, content_hash) DO NOTHING
                 RETURNING id
                 """,
                 (business_id, run_id, kind, content, source_name, source_url,
                  subject, rating, observed_at, content_hash(content),
-                 _vector_literal(embedding)),
+                 statement_type, _vector_literal(embedding)),
             )
             row = cur.fetchone()
             return str(row[0]) if row is not None else None
@@ -663,6 +675,46 @@ class PostgresRepository:
             )
             for rank, r in enumerate(rows)
         ]
+
+    def all_observations(self, business_id: str, *,
+                         limit: int) -> list[StoredObservation]:
+        """Every stored row for this tenant, in the order they were observed.
+
+        The deliberate opposite of `search_observations`. Retrieval answers
+        "what is relevant to tonight's question"; this answers "what does memory
+        hold about this business at all", and `business_state` needs the second
+        one. The three rows naming Yellow Cow's Dosirak set meal were in the
+        corpus on the night the Analyst told the owner to launch a set meal, and
+        vector search did not return any of them.
+
+        Affordable because a tenant corpus is tens of rows, not millions — 43 to
+        52 on 2026-08-03 — and `limit` is here so that stops being an assumption
+        the night depends on. No embedding column is selected: this row goes to
+        a text parser, and a 1024-float vector per row is the expensive half of
+        the table.
+        """
+        ensure_decision_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, content, kind, source_name, source_url, subject,
+                       observed_at, statement_type
+                FROM observation
+                WHERE business_id = %s
+                  AND coalesce(source_name, '') NOT IN (%s, %s)
+                ORDER BY observed_at, id
+                LIMIT %s
+                """,
+                (business_id, CHAT_OWNER_SOURCE, CHAT_ASSISTANT_SOURCE, limit),
+            )
+            return [
+                StoredObservation(
+                    observation_id=str(r[0]), content=r[1], kind=str(r[2]),
+                    source_name=r[3], source_url=r[4], subject=r[5],
+                    observed_at=r[6], statement_type=r[7],
+                )
+                for r in cur.fetchall()
+            ]
 
     # -- owner conversation memory --------------------------------------
     def insert_chat_message(
@@ -1273,24 +1325,37 @@ class PostgresRepository:
                 (business_id,))
             return cur.fetchone()[0]
 
-    def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
-        """What the Analyst has already proposed, so it does not repeat itself.
+    def recent_finds(self, business_id: str, *, limit: int,
+                     include_unseen: bool = False) -> list[FindSummary]:
+        """What the owner has already been shown, so the Analyst does not repeat it.
 
         In-play finds sort first regardless of age. Ordering on recency alone
         let twelve unacted-on proposals hide every accepted move, and the
         Analyst re-proposed two of its own verified winners because it could no
         longer see them.
+
+        Rows in a status the owner never reached are excluded unless asked for.
+        This method feeds the "do not repeat any of these" list, and a find that
+        a quality gate withheld was never proposed to anyone — forbidding it
+        would mean the corrected version can never be raised either. Callers
+        that want the fuller picture pass ``include_unseen`` and split on
+        ``FindSummary.seen_by_owner``; the two groups need different sentences.
         """
+        seen = list(OWNER_SEEN_STATUSES)
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT id, title, move, status, predicted_daily_cents, created_at
                 FROM find
                 WHERE business_id = %s
-                ORDER BY (status = ANY(%s)) DESC, created_at DESC
+                  AND (%s::BOOL OR status = ANY(%s))
+                ORDER BY (status = ANY(%s)) DESC,
+                         (status = ANY(%s)) DESC,
+                         created_at DESC
                 LIMIT %s
                 """,
-                (business_id, list(JUDGEABLE_STATUSES), limit),
+                (business_id, include_unseen, seen,
+                 list(JUDGEABLE_STATUSES), seen, limit),
             )
             return [
                 FindSummary(find_id=str(r[0]), title=r[1], move=r[2], status=str(r[3]),

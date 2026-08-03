@@ -12,14 +12,19 @@ the night's run.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from brasstacks.agent_runs import closing_run
 from brasstacks.providers import Embedder, EmbeddingError
 from brasstacks.repository import Repository, content_hash
-from brasstacks.signals import RawSignal, SignalSource
+from brasstacks.signals import (
+    RawSignal,
+    SignalSource,
+    classify_statement,
+    clean_observation_text,
+)
 
 DEFAULT_LIMIT_PER_SOURCE = 50
 
@@ -34,6 +39,11 @@ class RadarResult:
     #: Rows deleted to honour a source's retention licence. Surfaced in the note
     #: so the audit trail shows compliance happening rather than implying it.
     expired: int = 0
+    #: Scraped rows that were nothing but page furniture once cleaned. In the
+    #: note because an ingest rule that silently eats a corpus is worse than no
+    #: ingest rule — this is the number an operator checks when a tenant's
+    #: memory stops growing.
+    dropped: int = 0
     #: Tonight's street, passed through to the Analyst and **never stored**.
     #: Google's Places terms permit keeping place_id and nothing else, so this
     #: is the one thing Radar observes and does not commit to memory. Pinned by
@@ -43,6 +53,8 @@ class RadarResult:
     @property
     def note(self) -> str:
         parts = [f"{self.observed} observed", f"{self.stored} new"]
+        if self.dropped:
+            parts.append(f"{self.dropped} dropped as page furniture")
         if self.duplicates:
             parts.append(f"{self.duplicates} already known")
         if self.expired:
@@ -92,23 +104,62 @@ def _enforce_retention(repo: Repository, business_id: str,
     return expired
 
 
-def _usable(signals: Sequence[RawSignal]) -> list[RawSignal]:
-    """Drop blanks and collapse duplicates before spending money on embeddings.
+def _usable(signals: Sequence[RawSignal], *, business_name: str = "",
+            address: str | None = None) -> tuple[list[RawSignal], int]:
+    """Clean, then drop blanks and collapse duplicates, then embed.
 
-    Titan rejects empty input, and embedding the same text twice in one batch is
-    wasted spend on a row the database would reject anyway.
+    Order is the point. Hygiene runs *before* the hash, or a repaired and an
+    unrepaired capture of one page are two different rows and dedup never sees
+    them — which is how one Grubhub storefront became the three "independent
+    captures" that find 7c4a9124 cited. It also runs before the embedder,
+    because roughly 40% of every live corpus was navigation and carousels and
+    we were paying Titan to remember it.
+
+    Only rows carrying a ``source_url`` are cleaned. Those are the ones scraped
+    off somebody else's page. The committed corpus and owner uploads have no URL,
+    are ours, and are not second-guessed here.
+
+    Titan also rejects empty input, and embedding the same text twice in one
+    batch is wasted spend on a row the database would reject anyway.
     """
     seen: set[str] = set()
     usable: list[RawSignal] = []
+    dropped = 0
     for signal in signals:
-        if not signal.content or not signal.content.strip():
+        content = signal.content or ""
+        if signal.source_url and content.strip():
+            cleaned = clean_observation_text(
+                content, business_name=business_name, address=address,
+                source_url=signal.source_url)
+            if cleaned != content:
+                content = cleaned
+                signal = replace(signal, content=content)
+                if not content.strip():
+                    dropped += 1
+        if not content.strip():
             continue
-        digest = content_hash(signal.content)
+        digest = content_hash(content)
         if digest in seen:
             continue
         seen.add(digest)
         usable.append(signal)
-    return usable
+    return usable, dropped
+
+
+def _insert(repo: Repository, business_id: str, *, statement_type: str,
+            **fields: Any) -> str | None:
+    """Write one observation with the label Radar gave it.
+
+    This was a signature-sniffing shim for one round, while the column existed
+    and the write path did not accept the keyword. The consequence of that gap
+    is the reason the shim is worth a note: Radar classified every row, the
+    shim silently took the branch that dropped the answer, and the feature
+    reported as shipped while every row went to the database NULL. The test
+    covering it passed against a subclass written in the test file purely to
+    have the signature the real repositories lacked.
+    """
+    return repo.insert_observation(business_id, statement_type=statement_type,
+                                   **fields)
 
 
 def run_radar(
@@ -163,18 +214,24 @@ def _radar_sweep(
 
     signals, failed = _collect(sources, business_name=business_name, city=city,
                                limit=limit_per_source)
-    candidates = _usable(signals)
+    # `city` carries the whole street address for tenants that signed up through
+    # the deployed onboarding flow, and a plain city name for the seeded one.
+    # Hygiene copes with either; it simply never runs the address test when
+    # there is no street number to run it against.
+    candidates, dropped = _usable(signals, business_name=business_name,
+                                  address=city)
 
     stored = 0
-    within_batch_duplicates = len(signals) - len(candidates)
 
     # An embedding outage ends the sweep. `closing_run` in the caller marks the
     # run failed on the way out — an inner handler here would only duplicate it.
     if candidates:
         vectors = embedder.embed([s.content for s in candidates])
         for signal, vector in zip(candidates, vectors):
-            observation_id = repo.insert_observation(
+            observation_id = _insert(
+                repo,
                 business_id,
+                statement_type=classify_statement(signal.content),
                 content=signal.content,
                 kind=signal.kind,
                 embedding=vector,
@@ -188,7 +245,7 @@ def _radar_sweep(
             if observation_id is not None:
                 stored += 1
 
-    duplicates = len(signals) - stored
+    duplicates = len(signals) - dropped - stored
     expired = _enforce_retention(repo, business_id, sources, observed_at_default)
 
     # A night where every source failed observed nothing, which is a real
@@ -202,6 +259,7 @@ def _radar_sweep(
         duplicates=duplicates,
         failed_sources=tuple(failed),
         expired=expired,
+        dropped=dropped,
         competitors=competitors,
     )
     repo.finish_run(
@@ -211,3 +269,4 @@ def _radar_sweep(
         note=result.note,
     )
     return result
+

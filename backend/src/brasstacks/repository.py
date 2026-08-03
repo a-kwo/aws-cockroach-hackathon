@@ -51,6 +51,24 @@ from brasstacks.tasks import (
 #: acted on has no outcome to measure.
 JUDGEABLE_STATUSES = ("accepted", "live")
 
+#: Statuses that mean this recommendation reached the owner's board. What she
+#: then did with it — accepted it, passed on it, parked it, retired it — does not
+#: matter here; she saw it, so raising it again wastes her night, and the
+#: Analyst is told not to.
+#:
+#: This is an allowlist and has to stay one. The gates being built next withhold
+#: a weak find instead of showing it, and a withheld find is not "already
+#: proposed" — it is a topic the Analyst must stay free to raise once the
+#: evidence is better. Naming the seen statuses means a verdict invented later
+#: is unseen by default. Naming the unseen ones instead would mean any status
+#: nobody remembered to register here silently becomes a do-not-repeat
+#: instruction, and at three withheld finds a night that fills the Analyst's
+#: twenty-row window in a week: one quiet night becomes a permanently empty
+#: board.
+OWNER_SEEN_STATUSES = (
+    "proposed", "accepted", "later", "rejected", "live", "retired",
+)
+
 
 class RepositoryError(RuntimeError):
     """A memory-layer operation violated an invariant or failed."""
@@ -76,6 +94,29 @@ class Retrieved:
     #: fragments of one fetch read as three independent signals.
     source_url: str | None = None
     subject: str | None = None
+
+
+@dataclass(frozen=True)
+class StoredObservation:
+    """A row as memory holds it, with no retrieval metadata attached.
+
+    Separate from ``Retrieved`` on purpose. A `similarity` of 0.0 and a `rank`
+    of -1 would be two lies about a row nobody searched for, and `find_evidence`
+    stores both numbers — a caller that confused the two would write a
+    fabricated retrieval position into the audit trail.
+    """
+
+    observation_id: str
+    content: str
+    kind: str
+    observed_at: datetime
+    source_name: str | None = None
+    source_url: str | None = None
+    subject: str | None = None
+    #: What the row asserts, as opposed to `kind`, which says where it came
+    #: from. ``None`` means nobody looked — every row written before Radar
+    #: classified, and never a guess.
+    statement_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -121,6 +162,21 @@ class FindSummary:
     status: str
     predicted_daily_cents: int
     created_at: datetime
+
+    @property
+    def seen_by_owner(self) -> bool:
+        """Did this reach the owner's board?
+
+        True is "you already proposed this, do not raise it again". False is
+        "you considered this on an earlier night and it was never shown" —
+        a different sentence in the prompt, because the second one is a topic
+        the Analyst may still raise once the evidence supports it.
+
+        Derived from the status rather than stored, so the two Repository
+        implementations cannot disagree and no caller can hand-build a summary
+        claiming a withheld find was on the board.
+        """
+        return self.status in OWNER_SEEN_STATUSES
 
 
 @dataclass(frozen=True)
@@ -303,7 +359,8 @@ class Repository(Protocol):
                            embedding: Sequence[float], observed_at: datetime,
                            source_name: str | None = ..., source_url: str | None = ...,
                            subject: str | None = ..., rating: float | None = ...,
-                           run_id: str | None = ...) -> str | None: ...
+                           run_id: str | None = ...,
+                           statement_type: str | None = ...) -> str | None: ...
 
     def count_observations(self, business_id: str) -> int: ...
 
@@ -312,6 +369,9 @@ class Repository(Protocol):
 
     def search_observations(self, business_id: str, query_embedding: Sequence[float],
                             *, limit: int) -> list[Retrieved]: ...
+
+    def all_observations(self, business_id: str, *,
+                         limit: int) -> list[StoredObservation]: ...
 
     def insert_chat_message(
         self, business_id: str, *, role: str, content: str, created_at: datetime,
@@ -364,7 +424,8 @@ class Repository(Protocol):
 
     def latest_find_created_at(self, business_id: str) -> datetime | None: ...
 
-    def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]: ...
+    def recent_finds(self, business_id: str, *, limit: int,
+                     include_unseen: bool = ...) -> list[FindSummary]: ...
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]: ...
 
@@ -519,6 +580,7 @@ class _Observation:
     subject: str | None = None
     rating: float | None = None
     run_id: str | None = None
+    statement_type: str | None = None
 
 
 @dataclass
@@ -883,7 +945,8 @@ class InMemoryRepository:
                            source_name: str | None = None,
                            source_url: str | None = None,
                            subject: str | None = None, rating: float | None = None,
-                           run_id: str | None = None) -> str | None:
+                           run_id: str | None = None,
+                           statement_type: str | None = None) -> str | None:
         digest = content_hash(content)
         # Dedup is scoped per business: two restaurants can share a phrase.
         for existing in self._observations:
@@ -895,6 +958,7 @@ class InMemoryRepository:
             content=content, kind=kind, embedding=list(embedding),
             observed_at=observed_at, content_hash=digest, source_name=source_name,
             source_url=source_url, subject=subject, rating=rating, run_id=run_id,
+            statement_type=statement_type,
         ))
         return observation_id
 
@@ -940,6 +1004,23 @@ class InMemoryRepository:
                 subject=o.subject,
             )
             for rank, (similarity, o) in enumerate(scored[:limit])
+        ]
+
+    def all_observations(self, business_id: str, *,
+                         limit: int) -> list[StoredObservation]:
+        mine = [
+            o for o in self._observations
+            if o.business_id == business_id and o.source_name not in CHAT_SOURCES
+        ]
+        mine.sort(key=lambda o: o.observed_at)
+        return [
+            StoredObservation(
+                observation_id=o.observation_id, content=o.content, kind=o.kind,
+                observed_at=o.observed_at, source_name=o.source_name,
+                source_url=o.source_url, subject=o.subject,
+                statement_type=o.statement_type,
+            )
+            for o in mine[:limit]
         ]
 
     # -- owner conversation memory --------------------------------------
@@ -1352,13 +1433,22 @@ class InMemoryRepository:
                   if f.business_id == business_id]
         return max(stamps) if stamps else None
 
-    def recent_finds(self, business_id: str, *, limit: int) -> list[FindSummary]:
-        mine = [f for f in self._finds.values() if f.business_id == business_id]
-        # In-play first, then by recency. A move that has been running for six
-        # weeks is far stronger evidence of "already covered" than a proposal
-        # nobody acted on yesterday — and sorting on recency alone silently
-        # hides the winners once proposals accumulate.
-        mine.sort(key=lambda f: (f.status not in JUDGEABLE_STATUSES, -f.created_at.timestamp()))
+    def recent_finds(self, business_id: str, *, limit: int,
+                     include_unseen: bool = False) -> list[FindSummary]:
+        mine = [
+            f for f in self._finds.values()
+            if f.business_id == business_id
+            and (include_unseen or f.status in OWNER_SEEN_STATUSES)
+        ]
+        # In-play first, then everything else the owner saw, then by recency. A
+        # move that has been running for six weeks is far stronger evidence of
+        # "already covered" than a proposal nobody acted on yesterday — and
+        # sorting on recency alone silently hides the winners once proposals
+        # accumulate. Never-shown finds sort last for the same reason: on the
+        # opt-in path they must not spend the window the board needs.
+        mine.sort(key=lambda f: (f.status not in JUDGEABLE_STATUSES,
+                                 f.status not in OWNER_SEEN_STATUSES,
+                                 -f.created_at.timestamp()))
         return [
             FindSummary(find_id=f.find_id, title=f.title, move=f.move,
                         status=f.status,

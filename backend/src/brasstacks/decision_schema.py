@@ -33,6 +33,13 @@ DECISION_SCHEMA_STATEMENTS = (
     # this month.
     "ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP NOT NULL",
     "ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP DEFAULT",
+    # Radar labels what a row asserts, not just where it came from, so a
+    # staleness rule can tell "This menu isn't available right now" from
+    # "Monday 11:30 am - 8:30 pm". Nullable and undefaulted: the 147 rows
+    # written before typing existed keep NULL, meaning "we never looked".
+    "ALTER TABLE observation ADD COLUMN IF NOT EXISTS statement_type STRING",
+    "CREATE INDEX IF NOT EXISTS observation_statement_idx "
+    "ON observation (business_id, statement_type, observed_at DESC)",
     "CREATE INDEX IF NOT EXISTS find_reopened_idx ON find (business_id, reopened_at DESC)",
     """
     CREATE TABLE IF NOT EXISTS decision_event (

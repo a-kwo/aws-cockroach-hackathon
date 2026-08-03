@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from brasstacks.repository import (
+    OWNER_SEEN_STATUSES,
     EvidenceRef,
     InMemoryRepository,
     RepositoryError,
@@ -177,6 +178,65 @@ class TestObservations:
                                 run_id=run_id)
         [obs] = repo.search_observations(business, DESSERT, limit=1)
         assert obs.observation_id
+
+
+class TestReadingTheWholeCorpus:
+    """`all_observations` — memory without a question attached.
+
+    `business_state` needs this and retrieval cannot serve it. The three rows
+    naming Yellow Cow's Dosirak set meal were in the corpus on the night the
+    Analyst told the owner to launch a set meal, and no query returned them.
+    """
+
+    def test_it_returns_every_row_in_the_order_observed(self, repo, business):
+        for day, content in enumerate(("first", "second", "third")):
+            repo.insert_observation(
+                business, content=content, kind="review", embedding=DESSERT,
+                observed_at=_dt(TODAY) + timedelta(days=day))
+
+        rows = repo.all_observations(business, limit=50)
+
+        assert [r.content for r in rows] == ["first", "second", "third"]
+
+    def test_it_carries_the_page_the_row_came_from(self, repo, business):
+        # Hygiene, offer extraction and the domain flag all key off the host.
+        repo.insert_observation(
+            business, content="Featured items. Dosirak (Set Meal).",
+            kind="trend", embedding=DESSERT, observed_at=_dt(TODAY),
+            source_name="web", source_url="https://postmates.com/store/yc/Bq")
+
+        [row] = repo.all_observations(business, limit=50)
+
+        assert row.source_url == "https://postmates.com/store/yc/Bq"
+        assert row.source_name == "web"
+        assert row.kind == "trend"
+
+    def test_it_is_scoped_to_the_business(self, repo, business):
+        other = repo.create_business(name="Lucca's", category="restaurant")
+        repo.insert_observation(business, content="mine", kind="review",
+                                embedding=DESSERT, observed_at=_dt(TODAY))
+
+        assert repo.all_observations(other, limit=50) == []
+
+    def test_owner_conversation_is_not_an_observation(self, repo, business):
+        # Chat shares the table. Reading the owner's own words back as market
+        # memory would let the Analyst cite her question as evidence for its
+        # answer — the same reason `count_observations` excludes them.
+        repo.insert_chat_message(business, role="user", content="What is lunch set idea",
+                                 created_at=_dt(TODAY), embedding=DESSERT)
+        repo.insert_observation(business, content="a real row", kind="review",
+                                embedding=DESSERT, observed_at=_dt(TODAY))
+
+        assert [r.content for r in repo.all_observations(business, limit=50)] == [
+            "a real row"]
+
+    def test_the_limit_is_honoured(self, repo, business):
+        for day in range(5):
+            repo.insert_observation(
+                business, content=f"row {day}", kind="review", embedding=DESSERT,
+                observed_at=_dt(TODAY) + timedelta(days=day))
+
+        assert len(repo.all_observations(business, limit=2)) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -868,6 +928,92 @@ class TestRecentFindsPriority:
 
         assert {"running", "fresh idea"} <= {
             f.title for f in repo.recent_finds(business, limit=10)}
+
+
+#: The status the withholding gate will write. Deliberately not a constant in
+#: `brasstacks`: the rule under test is an allowlist of the statuses the owner
+#: reached, so this file can name a verdict the production code has never heard
+#: of and still get the right answer.
+NEVER_SHOWN_STATUS = "withheld"
+
+
+class TestFindsTheOwnerNeverSaw:
+    """"Already proposed" has to mean she saw it, not merely that a row exists.
+
+    `recent_finds` feeds the Analyst's do-not-repeat list. Today every stored
+    find has been on someone's board, so this class changes nothing. It exists
+    for the night the quality gates start withholding: a find held back for a
+    fixable reason — a capture taken while the shop was shut, a second source
+    that was never found — must not come back tomorrow as an instruction never
+    to raise it, or the corrected version can never be proposed.
+    """
+
+    def _find(self, repo, business, title, *, status):
+        observation_id = repo.insert_observation(
+            business, content=f"the note behind {title}", kind="trend",
+            embedding=DESSERT, observed_at=_dt(TODAY))
+        return repo.insert_find_with_evidence(
+            business, title=title, rationale="r", move="m", emoji="x",
+            predicted_daily_cents=1000, confidence=0.5,
+            verify_after=TODAY + timedelta(days=14), status=status,
+            evidence=[EvidenceRef(observation_id, 0.5)])
+
+    def _never_shown(self, repo, business, title):
+        """A find in a status the owner was never shown.
+
+        The status itself belongs to the gates, which do not exist yet, so
+        `find_status` has no such enum value and a real cluster cannot store
+        one. The Postgres half of this contract skips rather than lying about
+        that; the in-memory half runs every time, and it is the half standing
+        between a withheld find and the do-not-repeat list.
+        """
+        try:
+            return self._find(repo, business, title, status=NEVER_SHOWN_STATUS)
+        except RepositoryError:
+            pytest.skip(
+                f"this cluster's find_status enum has no {NEVER_SHOWN_STATUS!r} "
+                "value yet — it arrives with the withholding gates"
+            )
+
+    @pytest.mark.parametrize("status", OWNER_SEEN_STATUSES)
+    def test_every_status_the_owner_can_reach_still_counts_as_proposed(
+            self, repo, business, status):
+        # Nothing stored today falls outside this list, which is why the change
+        # is a no-op against the live corpus.
+        self._find(repo, business, "on the board", status=status)
+
+        [found] = repo.recent_finds(business, limit=5)
+        assert found.status == status
+        assert found.seen_by_owner is True
+
+    def test_a_find_the_owner_never_saw_is_not_already_proposed(self, repo, business):
+        self._never_shown(repo, business, "held back for a fixable reason")
+
+        assert repo.recent_finds(business, limit=20) == []
+
+    def test_it_is_still_retrievable_and_marked_as_never_shown(self, repo, business):
+        # Withholding is not forgetting. The row stays queryable — it just
+        # arrives labelled, because "we considered this and did not show it"
+        # and "you already proposed this" want different sentences.
+        self._never_shown(repo, business, "held back")
+
+        [found] = repo.recent_finds(business, limit=20, include_unseen=True)
+        assert found.title == "held back"
+        assert found.seen_by_owner is False
+
+    def test_never_shown_finds_sort_behind_the_board(self, repo, business):
+        self._find(repo, business, "on the board", status="proposed")
+        self._never_shown(repo, business, "held back")
+
+        rows = repo.recent_finds(business, limit=1, include_unseen=True)
+        assert [f.title for f in rows] == ["on the board"]
+
+    def test_scoped_to_the_business(self, repo, business):
+        other = repo.create_business(name=f"Lucca's {uuid.uuid4().hex[:6]}",
+                                     category="restaurant")
+        self._never_shown(repo, other, "their held-back idea")
+
+        assert repo.recent_finds(business, limit=20, include_unseen=True) == []
 
 
 # ---------------------------------------------------------------------------

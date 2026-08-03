@@ -31,6 +31,15 @@ any outage claim, and `alternative_explanation` is stored beside the
 prediction. Rules and a column, not a gate: gating this rejected 9 of 9 finds
 in review, and an owner with an empty deck is not better served than an owner
 with a weak one.
+
+**It is told what the business already is, not only what the market says.**
+Retrieval answers "what is relevant tonight"; it cannot answer "what does this
+restaurant already sell". Find 818fdb2d told Yellow Cow to launch a fixed-price
+weekday lunch set while three uncited rows of its own memory named the Dosirak
+set meal as its best-selling delivery item. So `business_state` is built from
+the *whole* stored corpus — offers, hours reconciled per weekday, and the
+domain the owner actually declared — and that block sits above the retrieved
+rows. It changes what the Analyst knows, never how many moves it may propose.
 """
 
 from __future__ import annotations
@@ -42,6 +51,7 @@ from datetime import date, timezone
 
 from brasstacks.agent_runs import closing_run
 from brasstacks.analyst_trace import encode_analyst_trace
+from brasstacks.business_state import build_business_state, describe_business_state
 from brasstacks.competitors import CompetitorScout, describe_competitors
 from brasstacks.finds import InvalidFindError, parse_find
 from brasstacks.providers import Embedder, ProviderError, Reasoner
@@ -79,6 +89,14 @@ RECENT_FINDS_SHOWN = 20
 #: A bounded continuity window from Ask. Complete conversation history remains
 #: in CockroachDB; only the newest owner messages enter a nightly prompt.
 RECENT_OWNER_MESSAGES_SHOWN = 4
+
+#: How much of a tenant's stored corpus the "what this business already has"
+#: block is built from. The whole of it, in practice — the three live tenants
+#: hold 43 to 52 rows each — and the number is here so that stops being an
+#: assumption. Retrieval cannot serve this: the three rows naming Yellow Cow's
+#: Dosirak set meal were in memory on the night find 818fdb2d told the owner to
+#: launch a set meal, and the vector search returned none of them.
+CORPUS_ROWS_READ = 500
 
 #: How many moves a night may propose. Three because the deck shows a small
 #: number well and because the Analyst's later suggestions get noticeably
@@ -189,9 +207,11 @@ signal of priorities and constraints, but it is not external proof of demand; \
 combine it with market observations before making a revenue claim.
 - verify_after_days is how long until the effect could be measured. Use 7 to 30 \
 for operational changes, longer for anything seasonal.
-- Do NOT propose something already on the recent-finds list. If the obvious move \
+- Do NOT propose something on the 'Already proposed' list. If the obvious move \
 is taken, find the next best one. A move the owner already rejected is the worst \
-thing to propose again.
+thing to propose again. The 'Considered on an earlier night' list is different: \
+those were never shown to the owner, and you may raise one again if you can now \
+answer what was missing.
 
 Checks every find must survive. Each of these exists because a find was \
 published that could not survive it:
@@ -216,7 +236,27 @@ of the same evidence — the one a sceptical owner would give — and why you re
 it. Required for your lead find and worth writing for all three. "The bot looked \
 while we were shut" is a real alternative and is often the right one. If the \
 evidence you have cannot reject the alternative, propose a different move rather \
-than defend this one."""
+than defend this one.
+- THEY MAY ALREADY SELL IT. Read the "what this business already has" block \
+before you write a move. If your move would launch, add, introduce, create or \
+start something that block already lists, it is not a launch — rewrite it as \
+improving, pricing or promoting that offer, and name the offer as the block \
+names it. One find told an owner to launch a fixed-price weekday lunch set while \
+three rows of that owner's own memory named the set meal as its best-selling \
+delivery item. Do not drop the move; correct it.
+- WHOSE WEBSITE IS THIS? The block names the domain the owner declared, if any. \
+A page on any other domain is somebody else's until you say otherwise: name the \
+host and say whose page you believe it is before you criticise anything on it. \
+Never call a domain the owner did not declare "your website" or "your online \
+ordering". If the owner declared no site at all, every page you have is a \
+third-party listing and must be described as one.
+- SAME WEEKDAY OR NO CONFLICT. Two sources only contradict each other about \
+opening hours when they state different times for the same weekday and the same \
+service. A source covering Monday and one covering Thursday agree. A window with \
+no weekday attached — "Hours Today Pickup" — describes the day the page was \
+fetched and contradicts nothing. Use the reconciled per-weekday hours in the \
+block, and never call sources contradictory when the block has not said they \
+disagree."""
 
 
 @dataclass(frozen=True)
@@ -377,6 +417,32 @@ def _owner_memory_context(
             break
     return selected
 
+
+def _business_state(repo: Repository, business, facts: Sequence[str],
+                    business_id: str):
+    """What memory already knows the business *is*, or None.
+
+    Built from the whole stored corpus rather than tonight's retrieval, because
+    the failure it exists to stop is a find recommending something the tenant
+    already sells — and the rows proving that were in memory and unretrieved.
+
+    Returns None when the repository predates `all_observations`. The deployed
+    Lambda image and the local harness upgrade separately, and a night must not
+    fail because the two halves landed in either order; that mistake cost us a
+    night once already over the ledger's `actual_daily_cents` column. Without
+    the block the Analyst is exactly as well informed as it was yesterday.
+    """
+    reader = getattr(repo, "all_observations", None)
+    if reader is None:
+        return None
+    try:
+        stored = reader(business_id, limit=CORPUS_ROWS_READ)
+    except (AttributeError, NotImplementedError, TypeError):
+        return None
+    return build_business_state(business=business, facts=facts,
+                                observations=stored)
+
+
 def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
               queries: Sequence[str], per_query_limit: int) -> list[Retrieved]:
     """Compatibility wrapper returning only the deduplicated observations."""
@@ -423,7 +489,8 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
                  rules: Sequence, retrieved: Sequence[Retrieved],
                  today: date, recent_finds: Sequence = (),
                  competitors: Sequence = (),
-                 owner_messages: Sequence = ()) -> str:
+                 owner_messages: Sequence = (),
+                 business_state=None) -> str:
     name = (business or {}).get("name", "this business")
     city = (business or {}).get("city")
     goal = (business or {}).get("goal_monthly_cents")
@@ -456,15 +523,43 @@ def build_prompt(*, business: dict | None, facts: Sequence[str],
     else:
         lines.append("- (none set)")
 
+    # Above the market rows on purpose. Everything below this point is what
+    # somebody else says about the business; this is what the business already
+    # is, and a move that contradicts it is wrong before it is priced.
+    inventory = describe_business_state(business_state) if business_state else ""
+    if inventory:
+        lines.append("")
+        lines.append(inventory)
+
     # Without this the Analyst re-proposes the same move night after night: it
     # remembers the business's observations but not its own recommendations.
+    #
+    # Two lists, not one. A find the owner saw is off limits; a find a gate
+    # withheld was never proposed to anyone, and forbidding it would mean the
+    # corrected version can never be raised either.
     if recent_finds:
-        lines.append("\nAlready proposed — do not repeat any of these:")
-        for found in recent_finds:
+        shown = [found for found in recent_finds
+                 if getattr(found, "seen_by_owner", True)]
+        held_back = [found for found in recent_finds
+                     if not getattr(found, "seen_by_owner", True)]
+        if shown:
+            lines.append("\nAlready proposed — do not repeat any of these:")
+            for found in shown:
+                lines.append(
+                    f"- [{found.status}] {found.title} "
+                    f"(+{found.predicted_daily_cents}c/day)"
+                )
+        if held_back:
             lines.append(
-                f"- [{found.status}] {found.title} "
-                f"(+{found.predicted_daily_cents}c/day)"
+                "\nConsidered on an earlier night and never shown to the owner. "
+                "These are NOT off limits. Propose one again if tonight's "
+                "evidence answers what was missing last time; do not re-file the "
+                "same argument unchanged."
             )
+            # No cents figure. A prediction that was never shown was never a
+            # promise, and reprinting it invites the model to anchor on it.
+            for found in held_back:
+                lines.append(f"- {found.title}")
 
     # Live, and deliberately not part of memory: Google's terms forbid storing
     # Places content, so this is a snapshot of tonight rather than something the
@@ -631,15 +726,20 @@ def _analyst_night(
         repo, business_id, retrieval.query_vectors
     )
 
+    business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
+    facts = repo.get_business_facts(business_id)
+
     prompt = build_prompt(
-        business=repo.get_business(business_id) if hasattr(repo, "get_business") else None,
-        facts=repo.get_business_facts(business_id),
+        business=business,
+        facts=facts,
         rules=repo.get_owner_rules(business_id),
         retrieved=retrieved,
         today=today,
-        recent_finds=repo.recent_finds(business_id, limit=RECENT_FINDS_SHOWN),
+        recent_finds=repo.recent_finds(business_id, limit=RECENT_FINDS_SHOWN,
+                                       include_unseen=True),
         competitors=competitors,
         owner_messages=owner_memory_messages,
+        business_state=_business_state(repo, business, facts, business_id),
     )
 
     similarity_by_id = {r.observation_id: r.similarity for r in retrieved}

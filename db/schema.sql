@@ -152,6 +152,16 @@ CREATE TABLE IF NOT EXISTS observation (
   business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
   run_id        UUID REFERENCES agent_run(id),
   kind          observation_kind NOT NULL,
+  -- What the row ASSERTS, as opposed to `kind`, which says where it came from.
+  -- Every web row Radar has ever written is kind='trend', so reviews, opening
+  -- hours, dish prices, marketing copy and "This menu isn't available right
+  -- now" were one label and nothing downstream could tell a fact that expires
+  -- in minutes from one that is true next month. Nullable on purpose: rows
+  -- written before typing existed keep NULL, which honestly means "we never
+  -- looked" rather than a label nobody assigned. Values are the vocabulary in
+  -- brasstacks.signals.STATEMENT_TYPES, kept as a STRING rather than an ENUM
+  -- so refining that vocabulary does not need a type migration.
+  statement_type STRING,
   content       STRING NOT NULL,             -- the text that gets embedded
   source_name   STRING,                      -- 'review site', 'forum', ...
   source_url    STRING,
@@ -170,6 +180,12 @@ CREATE TABLE IF NOT EXISTS observation (
   INDEX (business_id, kind, observed_at DESC),
   VECTOR INDEX observation_embed_idx (business_id, embedding vector_cosine_ops)
 );
+
+-- The three live tenants' observation tables predate statement_type, and
+-- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists.
+ALTER TABLE observation ADD COLUMN IF NOT EXISTS statement_type STRING;
+CREATE INDEX IF NOT EXISTS observation_statement_idx
+  ON observation (business_id, statement_type, observed_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- Analyst: a find, and — critically — its prediction
