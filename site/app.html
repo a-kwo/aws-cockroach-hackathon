@@ -14848,661 +14848,1559 @@
   </style>
 
 
-  <style id="owner-surface-consistency-v37">
+  <style id="owner-unified-surfaces-v37">
     /*
-      Owner surfaces must feel like one product. The recommendation drawer and
-      business profile previously fell back to a light paper theme while For You
-      and Growth used the midnight shell. This final owner-only layer gives chat,
-      profile, Maker review, and Growth receipts the same calm dark surfaces and
-      accessible type. Memory Engine is intentionally untouched because every
-      selector requires an owner-facing body mode.
+      One owner-facing visual system. For You, Growth, the recommendation chat,
+      and the business profile all use the same midnight surfaces. Memory Engine
+      is deliberately excluded because it is an operator product with its own
+      information density and visual language.
     */
-    body:is(.autopilot-mode, .growth-mode) {
-      --owner-overlay: #070b18;
-      --owner-overlay-raised: #0f1428;
-      --owner-overlay-soft: rgba(255, 255, 255, .052);
-      --owner-overlay-soft-strong: rgba(255, 255, 255, .078);
-      --owner-overlay-line: rgba(197, 205, 255, .14);
-      --owner-overlay-line-strong: rgba(211, 216, 255, .24);
-      --owner-overlay-text: #f6f7ff;
-      --owner-overlay-copy: #b9c0d4;
-      --owner-overlay-muted: #8992ab;
-      --owner-overlay-accent: #a855f7;
-      --owner-overlay-accent-rgb: 168, 85, 247;
-      --owner-overlay-pink: #ec4899;
-      --owner-action-gradient: linear-gradient(135deg, #7a36e8 0%, #9e2fce 55%, #c72b8a 100%);
+    body.autopilot-mode,
+    body.growth-mode {
+      --owner-surface-base: #080c1a;
+      --owner-surface: #0d1225;
+      --owner-surface-raised: #12182d;
+      --owner-surface-input: #0a1021;
+      --owner-border: rgba(190, 199, 255, .14);
+      --owner-border-strong: rgba(205, 212, 255, .24);
+      --owner-text: #f6f7ff;
+      --owner-text-secondary: #bdc4d8;
+      --owner-text-muted: #909ab4;
+      --owner-accent: #b56dff;
+      --owner-accent-soft: rgba(181, 109, 255, .13);
+      --owner-accent-border: rgba(202, 145, 255, .34);
+      --owner-positive: #68ddb3;
+      --owner-danger: #ff9bac;
+      color-scheme: dark;
     }
 
-    /* Growth receipts: readable forecast, complete copy, and no blank card tail. */
-    body.growth-mode .decision-lists {
-      align-items: start !important;
-    }
-    body.growth-mode .list-panel {
-      min-height: auto !important;
-      height: auto !important;
-      align-self: start !important;
-    }
-    body.growth-mode .decision-list {
-      min-height: 0 !important;
-    }
+    /* Growth rows: projected money is readable without looking verified. */
     body.growth-mode .decision-row {
-      min-height: 92px !important;
-      grid-template-columns: 48px minmax(0, 1fr) auto !important;
-      gap: 15px !important;
-      padding: 16px 20px !important;
+      min-height: 84px !important;
+      grid-template-columns: 46px minmax(0, 1fr) auto !important;
+      gap: 14px !important;
+      padding: 14px 18px !important;
+      border-bottom-color: rgba(255,255,255,.075) !important;
+      background: rgba(255,255,255,.022) !important;
     }
+
+    body.growth-mode .decision-row:hover {
+      border-color: rgba(207, 214, 255, .13) !important;
+      background: rgba(255,255,255,.052) !important;
+      transform: none !important;
+    }
+
+    body.growth-mode .decision-row-icon {
+      width: 46px !important;
+      height: 46px !important;
+      border: 1px solid rgba(var(--row-accent-rgb, 181,109,255), .18) !important;
+      background: rgba(var(--row-accent-rgb, 181,109,255), .10) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+    }
+
     body.growth-mode .decision-row-copy strong {
-      overflow: visible !important;
-      color: #f1f3fb !important;
+      display: -webkit-box !important;
+      overflow: hidden !important;
+      color: var(--owner-text) !important;
       font-size: 14.5px !important;
-      line-height: 1.3 !important;
-      font-weight: 750 !important;
+      font-weight: 760 !important;
+      line-height: 1.32 !important;
       letter-spacing: -.018em !important;
-      text-overflow: clip !important;
       white-space: normal !important;
-      text-wrap: pretty;
+      text-overflow: clip !important;
+      -webkit-box-orient: vertical !important;
+      -webkit-line-clamp: 2 !important;
     }
+
     body.growth-mode .decision-row-copy span {
       display: -webkit-box !important;
       overflow: hidden !important;
       margin-top: 5px !important;
-      color: #929bb2 !important;
+      color: var(--owner-text-muted) !important;
       font-size: 11px !important;
-      line-height: 1.45 !important;
-      text-overflow: clip !important;
+      line-height: 1.42 !important;
       white-space: normal !important;
+      text-overflow: clip !important;
       -webkit-box-orient: vertical !important;
       -webkit-line-clamp: 2 !important;
     }
+
+    body.growth-mode .decision-row-value,
     body.growth-mode .decision-row-value.forecast,
     body.growth-mode .decision-row-value.forecast:not(.rejected) {
       min-width: 86px !important;
-      height: 36px !important;
+      min-height: 38px !important;
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
       padding: 0 12px !important;
-      border: 1px solid rgba(211, 166, 255, .32) !important;
+      border: 1px solid var(--owner-accent-border) !important;
+      border-bottom: 1px solid var(--owner-accent-border) !important;
       border-radius: 999px !important;
-      background: linear-gradient(135deg, rgba(168, 85, 247, .22), rgba(236, 72, 153, .13)) !important;
-      color: #f5eeff !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 22px rgba(84, 35, 164, .20) !important;
+      background: linear-gradient(135deg, rgba(126,59,225,.22), rgba(190,55,169,.15)) !important;
+      color: #ead7ff !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 24px rgba(65,27,117,.18) !important;
       font-size: 12px !important;
       font-weight: 820 !important;
       line-height: 1 !important;
-      letter-spacing: -.015em !important;
-      font-variant-numeric: tabular-nums;
-      text-shadow: none !important;
+      letter-spacing: -.018em !important;
+      font-variant-numeric: tabular-nums !important;
       white-space: nowrap !important;
     }
+
     body.growth-mode .decision-row-value.rejected {
-      min-width: 86px !important;
-      height: 34px !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      padding: 0 12px !important;
-      border: 1px solid var(--owner-overlay-line) !important;
-      border-radius: 999px !important;
-      background: rgba(255, 255, 255, .055) !important;
-      color: #aeb5c8 !important;
-      font-size: 11px !important;
-      font-weight: 760 !important;
-      white-space: nowrap !important;
+      border-color: rgba(194,202,229,.14) !important;
+      background: rgba(255,255,255,.045) !important;
+      color: #aab3c9 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
-    body.autopilot-mode .decision-button.approve,
-    body.autopilot-mode .decision-button.approve:hover,
-    body.autopilot-mode .decision-button.approve:focus-visible {
-      border-color: transparent !important;
-      background: var(--owner-action-gradient) !important;
-      color: #fff !important;
-      box-shadow: 0 12px 28px rgba(86, 29, 156, .30) !important;
-    }
-    body.autopilot-mode .decision-button.approve span,
-    body.autopilot-mode .decision-button.approve svg {
-      color: #fff !important;
-    }
-
-    /* Recommendation details and Ask chat. */
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer {
-      --drawer-accent: var(--owner-overlay-accent) !important;
-      --drawer-accent-rgb: var(--owner-overlay-accent-rgb) !important;
-      color-scheme: dark;
-      border: 1px solid var(--owner-overlay-line) !important;
-      background:
-        radial-gradient(480px 320px at 100% 0%, rgba(168, 85, 247, .12), transparent 70%),
-        linear-gradient(180deg, #0d1224 0%, var(--owner-overlay) 100%) !important;
-      color: var(--owner-overlay-copy) !important;
-      box-shadow: -32px 0 92px rgba(0, 0, 0, .58), inset 1px 0 0 rgba(255, 255, 255, .025) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer::before {
-      height: 3px !important;
-      background: linear-gradient(90deg, var(--owner-overlay-accent), var(--owner-overlay-pink)) !important;
-      opacity: 1 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-header {
-      min-height: 82px !important;
-      border-bottom: 1px solid rgba(255, 255, 255, .075) !important;
-      background: rgba(10, 14, 29, .88) !important;
-      backdrop-filter: blur(22px) saturate(125%) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-avatar {
-      border: 1px solid rgba(201, 160, 255, .22) !important;
-      background: linear-gradient(145deg, rgba(168, 85, 247, .22), rgba(236, 72, 153, .10)) !important;
-      color: #dfc7ff !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), 0 10px 26px rgba(76, 31, 142, .20) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-title strong {
-      color: var(--owner-overlay-text) !important;
-      font-size: 15.5px !important;
-      font-weight: 780 !important;
-      letter-spacing: -.02em !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-title span {
-      color: var(--owner-overlay-muted) !important;
-      font-size: 10.5px !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-header .icon-button {
-      border: 1px solid var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .05) !important;
-      color: #aeb6cc !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-header .icon-button:hover {
-      border-color: rgba(202, 155, 255, .36) !important;
-      background: rgba(168, 85, 247, .12) !important;
-      color: #eadcff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body {
-      background: transparent !important;
-      color: var(--owner-overlay-copy) !important;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(190, 127, 255, .42) transparent;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body::-webkit-scrollbar { width: 8px; }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body::-webkit-scrollbar-track { background: transparent; }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body::-webkit-scrollbar-thumb {
-      border: 2px solid transparent;
-      border-radius: 999px;
-      background: rgba(190, 127, 255, .38);
-      background-clip: padding-box;
+    /* Owner recommendation drawer and durable chat. */
+    body.autopilot-mode #detailDrawer,
+    body.growth-mode #detailDrawer {
+      --theme-ink: var(--owner-text);
+      --theme-copy: var(--owner-text-secondary);
+      --theme-muted: var(--owner-text-muted);
+      --ink: var(--owner-text);
+      --ink-soft: var(--owner-text-secondary);
+      --muted: var(--owner-text-muted);
+      --line: var(--owner-border);
+      --surface: var(--owner-surface);
+      --surface-soft: var(--owner-surface-raised);
+      --drawer-accent: var(--owner-accent);
+      --drawer-accent-rgb: 181, 109, 255;
+      width: min(500px, calc(100% - 16px)) !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 24px !important;
+      background: linear-gradient(180deg, #0e1428 0%, #080c19 100%) !important;
+      color: var(--owner-text-secondary) !important;
+      box-shadow: -30px 0 90px rgba(0,0,0,.54), inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-stack,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-panel {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .038) !important;
-      color: var(--owner-overlay-copy) !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.pending {
-      border-color: rgba(184, 126, 255, .25) !important;
-      background: rgba(168, 85, 247, .085) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.approved {
-      border-color: rgba(77, 215, 168, .24) !important;
-      background: rgba(77, 215, 168, .075) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.rejected {
-      border-color: rgba(247, 113, 142, .22) !important;
-      background: rgba(247, 113, 142, .07) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state-icon {
-      border: 1px solid rgba(255, 255, 255, .09) !important;
-      background: rgba(255, 255, 255, .075) !important;
-      color: #d8baff !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.approved .decision-state-icon {
-      background: rgba(77, 215, 168, .15) !important;
-      color: #7ce5c2 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.rejected .decision-state-icon {
-      background: rgba(247, 113, 142, .13) !important;
-      color: #ff9db2 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state strong {
-      color: var(--owner-overlay-text) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state span:last-child {
-      color: var(--owner-overlay-copy) !important;
-      font-size: 11px !important;
-      line-height: 1.45 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section + .detail-section {
-      border-top-color: rgba(255, 255, 255, .075) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section-label,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card-label {
-      color: #c99cff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section h3,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card h3,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-head strong,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-action-copy strong {
-      color: var(--owner-overlay-text) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section p,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card p,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-head span,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-action-copy span {
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-recommendation-list,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-recommendation-list li {
-      color: #e6e9f5 !important;
-      font-size: 13px !important;
-      line-height: 1.55 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact {
-      border: 1px solid rgba(201, 154, 255, .22) !important;
-      background: linear-gradient(135deg, rgba(168, 85, 247, .12), rgba(236, 72, 153, .065)) !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact span {
-      color: #c5a4ed !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact small {
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact strong {
-      color: #e6ceff !important;
-      font-variant-numeric: tabular-nums;
-      text-shadow: none !important;
+    body.autopilot-mode #detailDrawer .drawer-header,
+    body.growth-mode #detailDrawer .drawer-header {
+      min-height: 76px !important;
+      padding: 14px 16px !important;
+      border-bottom: 1px solid var(--owner-border) !important;
+      background: rgba(13,18,37,.96) !important;
     }
 
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-panel {
-      gap: 14px !important;
-      padding: 18px !important;
-      border-radius: 20px !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .memory-chip {
-      border: 1px solid rgba(201, 156, 255, .24) !important;
-      background: rgba(168, 85, 247, .11) !important;
-      color: #d8b9ff !important;
-      font-size: 8.5px !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-empty {
-      border: 1px solid rgba(255, 255, 255, .065) !important;
-      background: rgba(255, 255, 255, .035) !important;
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message {
-      font-size: 12.5px !important;
-      line-height: 1.55 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.agent {
-      border: 1px solid rgba(255, 255, 255, .085) !important;
-      background: #13182c !important;
-      color: #e7eaf5 !important;
-      box-shadow: 0 10px 26px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .035) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.owner {
-      background: var(--owner-action-gradient) !important;
-      color: #ffffff !important;
-      box-shadow: 0 10px 24px rgba(112, 43, 207, .24) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.is-loading {
-      color: #a6aec2 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.is-error {
-      border-color: rgba(247, 113, 142, .24) !important;
-      background: rgba(247, 113, 142, .085) !important;
-      color: #ffb2c2 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-receipt {
-      color: #818ba5 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-receipt summary {
-      color: #c89cff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-action {
-      border-top-color: rgba(255, 255, 255, .085) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .undo-pass-button,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-button {
-      border: 1px solid rgba(217, 181, 255, .22) !important;
-      background: var(--owner-action-gradient) !important;
-      color: #fff !important;
-      box-shadow: 0 10px 24px rgba(104, 39, 193, .23) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-panel {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .038) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-panel strong {
-      color: var(--owner-overlay-text) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-panel p {
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-fields select,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-fields input {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .05) !important;
-      color: var(--owner-overlay-text) !important;
-    }
-
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-actions .decision-button.reject {
-      border-color: var(--owner-overlay-line-strong) !important;
-      background: rgba(255, 255, 255, .055) !important;
-      color: #d3d8e7 !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-actions .decision-button.approve {
-      border-color: transparent !important;
-      background: var(--owner-action-gradient) !important;
-      color: #fff !important;
-      box-shadow: 0 12px 28px rgba(104, 39, 193, .28) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer {
-      border-top: 1px solid rgba(255, 255, 255, .075) !important;
-      background: rgba(7, 11, 24, .94) !important;
-      box-shadow: 0 -16px 36px rgba(0, 0, 0, .26) !important;
-      backdrop-filter: blur(20px) !important;
-      -webkit-backdrop-filter: blur(20px) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer input {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .055) !important;
-      color: var(--owner-overlay-text) !important;
-      caret-color: #d5adff !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer input::placeholder {
-      color: #7f89a2 !important;
-      opacity: 1 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer input:focus {
-      border-color: rgba(199, 149, 255, .58) !important;
-      background: rgba(255, 255, 255, .075) !important;
-      box-shadow: 0 0 0 3px rgba(168, 85, 247, .14) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .send-button {
-      border: 0 !important;
-      background: var(--owner-action-gradient) !important;
-      color: #fff !important;
-      box-shadow: 0 10px 24px rgba(104, 39, 193, .26) !important;
-    }
-
-    /* Maker review lives inside the owner drawer, so its receipts use the same skin. */
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-panel,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-summary,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-next-action,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-receipt,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-revision-tools,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-tool-receipt {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .04) !important;
-      color: var(--owner-overlay-copy) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-actions {
-      border-color: rgba(255, 255, 255, .075) !important;
-      background: rgba(255, 255, 255, .025) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head strong,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-summary p,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-next-action strong,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions ol,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card h4,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-head strong,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-meta dd,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-body pre,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-full-draft pre,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-message pre {
-      color: var(--owner-overlay-text) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head span,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-actions p,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions p,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card div,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-meta dt,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-timeline small,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-revision-tools span {
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head small,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-summary small,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-next-action small,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions small,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card > span,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-head small,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-message summary {
-      color: #c99cff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-meta div {
-      background: rgba(255, 255, 255, .04) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-revision-chips button,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-copy-button {
-      border: 1px solid var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .06) !important;
-      color: #e9e3f6 !important;
-    }
-
-    /* Business profile: same midnight shell for owners, original operator UI remains intact. */
-    body:is(.autopilot-mode, .growth-mode) .profile-scrim {
-      background: rgba(2, 4, 12, .76) !important;
-      backdrop-filter: blur(9px) !important;
-      -webkit-backdrop-filter: blur(9px) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel {
-      color-scheme: dark;
-      border-right: 1px solid var(--owner-overlay-line) !important;
-      background:
-        radial-gradient(460px 300px at 0% 0%, rgba(168, 85, 247, .13), transparent 72%),
-        linear-gradient(180deg, #0d1224 0%, var(--owner-overlay) 100%) !important;
-      color: var(--owner-overlay-text) !important;
-      box-shadow: 32px 0 92px rgba(0, 0, 0, .58), inset -1px 0 0 rgba(255, 255, 255, .025) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-head,
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-foot {
-      border-color: rgba(255, 255, 255, .075) !important;
-      background: rgba(10, 14, 29, .88) !important;
-      backdrop-filter: blur(22px) saturate(125%) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-mark {
-      background: var(--owner-action-gradient) !important;
-      color: #fff !important;
-      box-shadow: 0 10px 25px rgba(104, 39, 193, .26), inset 0 1px 0 rgba(255, 255, 255, .14) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-title strong {
-      color: var(--owner-overlay-text) !important;
-      font-size: 16px !important;
-      font-weight: 780 !important;
-      letter-spacing: -.025em !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-title span {
-      color: var(--owner-overlay-muted) !important;
-      font-size: 11px !important;
-      line-height: 1.45 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-close {
-      border: 1px solid var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .05) !important;
-      color: #b8bfd2 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-close:hover {
-      border-color: rgba(202, 155, 255, .36) !important;
-      background: rgba(168, 85, 247, .12) !important;
-      color: #f1e8ff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-body {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(190, 127, 255, .42) transparent;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-body::-webkit-scrollbar { width: 8px; }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-body::-webkit-scrollbar-track { background: transparent; }
-    body:is(.autopilot-mode, .growth-mode) .profile-panel-body::-webkit-scrollbar-thumb {
-      border: 2px solid transparent;
-      border-radius: 999px;
-      background: rgba(190, 127, 255, .38);
-      background-clip: padding-box;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-loading,
-    body:is(.autopilot-mode, .growth-mode) .profile-empty {
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-loading::before {
-      border-color: rgba(255, 255, 255, .12) !important;
-      border-top-color: #bd7dff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-identity-card,
-    body:is(.autopilot-mode, .growth-mode) .profile-section,
-    body:is(.autopilot-mode, .growth-mode) .profile-portfolio-summary article,
-    body:is(.autopilot-mode, .growth-mode) .profile-account-card {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .04) !important;
-      color: var(--owner-overlay-text) !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .13) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-identity-avatar,
-    body:is(.autopilot-mode, .growth-mode) .profile-account-avatar {
-      border: 1px solid rgba(200, 155, 255, .20) !important;
-      background: linear-gradient(145deg, rgba(168, 85, 247, .19), rgba(236, 72, 153, .09)) !important;
-      color: #dfc7ff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-identity-card strong,
-    body:is(.autopilot-mode, .growth-mode) .profile-section-head strong,
-    body:is(.autopilot-mode, .growth-mode) .profile-account-card strong,
-    body:is(.autopilot-mode, .growth-mode) .profile-portfolio-summary b {
-      color: var(--owner-overlay-text) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-identity-card span,
-    body:is(.autopilot-mode, .growth-mode) .profile-section-head span,
-    body:is(.autopilot-mode, .growth-mode) .profile-account-card small,
-    body:is(.autopilot-mode, .growth-mode) .profile-portfolio-summary span,
-    body:is(.autopilot-mode, .growth-mode) .profile-save-note {
-      color: var(--owner-overlay-muted) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-account-card .profile-email {
-      color: #c99cff !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-field label {
-      color: #c4cadb !important;
-      font-size: 10.5px !important;
-      font-weight: 760 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-field input,
-    body:is(.autopilot-mode, .growth-mode) .profile-field select,
-    body:is(.autopilot-mode, .growth-mode) .profile-field textarea {
-      border-color: var(--owner-overlay-line) !important;
-      background: rgba(255, 255, 255, .05) !important;
-      color: var(--owner-overlay-text) !important;
-      font-size: 12.5px !important;
-      line-height: 1.45 !important;
-      caret-color: #d5adff !important;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-field input::placeholder,
-    body:is(.autopilot-mode, .growth-mode) .profile-field textarea::placeholder {
-      color: #7c87a1 !important;
-      opacity: 1 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-field select option {
-      background: #10152a !important;
-      color: var(--owner-overlay-text) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-field input:focus,
-    body:is(.autopilot-mode, .growth-mode) .profile-field select:focus,
-    body:is(.autopilot-mode, .growth-mode) .profile-field textarea:focus {
-      border-color: rgba(199, 149, 255, .62) !important;
-      background: rgba(255, 255, 255, .075) !important;
-      box-shadow: 0 0 0 3px rgba(168, 85, 247, .14) !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-field small {
-      color: #7f89a3 !important;
-      font-size: 9.5px !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-save-note.is-success {
-      color: #79dfbd !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-save-note.is-error {
-      color: #ff9eb3 !important;
-    }
-    body:is(.autopilot-mode, .growth-mode) .profile-save {
-      min-width: 132px !important;
+    body.autopilot-mode #detailDrawer .drawer-avatar,
+    body.growth-mode #detailDrawer .drawer-avatar {
+      width: 42px !important;
       height: 42px !important;
-      border: 0 !important;
-      background: var(--owner-action-gradient) !important;
+      flex-basis: 42px !important;
+      border: 1px solid var(--owner-accent-border) !important;
+      border-radius: 14px !important;
+      background: var(--owner-accent-soft) !important;
+      color: #d7b5ff !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-title strong,
+    body.growth-mode #detailDrawer .drawer-title strong {
+      color: var(--owner-text) !important;
+      font-size: 14.5px !important;
+      font-weight: 780 !important;
+      letter-spacing: -.018em !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-title span,
+    body.growth-mode #detailDrawer .drawer-title span {
+      color: var(--owner-text-muted) !important;
+      font-size: 10.5px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-header .icon-button,
+    body.growth-mode #detailDrawer .drawer-header .icon-button {
+      border-color: var(--owner-border) !important;
+      background: rgba(255,255,255,.045) !important;
+      color: #b7bfd4 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-header .icon-button:hover,
+    body.growth-mode #detailDrawer .drawer-header .icon-button:hover {
+      border-color: var(--owner-border-strong) !important;
+      background: rgba(255,255,255,.08) !important;
       color: #fff !important;
-      box-shadow: 0 10px 24px rgba(104, 39, 193, .26) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-body,
+    body.growth-mode #detailDrawer .drawer-body {
+      padding: 18px !important;
+      background: transparent !important;
+      scrollbar-color: rgba(181,109,255,.44) transparent !important;
+      scrollbar-width: thin !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state,
+    body.growth-mode #detailDrawer .decision-state {
+      min-height: 68px !important;
+      margin-bottom: 12px !important;
+      padding: 13px 14px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 17px !important;
+      background: rgba(255,255,255,.032) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state.pending,
+    body.growth-mode #detailDrawer .decision-state.pending {
+      border-color: rgba(193,132,255,.25) !important;
+      background: rgba(181,109,255,.075) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state.approved,
+    body.growth-mode #detailDrawer .decision-state.approved {
+      border-color: rgba(104,221,179,.22) !important;
+      background: rgba(104,221,179,.07) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state.rejected,
+    body.growth-mode #detailDrawer .decision-state.rejected {
+      border-color: rgba(255,155,172,.22) !important;
+      background: rgba(255,155,172,.07) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state strong,
+    body.growth-mode #detailDrawer .decision-state strong {
+      color: var(--owner-text) !important;
+      font-size: 15px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state span:last-child,
+    body.growth-mode #detailDrawer .decision-state span:last-child {
+      color: var(--owner-text-secondary) !important;
+      font-size: 10.5px !important;
+      line-height: 1.45 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .decision-state-icon,
+    body.growth-mode #detailDrawer .decision-state-icon {
+      border: 1px solid var(--owner-border) !important;
+      background: rgba(255,255,255,.05) !important;
+      color: #d8b9ff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-stack,
+    body.growth-mode #detailDrawer .detail-stack {
+      display: grid !important;
+      gap: 10px !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-section,
+    body.growth-mode #detailDrawer .detail-section {
+      padding: 16px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 17px !important;
+      background: rgba(255,255,255,.028) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-section + .detail-section,
+    body.growth-mode #detailDrawer .detail-section + .detail-section {
+      border-top: 1px solid var(--owner-border) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-section-label,
+    body.growth-mode #detailDrawer .detail-section-label {
+      color: #c99bff !important;
+      font-size: 9px !important;
+      letter-spacing: .09em !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-section h3,
+    body.growth-mode #detailDrawer .detail-section h3 {
+      color: var(--owner-text) !important;
+      font-size: 13.5px !important;
+      line-height: 1.48 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-section p,
+    body.growth-mode #detailDrawer .detail-section p,
+    body.autopilot-mode #detailDrawer .drawer-recommendation-list,
+    body.growth-mode #detailDrawer .drawer-recommendation-list {
+      color: var(--owner-text-muted) !important;
+      font-size: 11px !important;
+      line-height: 1.52 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-impact,
+    body.growth-mode #detailDrawer .detail-impact {
+      margin-top: 12px !important;
+      border: 1px solid var(--owner-accent-border) !important;
+      background: linear-gradient(135deg, rgba(126,59,225,.16), rgba(190,55,169,.09)) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.045) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-impact span,
+    body.growth-mode #detailDrawer .detail-impact span {
+      color: var(--owner-text-secondary) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-impact small,
+    body.growth-mode #detailDrawer .detail-impact small {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .detail-impact strong,
+    body.growth-mode #detailDrawer .detail-impact strong {
+      color: #e5c9ff !important;
+      font-variant-numeric: tabular-nums !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-chat-panel,
+    body.growth-mode #detailDrawer .drawer-chat-panel {
+      gap: 13px !important;
+      margin-top: 12px !important;
+      padding: 16px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 18px !important;
+      background: rgba(255,255,255,.028) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-chat-head strong,
+    body.growth-mode #detailDrawer .drawer-chat-head strong {
+      color: var(--owner-text) !important;
+      font-size: 14px !important;
+      font-weight: 780 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-chat-head span,
+    body.growth-mode #detailDrawer .drawer-chat-head span {
+      color: var(--owner-text-muted) !important;
+      font-size: 10.5px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .memory-chip,
+    body.growth-mode #detailDrawer .memory-chip {
+      border: 1px solid rgba(104,221,179,.22) !important;
+      background: rgba(104,221,179,.08) !important;
+      color: #8ce7c6 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-empty,
+    body.growth-mode #detailDrawer .chat-empty {
+      border: 1px solid rgba(255,255,255,.06) !important;
+      background: rgba(255,255,255,.025) !important;
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-message,
+    body.growth-mode #detailDrawer .chat-message {
+      font-size: 12px !important;
+      line-height: 1.55 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-message.agent,
+    body.growth-mode #detailDrawer .chat-message.agent {
+      border: 1px solid rgba(197,205,255,.12) !important;
+      background: #141a30 !important;
+      color: #dde1ef !important;
+      box-shadow: 0 10px 28px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.035) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-message.owner,
+    body.growth-mode #detailDrawer .chat-message.owner {
+      border: 1px solid rgba(225,188,255,.18) !important;
+      background: linear-gradient(135deg, #682bd7 0%, #882ddf 52%, #bd288a 100%) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 26px rgba(83,31,139,.28), inset 0 1px 0 rgba(255,255,255,.12) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-message.is-loading,
+    body.growth-mode #detailDrawer .chat-message.is-loading {
+      color: #a7b0c7 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-message.is-error,
+    body.growth-mode #detailDrawer .chat-message.is-error {
+      border-color: rgba(255,155,172,.24) !important;
+      background: rgba(255,155,172,.08) !important;
+      color: #ffc1cc !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-receipt,
+    body.growth-mode #detailDrawer .chat-receipt {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-receipt summary,
+    body.growth-mode #detailDrawer .chat-receipt summary {
+      color: #c99bff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-chat-action,
+    body.growth-mode #detailDrawer .drawer-chat-action {
+      border-top-color: var(--owner-border) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-chat-action-copy strong,
+    body.growth-mode #detailDrawer .drawer-chat-action-copy strong {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-chat-action-copy span,
+    body.growth-mode #detailDrawer .drawer-chat-action-copy span {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .undo-pass-button,
+    body.growth-mode #detailDrawer .undo-pass-button,
+    body.autopilot-mode #detailDrawer .reconsider-button,
+    body.growth-mode #detailDrawer .reconsider-button,
+    body.autopilot-mode #detailDrawer .maker-copy-button,
+    body.growth-mode #detailDrawer .maker-copy-button {
+      border: 1px solid rgba(213,172,255,.2) !important;
+      background: linear-gradient(135deg, #682bd7, #912edb 58%, #bd288a) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 24px rgba(74,27,126,.24) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer,
+    body.growth-mode #detailDrawer .drawer-composer {
+      padding: 12px !important;
+      border-top: 1px solid var(--owner-border) !important;
+      background: rgba(8,12,26,.97) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer input,
+    body.growth-mode #detailDrawer .drawer-composer input {
+      height: 44px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 13px !important;
+      background: var(--owner-surface-input) !important;
+      color: var(--owner-text) !important;
+      caret-color: var(--owner-accent) !important;
+      font-size: 12px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer input::placeholder,
+    body.growth-mode #detailDrawer .drawer-composer input::placeholder {
+      color: #77829d !important;
+      opacity: 1 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer input:focus,
+    body.growth-mode #detailDrawer .drawer-composer input:focus {
+      border-color: rgba(190,124,255,.58) !important;
+      box-shadow: 0 0 0 3px rgba(181,109,255,.14) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .send-button,
+    body.growth-mode #detailDrawer .send-button {
+      width: 44px !important;
+      height: 44px !important;
+      border: 1px solid rgba(223,187,255,.18) !important;
+      border-radius: 13px !important;
+      background: linear-gradient(135deg, #682bd7, #912edb 58%, #bd288a) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 24px rgba(74,27,126,.28) !important;
+    }
+
+    /* Maker review content can appear inside chat; it must not reintroduce paper-white cards. */
+    body.autopilot-mode #detailDrawer .maker-review-panel,
+    body.growth-mode #detailDrawer .maker-review-panel,
+    body.autopilot-mode #detailDrawer .maker-review-head,
+    body.growth-mode #detailDrawer .maker-review-head,
+    body.autopilot-mode #detailDrawer .maker-review-body,
+    body.growth-mode #detailDrawer .maker-review-body,
+    body.autopilot-mode #detailDrawer .maker-review-actions,
+    body.growth-mode #detailDrawer .maker-review-actions,
+    body.autopilot-mode #detailDrawer .maker-tool-receipt,
+    body.growth-mode #detailDrawer .maker-tool-receipt,
+    body.autopilot-mode #detailDrawer .maker-section-card,
+    body.growth-mode #detailDrawer .maker-section-card,
+    body.autopilot-mode #detailDrawer .maker-full-draft,
+    body.growth-mode #detailDrawer .maker-full-draft,
+    body.autopilot-mode #detailDrawer .maker-email-receipt,
+    body.growth-mode #detailDrawer .maker-email-receipt,
+    body.autopilot-mode #detailDrawer .maker-revision-tools,
+    body.growth-mode #detailDrawer .maker-revision-tools,
+    body.autopilot-mode #detailDrawer .reconsider-panel,
+    body.growth-mode #detailDrawer .reconsider-panel {
+      border-color: var(--owner-border) !important;
+      background: rgba(255,255,255,.028) !important;
+      color: var(--owner-text-secondary) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head,
+    body.growth-mode #detailDrawer .maker-review-head,
+    body.autopilot-mode #detailDrawer .maker-review-actions,
+    body.growth-mode #detailDrawer .maker-review-actions {
+      border-color: var(--owner-border) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head strong,
+    body.growth-mode #detailDrawer .maker-review-head strong,
+    body.autopilot-mode #detailDrawer .maker-review-summary p,
+    body.growth-mode #detailDrawer .maker-review-summary p,
+    body.autopilot-mode #detailDrawer .maker-next-action strong,
+    body.growth-mode #detailDrawer .maker-next-action strong,
+    body.autopilot-mode #detailDrawer .maker-owner-questions ol,
+    body.growth-mode #detailDrawer .maker-owner-questions ol,
+    body.autopilot-mode #detailDrawer .maker-section-card h4,
+    body.growth-mode #detailDrawer .maker-section-card h4,
+    body.autopilot-mode #detailDrawer .maker-full-draft pre,
+    body.growth-mode #detailDrawer .maker-full-draft pre,
+    body.autopilot-mode #detailDrawer .maker-email-message pre,
+    body.growth-mode #detailDrawer .maker-email-message pre,
+    body.autopilot-mode #detailDrawer .maker-tool-receipt strong,
+    body.growth-mode #detailDrawer .maker-tool-receipt strong,
+    body.autopilot-mode #detailDrawer .reconsider-panel strong,
+    body.growth-mode #detailDrawer .reconsider-panel strong {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-section-card div,
+    body.growth-mode #detailDrawer .maker-section-card div,
+    body.autopilot-mode #detailDrawer .maker-review-head span,
+    body.growth-mode #detailDrawer .maker-review-head span,
+    body.autopilot-mode #detailDrawer .maker-review-actions p,
+    body.growth-mode #detailDrawer .maker-review-actions p,
+    body.autopilot-mode #detailDrawer .maker-owner-questions p,
+    body.growth-mode #detailDrawer .maker-owner-questions p,
+    body.autopilot-mode #detailDrawer .reconsider-panel p,
+    body.growth-mode #detailDrawer .reconsider-panel p {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta div,
+    body.growth-mode #detailDrawer .maker-email-meta div {
+      background: rgba(255,255,255,.035) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta dt,
+    body.growth-mode #detailDrawer .maker-email-meta dt,
+    body.autopilot-mode #detailDrawer .maker-email-timeline small,
+    body.growth-mode #detailDrawer .maker-email-timeline small {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta dd,
+    body.growth-mode #detailDrawer .maker-email-meta dd,
+    body.autopilot-mode #detailDrawer .maker-email-timeline strong,
+    body.growth-mode #detailDrawer .maker-email-timeline strong {
+      color: var(--owner-text-secondary) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-revision-chips button,
+    body.growth-mode #detailDrawer .maker-revision-chips button {
+      border-color: var(--owner-border) !important;
+      background: rgba(255,255,255,.045) !important;
+      color: #d7c1ed !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-revision-chips button:hover,
+    body.growth-mode #detailDrawer .maker-revision-chips button:hover {
+      border-color: var(--owner-accent-border) !important;
+      background: var(--owner-accent-soft) !important;
+      color: #fff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields select,
+    body.growth-mode #detailDrawer .reconsider-fields select,
+    body.autopilot-mode #detailDrawer .reconsider-fields input,
+    body.growth-mode #detailDrawer .reconsider-fields input {
+      border-color: var(--owner-border) !important;
+      background: var(--owner-surface-input) !important;
+      color: var(--owner-text) !important;
+    }
+
+    /* Business profile: same midnight system, scoped away from Memory Engine. */
+    body.autopilot-mode .profile-scrim,
+    body.growth-mode .profile-scrim {
+      background: rgba(2,4,12,.76) !important;
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
+    }
+
+    body.autopilot-mode .profile-panel,
+    body.growth-mode .profile-panel {
+      --ink: var(--owner-text);
+      --muted: var(--owner-text-muted);
+      --line: var(--owner-border);
+      border-right: 1px solid var(--owner-border) !important;
+      background: linear-gradient(180deg, #0e1428 0%, #080c19 100%) !important;
+      color: var(--owner-text) !important;
+      box-shadow: 32px 0 96px rgba(0,0,0,.56), inset -1px 0 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode .profile-panel-head,
+    body.growth-mode .profile-panel-head,
+    body.autopilot-mode .profile-panel-foot,
+    body.growth-mode .profile-panel-foot {
+      border-color: var(--owner-border) !important;
+      background: rgba(13,18,37,.96) !important;
+    }
+
+    body.autopilot-mode .profile-panel-mark,
+    body.growth-mode .profile-panel-mark {
+      border: 1px solid rgba(226,190,255,.20) !important;
+      background: linear-gradient(135deg, #682bd7 0%, #882ddf 52%, #bd288a 100%) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 28px rgba(74,27,126,.26), inset 0 1px 0 rgba(255,255,255,.14) !important;
+    }
+
+    body.autopilot-mode .profile-panel-title strong,
+    body.growth-mode .profile-panel-title strong {
+      color: var(--owner-text) !important;
+      font-size: 17px !important;
+      font-weight: 780 !important;
+    }
+
+    body.autopilot-mode .profile-panel-title span,
+    body.growth-mode .profile-panel-title span {
+      color: var(--owner-text-muted) !important;
+      font-size: 11px !important;
+    }
+
+    body.autopilot-mode .profile-close,
+    body.growth-mode .profile-close {
+      border-color: var(--owner-border) !important;
+      background: rgba(255,255,255,.045) !important;
+      color: #b7bfd4 !important;
+    }
+
+    body.autopilot-mode .profile-close:hover,
+    body.growth-mode .profile-close:hover {
+      border-color: var(--owner-border-strong) !important;
+      background: rgba(255,255,255,.08) !important;
+      color: #fff !important;
+    }
+
+    body.autopilot-mode .profile-panel-body,
+    body.growth-mode .profile-panel-body {
+      scrollbar-color: rgba(181,109,255,.44) transparent !important;
+      scrollbar-width: thin !important;
+    }
+
+    body.autopilot-mode .profile-loading,
+    body.growth-mode .profile-loading,
+    body.autopilot-mode .profile-empty,
+    body.growth-mode .profile-empty {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode .profile-loading::before,
+    body.growth-mode .profile-loading::before {
+      border-color: rgba(255,255,255,.12) !important;
+      border-top-color: var(--owner-accent) !important;
+    }
+
+    body.autopilot-mode .profile-identity-card,
+    body.growth-mode .profile-identity-card,
+    body.autopilot-mode .profile-section,
+    body.growth-mode .profile-section,
+    body.autopilot-mode .profile-portfolio-summary article,
+    body.growth-mode .profile-portfolio-summary article,
+    body.autopilot-mode .profile-account-card,
+    body.growth-mode .profile-account-card {
+      border-color: var(--owner-border) !important;
+      background: rgba(255,255,255,.03) !important;
+      color: var(--owner-text) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode .profile-identity-card .profile-identity-avatar,
+    body.growth-mode .profile-identity-card .profile-identity-avatar,
+    body.autopilot-mode .profile-account-card .profile-account-avatar,
+    body.growth-mode .profile-account-card .profile-account-avatar {
+      display: grid !important;
+      place-items: center !important;
+      margin: 0 !important;
+      border: 1px solid var(--owner-accent-border) !important;
+      background: var(--owner-accent-soft) !important;
+      color: #d7b5ff !important;
+      font-weight: 820 !important;
+    }
+
+    body.autopilot-mode .profile-identity-card strong,
+    body.growth-mode .profile-identity-card strong,
+    body.autopilot-mode .profile-section-head strong,
+    body.growth-mode .profile-section-head strong,
+    body.autopilot-mode .profile-account-card strong,
+    body.growth-mode .profile-account-card strong,
+    body.autopilot-mode .profile-portfolio-summary b,
+    body.growth-mode .profile-portfolio-summary b {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode .profile-identity-card span,
+    body.growth-mode .profile-identity-card span,
+    body.autopilot-mode .profile-section-head span,
+    body.growth-mode .profile-section-head span,
+    body.autopilot-mode .profile-account-card small,
+    body.growth-mode .profile-account-card small,
+    body.autopilot-mode .profile-portfolio-summary span,
+    body.growth-mode .profile-portfolio-summary span {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode .profile-account-card .profile-email,
+    body.growth-mode .profile-account-card .profile-email {
+      color: #c99bff !important;
+    }
+
+    body.autopilot-mode .profile-field label,
+    body.growth-mode .profile-field label {
+      color: #c5ccdf !important;
+      font-size: 10.5px !important;
+      font-weight: 760 !important;
+    }
+
+    body.autopilot-mode .profile-field input,
+    body.growth-mode .profile-field input,
+    body.autopilot-mode .profile-field select,
+    body.growth-mode .profile-field select,
+    body.autopilot-mode .profile-field textarea,
+    body.growth-mode .profile-field textarea {
+      min-height: 44px !important;
+      border: 1px solid var(--owner-border) !important;
+      background: var(--owner-surface-input) !important;
+      color: var(--owner-text) !important;
+      caret-color: var(--owner-accent) !important;
+      font-size: 12.5px !important;
+      line-height: 1.45 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.02) !important;
+    }
+
+    body.autopilot-mode .profile-field input::placeholder,
+    body.growth-mode .profile-field input::placeholder,
+    body.autopilot-mode .profile-field textarea::placeholder,
+    body.growth-mode .profile-field textarea::placeholder {
+      color: #737e99 !important;
+      opacity: 1 !important;
+    }
+
+    body.autopilot-mode .profile-field input:focus,
+    body.growth-mode .profile-field input:focus,
+    body.autopilot-mode .profile-field select:focus,
+    body.growth-mode .profile-field select:focus,
+    body.autopilot-mode .profile-field textarea:focus,
+    body.growth-mode .profile-field textarea:focus {
+      border-color: rgba(190,124,255,.62) !important;
+      background: #0c1327 !important;
+      box-shadow: 0 0 0 3px rgba(181,109,255,.14) !important;
+    }
+
+    body.autopilot-mode .profile-field small,
+    body.growth-mode .profile-field small,
+    body.autopilot-mode .profile-save-note,
+    body.growth-mode .profile-save-note {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode .profile-save-note.is-error,
+    body.growth-mode .profile-save-note.is-error { color: #ffb0bd !important; }
+    body.autopilot-mode .profile-save-note.is-success,
+    body.growth-mode .profile-save-note.is-success { color: #8ce7c6 !important; }
+
+    body.autopilot-mode .profile-save,
+    body.growth-mode .profile-save {
+      min-width: 136px !important;
+      height: 44px !important;
+      border: 1px solid rgba(226,190,255,.20) !important;
+      border-radius: 13px !important;
+      background: linear-gradient(135deg, #682bd7 0%, #882ddf 52%, #bd288a 100%) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 26px rgba(74,27,126,.28), inset 0 1px 0 rgba(255,255,255,.13) !important;
       font-size: 11.5px !important;
       font-weight: 800 !important;
     }
-    body:is(.autopilot-mode, .growth-mode) .profile-close:focus-visible,
-    body:is(.autopilot-mode, .growth-mode) .profile-save:focus-visible,
-    body:is(.autopilot-mode, .growth-mode) #detailDrawer button:focus-visible {
-      outline: 3px solid rgba(190, 127, 255, .34) !important;
-      outline-offset: 3px !important;
+
+    body.autopilot-mode #detailDrawer button:focus-visible,
+    body.growth-mode #detailDrawer button:focus-visible,
+    body.autopilot-mode #detailDrawer input:focus-visible,
+    body.growth-mode #detailDrawer input:focus-visible,
+    body.autopilot-mode .profile-panel button:focus-visible,
+    body.growth-mode .profile-panel button:focus-visible,
+    body.autopilot-mode .profile-panel input:focus-visible,
+    body.growth-mode .profile-panel input:focus-visible,
+    body.autopilot-mode .profile-panel select:focus-visible,
+    body.growth-mode .profile-panel select:focus-visible,
+    body.autopilot-mode .profile-panel textarea:focus-visible,
+    body.growth-mode .profile-panel textarea:focus-visible {
+      outline: 3px solid rgba(181,109,255,.22) !important;
+      outline-offset: 2px !important;
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 700px) {
       body.growth-mode .decision-row {
-        min-height: 0 !important;
-        grid-template-columns: 42px minmax(0, 1fr) !important;
-        gap: 12px !important;
-        padding: 15px 16px !important;
+        min-height: 82px !important;
+        grid-template-columns: 42px minmax(0, 1fr) auto !important;
+        gap: 11px !important;
+        padding: 13px 14px !important;
       }
+
       body.growth-mode .decision-row-icon {
         width: 42px !important;
         height: 42px !important;
       }
+
+      body.growth-mode .decision-row-copy strong { font-size: 13.5px !important; }
+      body.growth-mode .decision-row-copy span { font-size: 10.5px !important; }
+
+      body.growth-mode .decision-row-value,
       body.growth-mode .decision-row-value.forecast,
-      body.growth-mode .decision-row-value.forecast:not(.rejected),
-      body.growth-mode .decision-row-value.rejected {
-        grid-column: 2 !important;
-        justify-self: start !important;
-        min-width: 0 !important;
-        height: 32px !important;
-        margin-top: 2px !important;
+      body.growth-mode .decision-row-value.forecast:not(.rejected) {
+        min-width: 76px !important;
+        min-height: 36px !important;
         padding-inline: 10px !important;
         font-size: 11px !important;
       }
-      body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body {
-        padding-inline: 16px !important;
+
+      body.autopilot-mode #detailDrawer,
+      body.growth-mode #detailDrawer {
+        width: calc(100% - 8px) !important;
+        border-radius: 20px !important;
       }
-      body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-panel {
-        padding: 15px !important;
-      }
-      body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message {
+
+      body.autopilot-mode #detailDrawer .drawer-body,
+      body.growth-mode #detailDrawer .drawer-body { padding: 14px !important; }
+
+      body.autopilot-mode #detailDrawer .chat-message,
+      body.growth-mode #detailDrawer .chat-message {
         max-width: 94% !important;
-        font-size: 13px !important;
+        font-size: 12.5px !important;
       }
-      body:is(.autopilot-mode, .growth-mode) .profile-panel {
-        width: 100vw !important;
-      }
-      body:is(.autopilot-mode, .growth-mode) .profile-panel-body {
-        padding: 14px !important;
-      }
-      body:is(.autopilot-mode, .growth-mode) .profile-section,
-      body:is(.autopilot-mode, .growth-mode) .profile-identity-card {
-        padding: 15px !important;
-        border-radius: 16px !important;
-      }
+
+      body.autopilot-mode .profile-panel,
+      body.growth-mode .profile-panel { width: 100vw !important; }
     }
 
-    @media (prefers-reduced-motion: reduce) {
-      body:is(.autopilot-mode, .growth-mode) .profile-panel,
-      body:is(.autopilot-mode, .growth-mode) #detailDrawer,
-      body:is(.autopilot-mode, .growth-mode) #detailDrawer button {
-        transition: none !important;
+    @media (max-width: 430px) {
+      body.growth-mode .decision-row {
+        grid-template-columns: 40px minmax(0, 1fr) !important;
+        grid-template-areas: "icon copy" "value value" !important;
+        align-items: start !important;
       }
-      .visual-flow-particle,
-      .visual-live-dot,
-      .visual-stage-node {
-        animation: none !important;
-        transition: none !important;
+
+      body.growth-mode .decision-row-icon { grid-area: icon !important; }
+      body.growth-mode .decision-row-copy { grid-area: copy !important; }
+      body.growth-mode .decision-row-value {
+        grid-area: value !important;
+        justify-self: start !important;
+        min-width: 0 !important;
+        margin-left: 51px !important;
       }
     }
   </style>
+
+
+
+
+
+  <style id="owner-production-system-v38">
+    /*
+      V38 is the final owner-facing control system. It keeps Memory Engine
+      untouched and removes every light control that survived inside Growth,
+      chat, Maker review, and the business profile.
+    */
+    body.autopilot-mode,
+    body.growth-mode {
+      --owner-surface-base: #070b17;
+      --owner-surface: #0c1223;
+      --owner-surface-raised: #11182b;
+      --owner-surface-input: #090f1e;
+      --owner-control-hover: #171f35;
+      --owner-border: rgba(205, 214, 255, .14);
+      --owner-border-strong: rgba(217, 224, 255, .25);
+      --owner-text: #f7f8ff;
+      --owner-text-secondary: #c4cadc;
+      --owner-text-muted: #929cb6;
+      --owner-accent: #a78bfa;
+      --owner-accent-soft: rgba(139, 92, 246, .14);
+      --owner-accent-border: rgba(196, 160, 255, .34);
+      --owner-success: #96ecd0;
+      --owner-warning: #f4cc91;
+      --owner-danger: #ffb4c0;
+      --owner-brand-gradient: linear-gradient(135deg, #6d28d9 0%, #8b2bd8 52%, #a21caf 100%);
+      color-scheme: dark;
+    }
+
+    /* Brass Tacks owner brand: one restrained violet/plum identity. */
+    body.autopilot-mode .brand-mark,
+    body.growth-mode .brand-mark,
+    body.autopilot-mode .profile-panel-mark,
+    body.growth-mode .profile-panel-mark {
+      border: 1px solid rgba(231, 213, 255, .24) !important;
+      background: var(--owner-brand-gradient) !important;
+      color: #ffffff !important;
+      box-shadow: 0 10px 28px rgba(82, 31, 145, .32), inset 0 1px 0 rgba(255,255,255,.16) !important;
+    }
+
+    body.autopilot-mode .brand-copy strong,
+    body.growth-mode .brand-copy strong {
+      color: #fbfaff !important;
+      font-size: 13.5px !important;
+      font-weight: 760 !important;
+      letter-spacing: -.02em !important;
+    }
+
+    body.autopilot-mode .brand-copy span,
+    body.growth-mode .brand-copy span {
+      color: #8f99b4 !important;
+    }
+
+    body.autopilot-mode .profile-menu-button,
+    body.growth-mode .profile-menu-button {
+      border-color: var(--owner-border) !important;
+      background: #0d1427 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+    }
+
+    body.autopilot-mode .profile-menu-button:hover,
+    body.growth-mode .profile-menu-button:hover {
+      border-color: var(--owner-accent-border) !important;
+      background: #151d33 !important;
+    }
+
+    body.autopilot-mode .profile-menu-button span,
+    body.growth-mode .profile-menu-button span {
+      background: #d8c3ff !important;
+    }
+
+    /* Growth: titles and counts are enough. Empty panels collapse to one row. */
+    body.growth-mode .decision-lists {
+      align-items: start !important;
+      gap: 16px !important;
+    }
+
+    body.growth-mode .list-panel-title p {
+      display: none !important;
+    }
+
+    body.growth-mode .list-panel-header {
+      min-height: 70px !important;
+      padding: 16px 20px !important;
+    }
+
+    body.growth-mode .list-panel-title h2 {
+      font-size: 19px !important;
+      font-weight: 760 !important;
+      line-height: 1.15 !important;
+      letter-spacing: -.028em !important;
+    }
+
+    body.growth-mode .list-panel.is-empty {
+      min-height: 0 !important;
+      background: linear-gradient(150deg, rgba(15,19,38,.96), rgba(8,11,24,.98)) !important;
+      box-shadow: 0 16px 46px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.03) !important;
+    }
+
+    body.growth-mode .list-panel.is-empty .list-panel-header {
+      border-bottom: 0 !important;
+    }
+
+    body.growth-mode .list-panel.is-empty .decision-list {
+      display: none !important;
+    }
+
+    /* Drawer structure: calm spacing, readable type, and one control language. */
+    body.autopilot-mode #detailDrawer,
+    body.growth-mode #detailDrawer {
+      width: min(560px, calc(100% - 24px)) !important;
+      background: linear-gradient(180deg, #0d1427 0%, #070b17 100%) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-body,
+    body.growth-mode #detailDrawer .drawer-body {
+      padding: 16px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-panel,
+    body.growth-mode #detailDrawer .maker-review-panel {
+      margin-top: 14px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 18px !important;
+      background: linear-gradient(180deg, rgba(18,25,46,.98), rgba(9,14,28,.98)) !important;
+      box-shadow: 0 18px 50px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.03) !important;
+      overflow: hidden !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-panel.is-archived,
+    body.growth-mode #detailDrawer .maker-review-panel.is-archived {
+      border-color: rgba(190,199,224,.14) !important;
+      background: linear-gradient(180deg, rgba(18,24,42,.96), rgba(10,14,26,.98)) !important;
+      opacity: 1 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head,
+    body.growth-mode #detailDrawer .maker-review-head {
+      padding: 17px 18px !important;
+      border-bottom: 1px solid var(--owner-border) !important;
+      background: rgba(255,255,255,.018) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head div,
+    body.growth-mode #detailDrawer .maker-review-head div {
+      gap: 5px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head small,
+    body.growth-mode #detailDrawer .maker-review-head small,
+    body.autopilot-mode #detailDrawer .maker-review-summary small,
+    body.growth-mode #detailDrawer .maker-review-summary small,
+    body.autopilot-mode #detailDrawer .maker-next-action small,
+    body.growth-mode #detailDrawer .maker-next-action small,
+    body.autopilot-mode #detailDrawer .maker-owner-questions small,
+    body.growth-mode #detailDrawer .maker-owner-questions small,
+    body.autopilot-mode #detailDrawer .maker-section-card > span,
+    body.growth-mode #detailDrawer .maker-section-card > span,
+    body.autopilot-mode #detailDrawer .maker-email-head small,
+    body.growth-mode #detailDrawer .maker-email-head small {
+      color: #c7a6ff !important;
+      font-size: 9px !important;
+      font-weight: 760 !important;
+      letter-spacing: .09em !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head strong,
+    body.growth-mode #detailDrawer .maker-review-head strong {
+      color: var(--owner-text) !important;
+      font-size: 15.5px !important;
+      font-weight: 750 !important;
+      line-height: 1.35 !important;
+      letter-spacing: -.018em !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head span,
+    body.growth-mode #detailDrawer .maker-review-head span {
+      color: var(--owner-text-muted) !important;
+      font-size: 11px !important;
+      line-height: 1.4 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-state,
+    body.growth-mode #detailDrawer .maker-review-state,
+    body.autopilot-mode #detailDrawer .maker-email-status,
+    body.growth-mode #detailDrawer .maker-email-status {
+      min-height: 29px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0 10px !important;
+      border: 1px solid var(--owner-accent-border) !important;
+      border-radius: 999px !important;
+      background: rgba(139,92,246,.14) !important;
+      color: #e8dcff !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+      font-size: 9.5px !important;
+      font-weight: 760 !important;
+      line-height: 1 !important;
+      letter-spacing: .02em !important;
+      white-space: nowrap !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-state.superseded,
+    body.growth-mode #detailDrawer .maker-review-state.superseded,
+    body.autopilot-mode #detailDrawer .maker-review-state.cancelled,
+    body.growth-mode #detailDrawer .maker-review-state.cancelled,
+    body.autopilot-mode #detailDrawer .maker-email-status.skipped,
+    body.growth-mode #detailDrawer .maker-email-status.skipped {
+      border-color: rgba(190,199,224,.18) !important;
+      background: rgba(148,163,184,.10) !important;
+      color: #d1d7e7 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-state.running,
+    body.growth-mode #detailDrawer .maker-review-state.running,
+    body.autopilot-mode #detailDrawer .maker-review-state.queued,
+    body.growth-mode #detailDrawer .maker-review-state.queued,
+    body.autopilot-mode #detailDrawer .maker-review-state.retry,
+    body.growth-mode #detailDrawer .maker-review-state.retry,
+    body.autopilot-mode #detailDrawer .maker-email-status.running,
+    body.growth-mode #detailDrawer .maker-email-status.running,
+    body.autopilot-mode #detailDrawer .maker-email-status.delivery_delayed,
+    body.growth-mode #detailDrawer .maker-email-status.delivery_delayed {
+      border-color: rgba(244,204,145,.25) !important;
+      background: rgba(217,151,49,.11) !important;
+      color: var(--owner-warning) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-status.delivered,
+    body.growth-mode #detailDrawer .maker-email-status.delivered,
+    body.autopilot-mode #detailDrawer .maker-email-status.opened,
+    body.growth-mode #detailDrawer .maker-email-status.opened,
+    body.autopilot-mode #detailDrawer .maker-email-status.clicked,
+    body.growth-mode #detailDrawer .maker-email-status.clicked,
+    body.autopilot-mode #detailDrawer .maker-email-status.accepted,
+    body.growth-mode #detailDrawer .maker-email-status.accepted,
+    body.autopilot-mode #detailDrawer .maker-email-status.sent,
+    body.growth-mode #detailDrawer .maker-email-status.sent {
+      border-color: rgba(82,217,175,.24) !important;
+      background: rgba(45,181,142,.11) !important;
+      color: var(--owner-success) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-state.failed,
+    body.growth-mode #detailDrawer .maker-review-state.failed,
+    body.autopilot-mode #detailDrawer .maker-email-status.bounced,
+    body.growth-mode #detailDrawer .maker-email-status.bounced,
+    body.autopilot-mode #detailDrawer .maker-email-status.complaint,
+    body.growth-mode #detailDrawer .maker-email-status.complaint,
+    body.autopilot-mode #detailDrawer .maker-email-status.rejected,
+    body.growth-mode #detailDrawer .maker-email-status.rejected,
+    body.autopilot-mode #detailDrawer .maker-email-status.rendering_failed,
+    body.growth-mode #detailDrawer .maker-email-status.rendering_failed,
+    body.autopilot-mode #detailDrawer .maker-email-status.failed,
+    body.growth-mode #detailDrawer .maker-email-status.failed {
+      border-color: rgba(255,138,158,.25) !important;
+      background: rgba(205,55,82,.11) !important;
+      color: var(--owner-danger) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-body,
+    body.growth-mode #detailDrawer .maker-review-body {
+      display: grid !important;
+      gap: 11px !important;
+      padding: 16px !important;
+      background: transparent !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-summary,
+    body.growth-mode #detailDrawer .maker-review-summary,
+    body.autopilot-mode #detailDrawer .maker-next-action,
+    body.growth-mode #detailDrawer .maker-next-action,
+    body.autopilot-mode #detailDrawer .maker-owner-questions,
+    body.growth-mode #detailDrawer .maker-owner-questions,
+    body.autopilot-mode #detailDrawer .maker-section-card,
+    body.growth-mode #detailDrawer .maker-section-card {
+      margin: 0 !important;
+      padding: 14px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 14px !important;
+      background: #10172a !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-next-action,
+    body.growth-mode #detailDrawer .maker-next-action {
+      border-color: rgba(196,160,255,.22) !important;
+      background: rgba(139,92,246,.08) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-next-action.needs-input,
+    body.growth-mode #detailDrawer .maker-next-action.needs-input {
+      border-color: rgba(244,204,145,.22) !important;
+      background: rgba(217,151,49,.08) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-summary p,
+    body.growth-mode #detailDrawer .maker-review-summary p,
+    body.autopilot-mode #detailDrawer .maker-next-action strong,
+    body.growth-mode #detailDrawer .maker-next-action strong,
+    body.autopilot-mode #detailDrawer .maker-owner-questions ol,
+    body.growth-mode #detailDrawer .maker-owner-questions ol,
+    body.autopilot-mode #detailDrawer .maker-section-card div,
+    body.growth-mode #detailDrawer .maker-section-card div {
+      color: #d9deed !important;
+      font-size: 12.5px !important;
+      line-height: 1.58 !important;
+    }
+
+    /* Complete draft: a dark, bounded reading surface instead of a white sheet. */
+    body.autopilot-mode #detailDrawer .maker-full-draft,
+    body.growth-mode #detailDrawer .maker-full-draft {
+      margin: 0 !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 14px !important;
+      background: #0a1020 !important;
+      overflow: hidden !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-full-draft summary,
+    body.growth-mode #detailDrawer .maker-full-draft summary {
+      padding: 13px 14px !important;
+      background: #11182b !important;
+      color: #d9c3ff !important;
+      font-size: 11px !important;
+      font-weight: 760 !important;
+      line-height: 1.35 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-full-draft summary::marker,
+    body.growth-mode #detailDrawer .maker-full-draft summary::marker {
+      color: #a78bfa !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-full-draft[open] summary,
+    body.growth-mode #detailDrawer .maker-full-draft[open] summary {
+      border-bottom: 1px solid var(--owner-border) !important;
+      background: rgba(139,92,246,.09) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-full-draft pre,
+    body.growth-mode #detailDrawer .maker-full-draft pre {
+      max-height: min(48vh, 520px) !important;
+      margin: 0 !important;
+      padding: 16px !important;
+      overflow: auto !important;
+      background: #080d1a !important;
+      color: #dce1ef !important;
+      font: 500 12.5px/1.66 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere !important;
+      scrollbar-color: rgba(167,139,250,.40) transparent !important;
+      scrollbar-width: thin !important;
+    }
+
+    /* Email receipt and timeline use dark semantic states with strong text. */
+    body.autopilot-mode #detailDrawer .maker-email-receipt,
+    body.growth-mode #detailDrawer .maker-email-receipt {
+      gap: 12px !important;
+      margin: 0 16px 16px !important;
+      padding: 15px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 15px !important;
+      background: #0f1629 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-head strong,
+    body.growth-mode #detailDrawer .maker-email-head strong {
+      color: var(--owner-text) !important;
+      font-size: 13.5px !important;
+      font-weight: 740 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta,
+    body.growth-mode #detailDrawer .maker-email-meta {
+      gap: 8px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta div,
+    body.growth-mode #detailDrawer .maker-email-meta div {
+      padding: 10px 11px !important;
+      border: 1px solid rgba(205,214,255,.075) !important;
+      background: #0a1020 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta dt,
+    body.growth-mode #detailDrawer .maker-email-meta dt {
+      color: #7f8aa5 !important;
+      font-size: 8px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-meta dd,
+    body.growth-mode #detailDrawer .maker-email-meta dd {
+      color: #d8ddec !important;
+      font-size: 10.5px !important;
+      line-height: 1.45 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline,
+    body.growth-mode #detailDrawer .maker-email-timeline {
+      gap: 8px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline > div,
+    body.growth-mode #detailDrawer .maker-email-timeline > div {
+      opacity: .62 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline > div.is-complete,
+    body.growth-mode #detailDrawer .maker-email-timeline > div.is-complete {
+      opacity: 1 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline i,
+    body.growth-mode #detailDrawer .maker-email-timeline i {
+      width: 22px !important;
+      height: 22px !important;
+      flex-basis: 22px !important;
+      border: 1px solid rgba(190,199,224,.15) !important;
+      background: #171e32 !important;
+      color: #a7b0c7 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline .is-complete i,
+    body.growth-mode #detailDrawer .maker-email-timeline .is-complete i {
+      border-color: rgba(82,217,175,.24) !important;
+      background: rgba(45,181,142,.12) !important;
+      color: var(--owner-success) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline strong,
+    body.growth-mode #detailDrawer .maker-email-timeline strong {
+      color: #dce1ee !important;
+      font-size: 9.5px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-timeline small,
+    body.growth-mode #detailDrawer .maker-email-timeline small {
+      color: #808ba5 !important;
+      font-size: 8px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-message,
+    body.growth-mode #detailDrawer .maker-email-message {
+      border-top-color: var(--owner-border) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-message summary,
+    body.growth-mode #detailDrawer .maker-email-message summary {
+      color: #d0b3ff !important;
+      font-size: 10.5px !important;
+      font-weight: 750 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-email-message pre,
+    body.growth-mode #detailDrawer .maker-email-message pre {
+      color: #d5dbea !important;
+      font-size: 11.5px !important;
+      line-height: 1.6 !important;
+    }
+
+    /* Reconsideration is a real form: full-width labels and a dark native menu. */
+    body.autopilot-mode #detailDrawer .reconsider-panel,
+    body.growth-mode #detailDrawer .reconsider-panel {
+      gap: 13px !important;
+      margin-top: 12px !important;
+      padding: 15px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 16px !important;
+      background: #0f1629 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-panel > div:first-child,
+    body.growth-mode #detailDrawer .reconsider-panel > div:first-child {
+      display: grid !important;
+      gap: 5px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-panel strong,
+    body.growth-mode #detailDrawer .reconsider-panel strong {
+      color: var(--owner-text) !important;
+      font-size: 14px !important;
+      font-weight: 740 !important;
+      line-height: 1.35 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-panel p,
+    body.growth-mode #detailDrawer .reconsider-panel p {
+      color: var(--owner-text-muted) !important;
+      font-size: 11.5px !important;
+      line-height: 1.5 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields,
+    body.growth-mode #detailDrawer .reconsider-fields {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 10px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-field,
+    body.growth-mode #detailDrawer .reconsider-field {
+      display: grid !important;
+      gap: 6px !important;
+      min-width: 0 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-field > span,
+    body.growth-mode #detailDrawer .reconsider-field > span {
+      color: #bfc7db !important;
+      font-size: 9px !important;
+      font-weight: 740 !important;
+      letter-spacing: .07em !important;
+      text-transform: uppercase !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-field > span small,
+    body.growth-mode #detailDrawer .reconsider-field > span small {
+      color: #727e9a !important;
+      font-size: 8px !important;
+      font-weight: 650 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields select,
+    body.growth-mode #detailDrawer .reconsider-fields select,
+    body.autopilot-mode #detailDrawer .reconsider-fields input,
+    body.growth-mode #detailDrawer .reconsider-fields input {
+      width: 100% !important;
+      min-height: 44px !important;
+      padding: 0 12px !important;
+      border: 1px solid var(--owner-border) !important;
+      border-radius: 12px !important;
+      background-color: var(--owner-surface-input) !important;
+      color: var(--owner-text) !important;
+      caret-color: var(--owner-accent) !important;
+      color-scheme: dark !important;
+      font: 600 12px/1.3 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.02) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields select,
+    body.growth-mode #detailDrawer .reconsider-fields select {
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      padding-right: 40px !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.25 7 8.75l3.5-3.5' stroke='%23c7a6ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 13px center !important;
+      background-size: 14px 14px !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields select option,
+    body.growth-mode #detailDrawer .reconsider-fields select option,
+    body.autopilot-mode .profile-field select option,
+    body.growth-mode .profile-field select option {
+      background: #0b1121 !important;
+      color: #f4f6ff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields input::placeholder,
+    body.growth-mode #detailDrawer .reconsider-fields input::placeholder {
+      color: #727d98 !important;
+      opacity: 1 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-fields select:focus,
+    body.growth-mode #detailDrawer .reconsider-fields select:focus,
+    body.autopilot-mode #detailDrawer .reconsider-fields input:focus,
+    body.growth-mode #detailDrawer .reconsider-fields input:focus {
+      border-color: rgba(196,160,255,.58) !important;
+      box-shadow: 0 0 0 3px rgba(139,92,246,.14) !important;
+      outline: none !important;
+    }
+
+    /* Primary actions use the brand gradient. Secondary actions stay neutral. */
+    body.autopilot-mode #detailDrawer .send-button,
+    body.growth-mode #detailDrawer .send-button,
+    body.autopilot-mode #detailDrawer .reconsider-button,
+    body.growth-mode #detailDrawer .reconsider-button,
+    body.autopilot-mode #detailDrawer .undo-pass-button,
+    body.growth-mode #detailDrawer .undo-pass-button,
+    body.autopilot-mode .profile-save,
+    body.growth-mode .profile-save {
+      border: 1px solid rgba(231,213,255,.22) !important;
+      background: var(--owner-brand-gradient) !important;
+      color: #ffffff !important;
+      box-shadow: 0 10px 26px rgba(82,31,145,.28), inset 0 1px 0 rgba(255,255,255,.13) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-button,
+    body.growth-mode #detailDrawer .reconsider-button {
+      width: 100% !important;
+      min-height: 44px !important;
+      border-radius: 12px !important;
+      font-size: 12px !important;
+      font-weight: 760 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-copy-button,
+    body.growth-mode #detailDrawer .maker-copy-button,
+    body.autopilot-mode #detailDrawer .maker-revision-chips button,
+    body.growth-mode #detailDrawer .maker-revision-chips button {
+      border: 1px solid var(--owner-border) !important;
+      background: #171e32 !important;
+      color: #e4e8f5 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-copy-button:hover,
+    body.growth-mode #detailDrawer .maker-copy-button:hover,
+    body.autopilot-mode #detailDrawer .maker-revision-chips button:hover,
+    body.growth-mode #detailDrawer .maker-revision-chips button:hover {
+      border-color: var(--owner-accent-border) !important;
+      background: var(--owner-control-hover) !important;
+      color: #ffffff !important;
+    }
+
+    /* Profile selects use the same dark native menu as the drawer. */
+    body.autopilot-mode .profile-field select,
+    body.growth-mode .profile-field select {
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      padding-right: 40px !important;
+      color-scheme: dark !important;
+      background-color: var(--owner-surface-input) !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.25 7 8.75l3.5-3.5' stroke='%23c7a6ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 13px center !important;
+      background-size: 14px 14px !important;
+    }
+
+    @media (max-width: 700px) {
+      body.autopilot-mode #detailDrawer,
+      body.growth-mode #detailDrawer {
+        width: calc(100% - 8px) !important;
+      }
+
+      body.autopilot-mode #detailDrawer .maker-review-head,
+      body.growth-mode #detailDrawer .maker-review-head {
+        padding: 15px !important;
+      }
+
+      body.autopilot-mode #detailDrawer .maker-review-body,
+      body.growth-mode #detailDrawer .maker-review-body {
+        padding: 14px !important;
+      }
+
+      body.autopilot-mode #detailDrawer .maker-email-receipt,
+      body.growth-mode #detailDrawer .maker-email-receipt {
+        margin: 0 14px 14px !important;
+      }
+
+      body.autopilot-mode #detailDrawer .maker-full-draft pre,
+      body.growth-mode #detailDrawer .maker-full-draft pre {
+        max-height: 42vh !important;
+        padding: 14px !important;
+        font-size: 12px !important;
+      }
+
+      body.growth-mode .list-panel-header {
+        min-height: 64px !important;
+        padding: 14px 16px !important;
+      }
+
+      body.growth-mode .list-panel-title h2 {
+        font-size: 17px !important;
+      }
+    }
+  
+
+    /* Specificity guard: review header copy rules must never mute status pills. */
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state {
+      color: #e8dcff !important;
+      font-size: 9.5px !important;
+      font-weight: 760 !important;
+      line-height: 1 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.superseded,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state.superseded,
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.cancelled,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state.cancelled {
+      color: #d1d7e7 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.running,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state.running,
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.queued,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state.queued,
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.retry,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state.retry {
+      color: var(--owner-warning) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.failed,
+    body.growth-mode #detailDrawer .maker-review-head .maker-review-state.failed {
+      color: var(--owner-danger) !important;
+    }
+
+    /* Keep compact receipt icons crisp even when legacy timeline rules win. */
+    body.autopilot-mode #detailDrawer .maker-email-timeline i,
+    body.growth-mode #detailDrawer .maker-email-timeline i {
+      font: 800 9px/1 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    }
+</style>
 
 </head>
 <body>
@@ -15653,7 +16551,6 @@
               <header class="list-panel-header">
                 <div class="list-panel-title">
                   <h2>Approved moves</h2>
-                  <p>Projected · not yet measured</p>
                 </div>
                 <span class="list-count" id="approvedListCount">0</span>
               </header>
@@ -15664,7 +16561,6 @@
               <header class="list-panel-header">
                 <div class="list-panel-title">
                   <h2>Passed</h2>
-                  <p>Ideas you skipped</p>
                 </div>
                 <span class="list-count" id="rejectedListCount">0</span>
               </header>
@@ -18432,13 +19328,19 @@
         <div class="reconsider-panel${compact ? " is-compact" : ""}" data-reconsider-panel data-post-id="${escapeHtml(post.id)}">
           <div>
             <strong>Return this move to For You</strong>
-            <p>The original Do it, Maker task, draft, and email receipt stay in history. Current work is cancelled or archived, and a new decision cycle opens.</p>
+            <p>Keeps the original decision, draft, and email receipt in history, then opens a new decision cycle.</p>
           </div>
           <div class="reconsider-fields">
-            <select data-reconsider-reason aria-label="Reason for reconsidering">
-              ${RECONSIDER_REASONS.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}
-            </select>
-            <input data-reconsider-note maxlength="280" placeholder="Optional note for future recommendations" aria-label="Optional reconsideration note">
+            <label class="reconsider-field">
+              <span>Reason</span>
+              <select data-reconsider-reason aria-label="Reason for reconsidering">
+                ${RECONSIDER_REASONS.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="reconsider-field">
+              <span>Note <small>optional</small></span>
+              <input data-reconsider-note maxlength="280" placeholder="Add context for future recommendations" aria-label="Optional reconsideration note">
+            </label>
           </div>
           <button class="reconsider-button" type="button" data-reconsider data-post-id="${escapeHtml(post.id)}">Return to For You</button>
         </div>`;
@@ -18656,8 +19558,8 @@
           const node = document.getElementById(id);
           if (node) node.textContent = "0";
         });
-        document.getElementById("approvedList").innerHTML = `<div class="list-empty"><div><div class="list-empty-icon" aria-hidden="true">${icons.approved}</div><strong>No measured growth yet</strong><span>The first approved move will appear after the initial Radar and Analyst run.</span></div></div>`;
-        document.getElementById("rejectedList").innerHTML = `<div class="list-empty"><div><div class="list-empty-icon" aria-hidden="true">${icons.rejected}</div><strong>No decisions yet</strong><span>Do it and Pass choices will remain traceable here.</span></div></div>`;
+        renderGrowthDecisionList("approvedList", [], "approved");
+        renderGrowthDecisionList("rejectedList", [], "rejected");
         const chart = document.getElementById("growthChart");
         if (chart) chart.hidden = true;
         bindDynamicActions();
@@ -18678,13 +19580,8 @@
       document.getElementById("approvedListCount").textContent = approved.length;
       document.getElementById("rejectedListCount").textContent = rejected.length;
 
-      document.getElementById("approvedList").innerHTML = approved.length
-        ? approved.map(post => renderDecisionRow(post, "approved")).join("")
-        : renderListEmpty("approved");
-
-      document.getElementById("rejectedList").innerHTML = rejected.length
-        ? rejected.map(post => renderDecisionRow(post, "rejected")).join("")
-        : renderListEmpty("rejected");
+      renderGrowthDecisionList("approvedList", approved, "approved");
+      renderGrowthDecisionList("rejectedList", rejected, "rejected");
 
       renderRevenueChart();
       bindDynamicActions();
@@ -21440,17 +22337,18 @@ ledger_entry · artifact · agent_run`,
       `;
     }
 
-    function renderListEmpty(type) {
-      const approved = type === "approved";
-      return `
-        <div class="list-empty">
-          <div>
-            <div class="list-empty-icon" aria-hidden="true">${approved ? icons.approved : icons.rejected}</div>
-            <strong>${approved ? "Nothing approved yet" : "Nothing passed"}</strong>
-            <span>${approved ? "Approve a post in Autopilot and it will appear here." : "Passed ideas stay here for reference."}</span>
-          </div>
-        </div>
-      `;
+    function renderGrowthDecisionList(listId, rows, status) {
+      const list = document.getElementById(listId);
+      if (!list) return;
+      const items = Array.isArray(rows) ? rows : [];
+      list.innerHTML = items.length
+        ? items.map(post => renderDecisionRow(post, status)).join("")
+        : "";
+      const panel = list.closest(".list-panel");
+      if (panel) panel.classList.toggle("is-empty", items.length === 0);
+      list.setAttribute("aria-label", items.length
+        ? `${items.length} ${status} move${items.length === 1 ? "" : "s"}`
+        : `No ${status} moves`);
     }
 
     function allDurableTasks() {

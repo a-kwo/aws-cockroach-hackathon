@@ -2443,7 +2443,9 @@ def test_the_approved_list_does_not_call_a_forecast_a_win():
 
     assert "Your wins" not in APP_MARKUP
     assert "<h2>Approved moves</h2>" in panel
-    assert "Projected · not yet measured" in panel
+    # The row and its accessible label still say projected; the panel subtitle
+    # was removed because the amount chip already carries that visual language.
+    assert "Projected · not yet measured" not in panel
 
     row = APP.split("function renderDecisionRow(post, status) {", 1)[1].split(
         "\n    }", 1)[0]
@@ -2756,59 +2758,156 @@ def test_growth_process_and_empty_states_share_the_midnight_surface():
     assert 'panel.classList.remove("is-process-preview")' in html
 
 
-# -------------------------------- owner surface consistency v37
+# --------------------------------------- unified owner surfaces v37
 
 
-def test_owner_chat_and_profile_share_the_midnight_product_skin():
-    """Owner support surfaces must not fall back to the former paper-white UI.
-
-    The selectors are deliberately owner-mode scoped so the operator's Memory
-    Engine and its profile view keep their separate technical visual language.
-    """
+def test_owner_profile_and_chat_share_the_midnight_product_surface():
+    """Owner overlays must not switch back to the old white application skin."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    block = html.split('<style id="owner-surface-consistency-v37">', 1)[1].split(
+    block = html.split('<style id="owner-unified-surfaces-v37">', 1)[1].split(
         "</style>", 1
     )[0]
 
-    assert "body:is(.autopilot-mode, .growth-mode) #detailDrawer" in block
-    assert "body:is(.autopilot-mode, .growth-mode) .profile-panel" in block
-    assert "--owner-overlay: #070b18" in block
-    assert "color-scheme: dark" in block
-    assert ".drawer-chat-panel" in block
-    assert ".chat-message.agent" in block
-    assert ".chat-message.owner" in block
-    assert ".profile-field input" in block
-    assert ".profile-save" in block
-    assert ".maker-review-panel" in block
-    assert ".memory-engine" not in block
+    assert "body.autopilot-mode #detailDrawer" in block
+    assert "body.growth-mode #detailDrawer" in block
+    assert "background: linear-gradient(180deg, #0e1428 0%, #080c19 100%) !important" in block
+    assert "body.autopilot-mode .profile-panel" in block
+    assert "body.growth-mode .profile-panel" in block
+    assert "body.autopilot-mode .profile-field input" in block
+    assert "background: var(--owner-surface-input) !important" in block
+    assert "body.autopilot-mode #detailDrawer .chat-message.agent" in block
+    assert "background: #141a30 !important" in block
+    assert "body.autopilot-mode #detailDrawer .send-button" in block
+
+
+def test_owner_theme_is_scoped_away_from_memory_engine():
+    """The operator console keeps its own dense visual language."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-unified-surfaces-v37">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "body.autopilot-mode" in block and "body.growth-mode" in block
     assert "body.console-mode" not in block
+    assert ".memory-engine" not in block
 
 
-def test_growth_forecast_receipt_is_high_contrast_and_content_driven():
-    """Projected money must be easy to read without a bright mint pill.
-
-    A populated list panel also sizes to its rows instead of preserving an empty
-    card tail below the last recommendation.
-    """
+def test_growth_forecast_value_is_a_dark_high_contrast_chip():
+    """Projected money must be legible without using a paper-white pill."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    block = html.split('<style id="owner-surface-consistency-v37">', 1)[1].split(
+    block = html.split('<style id="owner-unified-surfaces-v37">', 1)[1].split(
+        "</style>", 1
+    )[0]
+    chip = block.split("body.growth-mode .decision-row-value,", 1)[1].split("}", 1)[0]
+
+    assert "background: linear-gradient(135deg, rgba(126,59,225,.22), rgba(190,55,169,.15)) !important" in chip
+    assert "color: #ead7ff !important" in chip
+    assert "font-size: 12px !important" in chip
+    assert "font-weight: 820 !important" in chip
+    assert "font-variant-numeric: tabular-nums !important" in chip
+    assert "background: #fff" not in chip
+    assert "background: #ffffff" not in chip
+
+# --------------------------------------- owner production system v38
+
+
+def test_growth_lists_remove_redundant_explanatory_copy():
+    """Growth remains traceable without repeating instructions in every panel."""
+    html = APP
+    approved = html.split('class="list-panel approved-panel"', 1)[1].split(
+        "</article>", 1
+    )[0]
+    passed = html.split('class="list-panel rejected-panel"', 1)[1].split(
+        "</article>", 1
+    )[0]
+
+    assert "Projected · not yet measured" not in approved
+    assert "Ideas you skipped" not in passed
+    assert "Nothing approved yet" not in html
+    assert "Nothing passed" not in html
+    assert "Passed ideas stay here for reference." not in html
+    assert "function renderGrowthDecisionList" in html
+    assert 'panel.classList.toggle("is-empty", items.length === 0)' in html
+    # Forecast meaning remains in the row's accessible label.
+    assert "projected, not yet measured" in html
+
+
+def test_empty_growth_panels_collapse_to_their_title_and_count():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-system-v38">', 1)[1].split(
         "</style>", 1
     )[0]
 
-    assert "body.growth-mode .decision-row-value.forecast" in block
-    assert "color: #f5eeff !important" in block
-    assert "rgba(168, 85, 247, .22)" in block
-    assert "font-variant-numeric: tabular-nums" in block
-    assert "min-height: auto !important" in block
+    assert "body.growth-mode .list-panel.is-empty" in block
+    assert "body.growth-mode .list-panel.is-empty .decision-list" in block
+    assert "display: none !important" in block
     assert "align-items: start !important" in block
-    assert "white-space: normal !important" in block
-    assert "-webkit-line-clamp: 2 !important" in block
 
 
-def test_owner_surface_consistency_layer_wins_after_mobile_crisp_fix():
-    """The owner theme must be last so old light rules cannot win the cascade."""
+def test_owner_chat_controls_use_dark_high_contrast_statuses_and_disclosures():
+    """Maker review may not reintroduce paper-white cards or pastel status pills."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-system-v38">', 1)[1].split(
+        "</style>", 1
+    )[0]
 
-    assert html.index('id="mobile-feed-crisp-snap-v36"') < html.index(
-        'id="owner-surface-consistency-v37"'
-    ) < html.index("</head>")
+    assert "--owner-surface-input: #090f1e" in block
+    assert "body.autopilot-mode #detailDrawer .maker-full-draft" in block
+    assert "background: #0a1020 !important" in block
+    assert "max-height: min(48vh, 520px) !important" in block
+    assert "background: #080d1a !important" in block
+    assert "body.autopilot-mode #detailDrawer .maker-review-state.superseded" in block
+    assert "background: rgba(148,163,184,.10) !important" in block
+    assert "body.autopilot-mode #detailDrawer .maker-email-status.clicked" in block
+    assert "background: rgba(45,181,142,.11) !important" in block
+    assert "body.autopilot-mode #detailDrawer .maker-email-timeline .is-complete i" in block
+    assert "body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state" in block
+    assert "font: 800 9px/1 Inter" in block
+
+
+def test_reconsider_form_and_profile_selects_use_the_dark_control_contract():
+    """Selects stay readable both closed and in their native option menu."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-system-v38">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert 'class="reconsider-field"' in html
+    assert "<span>Reason</span>" in html
+    assert "<span>Note <small>optional</small></span>" in html
+    assert "grid-template-columns: minmax(0, 1fr) !important" in block
+    assert "color-scheme: dark !important" in block
+    assert "appearance: none !important" in block
+    assert "background-color: var(--owner-surface-input) !important" in block
+    assert "body.autopilot-mode #detailDrawer .reconsider-fields select option" in block
+    assert "body.autopilot-mode .profile-field select option" in block
+    assert "background: #0b1121 !important" in block
+    assert "color: #f4f6ff !important" in block
+
+
+def test_owner_brand_and_primary_actions_share_one_accessible_gradient():
+    """The owner logo and actions belong to one product family."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-system-v38">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "--owner-brand-gradient: linear-gradient(135deg, #6d28d9 0%, #8b2bd8 52%, #a21caf 100%)" in block
+    assert "body.autopilot-mode .brand-mark" in block
+    assert "body.autopilot-mode .profile-panel-mark" in block
+    assert "background: var(--owner-brand-gradient) !important" in block
+    assert "body.autopilot-mode #detailDrawer .send-button" in block
+    assert "body.autopilot-mode #detailDrawer .reconsider-button" in block
+    assert "body.autopilot-mode .profile-save" in block
+
+
+def test_v38_owner_layer_does_not_restyle_memory_engine():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-system-v38">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "body.autopilot-mode" in block
+    assert "body.growth-mode" in block
+    assert "body.console-mode" not in block
+    assert ".memory-engine" not in block
