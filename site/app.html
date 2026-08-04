@@ -17667,6 +17667,13 @@
       })[status] || String(status || "Unknown");
     }
 
+    function latestMakerEmailTool(task) {
+      const tools = Array.isArray(task?.tools) ? task.tools : [];
+      return tools
+        .filter(tool => tool?.name === "ses.send_review_email")
+        .sort((a, b) => String(b.finishedAt || b.startedAt || "").localeCompare(String(a.finishedAt || a.startedAt || "")))[0] || null;
+    }
+
     function makerTaskCurrentStep(task) {
       if (task.supersededAt) return "Superseded by a newer owner decision cycle";
       if (task.status === "running") return "Generating the owner-ready draft";
@@ -17675,7 +17682,7 @@
         ? `Retry scheduled ${memoryDateTime(task.nextAttemptAt)}`
         : "Waiting for an automatic retry";
       if (task.status === "completed") {
-        const email = (task.tools || []).find(tool => tool.name === "ses.send_review_email");
+        const email = latestMakerEmailTool(task);
         if (email?.status === "succeeded") return `Draft ready · review email sent`;
         if (email?.status === "failed") return `Draft ready · email needs attention`;
         return "Draft ready to review";
@@ -17690,7 +17697,10 @@
         return `<div class="owner-decision-empty"><strong>No durable Maker task yet</strong><span>The next Do it creates one CockroachDB task, sends it through SQS FIFO, and traces every workflow and tool receipt here.</span></div>`;
       }
       return `<div class="maker-task-list">${tasks.map(task => {
-        const tool = (task.tools || [])[0] || null;
+        const tools = Array.isArray(task.tools) ? task.tools : [];
+        const tool = [...tools]
+          .sort((a, b) => String(b.finishedAt || b.startedAt || "").localeCompare(String(a.finishedAt || a.startedAt || "")))[0] || null;
+        const email = latestMakerEmailTool(task);
         const updated = task.completedAt || task.startedAt || task.updatedAt || task.createdAt;
         const visibleStatus = task.supersededAt ? "superseded" : task.status;
         return `<details class="maker-task-item" data-task-id="${escapeHtml(task.id || "")}">
@@ -17712,6 +17722,7 @@
             ${task.lastError ? `<span class="maker-task-tool"><small>Last error</small><b>${escapeHtml(task.lastError)}</b></span>` : ""}
             ${tool ? `<span class="maker-task-tool"><small>Latest tool receipt</small><b>${escapeHtml(tool.name || "tool")} · ${escapeHtml(tool.status || "—")}${tool.externalReference ? ` · ${escapeHtml(tool.externalReference)}` : ""}</b></span>` : ""}
           </div>
+          ${email ? makerEmailReceiptHtml(email, Boolean(task.supersededAt)) : ""}
         </details>`;
       }).join("")}</div>`;
     }
@@ -19423,7 +19434,7 @@ ledger_entry · artifact · agent_run`,
       const ownerAction = String(artifact?.ownerAction || "Review the draft and tell Maker what should change.").trim();
       const questions = Array.isArray(artifact?.ownerQuestions) ? artifact.ownerQuestions.filter(Boolean).slice(0, 3) : [];
       const sections = Array.isArray(artifact?.sections) ? artifact.sections.filter(section => section?.title && section?.content) : [];
-      const email = (task.tools || []).find(tool => tool.name === "ses.send_review_email") || null;
+      const email = latestMakerEmailTool(task);
       const archived = Boolean(task.supersededAt || artifact?.supersededAt);
       const revising = ["queued", "retry", "running"].includes(String(task.status || "")) && Number(task.input?.revision || 1) > Number(artifact?.revision || 1);
       const statusLabel = archived ? "Archived" : revising ? "Revising" : makerTaskLabel(task.status);

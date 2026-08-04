@@ -2457,6 +2457,27 @@ def test_maker_review_workspace_is_concise_traceable_and_revision_ready():
     assert "async function reviseMakerDraft" in html
 
 
+def test_memory_engine_task_ledger_renders_the_full_email_receipt():
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+
+    ledger = html.split("function memoryMakerTasksHtml", 1)[1].split(
+        "function deriveMemoryStages", 1
+    )[0]
+    receipt = html.split("function makerEmailReceiptHtml", 1)[1].split(
+        "function makerReviewPanel", 1
+    )[0]
+
+    assert "latestMakerEmailTool(task)" in ledger
+    assert "makerEmailReceiptHtml(email, Boolean(task.supersededAt))" in ledger
+    assert "input.plain_body" in receipt
+    assert "output.sender || input.sender" in receipt
+    assert "output.recipient || input.recipient" in receipt
+    assert "output.subject || input.subject" in receipt
+    assert 'emailEventFor(email, "delivered")' in receipt
+    assert 'emailEventFor(email, "opened")' in receipt
+    assert "View the exact message sent" in receipt
+
+
 def test_ses_delivery_tracking_is_deployed_with_a_configuration_set():
     template = (build_web.REPO / "deploy" / "template.yaml").read_text(
         encoding="utf-8"
