@@ -2754,3 +2754,61 @@ def test_growth_process_and_empty_states_share_the_midnight_surface():
     assert "color: #e8ebf6 !important" in block
     assert 'panel.classList.add("is-process-preview")' in html
     assert 'panel.classList.remove("is-process-preview")' in html
+
+
+# -------------------------------- owner surface consistency v37
+
+
+def test_owner_chat_and_profile_share_the_midnight_product_skin():
+    """Owner support surfaces must not fall back to the former paper-white UI.
+
+    The selectors are deliberately owner-mode scoped so the operator's Memory
+    Engine and its profile view keep their separate technical visual language.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-surface-consistency-v37">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "body:is(.autopilot-mode, .growth-mode) #detailDrawer" in block
+    assert "body:is(.autopilot-mode, .growth-mode) .profile-panel" in block
+    assert "--owner-overlay: #070b18" in block
+    assert "color-scheme: dark" in block
+    assert ".drawer-chat-panel" in block
+    assert ".chat-message.agent" in block
+    assert ".chat-message.owner" in block
+    assert ".profile-field input" in block
+    assert ".profile-save" in block
+    assert ".maker-review-panel" in block
+    assert ".memory-engine" not in block
+    assert "body.console-mode" not in block
+
+
+def test_growth_forecast_receipt_is_high_contrast_and_content_driven():
+    """Projected money must be easy to read without a bright mint pill.
+
+    A populated list panel also sizes to its rows instead of preserving an empty
+    card tail below the last recommendation.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-surface-consistency-v37">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "body.growth-mode .decision-row-value.forecast" in block
+    assert "color: #f5eeff !important" in block
+    assert "rgba(168, 85, 247, .22)" in block
+    assert "font-variant-numeric: tabular-nums" in block
+    assert "min-height: auto !important" in block
+    assert "align-items: start !important" in block
+    assert "white-space: normal !important" in block
+    assert "-webkit-line-clamp: 2 !important" in block
+
+
+def test_owner_surface_consistency_layer_wins_after_mobile_crisp_fix():
+    """The owner theme must be last so old light rules cannot win the cascade."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert html.index('id="mobile-feed-crisp-snap-v36"') < html.index(
+        'id="owner-surface-consistency-v37"'
+    ) < html.index("</head>")

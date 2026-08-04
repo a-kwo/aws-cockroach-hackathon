@@ -14847,6 +14847,663 @@
     }
   </style>
 
+
+  <style id="owner-surface-consistency-v37">
+    /*
+      Owner surfaces must feel like one product. The recommendation drawer and
+      business profile previously fell back to a light paper theme while For You
+      and Growth used the midnight shell. This final owner-only layer gives chat,
+      profile, Maker review, and Growth receipts the same calm dark surfaces and
+      accessible type. Memory Engine is intentionally untouched because every
+      selector requires an owner-facing body mode.
+    */
+    body:is(.autopilot-mode, .growth-mode) {
+      --owner-overlay: #070b18;
+      --owner-overlay-raised: #0f1428;
+      --owner-overlay-soft: rgba(255, 255, 255, .052);
+      --owner-overlay-soft-strong: rgba(255, 255, 255, .078);
+      --owner-overlay-line: rgba(197, 205, 255, .14);
+      --owner-overlay-line-strong: rgba(211, 216, 255, .24);
+      --owner-overlay-text: #f6f7ff;
+      --owner-overlay-copy: #b9c0d4;
+      --owner-overlay-muted: #8992ab;
+      --owner-overlay-accent: #a855f7;
+      --owner-overlay-accent-rgb: 168, 85, 247;
+      --owner-overlay-pink: #ec4899;
+      --owner-action-gradient: linear-gradient(135deg, #7a36e8 0%, #9e2fce 55%, #c72b8a 100%);
+    }
+
+    /* Growth receipts: readable forecast, complete copy, and no blank card tail. */
+    body.growth-mode .decision-lists {
+      align-items: start !important;
+    }
+    body.growth-mode .list-panel {
+      min-height: auto !important;
+      height: auto !important;
+      align-self: start !important;
+    }
+    body.growth-mode .decision-list {
+      min-height: 0 !important;
+    }
+    body.growth-mode .decision-row {
+      min-height: 92px !important;
+      grid-template-columns: 48px minmax(0, 1fr) auto !important;
+      gap: 15px !important;
+      padding: 16px 20px !important;
+    }
+    body.growth-mode .decision-row-copy strong {
+      overflow: visible !important;
+      color: #f1f3fb !important;
+      font-size: 14.5px !important;
+      line-height: 1.3 !important;
+      font-weight: 750 !important;
+      letter-spacing: -.018em !important;
+      text-overflow: clip !important;
+      white-space: normal !important;
+      text-wrap: pretty;
+    }
+    body.growth-mode .decision-row-copy span {
+      display: -webkit-box !important;
+      overflow: hidden !important;
+      margin-top: 5px !important;
+      color: #929bb2 !important;
+      font-size: 11px !important;
+      line-height: 1.45 !important;
+      text-overflow: clip !important;
+      white-space: normal !important;
+      -webkit-box-orient: vertical !important;
+      -webkit-line-clamp: 2 !important;
+    }
+    body.growth-mode .decision-row-value.forecast,
+    body.growth-mode .decision-row-value.forecast:not(.rejected) {
+      min-width: 86px !important;
+      height: 36px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0 12px !important;
+      border: 1px solid rgba(211, 166, 255, .32) !important;
+      border-radius: 999px !important;
+      background: linear-gradient(135deg, rgba(168, 85, 247, .22), rgba(236, 72, 153, .13)) !important;
+      color: #f5eeff !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 22px rgba(84, 35, 164, .20) !important;
+      font-size: 12px !important;
+      font-weight: 820 !important;
+      line-height: 1 !important;
+      letter-spacing: -.015em !important;
+      font-variant-numeric: tabular-nums;
+      text-shadow: none !important;
+      white-space: nowrap !important;
+    }
+    body.growth-mode .decision-row-value.rejected {
+      min-width: 86px !important;
+      height: 34px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0 12px !important;
+      border: 1px solid var(--owner-overlay-line) !important;
+      border-radius: 999px !important;
+      background: rgba(255, 255, 255, .055) !important;
+      color: #aeb5c8 !important;
+      font-size: 11px !important;
+      font-weight: 760 !important;
+      white-space: nowrap !important;
+    }
+
+    body.autopilot-mode .decision-button.approve,
+    body.autopilot-mode .decision-button.approve:hover,
+    body.autopilot-mode .decision-button.approve:focus-visible {
+      border-color: transparent !important;
+      background: var(--owner-action-gradient) !important;
+      color: #fff !important;
+      box-shadow: 0 12px 28px rgba(86, 29, 156, .30) !important;
+    }
+    body.autopilot-mode .decision-button.approve span,
+    body.autopilot-mode .decision-button.approve svg {
+      color: #fff !important;
+    }
+
+    /* Recommendation details and Ask chat. */
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer {
+      --drawer-accent: var(--owner-overlay-accent) !important;
+      --drawer-accent-rgb: var(--owner-overlay-accent-rgb) !important;
+      color-scheme: dark;
+      border: 1px solid var(--owner-overlay-line) !important;
+      background:
+        radial-gradient(480px 320px at 100% 0%, rgba(168, 85, 247, .12), transparent 70%),
+        linear-gradient(180deg, #0d1224 0%, var(--owner-overlay) 100%) !important;
+      color: var(--owner-overlay-copy) !important;
+      box-shadow: -32px 0 92px rgba(0, 0, 0, .58), inset 1px 0 0 rgba(255, 255, 255, .025) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer::before {
+      height: 3px !important;
+      background: linear-gradient(90deg, var(--owner-overlay-accent), var(--owner-overlay-pink)) !important;
+      opacity: 1 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-header {
+      min-height: 82px !important;
+      border-bottom: 1px solid rgba(255, 255, 255, .075) !important;
+      background: rgba(10, 14, 29, .88) !important;
+      backdrop-filter: blur(22px) saturate(125%) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-avatar {
+      border: 1px solid rgba(201, 160, 255, .22) !important;
+      background: linear-gradient(145deg, rgba(168, 85, 247, .22), rgba(236, 72, 153, .10)) !important;
+      color: #dfc7ff !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), 0 10px 26px rgba(76, 31, 142, .20) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-title strong {
+      color: var(--owner-overlay-text) !important;
+      font-size: 15.5px !important;
+      font-weight: 780 !important;
+      letter-spacing: -.02em !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-title span {
+      color: var(--owner-overlay-muted) !important;
+      font-size: 10.5px !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-header .icon-button {
+      border: 1px solid var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .05) !important;
+      color: #aeb6cc !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-header .icon-button:hover {
+      border-color: rgba(202, 155, 255, .36) !important;
+      background: rgba(168, 85, 247, .12) !important;
+      color: #eadcff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body {
+      background: transparent !important;
+      color: var(--owner-overlay-copy) !important;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(190, 127, 255, .42) transparent;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body::-webkit-scrollbar { width: 8px; }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body::-webkit-scrollbar-track { background: transparent; }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: rgba(190, 127, 255, .38);
+      background-clip: padding-box;
+    }
+
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-stack,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-panel {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .038) !important;
+      color: var(--owner-overlay-copy) !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.pending {
+      border-color: rgba(184, 126, 255, .25) !important;
+      background: rgba(168, 85, 247, .085) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.approved {
+      border-color: rgba(77, 215, 168, .24) !important;
+      background: rgba(77, 215, 168, .075) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.rejected {
+      border-color: rgba(247, 113, 142, .22) !important;
+      background: rgba(247, 113, 142, .07) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state-icon {
+      border: 1px solid rgba(255, 255, 255, .09) !important;
+      background: rgba(255, 255, 255, .075) !important;
+      color: #d8baff !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.approved .decision-state-icon {
+      background: rgba(77, 215, 168, .15) !important;
+      color: #7ce5c2 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state.rejected .decision-state-icon {
+      background: rgba(247, 113, 142, .13) !important;
+      color: #ff9db2 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state strong {
+      color: var(--owner-overlay-text) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .decision-state span:last-child {
+      color: var(--owner-overlay-copy) !important;
+      font-size: 11px !important;
+      line-height: 1.45 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section + .detail-section {
+      border-top-color: rgba(255, 255, 255, .075) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section-label,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card-label {
+      color: #c99cff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section h3,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card h3,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-head strong,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-action-copy strong {
+      color: var(--owner-overlay-text) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-section p,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-card p,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-head span,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-action-copy span {
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-recommendation-list,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-recommendation-list li {
+      color: #e6e9f5 !important;
+      font-size: 13px !important;
+      line-height: 1.55 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact {
+      border: 1px solid rgba(201, 154, 255, .22) !important;
+      background: linear-gradient(135deg, rgba(168, 85, 247, .12), rgba(236, 72, 153, .065)) !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact span {
+      color: #c5a4ed !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact small {
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .detail-impact strong {
+      color: #e6ceff !important;
+      font-variant-numeric: tabular-nums;
+      text-shadow: none !important;
+    }
+
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-panel {
+      gap: 14px !important;
+      padding: 18px !important;
+      border-radius: 20px !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .memory-chip {
+      border: 1px solid rgba(201, 156, 255, .24) !important;
+      background: rgba(168, 85, 247, .11) !important;
+      color: #d8b9ff !important;
+      font-size: 8.5px !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-empty {
+      border: 1px solid rgba(255, 255, 255, .065) !important;
+      background: rgba(255, 255, 255, .035) !important;
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message {
+      font-size: 12.5px !important;
+      line-height: 1.55 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.agent {
+      border: 1px solid rgba(255, 255, 255, .085) !important;
+      background: #13182c !important;
+      color: #e7eaf5 !important;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .035) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.owner {
+      background: var(--owner-action-gradient) !important;
+      color: #ffffff !important;
+      box-shadow: 0 10px 24px rgba(112, 43, 207, .24) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.is-loading {
+      color: #a6aec2 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message.is-error {
+      border-color: rgba(247, 113, 142, .24) !important;
+      background: rgba(247, 113, 142, .085) !important;
+      color: #ffb2c2 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-receipt {
+      color: #818ba5 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-receipt summary {
+      color: #c89cff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-action {
+      border-top-color: rgba(255, 255, 255, .085) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .undo-pass-button,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-button {
+      border: 1px solid rgba(217, 181, 255, .22) !important;
+      background: var(--owner-action-gradient) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 24px rgba(104, 39, 193, .23) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-panel {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .038) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-panel strong {
+      color: var(--owner-overlay-text) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-panel p {
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-fields select,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .reconsider-fields input {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .05) !important;
+      color: var(--owner-overlay-text) !important;
+    }
+
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-actions .decision-button.reject {
+      border-color: var(--owner-overlay-line-strong) !important;
+      background: rgba(255, 255, 255, .055) !important;
+      color: #d3d8e7 !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-actions .decision-button.approve {
+      border-color: transparent !important;
+      background: var(--owner-action-gradient) !important;
+      color: #fff !important;
+      box-shadow: 0 12px 28px rgba(104, 39, 193, .28) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer {
+      border-top: 1px solid rgba(255, 255, 255, .075) !important;
+      background: rgba(7, 11, 24, .94) !important;
+      box-shadow: 0 -16px 36px rgba(0, 0, 0, .26) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer input {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .055) !important;
+      color: var(--owner-overlay-text) !important;
+      caret-color: #d5adff !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer input::placeholder {
+      color: #7f89a2 !important;
+      opacity: 1 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-composer input:focus {
+      border-color: rgba(199, 149, 255, .58) !important;
+      background: rgba(255, 255, 255, .075) !important;
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, .14) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .send-button {
+      border: 0 !important;
+      background: var(--owner-action-gradient) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 24px rgba(104, 39, 193, .26) !important;
+    }
+
+    /* Maker review lives inside the owner drawer, so its receipts use the same skin. */
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-panel,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-summary,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-next-action,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-receipt,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-revision-tools,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-tool-receipt {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .04) !important;
+      color: var(--owner-overlay-copy) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-actions {
+      border-color: rgba(255, 255, 255, .075) !important;
+      background: rgba(255, 255, 255, .025) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head strong,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-summary p,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-next-action strong,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions ol,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card h4,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-head strong,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-meta dd,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-body pre,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-full-draft pre,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-message pre {
+      color: var(--owner-overlay-text) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head span,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-actions p,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions p,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card div,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-meta dt,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-timeline small,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-revision-tools span {
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-head small,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-review-summary small,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-next-action small,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-owner-questions small,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-section-card > span,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-head small,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-message summary {
+      color: #c99cff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-email-meta div {
+      background: rgba(255, 255, 255, .04) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-revision-chips button,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer .maker-copy-button {
+      border: 1px solid var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .06) !important;
+      color: #e9e3f6 !important;
+    }
+
+    /* Business profile: same midnight shell for owners, original operator UI remains intact. */
+    body:is(.autopilot-mode, .growth-mode) .profile-scrim {
+      background: rgba(2, 4, 12, .76) !important;
+      backdrop-filter: blur(9px) !important;
+      -webkit-backdrop-filter: blur(9px) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel {
+      color-scheme: dark;
+      border-right: 1px solid var(--owner-overlay-line) !important;
+      background:
+        radial-gradient(460px 300px at 0% 0%, rgba(168, 85, 247, .13), transparent 72%),
+        linear-gradient(180deg, #0d1224 0%, var(--owner-overlay) 100%) !important;
+      color: var(--owner-overlay-text) !important;
+      box-shadow: 32px 0 92px rgba(0, 0, 0, .58), inset -1px 0 0 rgba(255, 255, 255, .025) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-head,
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-foot {
+      border-color: rgba(255, 255, 255, .075) !important;
+      background: rgba(10, 14, 29, .88) !important;
+      backdrop-filter: blur(22px) saturate(125%) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-mark {
+      background: var(--owner-action-gradient) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 25px rgba(104, 39, 193, .26), inset 0 1px 0 rgba(255, 255, 255, .14) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-title strong {
+      color: var(--owner-overlay-text) !important;
+      font-size: 16px !important;
+      font-weight: 780 !important;
+      letter-spacing: -.025em !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-title span {
+      color: var(--owner-overlay-muted) !important;
+      font-size: 11px !important;
+      line-height: 1.45 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-close {
+      border: 1px solid var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .05) !important;
+      color: #b8bfd2 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-close:hover {
+      border-color: rgba(202, 155, 255, .36) !important;
+      background: rgba(168, 85, 247, .12) !important;
+      color: #f1e8ff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-body {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(190, 127, 255, .42) transparent;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-body::-webkit-scrollbar { width: 8px; }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-body::-webkit-scrollbar-track { background: transparent; }
+    body:is(.autopilot-mode, .growth-mode) .profile-panel-body::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: rgba(190, 127, 255, .38);
+      background-clip: padding-box;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-loading,
+    body:is(.autopilot-mode, .growth-mode) .profile-empty {
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-loading::before {
+      border-color: rgba(255, 255, 255, .12) !important;
+      border-top-color: #bd7dff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-identity-card,
+    body:is(.autopilot-mode, .growth-mode) .profile-section,
+    body:is(.autopilot-mode, .growth-mode) .profile-portfolio-summary article,
+    body:is(.autopilot-mode, .growth-mode) .profile-account-card {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .04) !important;
+      color: var(--owner-overlay-text) !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .13) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-identity-avatar,
+    body:is(.autopilot-mode, .growth-mode) .profile-account-avatar {
+      border: 1px solid rgba(200, 155, 255, .20) !important;
+      background: linear-gradient(145deg, rgba(168, 85, 247, .19), rgba(236, 72, 153, .09)) !important;
+      color: #dfc7ff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-identity-card strong,
+    body:is(.autopilot-mode, .growth-mode) .profile-section-head strong,
+    body:is(.autopilot-mode, .growth-mode) .profile-account-card strong,
+    body:is(.autopilot-mode, .growth-mode) .profile-portfolio-summary b {
+      color: var(--owner-overlay-text) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-identity-card span,
+    body:is(.autopilot-mode, .growth-mode) .profile-section-head span,
+    body:is(.autopilot-mode, .growth-mode) .profile-account-card small,
+    body:is(.autopilot-mode, .growth-mode) .profile-portfolio-summary span,
+    body:is(.autopilot-mode, .growth-mode) .profile-save-note {
+      color: var(--owner-overlay-muted) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-account-card .profile-email {
+      color: #c99cff !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-field label {
+      color: #c4cadb !important;
+      font-size: 10.5px !important;
+      font-weight: 760 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-field input,
+    body:is(.autopilot-mode, .growth-mode) .profile-field select,
+    body:is(.autopilot-mode, .growth-mode) .profile-field textarea {
+      border-color: var(--owner-overlay-line) !important;
+      background: rgba(255, 255, 255, .05) !important;
+      color: var(--owner-overlay-text) !important;
+      font-size: 12.5px !important;
+      line-height: 1.45 !important;
+      caret-color: #d5adff !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-field input::placeholder,
+    body:is(.autopilot-mode, .growth-mode) .profile-field textarea::placeholder {
+      color: #7c87a1 !important;
+      opacity: 1 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-field select option {
+      background: #10152a !important;
+      color: var(--owner-overlay-text) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-field input:focus,
+    body:is(.autopilot-mode, .growth-mode) .profile-field select:focus,
+    body:is(.autopilot-mode, .growth-mode) .profile-field textarea:focus {
+      border-color: rgba(199, 149, 255, .62) !important;
+      background: rgba(255, 255, 255, .075) !important;
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, .14) !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-field small {
+      color: #7f89a3 !important;
+      font-size: 9.5px !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-save-note.is-success {
+      color: #79dfbd !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-save-note.is-error {
+      color: #ff9eb3 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-save {
+      min-width: 132px !important;
+      height: 42px !important;
+      border: 0 !important;
+      background: var(--owner-action-gradient) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 24px rgba(104, 39, 193, .26) !important;
+      font-size: 11.5px !important;
+      font-weight: 800 !important;
+    }
+    body:is(.autopilot-mode, .growth-mode) .profile-close:focus-visible,
+    body:is(.autopilot-mode, .growth-mode) .profile-save:focus-visible,
+    body:is(.autopilot-mode, .growth-mode) #detailDrawer button:focus-visible {
+      outline: 3px solid rgba(190, 127, 255, .34) !important;
+      outline-offset: 3px !important;
+    }
+
+    @media (max-width: 640px) {
+      body.growth-mode .decision-row {
+        min-height: 0 !important;
+        grid-template-columns: 42px minmax(0, 1fr) !important;
+        gap: 12px !important;
+        padding: 15px 16px !important;
+      }
+      body.growth-mode .decision-row-icon {
+        width: 42px !important;
+        height: 42px !important;
+      }
+      body.growth-mode .decision-row-value.forecast,
+      body.growth-mode .decision-row-value.forecast:not(.rejected),
+      body.growth-mode .decision-row-value.rejected {
+        grid-column: 2 !important;
+        justify-self: start !important;
+        min-width: 0 !important;
+        height: 32px !important;
+        margin-top: 2px !important;
+        padding-inline: 10px !important;
+        font-size: 11px !important;
+      }
+      body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-body {
+        padding-inline: 16px !important;
+      }
+      body:is(.autopilot-mode, .growth-mode) #detailDrawer .drawer-chat-panel {
+        padding: 15px !important;
+      }
+      body:is(.autopilot-mode, .growth-mode) #detailDrawer .chat-message {
+        max-width: 94% !important;
+        font-size: 13px !important;
+      }
+      body:is(.autopilot-mode, .growth-mode) .profile-panel {
+        width: 100vw !important;
+      }
+      body:is(.autopilot-mode, .growth-mode) .profile-panel-body {
+        padding: 14px !important;
+      }
+      body:is(.autopilot-mode, .growth-mode) .profile-section,
+      body:is(.autopilot-mode, .growth-mode) .profile-identity-card {
+        padding: 15px !important;
+        border-radius: 16px !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body:is(.autopilot-mode, .growth-mode) .profile-panel,
+      body:is(.autopilot-mode, .growth-mode) #detailDrawer,
+      body:is(.autopilot-mode, .growth-mode) #detailDrawer button {
+        transition: none !important;
+      }
+      .visual-flow-particle,
+      .visual-live-dot,
+      .visual-stage-node {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
