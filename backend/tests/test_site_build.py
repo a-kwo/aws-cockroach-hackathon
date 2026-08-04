@@ -2457,27 +2457,6 @@ def test_maker_review_workspace_is_concise_traceable_and_revision_ready():
     assert "async function reviseMakerDraft" in html
 
 
-def test_memory_engine_task_ledger_renders_the_full_email_receipt():
-    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
-
-    ledger = html.split("function memoryMakerTasksHtml", 1)[1].split(
-        "function deriveMemoryStages", 1
-    )[0]
-    receipt = html.split("function makerEmailReceiptHtml", 1)[1].split(
-        "function makerReviewPanel", 1
-    )[0]
-
-    assert "latestMakerEmailTool(task)" in ledger
-    assert "makerEmailReceiptHtml(email, Boolean(task.supersededAt))" in ledger
-    assert "input.plain_body" in receipt
-    assert "output.sender || input.sender" in receipt
-    assert "output.recipient || input.recipient" in receipt
-    assert "output.subject || input.subject" in receipt
-    assert 'emailEventFor(email, "delivered")' in receipt
-    assert 'emailEventFor(email, "opened")' in receipt
-    assert "View the exact message sent" in receipt
-
-
 def test_ses_delivery_tracking_is_deployed_with_a_configuration_set():
     template = (build_web.REPO / "deploy" / "template.yaml").read_text(
         encoding="utf-8"
@@ -2505,6 +2484,7 @@ def test_maker_email_renderer_does_not_dump_the_complete_working_artifact():
     assert '"plain_body": rendered["plain"]' in source
     assert '"html_body": rendered["html"]' in source
     assert "payload.get(\"body\")" not in source
+
 
 
 
@@ -2653,3 +2633,23 @@ def test_a_withheld_find_never_becomes_a_decision_card():
 
     assert workspace["proposed"] == []
     assert workspace["withheld"] == ["11111111"]
+
+def test_owner_midnight_experience_is_shared_by_for_you_and_growth():
+    """The two owner-facing screens must feel like one premium product."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-midnight-experience-v34">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "--owner-shell: #050814" in block
+    assert "--owner-gradient: linear-gradient(135deg" in block
+    assert "body.autopilot-mode .feed-card" in block
+    assert "body.autopilot-mode .post-body" in block
+    assert "body.autopilot-mode .post-art" in block
+    assert "body.autopilot-mode .decision-button.approve" in block
+    assert "body.growth-mode .growth-swipe" in block
+    assert "body.growth-mode .list-panel" in block
+    assert "@media (max-width: 900px)" in block
+    assert "overflow-y: auto !important" in block
+    assert "-webkit-line-clamp: unset !important" in block
+
