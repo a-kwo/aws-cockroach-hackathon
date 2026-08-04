@@ -2070,6 +2070,43 @@ def test_mobile_for_you_uses_native_scroll_snap_instead_of_pointer_drag():
     assert 'stage.dataset.gestureBound = "native"' in html
 
 
+def test_mobile_snap_never_inherits_the_desktop_preview_transform():
+    """The card that was `.is-next` stayed scaled and faded after it snapped in.
+
+    The midnight desktop theme is later than the original mobile scroll-snap
+    rules, so its 3D preview won the cascade: 97.2% scale plus 42% opacity made
+    every second post look blurred. The last mobile block must restore a 1:1
+    pixel surface for every deck-position class.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    assert html.index('id="owner-midnight-experience-v34"') < html.index(
+        'id="mobile-feed-crisp-snap-v36"'
+    )
+    css = html.split('<style id="mobile-feed-crisp-snap-v36">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    for state in ("is-current", "is-next", "is-back", "is-hidden", "is-prev"):
+        assert f".feed-card.{state}" in css
+    assert "opacity: 1 !important" in css
+    assert "transform: none !important" in css
+    assert "filter: none !important" in css
+    assert "will-change: auto !important" in css
+    assert "transform-style: flat !important" in css
+
+
+def test_native_mobile_swipe_updates_the_semantic_current_card():
+    """Visual state and accessible state follow the card that actually snapped."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    source = html[html.index("function syncNativeMobileCardStates") :]
+    source = source[: source.index("function bindFeedGestures")]
+
+    assert 'card.classList.remove(...CARD_POSITIONS' in source
+    assert 'index === activeIndex ? "is-current" : "is-hidden"' in source
+    assert 'card.setAttribute("aria-hidden", index === activeIndex ? "false" : "true")' in source
+    assert source.count("syncNativeMobileCardStates(stage,") >= 3
+
+
 def test_decision_buttons_wait_for_the_authenticated_live_workflow():
     """A build-time UUID must never be written before tenant state is verified."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")

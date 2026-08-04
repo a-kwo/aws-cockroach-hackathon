@@ -14803,6 +14803,50 @@
     }
   </style>
 
+
+  <style id="mobile-feed-crisp-snap-v36">
+    /*
+      Native mobile scroll-snap lays every card out at full width. The desktop
+      deck classes still travel with those cards, though, and the midnight
+      theme previously reapplied its 3D preview treatment after the mobile
+      reset: .is-next was scaled to 97.2%, shifted in Z, and faded to 42%. Once
+      that card snapped into view it was still a rasterized preview, which made
+      the entire next post look soft and dim.
+
+      This block is deliberately last in the cascade. On a native mobile deck,
+      position comes only from scrollLeft; no card is ever a transformed stack
+      preview. Keeping every snap page at a 1:1 pixel scale also prevents text
+      from being resampled on high-density phone displays.
+    */
+    @media (max-width: 900px) {
+      body.autopilot-mode .feed-stage {
+        perspective: none !important;
+        transform: none !important;
+      }
+
+      body.autopilot-mode .feed-stage .feed-card,
+      body.autopilot-mode .feed-stage .feed-card.is-current,
+      body.autopilot-mode .feed-stage .feed-card.is-next,
+      body.autopilot-mode .feed-stage .feed-card.is-back,
+      body.autopilot-mode .feed-stage .feed-card.is-hidden,
+      body.autopilot-mode .feed-stage .feed-card.is-prev {
+        opacity: 1 !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        translate: none !important;
+        rotate: none !important;
+        scale: none !important;
+        filter: none !important;
+        -webkit-filter: none !important;
+        transform-style: flat !important;
+        backface-visibility: visible !important;
+        will-change: auto !important;
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -17270,10 +17314,8 @@
       const stage = document.getElementById("feedStage");
       if (stage && usesNativeMobileFeed()) {
         currentIndex = next;
+        syncNativeMobileCardStates(stage, next);
         updateFeedChrome(pending.length);
-        stage.querySelectorAll(".feed-card").forEach((card, cardIndex) => {
-          card.setAttribute("aria-hidden", cardIndex === next ? "false" : "true");
-        });
         stage.scrollTo({
           left: next * Math.max(1, stage.clientWidth),
           top: 0,
@@ -17344,6 +17386,17 @@
       return document.querySelector(".feed-card.is-current");
     }
 
+
+    function syncNativeMobileCardStates(stage, activeIndex) {
+      if (!stage) return;
+      stage.dataset.activeIndex = String(activeIndex);
+      stage.querySelectorAll(".feed-card").forEach((card, index) => {
+        card.classList.remove(...CARD_POSITIONS, "drag-prev", "drag-next", "swipe-target");
+        card.classList.add(index === activeIndex ? "is-current" : "is-hidden");
+        card.setAttribute("aria-hidden", index === activeIndex ? "false" : "true");
+      });
+    }
+
     function bindNativeMobileFeed(stage) {
       if (!stage || stage.dataset.gestureBound) return;
       stage.dataset.gestureBound = "native";
@@ -17362,6 +17415,7 @@
         const next = indexFromScroll();
         if (next === currentIndex) return;
         currentIndex = next;
+        syncNativeMobileCardStates(stage, next);
         updateFeedChrome(cardCount());
       };
 
@@ -17369,10 +17423,8 @@
         window.clearTimeout(settleTimer);
         const next = indexFromScroll();
         currentIndex = next;
+        syncNativeMobileCardStates(stage, next);
         updateFeedChrome(cardCount());
-        stage.querySelectorAll(".feed-card").forEach((card, index) => {
-          card.setAttribute("aria-hidden", index === next ? "false" : "true");
-        });
         const destination = next * Math.max(1, stage.clientWidth);
         if (Math.abs(stage.scrollLeft - destination) > 1) {
           stage.scrollTo({
@@ -17394,6 +17446,7 @@
       }
 
       requestAnimationFrame(() => {
+        syncNativeMobileCardStates(stage, currentIndex);
         stage.scrollLeft = currentIndex * Math.max(1, stage.clientWidth);
         updateFeedChrome(cardCount());
       });
