@@ -2166,8 +2166,8 @@ def test_maker_email_deep_link_opens_the_exact_task_and_full_draft():
     assert "function makerReviewPanel(post)" in html
     assert 'data-maker-task-review="${escapeHtml(task.id || "")}"' in html
     assert "data-maker-draft-body" in html
-    assert "Copy draft" in html
-    assert "Connected-account publishing remains approval-gated" in html
+    assert "Copy full draft" in html
+    assert "Use the prepared content manually, or ask Maker in chat to revise it before you act." in html
     assert "maybeOpenRequestedTask();" in html
 
 
@@ -2247,6 +2247,7 @@ def test_profile_schema_backfills_only_legacy_business_accounts():
     assert "peter.flp.2006@gmail.com" in schema
     assert "AND (email IS NULL OR trim(email) = '')" in schema
     assert "profile_managed" in schema
+
 
 
 # ------------------------------------------------- the empty decision queue
@@ -2439,3 +2440,48 @@ def test_the_forecast_colour_actually_wins_the_cascade():
     assert colours, "the forecast block sets no colour at all"
     for declaration in colours:
         assert "!important" in declaration, declaration
+
+def test_maker_review_workspace_is_concise_traceable_and_revision_ready():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "Maker review workspace" in html
+    assert "What Maker prepared" in html
+    assert "Your next step" in html
+    assert "Open complete working draft" in html
+    assert "View the exact message sent" in html
+    assert "Email delivery timeline" in html
+    assert "Make it shorter" in html
+    assert "Warmer tone" in html
+    assert "Clearer next steps" in html
+    assert 'action: "revise_draft"' in html
+    assert "async function reviseMakerDraft" in html
+
+
+def test_ses_delivery_tracking_is_deployed_with_a_configuration_set():
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "MakerEmailConfigurationSet:" in template
+    assert "MakerEmailEventDestination:" in template
+    assert "ConfigurationSetName: !Ref MakerEmailConfigurationSet" in template
+    assert "EventBridgeDestination:" in template
+    assert "MakerEmailEventFunction:" in template
+    assert 'Command: ["brasstacks.handlers.ses_event.handler"]' in template
+    assert "Email Delivered" in template
+    assert "Email Opened" in template
+    assert "Email Clicked" in template
+    assert "MAKER_EMAIL_CONFIGURATION_SET: !Ref MakerEmailConfigurationSet" in template
+
+
+def test_maker_email_renderer_does_not_dump_the_complete_working_artifact():
+    source = (build_web.REPO / "backend" / "src" / "brasstacks" / "tools" /
+              "email.py").read_text(encoding="utf-8")
+
+    assert "Your Maker draft is ready" in source
+    assert "YOUR NEXT STEP" in source
+    assert "Nothing has been published or sent to customers" in source
+    assert '"plain_body": rendered["plain"]' in source
+    assert '"html_body": rendered["html"]' in source
+    assert "payload.get(\"body\")" not in source
+

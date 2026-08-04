@@ -75,6 +75,12 @@ def notify(
         {
             "title": artifact.title,
             "body": artifact.body or artifact.preview or "",
+            "summary": artifact.summary or artifact.preview or "",
+            "owner_action": artifact.owner_action,
+            "review_state": artifact.review_state,
+            "owner_questions": list(artifact.metadata.get("owner_questions") or []),
+            "artifact_type": artifact.metadata.get("artifact_type"),
+            "revision": artifact.revision,
             "find_id": task.find_id,
             "artifact_id": artifact.artifact_id,
         },

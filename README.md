@@ -11,7 +11,8 @@ The production-shaped multi-user execution design is documented in
 [`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md). It
 separates agent reasoning from durable tasks, approval, idempotency, and external
 tools. The append-only redo/reconsider policy is documented in
-[`docs/RECONSIDER_DECISION_CYCLES.md`](docs/RECONSIDER_DECISION_CYCLES.md).
+[`docs/RECONSIDER_DECISION_CYCLES.md`](docs/RECONSIDER_DECISION_CYCLES.md). The professional Maker review, SES delivery telemetry, and chat revision flow are documented in
+[`docs/MAKER_REVIEW_DELIVERY_REVISION.md`](docs/MAKER_REVIEW_DELIVERY_REVISION.md).
 
 The claim this rests on: the Meter judges predictions made on earlier nights by agent
 runs that no longer exist. A stateless advisor can give advice forever and never be
@@ -124,6 +125,8 @@ docs/MULTI_TENANT_AGENT_PLATFORM.md
                      scale, task, tool, security and rollout plan
 docs/RECONSIDER_DECISION_CYCLES.md
                      append-only redo policy, cancellation rules and acceptance test
+docs/MAKER_REVIEW_DELIVERY_REVISION.md
+                     structured Maker review, SES delivery telemetry and chat revisions
 
 PRODUCT.md           who this is for and what must never be fabricated
 DESIGN.md            the visual system, with the rules and the reasons
@@ -156,15 +159,19 @@ and leaves the earlier Do it and tool receipts intact. A later approval creates 
 cycle-aware Maker task. Customer-facing actions and Meter results cannot be erased; they
 require a corrective task or recommendation revision.
 
-The first constrained execution tool sends a completed draft to a configured review inbox through
-Amazon SES. It is disabled by default and never accepts a model-chosen recipient. The full design,
-current implementation boundary, SES test flow, and AgentCore/OAuth/browser roadmap are in
+The first constrained execution tool sends a concise review notification to a configured inbox through
+Amazon SES. The complete working artifact stays in Brass Tacks. A configuration set and EventBridge
+destination record sent, delivered, opened, clicked, bounce, complaint, and delay events when SES
+publishes them. Owners can request a new version through chat without losing prior artifacts or
+receipts. The implementation and acceptance test are in
+[`docs/MAKER_REVIEW_DELIVERY_REVISION.md`](docs/MAKER_REVIEW_DELIVERY_REVISION.md); the broader
+AgentCore/OAuth/browser roadmap remains in
 [`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md).
 
 ## Tests
 
 ```bash
-python -m pytest backend/tests -q      # 681 offline tests in this version
+python -m pytest backend/tests -q      # 690 offline tests in this version
 python -m pytest -m integration -q      # 65 cloud/live tests when configured
 ```
 

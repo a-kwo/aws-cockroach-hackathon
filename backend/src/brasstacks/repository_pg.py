@@ -67,6 +67,7 @@ from brasstacks.tasks import (
     TaskEvent,
     TaskRecord,
     ToolExecutionRecord,
+    EmailEventRecord,
     maker_resource_key,
     maker_task_idempotency_key,
 )
@@ -1401,6 +1402,12 @@ class PostgresRepository:
                         task_id: str | None = None,
                         idempotency_key: str | None = None,
                         body: str | None = None,
+                        summary: str | None = None,
+                        owner_action: str | None = None,
+                        review_state: str = "ready_for_review",
+                        metadata: Mapping[str, Any] | None = None,
+                        revision: int = 1,
+                        parent_artifact_id: str | None = None,
                         decision_cycle: int = 1) -> str:
         ensure_task_schema(self._conn)
         ensure_decision_schema(self._conn)
@@ -1431,37 +1438,68 @@ class PostgresRepository:
                             or int(guard[4] or 1) != artifact_cycle
                         ):
                             raise RepositoryError("Maker task was cancelled or superseded")
-                    if idempotency_key:
+
+                    revision_number = max(1, int(revision))
+                    if parent_artifact_id is not None:
                         cur.execute(
                             """
-                            INSERT INTO artifact (
-                                find_id, run_id, kind, title, s3_bucket, s3_key,
-                                preview, task_id, idempotency_key, body,
-                                decision_cycle
-                            )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            SELECT revision
+                            FROM artifact
+                            WHERE id = %s AND find_id = %s
+                            FOR UPDATE
+                            """,
+                            (parent_artifact_id, find_id),
+                        )
+                        parent = cur.fetchone()
+                        if parent is None:
+                            raise RepositoryError("base Maker draft is no longer available")
+                        revision_number = max(revision_number, int(parent[0] or 1) + 1)
+
+                    columns = """
+                        find_id, run_id, kind, title, s3_bucket, s3_key, preview,
+                        task_id, idempotency_key, body, summary, owner_action,
+                        review_state, metadata, revision, parent_artifact_id,
+                        decision_cycle
+                    """
+                    values = (
+                        find_id, run_id, kind, title, s3_bucket, s3_key, preview,
+                        task_id, idempotency_key, body, summary, owner_action,
+                        review_state, Jsonb(dict(metadata or {})), revision_number,
+                        parent_artifact_id, artifact_cycle,
+                    )
+                    if idempotency_key:
+                        cur.execute(
+                            f"""
+                            INSERT INTO artifact ({columns})
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                    %s, %s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (idempotency_key) DO UPDATE
                             SET idempotency_key = excluded.idempotency_key
                             RETURNING id
                             """,
-                            (find_id, run_id, kind, title, s3_bucket, s3_key,
-                             preview, task_id, idempotency_key, body,
-                             artifact_cycle),
+                            values,
                         )
                     else:
                         cur.execute(
-                            """
-                            INSERT INTO artifact (
-                                find_id, run_id, kind, title, s3_bucket, s3_key,
-                                preview, task_id, body, decision_cycle
-                            )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            f"""
+                            INSERT INTO artifact ({columns})
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                    %s, %s, %s, %s, %s, %s, %s, %s)
                             RETURNING id
                             """,
-                            (find_id, run_id, kind, title, s3_bucket, s3_key,
-                             preview, task_id, body, artifact_cycle),
+                            values,
                         )
-                    return str(cur.fetchone()[0])
+                    artifact_id = str(cur.fetchone()[0])
+                    if parent_artifact_id is not None:
+                        cur.execute(
+                            """
+                            UPDATE artifact
+                            SET superseded_at = coalesce(superseded_at, clock_timestamp())
+                            WHERE id = %s AND id <> %s
+                            """,
+                            (parent_artifact_id, artifact_id),
+                        )
+                    return artifact_id
         except RepositoryError:
             raise
         except psycopg.Error as e:
@@ -1474,8 +1512,11 @@ class PostgresRepository:
             title=row[3], created_at=row[4], preview=row[5],
             s3_bucket=row[6], s3_key=row[7],
             task_id=str(row[8]) if row[8] is not None else None,
-            idempotency_key=row[9], body=row[10],
-            decision_cycle=int(row[11] or 1), superseded_at=row[12],
+            idempotency_key=row[9], body=row[10], summary=row[11],
+            owner_action=row[12], review_state=row[13] or "ready_for_review",
+            metadata=_mapping(row[14]), revision=int(row[15] or 1),
+            parent_artifact_id=str(row[16]) if row[16] is not None else None,
+            decision_cycle=int(row[17] or 1), superseded_at=row[18],
         )
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]:
@@ -1485,10 +1526,11 @@ class PostgresRepository:
                 """
                 SELECT id, find_id, kind, title, created_at, preview,
                        s3_bucket, s3_key, task_id, idempotency_key, body,
-                       decision_cycle, superseded_at
+                       summary, owner_action, review_state, metadata, revision,
+                       parent_artifact_id, decision_cycle, superseded_at
                 FROM artifact
                 WHERE find_id = %s
-                ORDER BY created_at DESC
+                ORDER BY revision DESC, created_at DESC
                 """,
                 (find_id,),
             )
@@ -1503,7 +1545,8 @@ class PostgresRepository:
                 """
                 SELECT id, find_id, kind, title, created_at, preview,
                        s3_bucket, s3_key, task_id, idempotency_key, body,
-                       decision_cycle, superseded_at
+                       summary, owner_action, review_state, metadata, revision,
+                       parent_artifact_id, decision_cycle, superseded_at
                 FROM artifact
                 WHERE idempotency_key = %s
                 """,
@@ -2109,6 +2152,226 @@ class PostgresRepository:
                     idempotency_key=row[5], started_at=row[6], finished_at=row[7],
                     external_reference=row[8], error=row[9],
                     input_data=_mapping(row[10]), output_data=_mapping(row[11]),
+                )
+                for row in cur.fetchall()
+            ]
+
+    def request_maker_revision(
+        self, *, business_id: str, find_id: str, account_id: str | None,
+        instruction: str, requested_at: datetime | None = None,
+    ) -> TaskRecord:
+        ensure_task_schema(self._conn)
+        ensure_decision_schema(self._conn)
+        text = " ".join(str(instruction or "").split())
+        if not text:
+            raise RepositoryError("tell Maker what you want changed")
+        requested_at = requested_at or datetime.now(timezone.utc)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT wt.id
+                    FROM work_task wt
+                    JOIN find f ON f.id = wt.find_id
+                    WHERE wt.business_id = %s
+                      AND wt.find_id = %s
+                      AND f.business_id = %s
+                      AND f.status = 'accepted'
+                      AND wt.decision_cycle = f.decision_cycle
+                      AND wt.status = 'completed'
+                      AND wt.superseded_at IS NULL
+                      AND wt.output_artifact_id IS NOT NULL
+                    ORDER BY wt.created_at DESC
+                    LIMIT 1
+                    FOR UPDATE OF wt
+                    """,
+                    (business_id, find_id, business_id),
+                )
+                task_row = cur.fetchone()
+                if task_row is None:
+                    raise RepositoryError(
+                        "Maker must finish the current draft before revising it"
+                    )
+                cur.execute(
+                    f"SELECT {_TASK_COLUMNS} FROM work_task WHERE id = %s",
+                    (task_row[0],),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError(
+                        "Maker task disappeared while revision was requested"
+                    )
+                current = _task_record(row)
+                revision = max(1, int(current.input_data.get("revision") or 1)) + 1
+                patch = {
+                    "revision": revision,
+                    "revision_instruction": text,
+                    "base_artifact_id": current.output_artifact_id,
+                    "revision_requested_at": requested_at.isoformat(),
+                }
+                cur.execute(
+                    f"""
+                    UPDATE work_task
+                    SET status = 'queued',
+                        attempt_count = 0,
+                        input_data = input_data || %s,
+                        updated_at = %s,
+                        started_at = NULL,
+                        completed_at = NULL,
+                        next_attempt_at = NULL,
+                        lease_expires_at = NULL,
+                        claimed_by = NULL,
+                        claim_token = NULL,
+                        workflow_execution_arn = NULL,
+                        last_error = NULL
+                    WHERE id = %s
+                    RETURNING {_TASK_COLUMNS}
+                    """,
+                    (Jsonb(patch), requested_at, current.task_id),
+                )
+                updated = _task_record(cur.fetchone())
+                cur.execute(
+                    """
+                    INSERT INTO task_event
+                        (task_id, business_id, event_type, actor_type, actor_id, data)
+                    VALUES (%s, %s, 'task.revision_requested', 'owner', %s, %s)
+                    """,
+                    (
+                        updated.task_id, updated.business_id, account_id,
+                        Jsonb({
+                            "revision": revision,
+                            "instruction": text,
+                            "base_artifact_id": current.output_artifact_id,
+                        }),
+                    ),
+                )
+        return updated
+
+    def record_email_event(
+        self, *, provider_event_id: str, message_id: str, event_type: str,
+        event_at: datetime, tool_execution_id: str | None = None,
+        recipient: str | None = None, link: str | None = None,
+        data: Mapping[str, Any] | None = None,
+    ) -> EmailEventRecord | None:
+        ensure_task_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                if tool_execution_id:
+                    cur.execute(
+                        """
+                        SELECT id, task_id, business_id
+                        FROM tool_execution
+                        WHERE id = %s AND tool_name = 'ses.send_review_email'
+                        """,
+                        (tool_execution_id,),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT id, task_id, business_id
+                        FROM tool_execution
+                        WHERE tool_name = 'ses.send_review_email'
+                          AND external_reference = %s
+                        ORDER BY started_at DESC
+                        LIMIT 1
+                        """,
+                        (message_id,),
+                    )
+                tool = cur.fetchone()
+                if tool is None:
+                    return None
+                cur.execute(
+                    """
+                    INSERT INTO email_event (
+                        provider_event_id, tool_execution_id, task_id, business_id,
+                        message_id, event_type, event_at, recipient, link, data
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (provider_event_id) DO NOTHING
+                    RETURNING id
+                    """,
+                    (
+                        provider_event_id, tool[0], tool[1], tool[2], message_id,
+                        event_type, event_at, recipient, link, Jsonb(dict(data or {})),
+                    ),
+                )
+                inserted = cur.fetchone()
+                created = inserted is not None
+                if inserted is None:
+                    cur.execute(
+                        """
+                        SELECT id, provider_event_id, tool_execution_id, task_id,
+                               business_id, message_id, event_type, event_at,
+                               recipient, link, data
+                        FROM email_event
+                        WHERE provider_event_id = %s
+                        """,
+                        (provider_event_id,),
+                    )
+                    row = cur.fetchone()
+                else:
+                    cur.execute(
+                        """
+                        SELECT id, provider_event_id, tool_execution_id, task_id,
+                               business_id, message_id, event_type, event_at,
+                               recipient, link, data
+                        FROM email_event
+                        WHERE id = %s
+                        """,
+                        (inserted[0],),
+                    )
+                    row = cur.fetchone()
+                    cur.execute(
+                        """
+                        INSERT INTO task_event
+                            (task_id, business_id, event_type, actor_type, actor_id, data)
+                        VALUES (%s, %s, %s, 'provider', 'amazon_ses', %s)
+                        """,
+                        (
+                            tool[1], tool[2], f"email.{event_type}",
+                            Jsonb({
+                                "email_event_id": str(inserted[0]),
+                                "tool_execution_id": str(tool[0]),
+                                "message_id": message_id,
+                                "recipient": recipient,
+                                "link": link,
+                            }),
+                        ),
+                    )
+                if row is None:
+                    return None
+                return EmailEventRecord(
+                    event_id=str(row[0]), provider_event_id=row[1],
+                    tool_execution_id=str(row[2]), task_id=str(row[3]),
+                    business_id=str(row[4]), message_id=row[5],
+                    event_type=row[6], event_at=row[7], recipient=row[8],
+                    link=row[9], data=_mapping(row[10]), created=created,
+                )
+
+    def email_events_for_tool(
+        self, tool_execution_id: str, *, limit: int = 100,
+    ) -> list[EmailEventRecord]:
+        ensure_task_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, provider_event_id, tool_execution_id, task_id,
+                       business_id, message_id, event_type, event_at,
+                       recipient, link, data
+                FROM email_event
+                WHERE tool_execution_id = %s
+                ORDER BY event_at ASC, created_at ASC
+                LIMIT %s
+                """,
+                (tool_execution_id, max(0, int(limit))),
+            )
+            return [
+                EmailEventRecord(
+                    event_id=str(row[0]), provider_event_id=row[1],
+                    tool_execution_id=str(row[2]), task_id=str(row[3]),
+                    business_id=str(row[4]), message_id=row[5],
+                    event_type=row[6], event_at=row[7], recipient=row[8],
+                    link=row[9], data=_mapping(row[10]),
                 )
                 for row in cur.fetchall()
             ]

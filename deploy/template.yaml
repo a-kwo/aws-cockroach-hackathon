@@ -247,6 +247,35 @@ Resources:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
 
+  # Amazon SES emits durable delivery telemetry for every Maker review email.
+  # The tool receipt records the exact message submitted; this configuration set
+  # adds delivery, open, click, bounce and complaint events asynchronously.
+  MakerEmailConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Sub ${AWS::StackName}-maker-review
+
+  MakerEmailEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Properties:
+      ConfigurationSetName: !Ref MakerEmailConfigurationSet
+      EventDestination:
+        Name: eventbridge
+        Enabled: true
+        MatchingEventTypes:
+          - SEND
+          - REJECT
+          - BOUNCE
+          - COMPLAINT
+          - DELIVERY
+          - OPEN
+          - CLICK
+          - RENDERING_FAILURE
+          - DELIVERY_DELAY
+          - SUBSCRIPTION
+        EventBridgeDestination:
+          EventBusArn: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
   # The first constrained execution tool. It can only send the completed draft
   # to the configured owner/test inbox; the model never chooses an address.
   MakerEmailFunction:
@@ -263,6 +292,7 @@ Resources:
       Environment:
         Variables:
           BRASSTACKS_SITE_URL: !Sub https://${SiteDistribution.DomainName}
+          MAKER_EMAIL_CONFIGURATION_SET: !Ref MakerEmailConfigurationSet
       Policies:
         - Statement:
             - Sid: SendOwnerReviewEmail
@@ -286,6 +316,56 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+
+  # SES publishes provider-side delivery events to EventBridge. This worker
+  # correlates them to the original tool execution by the signed SES message id
+  # and custom tags, then appends immutable receipts in CockroachDB.
+  MakerEmailEventFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: maker-email-event
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.ses_event.handler"]
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        SesReviewEmailEvents:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.ses
+              detail-type:
+                - Email Sent
+                - Email Delivered
+                - Email Opened
+                - Email Clicked
+                - Email Bounced
+                - Email Complaint Received
+                - Email Delivery Delayed
+                - Email Rejected
+                - Email Rendering Failed
+                - Email Subscribed
 
   MakerWorkflow:
     Type: AWS::Serverless::StateMachine

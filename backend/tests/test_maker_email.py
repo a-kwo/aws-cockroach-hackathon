@@ -84,7 +84,10 @@ def test_completed_draft_is_sent_to_the_fixed_owner_review_inbox():
     assert sent["Source"] == "verified@example.com"
     assert sent["Destination"]["ToAddresses"] == ["virtual.icfd@gmail.com"]
     text = sent["Message"]["Body"]["Text"]["Data"]
-    assert "# Group package" in text
+    assert "Your Maker draft is ready" in text
+    assert "YOUR NEXT STEP" in text
+    assert "# Group package" not in text
+    assert "Nothing has been published or sent to customers" in text
     assert f"https://app.example.com/app/?task={task_id}" in text
     [receipt] = repo.tool_executions(task_id)
     assert receipt.status == "succeeded"

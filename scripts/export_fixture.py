@@ -102,8 +102,9 @@ def main() -> int:
             artifacts = rows(cur, """
                 SELECT a.id, a.find_id, a.kind, a.title, a.preview,
                        a.s3_bucket, a.s3_key, a.created_at, a.task_id,
-                       a.idempotency_key, a.body, a.decision_cycle,
-                       a.superseded_at
+                       a.idempotency_key, a.body, a.summary, a.owner_action,
+                       a.review_state, a.metadata, a.revision,
+                       a.parent_artifact_id, a.decision_cycle, a.superseded_at
                 FROM artifact a
                 JOIN find f ON f.id = a.find_id
                 WHERE f.business_id = %s

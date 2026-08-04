@@ -161,6 +161,15 @@ def _artifacts(row: dict[str, Any]) -> list[dict[str, Any]]:
             # deep link. It is tenant-scoped by /workflow and never enters an
             # LLM prompt merely because the dashboard refreshes.
             "body": artifact.get("body") or None,
+            "summary": artifact.get("summary") or None,
+            "ownerAction": artifact.get("owner_action") or None,
+            "reviewState": artifact.get("review_state") or "ready_for_review",
+            "metadata": artifact.get("metadata") or {},
+            "artifactType": (artifact.get("metadata") or {}).get("artifact_type") or artifact.get("kind") or "draft",
+            "ownerQuestions": list((artifact.get("metadata") or {}).get("owner_questions") or []),
+            "sections": list((artifact.get("metadata") or {}).get("sections") or []),
+            "revision": _int(artifact.get("revision"), 1),
+            "parentArtifactId": str(artifact.get("parent_artifact_id") or "") or None,
             "createdAt": _iso(artifact.get("created_at")),
             "stored": bool(bucket and key),
             "location": f"s3://{bucket}/{key}" if bucket and key else None,
@@ -307,6 +316,29 @@ def card_summary(raw_find: dict) -> str:
     return owner_card_summary(text)
 
 
+_EMAIL_FAILURE_STATES = {"rejected", "bounced", "complaint", "rendering_failed"}
+_EMAIL_STATE_PRIORITY = {
+    "accepted": 0,
+    "sent": 1,
+    "delivery_delayed": 2,
+    "delivered": 3,
+    "opened": 4,
+    "clicked": 5,
+}
+
+
+def _email_delivery_status(events: list[dict[str, Any]], tool: dict[str, Any]) -> str:
+    kinds = [str(item.get("event_type") or item.get("type") or "").lower() for item in events]
+    failure = next((kind for kind in reversed(kinds) if kind in _EMAIL_FAILURE_STATES), None)
+    if failure:
+        return failure
+    status = "accepted" if str(tool.get("status") or "") == "succeeded" else str(tool.get("status") or "pending")
+    for kind in kinds:
+        if _EMAIL_STATE_PRIORITY.get(kind, -1) > _EMAIL_STATE_PRIORITY.get(status, -1):
+            status = kind
+    return status
+
+
 def _tasks(data: dict[str, Any], finds: list[dict[str, Any]]) -> list[dict[str, Any]]:
     find_map = {str(found.get("databaseId") or found.get("id")): found for found in finds}
     result: list[dict[str, Any]] = []
@@ -379,6 +411,18 @@ def _tasks(data: dict[str, Any], finds: list[dict[str, Any]]) -> list[dict[str, 
                 "error": item.get("error"),
                 "input": item.get("input_data") or {},
                 "output": item.get("output_data") or {},
+                "events": [{
+                    "id": str(event.get("id") or ""),
+                    "providerEventId": event.get("provider_event_id"),
+                    "type": event.get("event_type"),
+                    "eventAt": _iso(event.get("event_at")),
+                    "recipient": event.get("recipient"),
+                    "link": event.get("link"),
+                    "data": event.get("data") or {},
+                } for event in item.get("email_events") or []],
+                "deliveryStatus": _email_delivery_status(
+                    list(item.get("email_events") or []), item
+                ) if item.get("tool_name") == "ses.send_review_email" else None,
             } for item in tools],
         })
     result.sort(key=lambda item: str(item.get("createdAt") or ""), reverse=True)
@@ -711,7 +755,9 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         artifacts = _rows(cursor, f"""
             SELECT f.business_id, a.id, a.find_id, a.kind, a.title, a.preview,
                    a.s3_bucket, a.s3_key, a.created_at, a.task_id,
-                   a.idempotency_key, a.body, a.decision_cycle, a.superseded_at
+                   a.idempotency_key, a.body, a.summary, a.owner_action,
+                   a.review_state, a.metadata, a.revision, a.parent_artifact_id,
+                   a.decision_cycle, a.superseded_at
             FROM artifact a
             JOIN find f ON f.id = a.find_id
             WHERE f.business_id IN ({placeholders})
@@ -762,6 +808,22 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             ) ranked
             WHERE tool_execution_rank <= 10
             ORDER BY business_id, task_id, started_at DESC
+        """, ids)
+
+        email_events = _rows(cursor, f"""
+            SELECT business_id, id, provider_event_id, tool_execution_id,
+                   task_id, message_id, event_type, event_at, recipient, link, data
+            FROM (
+                SELECT ee.*,
+                       row_number() OVER (
+                           PARTITION BY tool_execution_id
+                           ORDER BY event_at DESC, created_at DESC
+                       ) AS email_event_rank
+                FROM email_event ee
+                WHERE business_id IN ({placeholders})
+            ) ranked
+            WHERE email_event_rank <= 20
+            ORDER BY business_id, tool_execution_id, event_at ASC, created_at ASC
         """, ids)
 
         decision_events = _rows(cursor, f"""
@@ -852,6 +914,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
     tasks_by_business = _group(tasks)
     events_by_task = _group(task_events, "task_id")
     tools_by_task = _group(tool_executions, "task_id")
+    email_events_by_tool = _group(email_events, "tool_execution_id")
     decisions_by_find = _group(decision_events, "find_id")
     ledger_by_find = _group(ledger, "find_id")
     runs_by_business = _group(runs)
@@ -900,11 +963,19 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
                  if key not in {"business_id", "task_id"}}
                 for item in events_by_task.get(task_id, [])
             ]
-            raw_task["tools"] = [
-                {key: value for key, value in item.items()
-                 if key not in {"business_id", "task_id"}}
-                for item in tools_by_task.get(task_id, [])
-            ]
+            raw_task["tools"] = []
+            for item in tools_by_task.get(task_id, []):
+                tool = {
+                    key: value for key, value in item.items()
+                    if key not in {"business_id", "task_id", "tool_execution_rank"}
+                }
+                tool_id = str(item.get("id") or "")
+                tool["email_events"] = [
+                    {key: value for key, value in event.items()
+                     if key not in {"business_id", "task_id", "tool_execution_id"}}
+                    for event in email_events_by_tool.get(tool_id, [])
+                ]
+                raw_task["tools"].append(tool)
             raw_tasks.append(raw_task)
 
         business_ledger = ledger_by_business.get(business_id, [])

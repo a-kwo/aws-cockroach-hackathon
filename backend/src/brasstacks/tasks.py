@@ -127,6 +127,30 @@ class ToolExecutionRecord:
     created: bool = False
 
 
+@dataclass(frozen=True)
+class EmailEventRecord:
+    """One immutable Amazon SES delivery event.
+
+    EventBridge delivery is best-effort and may be duplicated or arrive out of
+    order. ``provider_event_id`` is therefore unique and the UI derives the
+    current state from the complete event history instead of trusting arrival
+    order.
+    """
+
+    event_id: str
+    provider_event_id: str
+    tool_execution_id: str
+    task_id: str
+    business_id: str
+    message_id: str
+    event_type: str
+    event_at: datetime
+    recipient: str | None = None
+    link: str | None = None
+    data: Mapping[str, Any] = field(default_factory=dict)
+    created: bool = False
+
+
 def maker_task_idempotency_key(
     find_id: str,
     *,
@@ -199,6 +223,7 @@ __all__ = [
     "TaskRecord",
     "TaskEvent",
     "ToolExecutionRecord",
+    "EmailEventRecord",
     "TASK_QUEUED",
     "TASK_RUNNING",
     "TASK_WAITING_USER",

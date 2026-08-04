@@ -97,6 +97,15 @@ def process_task(
     # model tokens.
     reasoner = reasoner_factory()
     store = store_factory()
+    revision = max(1, int(claim.input_data.get("revision") or 1))
+    base_artifact_id = str(claim.input_data.get("base_artifact_id") or "").strip() or None
+    previous_artifact = None
+    if base_artifact_id and find is not None:
+        previous_artifact = next(
+            (item for item in repo.get_artifacts(find.find_id)
+             if item.artifact_id == base_artifact_id),
+            None,
+        )
     result = run_maker(
         repo=repo,
         reasoner=reasoner,
@@ -106,11 +115,16 @@ def process_task(
         model_id=model_id,
         task_id=claim.task_id,
         artifact_idempotency_key=maker_artifact_idempotency_key(
-            claim.task_id, kind=ARTIFACT_KIND
+            claim.task_id, kind=ARTIFACT_KIND, version=revision
         ),
         can_continue=lambda: repo.task_can_continue(
             claim.task_id, claim_token=claim.claim_token or ""
         ),
+        revision=revision,
+        revision_instruction=(
+            str(claim.input_data.get("revision_instruction") or "").strip() or None
+        ),
+        previous_artifact=previous_artifact,
     )
 
     if result.cancelled:
@@ -178,6 +192,9 @@ def process_task(
                 "run_id": result.run_id,
                 "location": result.location,
                 "reused": result.reused,
+                "revision": result.revision,
+                "summary": result.summary,
+                "review_state": result.review_state,
             },
         )
     except RepositoryError:
@@ -202,6 +219,9 @@ def process_task(
         "run_id": result.run_id,
         "location": result.location,
         "reused": result.reused,
+        "revision": result.revision,
+        "summary": result.summary,
+        "review_state": result.review_state,
     }
 
 

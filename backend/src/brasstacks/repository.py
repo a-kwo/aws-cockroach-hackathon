@@ -43,6 +43,7 @@ from brasstacks.tasks import (
     TaskEvent,
     TaskRecord,
     ToolExecutionRecord,
+    EmailEventRecord,
     maker_resource_key,
     maker_task_idempotency_key,
 )
@@ -243,11 +244,12 @@ class FindContext:
 
 @dataclass(frozen=True)
 class StoredArtifact:
-    """A done-for-you deliverable produced against one find and task.
+    """A versioned, owner-reviewable deliverable produced by Maker.
 
-    ``body`` keeps the complete draft durable in CockroachDB when S3 is
-    temporarily unavailable. ``idempotency_key`` makes a worker retry return
-    the first artifact instead of creating a duplicate.
+    The detailed body remains durable in CockroachDB even when S3 is
+    unavailable. Structured review fields let the UI and email renderer show
+    the smallest useful next action instead of dumping raw Markdown on a busy
+    owner.
     """
 
     artifact_id: str
@@ -261,6 +263,12 @@ class StoredArtifact:
     task_id: str | None = None
     idempotency_key: str | None = None
     body: str | None = None
+    summary: str | None = None
+    owner_action: str | None = None
+    review_state: str = "ready_for_review"
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+    revision: int = 1
+    parent_artifact_id: str | None = None
     decision_cycle: int = 1
     superseded_at: datetime | None = None
 
@@ -434,7 +442,12 @@ class Repository(Protocol):
                         s3_key: str | None = ..., run_id: str | None = ...,
                         task_id: str | None = ...,
                         idempotency_key: str | None = ...,
-                        body: str | None = ...,
+                        body: str | None = ..., summary: str | None = ...,
+                        owner_action: str | None = ...,
+                        review_state: str = ...,
+                        metadata: Mapping[str, Any] | None = ...,
+                        revision: int = ...,
+                        parent_artifact_id: str | None = ...,
                         decision_cycle: int = ...) -> str: ...
 
     def get_artifacts(self, find_id: str) -> list[StoredArtifact]: ...
@@ -513,6 +526,22 @@ class Repository(Protocol):
     def tool_executions(
         self, task_id: str, *, limit: int = ...,
     ) -> list[ToolExecutionRecord]: ...
+
+    def request_maker_revision(
+        self, *, business_id: str, find_id: str, account_id: str | None,
+        instruction: str, requested_at: datetime | None = ...,
+    ) -> TaskRecord: ...
+
+    def record_email_event(
+        self, *, provider_event_id: str, message_id: str, event_type: str,
+        event_at: datetime, tool_execution_id: str | None = ...,
+        recipient: str | None = ..., link: str | None = ...,
+        data: Mapping[str, Any] | None = ...,
+    ) -> EmailEventRecord | None: ...
+
+    def email_events_for_tool(
+        self, tool_execution_id: str, *, limit: int = ...,
+    ) -> list[EmailEventRecord]: ...
 
     def insert_ledger_entry(
         self, business_id: str, *, find_id: str, verdict: str,
@@ -623,6 +652,12 @@ class _Artifact:
     task_id: str | None = None
     idempotency_key: str | None = None
     body: str | None = None
+    summary: str | None = None
+    owner_action: str | None = None
+    review_state: str = "ready_for_review"
+    metadata: dict[str, Any] = field(default_factory=dict)
+    revision: int = 1
+    parent_artifact_id: str | None = None
     decision_cycle: int = 1
     superseded_at: datetime | None = None
 
@@ -668,6 +703,7 @@ class InMemoryRepository:
         self._task_events: list[TaskEvent] = []
         self._tool_executions: dict[str, ToolExecutionRecord] = {}
         self._tool_by_idempotency: dict[str, str] = {}
+        self._email_events: dict[str, EmailEventRecord] = {}
         self._ledger: list[_LedgerEntry] = []
         self._accounts: dict[str, dict[str, Any]] = {}
         self._sessions: dict[str, dict[str, Any]] = {}
@@ -1483,6 +1519,12 @@ class InMemoryRepository:
                         task_id: str | None = None,
                         idempotency_key: str | None = None,
                         body: str | None = None,
+                        summary: str | None = None,
+                        owner_action: str | None = None,
+                        review_state: str = "ready_for_review",
+                        metadata: Mapping[str, Any] | None = None,
+                        revision: int = 1,
+                        parent_artifact_id: str | None = None,
                         decision_cycle: int = 1) -> str:
         found = self._finds.get(find_id)
         if found is None:
@@ -1508,14 +1550,35 @@ class InMemoryRepository:
             if existing is not None:
                 return existing.artifact_id
 
+        revision_number = max(1, int(revision))
+        if parent_artifact_id is not None:
+            parent = next(
+                (item for item in self._artifacts
+                 if item.artifact_id == parent_artifact_id
+                 and item.find_id == find_id),
+                None,
+            )
+            if parent is None:
+                raise RepositoryError("base Maker draft is no longer available")
+            revision_number = max(revision_number, int(parent.revision) + 1)
+
         artifact_id = str(uuid.uuid4())
+        now = self._now()
         self._artifacts.append(_Artifact(
             artifact_id=artifact_id, find_id=find_id, kind=kind, title=title,
-            created_at=self._now(), preview=preview, s3_bucket=s3_bucket,
+            created_at=now, preview=preview, s3_bucket=s3_bucket,
             s3_key=s3_key, run_id=run_id, task_id=task_id,
-            idempotency_key=idempotency_key, body=body,
+            idempotency_key=idempotency_key, body=body, summary=summary,
+            owner_action=owner_action, review_state=review_state,
+            metadata=dict(metadata or {}), revision=revision_number,
+            parent_artifact_id=parent_artifact_id,
             decision_cycle=artifact_cycle,
         ))
+        if parent_artifact_id is not None:
+            for item in self._artifacts:
+                if item.artifact_id == parent_artifact_id and item.superseded_at is None:
+                    item.superseded_at = now
+                    break
         return artifact_id
 
     def _stored_artifact(self, artifact: _Artifact) -> StoredArtifact:
@@ -1525,7 +1588,11 @@ class InMemoryRepository:
             created_at=artifact.created_at, preview=artifact.preview,
             s3_bucket=artifact.s3_bucket, s3_key=artifact.s3_key,
             task_id=artifact.task_id, idempotency_key=artifact.idempotency_key,
-            body=artifact.body, decision_cycle=artifact.decision_cycle,
+            body=artifact.body, summary=artifact.summary,
+            owner_action=artifact.owner_action, review_state=artifact.review_state,
+            metadata=dict(artifact.metadata), revision=artifact.revision,
+            parent_artifact_id=artifact.parent_artifact_id,
+            decision_cycle=artifact.decision_cycle,
             superseded_at=artifact.superseded_at,
         )
 
@@ -1953,6 +2020,132 @@ class InMemoryRepository:
         rows = [row for row in self._tool_executions.values() if row.task_id == task_id]
         rows.sort(key=lambda row: row.started_at, reverse=True)
         return rows[: max(0, int(limit))]
+
+    def request_maker_revision(
+        self, *, business_id: str, find_id: str, account_id: str | None,
+        instruction: str, requested_at: datetime | None = None,
+    ) -> TaskRecord:
+        found = self._finds.get(find_id)
+        if found is None or found.business_id != business_id:
+            raise RepositoryError("recommendation is no longer available")
+        if found.status != "accepted":
+            raise RepositoryError("only an approved recommendation can be revised")
+        candidates = [
+            row for row in self._tasks.values()
+            if row["business_id"] == business_id
+            and row.get("find_id") == find_id
+            and int(row.get("decision_cycle") or 1) == int(found.decision_cycle)
+            and row.get("superseded_at") is None
+            and row.get("status") == TASK_COMPLETED
+            and row.get("output_artifact_id")
+        ]
+        if not candidates:
+            raise RepositoryError("Maker must finish the current draft before revising it")
+        candidates.sort(key=lambda row: row["created_at"], reverse=True)
+        row = candidates[0]
+        text = " ".join(str(instruction or "").split())
+        if not text:
+            raise RepositoryError("tell Maker what you want changed")
+        now = requested_at or self._now()
+        prior_input = dict(row.get("input_data") or {})
+        revision = max(1, int(prior_input.get("revision") or 1)) + 1
+        prior_input.update({
+            "revision": revision,
+            "revision_instruction": text,
+            "base_artifact_id": row.get("output_artifact_id"),
+            "revision_requested_at": now.isoformat(),
+        })
+        row.update({
+            "status": TASK_QUEUED,
+            # A revision is new model work. Preserve dispatch_count so Step
+            # Functions execution names stay unique, but give the new version a
+            # fresh retry budget rather than inheriting failures from v1.
+            "attempt_count": 0,
+            "input_data": prior_input,
+            "updated_at": now,
+            "started_at": None,
+            "completed_at": None,
+            "next_attempt_at": None,
+            "lease_expires_at": None,
+            "claimed_by": None,
+            "claim_token": None,
+            "workflow_execution_arn": None,
+            "last_error": None,
+        })
+        self.record_task_event(
+            row["task_id"],
+            event_type="task.revision_requested",
+            actor_type="owner",
+            actor_id=account_id,
+            data={
+                "revision": revision,
+                "instruction": text,
+                "base_artifact_id": row.get("output_artifact_id"),
+            },
+        )
+        return self._task_record(row)
+
+    def record_email_event(
+        self, *, provider_event_id: str, message_id: str, event_type: str,
+        event_at: datetime, tool_execution_id: str | None = None,
+        recipient: str | None = None, link: str | None = None,
+        data: Mapping[str, Any] | None = None,
+    ) -> EmailEventRecord | None:
+        existing = self._email_events.get(provider_event_id)
+        if existing is not None:
+            return replace(existing, created=False)
+        tool = (
+            self._tool_executions.get(str(tool_execution_id))
+            if tool_execution_id else None
+        )
+        if tool is None:
+            tool = next(
+                (row for row in self._tool_executions.values()
+                 if row.tool_name == "ses.send_review_email"
+                 and row.external_reference == message_id),
+                None,
+            )
+        if tool is None:
+            return None
+        record = EmailEventRecord(
+            event_id=str(uuid.uuid4()),
+            provider_event_id=provider_event_id,
+            tool_execution_id=tool.execution_id,
+            task_id=tool.task_id,
+            business_id=tool.business_id,
+            message_id=message_id,
+            event_type=str(event_type),
+            event_at=event_at,
+            recipient=recipient,
+            link=link,
+            data=dict(data or {}),
+            created=True,
+        )
+        self._email_events[provider_event_id] = record
+        self.record_task_event(
+            tool.task_id,
+            event_type=f"email.{event_type}",
+            actor_type="provider",
+            actor_id="amazon_ses",
+            data={
+                "email_event_id": record.event_id,
+                "tool_execution_id": tool.execution_id,
+                "message_id": message_id,
+                "recipient": recipient,
+                "link": link,
+            },
+        )
+        return record
+
+    def email_events_for_tool(
+        self, tool_execution_id: str, *, limit: int = 100,
+    ) -> list[EmailEventRecord]:
+        rows = [
+            row for row in self._email_events.values()
+            if row.tool_execution_id == tool_execution_id
+        ]
+        rows.sort(key=lambda row: row.event_at)
+        return rows[-max(0, int(limit)):] if limit else []
 
     # -- ledger ----------------------------------------------------------
     def insert_ledger_entry(

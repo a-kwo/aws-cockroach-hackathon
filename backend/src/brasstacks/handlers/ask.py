@@ -19,7 +19,7 @@ from brasstacks.ask_trace import encode_ask_trace
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
-from brasstacks.maker_dispatch import MAKER_QUEUE_URL_VAR, dispatch_maker
+from brasstacks.maker_dispatch import MAKER_QUEUE_URL_VAR, dispatch_maker, dispatch_task
 from brasstacks.providers import build_asker, build_embedder
 from brasstacks.repository import RepositoryError
 from brasstacks.secrets import hydrate_environment
@@ -32,6 +32,7 @@ MESSAGE_PREVIEW_CHARS = 360
 CONTEXT_CHAR_BUDGET = 3600
 UNDO_PASS_ACTION = "undo_pass"
 RECONSIDER_ACTION = "reconsider"
+REVISE_DRAFT_ACTION = "revise_draft"
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -89,7 +90,7 @@ def parse_action(event: Any) -> tuple[str, str, str | None] | None:
     action = str(payload.get("action") or "").strip().lower()
     if not action:
         return None
-    if action not in {UNDO_PASS_ACTION, RECONSIDER_ACTION}:
+    if action not in {UNDO_PASS_ACTION, RECONSIDER_ACTION, REVISE_DRAFT_ACTION}:
         raise ValueError(f"unsupported action {action!r}")
     find_id = str(payload.get("find_id") or "").strip()
     if not find_id:
@@ -154,6 +155,62 @@ def is_reconsider_request(question: str) -> bool:
         "reopen this recommendation",
     )
     return any(phrase in text for phrase in phrases)
+
+
+def is_revision_request(question: str) -> bool:
+    """Recognise a clear request to revise the current Maker draft.
+
+    Revision changes the approved deliverable, not the owner's Do it decision.
+    Keep this detector conservative so ordinary business questions still go to
+    Ask rather than unexpectedly starting paid Maker work.
+    """
+    text = re.sub(r"[^a-z0-9]+", " ", question.lower()).strip()
+    explicit = (
+        "revise the draft",
+        "revise this draft",
+        "rewrite the draft",
+        "rewrite this draft",
+        "update the draft",
+        "update this draft",
+        "change the draft",
+        "change this draft",
+        "regenerate the draft",
+        "make the draft shorter",
+        "make this draft shorter",
+        "make the draft longer",
+        "make this draft longer",
+        "make the draft warmer",
+        "make this draft warmer",
+        "make the draft friendlier",
+        "make this draft friendlier",
+        "make the draft more professional",
+        "make this draft more professional",
+        "make the next steps clearer",
+        "simplify the draft",
+        "simplify this draft",
+        # The owner is already inside the exact recommendation drawer, so
+        # these short pronoun-based commands are unambiguous and should not be
+        # forced through a generic Q&A turn.
+        "make it shorter",
+        "make this shorter",
+        "shorten it",
+        "make it warmer",
+        "make this warmer",
+        "make it friendlier",
+        "make this friendlier",
+        "make it more professional",
+        "make this more professional",
+        "make it clearer",
+        "make this clearer",
+        "simplify it",
+        "simplify this",
+    )
+    if any(phrase in text for phrase in explicit):
+        return True
+    # Allow concise commands only when they clearly refer to copy/deliverable.
+    has_draft_noun = any(word in text.split() for word in ("draft", "email", "message", "copy", "post"))
+    has_revision_verb = any(word in text.split() for word in ("revise", "rewrite", "shorten", "simplify", "change", "update"))
+    return has_draft_noun and has_revision_verb
 
 
 def parse_question(event: Any) -> str:
@@ -648,6 +705,170 @@ def perform_reconsider(
     })
 
 
+def perform_revision(
+    *,
+    repo: Any,
+    business_id: str,
+    find_id: str,
+    request_text: str,
+    timestamp: datetime,
+    queue_client: Any | None = None,
+    maker_queue_url: str | None = None,
+    requested_by_account_id: str | None = None,
+    model_id: str | None = None,
+) -> dict[str, Any]:
+    """Queue a new version of the current approved Maker draft.
+
+    This command is deterministic and uses zero reasoning tokens. The previous
+    artifact stays immutable while the same durable task is reopened for a new
+    revision. Only the Maker generation run consumes model tokens.
+    """
+    context = repo.get_find_context(business_id, find_id)
+    if context is None:
+        return respond(404, {"error": "recommendation is no longer available"})
+    if context.status != "accepted":
+        return respond(409, {"error": "approve this recommendation before revising its draft"})
+    try:
+        task = repo.request_maker_revision(
+            business_id=business_id,
+            find_id=find_id,
+            account_id=requested_by_account_id,
+            instruction=request_text,
+            requested_at=timestamp,
+        )
+    except RepositoryError as exc:
+        return respond(409, {"error": str(exc)})
+
+    dispatch = dispatch_task(
+        repo=repo,
+        queue_client=queue_client,
+        queue_url=maker_queue_url,
+        task=task,
+        source="chat_revision",
+    )
+    revision = int(task.input_data.get("revision") or 2)
+    answer = (
+        f"Revision {revision} is queued. Maker will keep the previous draft in "
+        "history and replace the current review version when the revision is ready."
+    )
+
+    run_id = None
+    owner_message_id = None
+    assistant_message_id = None
+    storage_error = None
+    try:
+        run_id = repo.start_run(business_id, agent="ask", model_id=model_id)
+        owner_message_id = repo.insert_chat_message(
+            business_id, role="user", content=request_text,
+            created_at=timestamp, embedding=None, find_id=find_id, run_id=run_id,
+        )
+        assistant_message_id = repo.insert_chat_message(
+            business_id, role="assistant", content=answer,
+            created_at=timestamp, embedding=None, find_id=find_id, run_id=run_id,
+        )
+        action_receipt = json.dumps({
+            "type": REVISE_DRAFT_ACTION,
+            "find_id": find_id,
+            "task_id": task.task_id,
+            "revision": revision,
+            "base_artifact_id": task.input_data.get("base_artifact_id"),
+            "instruction": request_text,
+            "dispatch": dispatch.as_dict(),
+            "model_tokens": 0,
+        }, separators=(",", ":"), sort_keys=True)
+        note = encode_ask_trace(
+            question=request_text, answer=answer, find_id=find_id,
+            recent_message_ids=(), relevant_message_ids=(),
+            stored_message_ids=(owner_message_id, assistant_message_id),
+            queried_the_cluster=False,
+        ) + f"\naction> {action_receipt}"
+        repo.finish_run(
+            run_id, status="ok", note=note, input_tokens=0, output_tokens=0,
+        )
+    except Exception as exc:
+        storage_error = f"{type(exc).__name__}: {exc}"
+        if run_id:
+            try:
+                repo.finish_run(
+                    run_id, status="failed", error=storage_error,
+                    note="Draft revision queued, but its chat receipt was incomplete",
+                    input_tokens=0, output_tokens=0,
+                )
+            except Exception:
+                pass
+
+    try:
+        stored_total = repo.count_chat_messages(business_id)
+    except Exception:
+        stored_total = None
+    return respond(202, {
+        "answer": answer,
+        "action": {
+            "type": REVISE_DRAFT_ACTION,
+            "status": dispatch.status,
+            "revision": revision,
+            "task_id": task.task_id,
+        },
+        "find_id": find_id,
+        "maker": dispatch.status,
+        "maker_task": dispatch.as_dict(),
+        "queried_the_cluster": False,
+        "trail": [],
+        "run_id": run_id,
+        "messages": {"owner": owner_message_id, "assistant": assistant_message_id},
+        "memory": {
+            "stored": assistant_message_id is not None,
+            "ownerScoped": True,
+            "analystBridge": True,
+            "storedThisTurn": int(owner_message_id is not None) + int(assistant_message_id is not None),
+            "storedMessages": stored_total,
+            "recentMessages": 0,
+            "relevantMessages": 0,
+            "contextMessages": 0,
+            "retrievalLimit": 0,
+            "embeddingCalls": 0,
+            "embeddingFallback": False,
+            "storageError": storage_error,
+        },
+        "tokens": {"input": 0, "output": 0, "total": 0},
+    })
+
+
+def revise_draft_action(
+    event: Any,
+    *,
+    repo: Any,
+    queue_client: Any | None = None,
+    maker_queue_url: str | None = None,
+    model_id: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    try:
+        parsed = parse_action(event)
+    except ValueError as exc:
+        return respond(400, {"error": str(exc)})
+    if parsed is None:
+        return respond(400, {"error": "an action is required"})
+    _, find_id, question = parsed
+    if not question:
+        return respond(400, {"error": "tell Maker what you want changed"})
+    timestamp = now or datetime.now(timezone.utc)
+    account, error = _business_for_event(event, repo=repo, now=timestamp)
+    if error:
+        return error
+    return perform_revision(
+        repo=repo,
+        business_id=account["business_id"],
+        find_id=find_id,
+        request_text=question,
+        timestamp=timestamp,
+        queue_client=queue_client,
+        maker_queue_url=maker_queue_url,
+        requested_by_account_id=account.get("account_id"),
+        model_id=model_id,
+    )
+
+
 def undo_pass_action(
     event: Any,
     *,
@@ -775,6 +996,23 @@ def answer_question(
             requested_by_account_id=account.get("account_id"),
             reason_code="other",
             reason_note=question,
+            model_id=getattr(settings, "anthropic_model_id", None),
+        )
+
+    if (
+        find_context is not None
+        and find_context.status == "accepted"
+        and is_revision_request(question)
+    ):
+        return perform_revision(
+            repo=repo,
+            business_id=business_id,
+            find_id=find_id,
+            request_text=question,
+            timestamp=timestamp,
+            queue_client=queue_client,
+            maker_queue_url=maker_queue_url,
+            requested_by_account_id=account.get("account_id"),
             model_id=getattr(settings, "anthropic_model_id", None),
         )
 
@@ -964,6 +1202,14 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                         repo=repo,
                         model_id=getattr(settings, "anthropic_model_id", None),
                     )
+                if action[0] == REVISE_DRAFT_ACTION:
+                    return revise_draft_action(
+                        event,
+                        repo=repo,
+                        queue_client=queue_client,
+                        maker_queue_url=maker_queue_url,
+                        model_id=getattr(settings, "anthropic_model_id", None),
+                    )
                 return undo_pass_action(
                     event,
                     repo=repo,
@@ -997,11 +1243,15 @@ __all__ = [
     "build_context_question",
     "undo_pass_action",
     "reconsider_action",
+    "revise_draft_action",
     "perform_undo_pass",
     "perform_reconsider",
+    "perform_revision",
     "is_undo_pass_request",
     "is_reconsider_request",
+    "is_revision_request",
     "UNDO_PASS_ACTION",
     "RECONSIDER_ACTION",
+    "REVISE_DRAFT_ACTION",
     "MAX_QUESTION_CHARS",
 ]

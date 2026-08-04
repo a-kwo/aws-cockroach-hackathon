@@ -256,6 +256,8 @@ def test_live_task_receipt_queries_are_bounded_per_task():
     assert "WHERE task_event_rank <= 20" in source
     assert "PARTITION BY task_id ORDER BY started_at DESC" in source
     assert "WHERE tool_execution_rank <= 10" in source
+    assert "PARTITION BY tool_execution_id" in source
+    assert "WHERE email_event_rank <= 20" in source
 
 
 def test_workspace_exposes_owner_identity_and_email_for_operator_traceability():

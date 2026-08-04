@@ -13282,6 +13282,67 @@
     }
 
   </style>
+
+  <style id="maker-review-delivery-revision-v32">
+    .maker-review-summary, .maker-next-action, .maker-owner-questions {
+      display: grid; gap: 7px; padding: 15px 16px; border-radius: 15px;
+      background: rgba(255,255,255,.78); border: 1px solid rgba(47,116,104,.12);
+    }
+    .maker-review-summary small, .maker-next-action small, .maker-owner-questions small,
+    .maker-section-card > span, .maker-email-head small {
+      color: #2f7468; font-size: 9px; font-weight: 850; letter-spacing: .09em; text-transform: uppercase;
+    }
+    .maker-review-summary p { margin: 0; color: var(--theme-ink); font-size: 15px; line-height: 1.55; text-wrap: pretty; }
+    .maker-next-action { margin-top: 11px; background: rgba(47,116,104,.08); }
+    .maker-next-action.needs-input { background: rgba(174,122,31,.1); border-color: rgba(174,122,31,.2); }
+    .maker-next-action strong { font-size: 14px; line-height: 1.5; }
+    .maker-owner-questions { margin-top: 11px; border-color: rgba(174,122,31,.2); }
+    .maker-owner-questions ol { margin: 0; padding-left: 22px; display: grid; gap: 7px; color: var(--theme-ink); font-size: 13px; line-height: 1.5; }
+    .maker-owner-questions p { margin: 0; color: var(--theme-copy); font-size: 11px; }
+    .maker-section-grid { display: grid; gap: 10px; margin-top: 12px; }
+    .maker-section-card { padding: 15px 16px; border: 1px solid rgba(31,38,42,.09); border-radius: 15px; background: rgba(255,255,255,.72); }
+    .maker-section-card h4 { margin: 5px 0 8px; font-size: 14px; }
+    .maker-section-card div { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--theme-copy); font-size: 12px; line-height: 1.6; }
+    .maker-full-draft { margin-top: 12px; border: 1px solid rgba(31,38,42,.1); border-radius: 14px; background: rgba(255,255,255,.66); overflow: hidden; }
+    .maker-full-draft summary { padding: 13px 15px; cursor: pointer; color: #2f7468; font-size: 11px; font-weight: 800; }
+    .maker-full-draft pre, .maker-email-message pre { margin: 0; padding: 0 15px 16px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.65 var(--sans); color: var(--theme-ink); }
+    .maker-email-receipt { display: grid; gap: 13px; margin: 0 20px 18px; padding: 16px; border: 1px solid rgba(47,116,104,.14); border-radius: 16px; background: rgba(255,255,255,.76); }
+    .maker-email-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .maker-email-head > div { display: grid; gap: 4px; }
+    .maker-email-head strong { font-size: 14px; }
+    .maker-email-status { padding: 6px 9px; border-radius: 999px; background: #edf0ef; color: #59666c; font-size: 9px; font-weight: 850; }
+    .maker-email-status.delivered, .maker-email-status.opened, .maker-email-status.clicked { background: #e2f0ea; color: #267561; }
+    .maker-email-status.bounced, .maker-email-status.complaint, .maker-email-status.rejected, .maker-email-status.rendering_failed, .maker-email-status.failed { background: #f8e7e6; color: #a33f3b; }
+    .maker-email-meta { margin: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+    .maker-email-meta div { min-width: 0; padding: 9px 10px; border-radius: 11px; background: rgba(246,244,239,.72); }
+    .maker-email-meta dt { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+    .maker-email-meta dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--theme-ink); font-size: 10px; line-height: 1.45; }
+    .maker-email-timeline { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; }
+    .maker-email-timeline > div { display: flex; gap: 7px; min-width: 0; opacity: .52; }
+    .maker-email-timeline > div.is-complete { opacity: 1; }
+    .maker-email-timeline i { width: 20px; height: 20px; display: inline-grid; place-items: center; flex: 0 0 20px; border-radius: 50%; background: #e7e8e6; color: #68747a; font: 800 9px/1 var(--sans); }
+    .maker-email-timeline .is-complete i { background: #dceee6; color: #267561; }
+    .maker-email-timeline span { min-width: 0; display: grid; gap: 2px; }
+    .maker-email-timeline strong { font-size: 9px; line-height: 1.25; }
+    .maker-email-timeline small { color: var(--muted); font-size: 8px; line-height: 1.25; }
+    .maker-email-alert { margin: 0; padding: 9px 10px; border-radius: 10px; background: #f8e7e6; color: #a33f3b; font-size: 10px; }
+    .maker-email-message { border-top: 1px solid rgba(31,38,42,.08); padding-top: 10px; }
+    .maker-email-message summary { cursor: pointer; color: #2f7468; font-size: 10px; font-weight: 800; }
+    .maker-email-message pre { padding: 12px 0 0; }
+    .maker-revision-tools { display: grid; gap: 11px; margin: 0 20px 18px; padding: 14px; border-radius: 15px; background: rgba(101,95,117,.07); border: 1px solid rgba(101,95,117,.13); }
+    .maker-revision-tools > div:first-child { display: grid; gap: 3px; }
+    .maker-revision-tools strong { font-size: 12px; }
+    .maker-revision-tools span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .maker-revision-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .maker-revision-chips button { min-height: 34px; padding: 0 11px; border: 1px solid rgba(101,95,117,.2); border-radius: 999px; background: #fff; color: #59536b; font: 750 10px/1 var(--sans); cursor: pointer; }
+    .maker-revision-chips button:hover { background: rgba(101,95,117,.08); }
+    .maker-revision-chips button:disabled { opacity: .55; cursor: wait; }
+    @media (max-width: 700px) {
+      .maker-email-receipt, .maker-revision-tools { margin-left: 16px; margin-right: 16px; }
+      .maker-email-meta { grid-template-columns: 1fr; }
+      .maker-email-timeline { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+  </style>
   <style id="reconsider-decision-v30">
     .reconsider-panel {
       display: grid;
@@ -19289,39 +19350,140 @@ ledger_entry · artifact · agent_run`,
       ) || artifacts.find(artifact => !artifact.supersededAt) || artifacts[0];
     }
 
+    function emailEventFor(email, type) {
+      const events = Array.isArray(email?.events) ? email.events : [];
+      return events.filter(event => String(event.type || "") === type)
+        .sort((a, b) => String(b.eventAt || "").localeCompare(String(a.eventAt || "")))[0] || null;
+    }
+
+    function emailStatusLabel(status) {
+      return ({
+        accepted: "Accepted by SES",
+        sent: "Sent",
+        delivery_delayed: "Delayed",
+        delivered: "Delivered",
+        opened: "Opened",
+        clicked: "Link clicked",
+        bounced: "Bounced",
+        complaint: "Complaint",
+        rejected: "Rejected",
+        rendering_failed: "Rendering failed",
+        failed: "Failed",
+        skipped: "Not sent",
+        running: "Sending",
+      })[String(status || "")] || "Pending";
+    }
+
+    function makerEmailReceiptHtml(email, archived = false) {
+      if (!email) return "";
+      const input = email.input || {};
+      const output = email.output || {};
+      const status = email.deliveryStatus || output.delivery_status || email.status || "pending";
+      const timeline = [
+        { type: "accepted", label: "SES accepted", at: output.accepted_at || email.finishedAt },
+        { type: "delivered", label: "Delivered", at: emailEventFor(email, "delivered")?.eventAt },
+        { type: "opened", label: "Opened", at: emailEventFor(email, "opened")?.eventAt },
+        { type: "clicked", label: "Link clicked", at: emailEventFor(email, "clicked")?.eventAt },
+      ];
+      const failure = ["bounced", "complaint", "rejected", "rendering_failed", "delivery_delayed"]
+        .map(type => emailEventFor(email, type)).find(Boolean);
+      const messageBody = String(input.plain_body || "").trim();
+      return `
+        <section class="maker-email-receipt${archived ? " is-archived" : ""}" aria-label="Review email receipt">
+          <div class="maker-email-head">
+            <div>
+              <small>Review email</small>
+              <strong>${escapeHtml(emailStatusLabel(status))}</strong>
+            </div>
+            <span class="maker-email-status ${escapeHtml(String(status))}">${escapeHtml(emailStatusLabel(status))}</span>
+          </div>
+          <dl class="maker-email-meta">
+            <div><dt>From</dt><dd>${escapeHtml(String(output.sender || input.sender || "Configured SES sender"))}</dd></div>
+            <div><dt>To</dt><dd>${escapeHtml(String(output.recipient || input.recipient || "Configured owner inbox"))}</dd></div>
+            <div><dt>Subject</dt><dd>${escapeHtml(String(output.subject || input.subject || "Maker review draft"))}</dd></div>
+            <div><dt>SES message ID</dt><dd>${escapeHtml(String(output.message_id || email.externalReference || "Pending"))}</dd></div>
+          </dl>
+          <div class="maker-email-timeline" aria-label="Email delivery timeline">
+            ${timeline.map((item, index) => {
+              const complete = Boolean(item.at);
+              return `<div class="${complete ? "is-complete" : ""}"><i aria-hidden="true">${complete ? "✓" : index + 1}</i><span><strong>${item.label}</strong><small>${complete ? escapeHtml(memoryDateTime(item.at)) : "Waiting"}</small></span></div>`;
+            }).join("")}
+          </div>
+          ${failure ? `<p class="maker-email-alert">${escapeHtml(emailStatusLabel(failure.type))} · ${escapeHtml(memoryDateTime(failure.eventAt))}</p>` : ""}
+          ${messageBody ? `<details class="maker-email-message"><summary>View the exact message sent</summary><pre>${escapeHtml(messageBody)}</pre></details>` : ""}
+        </section>`;
+    }
+
     function makerReviewPanel(post) {
       const task = latestMakerTaskForPost(post);
       if (!task) return "";
       const artifact = makerArtifactForTask(post, task);
       const body = String(artifact?.body || artifact?.preview || "").trim();
+      const summary = String(artifact?.summary || artifact?.preview || "").trim();
+      const ownerAction = String(artifact?.ownerAction || "Review the draft and tell Maker what should change.").trim();
+      const questions = Array.isArray(artifact?.ownerQuestions) ? artifact.ownerQuestions.filter(Boolean).slice(0, 3) : [];
+      const sections = Array.isArray(artifact?.sections) ? artifact.sections.filter(section => section?.title && section?.content) : [];
       const email = (task.tools || []).find(tool => tool.name === "ses.send_review_email") || null;
       const archived = Boolean(task.supersededAt || artifact?.supersededAt);
-      const statusLabel = archived ? "Archived" : makerTaskLabel(task.status);
-      const stateClass = escapeHtml(archived ? "superseded" : (task.status || "queued"));
-      const receipt = email ? `
-        <div class="maker-tool-receipt${archived ? " is-archived" : ""}">
-          <strong>${archived ? "Previous review-email receipt preserved" : email.status === "succeeded" ? "Review email accepted by Amazon SES" : email.status === "failed" ? "Review email needs attention" : "Review email receipt"}</strong>
-          <span>${escapeHtml(email.output?.recipient || email.input?.recipient || "Configured owner inbox")}${email.externalReference ? ` · receipt ${escapeHtml(email.externalReference)}` : ""}</span>
+      const revising = ["queued", "retry", "running"].includes(String(task.status || "")) && Number(task.input?.revision || 1) > Number(artifact?.revision || 1);
+      const statusLabel = archived ? "Archived" : revising ? "Revising" : makerTaskLabel(task.status);
+      const stateClass = escapeHtml(archived ? "superseded" : (revising ? "running" : (task.status || "queued")));
+      const revision = Number(artifact?.revision || task.input?.revision || 1);
+      const reviewState = String(artifact?.reviewState || "ready_for_review");
+      const sectionHtml = sections.length ? `
+        <div class="maker-section-grid">
+          ${sections.map(section => `
+            <article class="maker-section-card">
+              <span>${escapeHtml(String(section.purpose || "Prepared deliverable"))}</span>
+              <h4>${escapeHtml(String(section.title))}</h4>
+              <div>${escapeHtml(String(section.content))}</div>
+            </article>`).join("")}
         </div>` : "";
+      const questionsHtml = questions.length ? `
+        <section class="maker-owner-questions">
+          <small>Maker needs your input</small>
+          <ol>${questions.map(question => `<li>${escapeHtml(String(question))}</li>`).join("")}</ol>
+          <p>Reply in chat with the answers. Maker will use them in the next revision.</p>
+        </section>` : "";
+      const fullDraft = body ? `
+        <details class="maker-full-draft">
+          <summary>Open complete working draft</summary>
+          <pre data-maker-draft-body>${escapeHtml(body)}</pre>
+        </details>` : `<p class="maker-review-empty">${escapeHtml(task.status === "running" ? "Maker is preparing the revised draft now. The current version remains available until the replacement is complete." : task.status === "queued" || task.status === "retry" ? "This approved task is waiting for a Maker worker." : task.lastError || "No draft body is available yet.")}</p>`;
+      const revisionTools = !archived && body ? `
+        <section class="maker-revision-tools" aria-label="Revise this draft">
+          <div><strong>Refine with Maker</strong><span>Each change creates a new version. Previous versions remain in CockroachDB history.</span></div>
+          <div class="maker-revision-chips">
+            <button type="button" data-maker-revision-prompt="Make this draft shorter and easier to scan." data-post-id="${escapeHtml(post.id)}">Make it shorter</button>
+            <button type="button" data-maker-revision-prompt="Use a warmer, more natural business-owner voice." data-post-id="${escapeHtml(post.id)}">Warmer tone</button>
+            <button type="button" data-maker-revision-prompt="Make the next decision and action steps clearer." data-post-id="${escapeHtml(post.id)}">Clearer next steps</button>
+          </div>
+        </section>` : "";
       const copy = body ? `
         <div class="maker-review-actions${archived ? " is-archived" : ""}">
-          <p>${archived ? `This is the preserved draft from decision cycle ${escapeHtml(String(task.decisionCycle || artifact?.decisionCycle || 1))}. It is reference history, not the active version.` : "Copy this owner-ready draft and post it manually. Connected-account publishing remains approval-gated and is not enabled in this release."}</p>
-          <button class="maker-copy-button" type="button" data-copy-maker-draft>${archived ? "Copy archived draft" : "Copy draft"}</button>
+          <p>${archived ? `This is revision ${revision} from an earlier decision cycle. It remains reference history.` : "Use the prepared content manually, or ask Maker in chat to revise it before you act."}</p>
+          <button class="maker-copy-button" type="button" data-copy-maker-draft>${archived ? "Copy archived draft" : "Copy full draft"}</button>
         </div>` : "";
       return `
         <section class="maker-review-panel${archived ? " is-archived" : ""}" data-maker-task-review="${escapeHtml(task.id || "")}" aria-label="${archived ? "Archived Maker task review" : "Maker task review"}">
           <header class="maker-review-head">
             <div>
-              <small>${archived ? "Previous Maker cycle" : "Maker task"} · ${escapeHtml(task.shortId || String(task.id || "").slice(0, 8))}</small>
+              <small>${archived ? "Previous Maker cycle" : "Maker review workspace"} · revision ${revision}</small>
               <strong>${escapeHtml(artifact?.title || task.title || "Owner-ready draft")}</strong>
-              <span>${escapeHtml(makerTaskCurrentStep(task))}</span>
+              <span>${escapeHtml(revising ? "Maker is creating a replacement version now." : makerTaskCurrentStep(task))}</span>
             </div>
             <span class="maker-review-state ${stateClass}">${escapeHtml(statusLabel)}</span>
           </header>
           <div class="maker-review-body">
-            ${body ? `<pre data-maker-draft-body>${escapeHtml(body)}</pre>` : `<p class="maker-review-empty">${escapeHtml(task.status === "running" ? "Maker is generating this draft now. This panel will update from CockroachDB when the work completes." : task.status === "queued" || task.status === "retry" ? "This approved task is waiting for a Maker worker." : task.lastError || "No draft body is available yet.")}</p>`}
+            ${summary ? `<section class="maker-review-summary"><small>What Maker prepared</small><p>${escapeHtml(summary)}</p></section>` : ""}
+            <section class="maker-next-action ${reviewState === "needs_owner_input" ? "needs-input" : ""}"><small>Your next step</small><strong>${escapeHtml(ownerAction)}</strong></section>
+            ${questionsHtml}
+            ${sectionHtml}
+            ${fullDraft}
           </div>
-          ${receipt}${copy}
+          ${makerEmailReceiptHtml(email, archived)}
+          ${revisionTools}
+          ${copy}
         </section>`;
     }
 
@@ -19597,6 +19759,54 @@ ledger_entry · artifact · agent_run`,
       }
     }
 
+    async function reviseMakerDraft(postId, instruction, button = null) {
+      const post = posts.find(item => item.id === postId);
+      if (!post || !instruction || button?.disabled) return;
+      if (!askApiConfigured) {
+        showToast("Draft revision needs the connected Ask service.", "rejected");
+        return;
+      }
+      const original = button?.textContent;
+      if (button) {
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.textContent = "Queuing…";
+      }
+      appendDrawerMessage("user", instruction);
+      const loadingId = `maker-revision-${Date.now()}`;
+      appendDrawerMessage("assistant", "Queuing a new Maker revision without changing your Do it decision…", { loading: true, id: loadingId });
+      try {
+        const response = await fetch(ASK_ENDPOINT, {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
+          body: JSON.stringify({
+            action: "revise_draft",
+            question: instruction,
+            find_id: post.databaseId || post.id,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        document.getElementById(loadingId)?.remove();
+        if (!response.ok) throw new Error(payload.error || `Draft revision failed (${response.status})`);
+        appendDrawerMessage("assistant", payload.answer || "Maker revision queued.");
+        appendChatReceipt(payload);
+        showToast(`Maker revision ${payload?.action?.revision || ""} queued.`, "approved");
+        if (workflowApiConfigured) {
+          await refreshWorkflowSnapshot({ force: true, silent: true });
+          scheduleWorkflowRefresh();
+        }
+      } catch (error) {
+        document.getElementById(loadingId)?.remove();
+        appendDrawerMessage("assistant", error.message || "Draft revision is temporarily unavailable.", { error: true });
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.removeAttribute("aria-busy");
+          button.textContent = original;
+        }
+      }
+    }
+
     async function undoPass(postId, button) {
       const post = posts.find(item => item.id === postId);
       if (!post || button?.disabled) return;
@@ -19679,6 +19889,11 @@ ledger_entry · artifact · agent_run`,
           applyUndoPassReceipt(post, payload);
         } else if (payload?.action?.type === "reconsider") {
           applyReconsiderReceipt(post, payload);
+        } else if (payload?.action?.type === "revise_draft") {
+          appendDrawerMessage("assistant", payload.answer || "Maker revision queued.");
+          appendChatReceipt(payload);
+          showToast(`Maker revision ${payload?.action?.revision || ""} queued.`, "approved");
+          if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
         } else {
           appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
           appendChatReceipt(payload);
@@ -19778,6 +19993,13 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-reconsider]").forEach(button => {
         button.onclick = () => reconsider(button.dataset.postId, button);
+      });
+      document.querySelectorAll("[data-maker-revision-prompt]").forEach(button => {
+        button.onclick = () => reviseMakerDraft(
+          button.dataset.postId,
+          button.dataset.makerRevisionPrompt,
+          button,
+        );
       });
       document.querySelectorAll("[data-copy-maker-draft]").forEach(button => {
         button.onclick = async () => {

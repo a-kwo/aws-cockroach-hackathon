@@ -1,69 +1,110 @@
-"""The Maker — the agent that actually does the work.
+"""The Maker — the agent that turns an approved move into owner-ready work.
 
-Every other agent produces a judgement. This one produces a thing: the draft the
-find promised, written out in full, stored where the owner can open it.
+Maker produces a versioned review package, not an unstructured wall of text.
+The complete working draft remains durable, while structured fields tell the UI
+and email layer exactly what the owner needs to know or decide next.
 
-Its scope is deliberately one artifact type. The value is in the loop being
-complete — observed, reasoned, decided, *done*, measured — not in the variety of
-what it can make.
-
-Two rules it does not get to break:
-
-* **It drafts; it never sends.** `PRODUCT.md` commits to the owner holding the
-  leash. An artifact is a draft by construction, and nothing here has a delivery
-  path to a customer.
-* **A failed upload must not lose the draft.** The text is the deliverable and
-  S3 is where a copy lives. Writing the row without a location is honest; losing
-  a good draft because a bucket was briefly unavailable is not.
+Maker never publishes or sends to customers. External actions are performed by
+constrained tools after deterministic approval checks.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable, Mapping, Sequence
 
 from brasstacks.agent_runs import closing_run
 from brasstacks.artifacts import ArtifactStore, ArtifactStoreError
 from brasstacks.providers import ProviderError, Reasoner
-from brasstacks.repository import FindSummary, Repository, RepositoryError
+from brasstacks.repository import FindSummary, Repository, RepositoryError, StoredArtifact
 from brasstacks.tasks import maker_artifact_idempotency_key
 
-#: The one artifact type this ships, per the scope cut in CLAUDE.md.
+# Kept for backward compatibility with existing artifacts. The actual deliverable
+# type is stored in artifact.metadata["artifact_type"].
 ARTIFACT_KIND = "review_reply"
-
-#: How much of the draft the UI shows inline. Long enough for the owner to
-#: recognise the voice, short enough not to need a scrollbar in a list.
 PREVIEW_CHARS = 240
-
-#: How far back to look for an accepted find with nothing drafted for it.
 FINDS_SCANNED = 20
+MAX_OWNER_QUESTIONS = 3
+MAX_SECTIONS = 5
+MAX_SUMMARY_CHARS = 220
+
+ARTIFACT_TYPES = (
+    "customer_email",
+    "google_business_post",
+    "review_reply",
+    "menu_update",
+    "offer_package",
+    "staff_checklist",
+    "operating_plan",
+    "general_draft",
+)
 
 MAKER_SCHEMA = {
     "type": "object",
     "properties": {
         "title": {"type": "string"},
         "body": {"type": "string"},
+        "summary": {"type": "string"},
+        "review_state": {
+            "type": "string",
+            "enum": ["ready_for_review", "needs_owner_input"],
+        },
+        "owner_action": {"type": "string"},
+        "owner_questions": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "artifact_type": {
+            "type": "string",
+            "enum": list(ARTIFACT_TYPES),
+        },
+        "sections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "purpose": {"type": "string"},
+                    "content": {"type": "string"},
+                },
+                "required": ["title", "content"],
+                "additionalProperties": False,
+            },
+        },
     },
+    # title/body remain the compatibility floor for older providers and tests.
     "required": ["title", "body"],
     "additionalProperties": False,
 }
 
-MAKER_SYSTEM_PROMPT = """You are the Maker for Brass Tacks. The owner has \
-accepted a recommendation and you now write the thing it promised, ready for \
-her to review.
+MAKER_SYSTEM_PROMPT = """You are Maker inside Brass Tacks. The owner approved a
+business recommendation. Turn it into the smallest professional review package
+that moves the work forward.
+
+You are writing for a busy local-business owner, not an internal analyst.
 
 Hard requirements:
-- You produce a DRAFT. Never send, publish, or post anything, and never write \
-as though it has already been sent. She reads it and decides.
-- Write in her voice, to her customers. Plain, warm, specific. No marketing \
-language, no exclamation marks, no invented awards or claims.
-- Never invent facts about the business — no dishes, prices, staff names, or \
-events that were not given to you. If you need a detail you do not have, leave \
-an obvious [square bracket] for her to fill in.
-- If the move covers several items, write every one of them out in full. A \
-draft she has to finish herself is not done-for-you.
-- `title` names the deliverable in a few words, as it will appear in a list. \
-`body` is the deliverable itself, in Markdown."""
+- Produce a DRAFT only. Never send or publish it, and never claim it was published, posted, sent to customers,
+  or made live.
+- Be precise, calm, and easy to scan. No marketing jargon, exclamation marks,
+  database ids, retrieval scores, or internal agent language.
+- Do not bury the next decision in a long document.
+- If essential owner facts are missing, set review_state to needs_owner_input,
+  ask at most three short questions, and stop. Do not generate a giant template
+  full of placeholders.
+- If enough facts exist, set review_state to ready_for_review and create no more
+  than five useful sections. Each section must have one clear purpose.
+- summary: one complete sentence, usually under 180 characters.
+- owner_action: one direct sentence describing exactly what the owner should do
+  next.
+- body: the complete working draft in readable Markdown. It may be detailed,
+  but do not repeat the same instruction in multiple sections.
+- artifact_type: choose the closest allowed type.
+- Never invent products, prices, hours, staff names, claims, or channels. Ask for
+  a missing decision rather than guessing.
+- When revising an existing draft, preserve correct facts and change only what
+  the owner requested. Return a complete replacement version, not a patch.
+"""
 
 
 @dataclass(frozen=True)
@@ -74,6 +115,9 @@ class MakerResult:
     error: str | None = None
     reused: bool = False
     cancelled: bool = False
+    summary: str | None = None
+    review_state: str | None = None
+    revision: int = 1
 
     @property
     def note(self) -> str:
@@ -85,28 +129,19 @@ class MakerResult:
             return "nothing accepted and undrafted"
         if self.reused:
             return "existing idempotent draft reused; zero model tokens spent"
+        suffix = f" · revision {self.revision}"
         if not self.location:
-            return "draft saved in CockroachDB; the S3 copy could not be uploaded"
-        return f"draft saved to {self.location}"
+            return "draft saved in CockroachDB; the S3 copy could not be uploaded" + suffix
+        return f"draft saved to {self.location}{suffix}"
 
 
 def next_undrafted_find(repo: Repository, business_id: str, *,
                         limit: int = FINDS_SCANNED) -> FindSummary | None:
-    """The oldest accepted find that has nothing drafted for it yet.
-
-    Only `accepted` — drafting for a proposal the owner has not decided on
-    spends model budget on work she may never want, and quietly presumes an
-    answer she has not given.
-    """
     accepted = [
         f for f in repo.recent_finds(business_id, limit=limit)
         if f.status == "accepted"
     ]
-    # Oldest first: the one she has been waiting on longest.
     for find in sorted(accepted, key=lambda f: f.created_at):
-        # A previous decision cycle may have produced a draft that was later
-        # superseded when the owner reopened the recommendation. Only a current
-        # artifact satisfies the new decision cycle.
         current_artifacts = [
             artifact for artifact in repo.get_artifacts(find.find_id)
             if artifact.superseded_at is None
@@ -116,26 +151,151 @@ def next_undrafted_find(repo: Repository, business_id: str, *,
     return None
 
 
-def build_prompt(find: FindSummary, *, business: dict | None = None) -> str:
-    name = (business or {}).get("name", "this business")
-    return "\n".join([
-        f"Business: {name}",
+def _compact(value: Any, limit: int) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip(" ,;:—-") + "…"
+
+
+def _owner_messages(repo: Repository, business_id: str, find_id: str) -> list[str]:
+    try:
+        rows = repo.recent_chat_messages(business_id, limit=8, find_id=find_id)
+    except Exception:
+        return []
+    return [
+        _compact(row.content, 360)
+        for row in rows
+        if getattr(row, "role", "") == "user" and str(row.content or "").strip()
+    ][:4]
+
+
+def build_prompt(
+    find: FindSummary,
+    *,
+    business: dict | None = None,
+    facts: Sequence[str] = (),
+    rules: Sequence[Any] = (),
+    owner_messages: Sequence[str] = (),
+    revision_instruction: str | None = None,
+    previous_artifact: StoredArtifact | None = None,
+) -> str:
+    business = business or {}
+    lines = [
+        "BUSINESS",
+        f"Name: {business.get('name') or 'this business'}",
+        f"Category: {business.get('category') or 'not recorded'}",
+        f"Market: {business.get('city') or 'not recorded'}"
+        + (f", {business.get('region')}" if business.get("region") else ""),
         "",
-        f"The move she accepted: {find.title}",
+        "APPROVED RECOMMENDATION",
+        f"Title: {find.title}",
+        f"Action promised: {find.move}",
+    ]
+    if facts:
+        lines.extend(["", "RELEVANT BUSINESS FACTS"])
+        lines.extend(f"- {_compact(fact, 280)}" for fact in list(facts)[:8])
+    if rules:
+        lines.extend(["", "OWNER GUARDRAILS"])
+        lines.extend(
+            f"- {_compact(getattr(rule, 'rule', rule), 280)}"
+            for rule in list(rules)[:6]
+        )
+    if owner_messages:
+        lines.extend(["", "RECENT OWNER INPUT FOR THIS RECOMMENDATION"])
+        lines.extend(f"- {_compact(message, 360)}" for message in owner_messages[:4])
+    if revision_instruction and previous_artifact is not None:
+        lines.extend([
+            "",
+            "REVISION REQUEST",
+            _compact(revision_instruction, 900),
+            "",
+            "CURRENT DRAFT TO REVISE",
+            previous_artifact.body or previous_artifact.preview or "",
+        ])
+    lines.extend([
         "",
-        "What was promised, in the Analyst's words:",
-        find.move,
-        "",
-        "Write that deliverable now, as a draft for her review.",
+        "OUTPUT",
+        "Return one structured owner-review package using the supplied JSON schema.",
     ])
+    return "\n".join(lines)
 
 
 def _token_receipt(reasoner: Reasoner) -> dict[str, int | None]:
-    """Return recorded model usage without coupling agents to one provider."""
     usage = getattr(reasoner, "last_usage", None)
     return {
         "input_tokens": getattr(usage, "input_tokens", None),
         "output_tokens": getattr(usage, "output_tokens", None),
+    }
+
+
+def _questions(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    output: list[str] = []
+    for item in value:
+        text = _compact(item, 220)
+        if text and text not in output:
+            output.append(text)
+        if len(output) >= MAX_OWNER_QUESTIONS:
+            break
+    return output
+
+
+def _sections(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    output: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        title = _compact(item.get("title"), 80)
+        content = str(item.get("content") or "").strip()
+        purpose = _compact(item.get("purpose"), 180)
+        if not title or not content:
+            continue
+        output.append({"title": title, "purpose": purpose, "content": content})
+        if len(output) >= MAX_SECTIONS:
+            break
+    return output
+
+
+def _normalize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    title = _compact(payload.get("title"), 100)
+    body = str(payload.get("body") or "").strip()
+    if not title or not body:
+        raise ProviderError("the model returned an empty draft")
+    questions = _questions(payload.get("owner_questions"))
+    review_state = str(payload.get("review_state") or "").strip()
+    if review_state not in {"ready_for_review", "needs_owner_input"}:
+        review_state = "needs_owner_input" if questions else "ready_for_review"
+    if review_state == "needs_owner_input" and not questions:
+        questions = ["What essential detail should Maker use to finish this draft?"]
+    summary = _compact(payload.get("summary") or _preview(body), MAX_SUMMARY_CHARS)
+    owner_action = _compact(
+        payload.get("owner_action")
+        or (
+            "Answer the questions below so Maker can finish the draft."
+            if review_state == "needs_owner_input"
+            else "Review the draft and tell Maker what to change, or copy it when ready."
+        ),
+        240,
+    )
+    artifact_type = str(payload.get("artifact_type") or "general_draft").strip()
+    if artifact_type not in ARTIFACT_TYPES:
+        artifact_type = "general_draft"
+    sections = _sections(payload.get("sections"))
+    if not sections:
+        sections = [{"title": "Complete draft", "purpose": "Ready for owner review", "content": body}]
+    return {
+        "title": title,
+        "body": body,
+        "summary": summary,
+        "owner_action": owner_action,
+        "review_state": review_state,
+        "owner_questions": questions,
+        "artifact_type": artifact_type,
+        "sections": sections,
     }
 
 
@@ -150,15 +310,26 @@ def run_maker(
     task_id: str | None = None,
     artifact_idempotency_key: str | None = None,
     can_continue: Callable[[], bool] | None = None,
+    revision: int = 1,
+    revision_instruction: str | None = None,
+    previous_artifact: StoredArtifact | None = None,
 ) -> MakerResult:
-    """Draft the deliverable for one accepted find."""
+    """Create or revise one owner-review package for an approved find."""
     run_id = repo.start_run(business_id, agent="maker", model_id=model_id)
     with closing_run(repo, run_id):
         return _maker_draft(
-            run_id=run_id, repo=repo, reasoner=reasoner, store=store,
-            business_id=business_id, find=find, task_id=task_id,
+            run_id=run_id,
+            repo=repo,
+            reasoner=reasoner,
+            store=store,
+            business_id=business_id,
+            find=find,
+            task_id=task_id,
             artifact_idempotency_key=artifact_idempotency_key,
             can_continue=can_continue,
+            revision=revision,
+            revision_instruction=revision_instruction,
+            previous_artifact=previous_artifact,
         )
 
 
@@ -173,29 +344,39 @@ def _maker_draft(
     task_id: str | None,
     artifact_idempotency_key: str | None,
     can_continue: Callable[[], bool] | None,
+    revision: int = 1,
+    revision_instruction: str | None = None,
+    previous_artifact: StoredArtifact | None = None,
 ) -> MakerResult:
     # No accepted, undrafted find is the common case on most nights, not a
     # failure. Marking the run failed would make the audit trail cry wolf.
+
+
     if find is None:
         result = MakerResult(run_id=run_id)
         repo.finish_run(run_id, status="ok", note=result.note)
         return result
 
+    revision = max(1, int(revision))
     idempotency_key = artifact_idempotency_key
     if idempotency_key is None and task_id is not None:
         idempotency_key = maker_artifact_idempotency_key(
-            task_id, kind=ARTIFACT_KIND
+            task_id, kind=ARTIFACT_KIND, version=revision
         )
     if idempotency_key:
         existing = repo.get_artifact_by_idempotency_key(idempotency_key)
         if existing is not None:
             result = MakerResult(
-                run_id=run_id, artifact_id=existing.artifact_id,
+                run_id=run_id,
+                artifact_id=existing.artifact_id,
                 location=(
                     f"s3://{existing.s3_bucket}/{existing.s3_key}"
                     if existing.s3_bucket and existing.s3_key else None
                 ),
                 reused=True,
+                summary=existing.summary,
+                review_state=existing.review_state,
+                revision=existing.revision,
             )
             repo.finish_run(
                 run_id, status="ok", note=result.note,
@@ -204,85 +385,104 @@ def _maker_draft(
             return result
 
     business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
+    try:
+        facts = repo.get_business_facts(business_id)
+    except Exception:
+        facts = []
+    try:
+        rules = repo.get_owner_rules(business_id)
+    except Exception:
+        rules = []
+    owner_messages = _owner_messages(repo, business_id, find.find_id)
 
     try:
-        payload = reasoner.complete_json(
+        raw = reasoner.complete_json(
             system=MAKER_SYSTEM_PROMPT,
-            user=build_prompt(find, business=business),
+            user=build_prompt(
+                find,
+                business=business,
+                facts=facts,
+                rules=rules,
+                owner_messages=owner_messages,
+                revision_instruction=revision_instruction,
+                previous_artifact=previous_artifact,
+            ),
             schema=MAKER_SCHEMA,
         )
-        title = str(payload["title"]).strip()
-        body = str(payload["body"]).strip()
-        if not title or not body:
-            raise ProviderError("the model returned an empty draft")
-    except (ProviderError, KeyError, TypeError) as e:
-        error = f"{type(e).__name__}: {e}"
-        result = MakerResult(run_id=run_id, error=error)
-        repo.finish_run(run_id, status="failed", error=error, note=result.note,
-                        **_token_receipt(reasoner))
-        return result
-
-    # The owner may reopen the recommendation while the model is generating.
-    # The generated text is not an external side effect, so discard it before
-    # S3 or CockroachDB writes instead of allowing a stale draft to appear in
-    # the new decision cycle. This guard is deliberately checked *after* the
-    # model call as well as by insert_artifact's transactional task/cycle check.
-    if can_continue is not None and not can_continue():
-        result = MakerResult(run_id=run_id, cancelled=True)
+        payload = _normalize_payload(raw)
+    except (ProviderError, KeyError, TypeError, ValueError) as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        result = MakerResult(run_id=run_id, error=error, revision=revision)
         repo.finish_run(
-            run_id,
-            status="ok",
-            note=result.note,
+            run_id, status="failed", error=error, note=result.note,
             **_token_receipt(reasoner),
         )
         return result
 
-    # Upload first so the row can record where it landed — but a failure here
-    # is survivable, and the draft is kept either way.
+    if can_continue is not None and not can_continue():
+        result = MakerResult(run_id=run_id, cancelled=True, revision=revision)
+        repo.finish_run(
+            run_id, status="ok", note=result.note, **_token_receipt(reasoner)
+        )
+        return result
+
     location = None
     try:
         object_prefix = f"tasks/{task_id}" if task_id else f"finds/{find.find_id}"
-        where = store.put(key=f"{object_prefix}/{ARTIFACT_KIND}.md", body=body)
-        location = where
+        filename = ARTIFACT_KIND if revision == 1 else f"{ARTIFACT_KIND}-v{revision}"
+        location = store.put(key=f"{object_prefix}/{filename}.md", body=payload["body"])
     except ArtifactStoreError:
         pass
 
+    metadata = {
+        "artifact_type": payload["artifact_type"],
+        "owner_questions": payload["owner_questions"],
+        "sections": payload["sections"],
+        "revision_instruction": _compact(revision_instruction, 900) if revision_instruction else None,
+    }
     try:
         artifact_id = repo.insert_artifact(
             find_id=find.find_id,
             kind=ARTIFACT_KIND,
-            title=title,
-            preview=_preview(body),
+            title=payload["title"],
+            preview=_preview(payload["body"]),
             s3_bucket=location.bucket if location else None,
             s3_key=location.key if location else None,
             run_id=run_id,
             task_id=task_id,
             idempotency_key=idempotency_key,
-            body=body,
+            body=payload["body"],
+            summary=payload["summary"],
+            owner_action=payload["owner_action"],
+            review_state=payload["review_state"],
+            metadata=metadata,
+            revision=revision,
+            parent_artifact_id=(previous_artifact.artifact_id if previous_artifact else None),
         )
-    except RepositoryError as e:
-        error = f"{type(e).__name__}: {e}"
-        result = MakerResult(run_id=run_id, error=error)
-        repo.finish_run(run_id, status="failed", error=error, note=result.note,
-                        **_token_receipt(reasoner))
+    except RepositoryError as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        result = MakerResult(run_id=run_id, error=error, revision=revision)
+        repo.finish_run(
+            run_id, status="failed", error=error, note=result.note,
+            **_token_receipt(reasoner),
+        )
         return result
 
     result = MakerResult(
         run_id=run_id,
         artifact_id=artifact_id,
         location=f"s3://{location.bucket}/{location.key}" if location else None,
+        summary=payload["summary"],
+        review_state=payload["review_state"],
+        revision=revision,
     )
-    repo.finish_run(run_id, status="ok", note=result.note,
-                    **_token_receipt(reasoner))
+    repo.finish_run(
+        run_id, status="ok", note=result.note, **_token_receipt(reasoner)
+    )
     return result
 
 
 def _preview(body: str) -> str:
-    """The opening of the draft itself — never a summary of it.
-
-    The owner approves what she can see, so a preview that paraphrased would be
-    asking her to sign off on something she has not read.
-    """
     flat = " ".join(body.split())
     if len(flat) <= PREVIEW_CHARS:
         return flat

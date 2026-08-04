@@ -95,9 +95,33 @@ CREATE TABLE IF NOT EXISTS tool_execution (
   INDEX tool_execution_task_idx (task_id, started_at DESC),
   INDEX tool_execution_business_idx (business_id, started_at DESC)
 );
+CREATE TABLE IF NOT EXISTS email_event (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_event_id   STRING NOT NULL,
+  tool_execution_id   UUID NOT NULL REFERENCES tool_execution(id) ON DELETE CASCADE,
+  task_id             UUID NOT NULL REFERENCES work_task(id) ON DELETE CASCADE,
+  business_id         UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  message_id          STRING NOT NULL,
+  event_type          STRING NOT NULL,
+  event_at            TIMESTAMPTZ NOT NULL,
+  recipient           STRING,
+  link                STRING,
+  data                JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  UNIQUE INDEX email_event_provider_idx (provider_event_id),
+  INDEX email_event_tool_idx (tool_execution_id, event_at),
+  INDEX email_event_message_idx (message_id, event_at),
+  INDEX email_event_business_idx (business_id, event_at DESC)
+);
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES work_task(id) ON DELETE SET NULL;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS idempotency_key STRING;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS body STRING;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS summary STRING;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS owner_action STRING;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS review_state STRING NOT NULL DEFAULT 'ready_for_review';
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::JSONB;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS revision INT NOT NULL DEFAULT 1;
+ALTER TABLE artifact ADD COLUMN IF NOT EXISTS parent_artifact_id UUID REFERENCES artifact(id) ON DELETE SET NULL;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
 ALTER TABLE artifact ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
 ALTER TABLE work_task ADD COLUMN IF NOT EXISTS decision_cycle INT NOT NULL DEFAULT 1;
