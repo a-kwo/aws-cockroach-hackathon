@@ -40,23 +40,44 @@ set meal as its best-selling delivery item. So `business_state` is built from
 the *whole* stored corpus — offers, hours reconciled per weekday, and the
 domain the owner actually declared — and that block sits above the retrieved
 rows. It changes what the Analyst knows, never how many moves it may propose.
+
+**A second model tries to prove each move wrong before it is written.** Every
+mechanism above is deterministic, and the audit's remaining failures are not
+structural — an invented competitor set, a claim that no bento photo exists
+beside a cited row containing one. Those are ordinary nouns, and no extractor
+or threshold sees them. So `agents/refuter.py` gets one call per night, with
+only the find text and the rows it cites, and the framing inverted: refute,
+never review. It runs here rather than in `night.py` because "before the owner
+sees it" means before the row exists — a find stored as `proposed` is on her
+board the next time the page loads. It fails open: an outage publishes the deck
+without its dollar figures, because a checker that can blank the board is worse
+than no checker.
 """
 
 from __future__ import annotations
 
+import inspect
+import re
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, timezone
+from datetime import date, timedelta, timezone
 
+from brasstacks import repository as repository_module
 from brasstacks.agent_runs import closing_run
+from brasstacks.agents.refuter import (
+    DEMOTE, Refutation, RefutationResult, refute_finds,
+)
 from brasstacks.analyst_trace import encode_analyst_trace
 from brasstacks.business_state import build_business_state, describe_business_state
 from brasstacks.competitors import CompetitorScout, describe_competitors
-from brasstacks.finds import InvalidFindError, parse_find
+from brasstacks.finds import (
+    ClaimVerdict, EvidenceFact, InvalidFindError, ParsedFind, parse_find,
+)
 from brasstacks.providers import Embedder, ProviderError, Reasoner
 from brasstacks.provenance import source_host, source_identity
 from brasstacks.repository import ChatMessage, EvidenceRef, Repository, Retrieved
+from brasstacks.signals import classify_statement
 
 #: Concrete hypotheses, one per line of business inquiry. Each is phrased the way
 #: a customer or competitor would describe the situation, because that is what
@@ -78,6 +99,39 @@ DEFAULT_PER_QUERY_LIMIT = 6
 #: cited shared a 492-character prefix and two of them shared 980. Applied after
 #: ranking, so a source keeps its strongest rows and loses only the repetition.
 MAX_ROWS_PER_SOURCE = 2
+
+#: Below this, a row does not enter the prompt at any tenant's expense. Measured
+#: on live Titan v2 embeddings of ANALYST_QUERIES against all three live tenants
+#: on 2026-08-03, and every higher value was disqualified by a row it deleted:
+#: 0.30 leaves Palsaik with ZERO retrieved rows (its top row is 0.299) and
+#: Yellow Cow with three; 0.25 kills the Dosirak set-meal row that is the
+#: correction to find 818fdb2d; 0.20 kills the maps.apple.com "Claim This Place"
+#: row; 0.15 kills it on the corpus in the cluster today, by 0.003. Cosine
+#: similarity is orthogonal to verifiability — that Apple Maps row scores 0.147
+#: and is the single cheapest checkable true win in the whole dataset. What 0.10
+#: costs is the tail: a driving-directions card, a rival ramen listing, a
+#: marketing bio, three to five rows per tenant per night.
+ABSOLUTE_REJECT = 0.10
+
+#: The operative bar in practice: a row enters iff it scores at least this
+#: fraction of the tenant's own top similarity. The three tenant tops cluster at
+#: 0.295–0.347, so 0.40x lands the bar at 0.118–0.139 — above ABSOLUTE_REJECT
+#: for every live tenant, which makes the absolute floor a guard for a thin or
+#: brand-new tenant rather than the everyday rule. 0.50x was rejected by
+#: measurement: it puts Palsaik's bar at 0.150 and loses the Apple Maps row by
+#: 0.003 on the corpus that is actually stored. A rule that flips the dataset's
+#: best find on four thousandths of cosine is a coin toss, not a threshold.
+RELATIVE_ADMISSION = 0.40
+
+#: The backstop. Measured worst case under the rule is Yellow Cow at nine
+#: admitted rows, so eight is the largest value that fires on no live tenant
+#: tonight — a backstop that fires routinely is the real rule — while sitting
+#: one row under the observed floor, so it has teeth the moment a corpus thins.
+#: Four sources because MAX_ROWS_PER_SOURCE = 2 already forces sources >=
+#: ceil(rows/2); anything higher would be a second, stricter row cap wearing a
+#: different name.
+MIN_PROMPT_ROWS = 8
+MIN_PROMPT_SOURCES = 4
 
 #: How many prior finds to show the Analyst so it does not repeat itself.
 #: `recent_finds` sorts in-play moves ahead of proposals, so this needs to be
@@ -106,6 +160,13 @@ MAX_FINDS_PER_NIGHT = 3
 _FIND_PROPERTIES = {
     "emoji": {"type": "string"},
     "title": {"type": "string"},
+    # No `enum`, deliberately. The Anthropic structured-output endpoint has
+    # already rejected `minItems`/`maxItems` on this schema, and a 400 here
+    # costs a whole night — the Analyst only reaches the call after retrieval
+    # has been paid for. The vocabulary is stated in the system prompt and
+    # enforced in `finds._known_claim_type`, where a bad value costs one label
+    # rather than a deck.
+    "claim_type": {"type": "string"},
     "summary": {"type": "string"},
     "rationale": {"type": "string"},
     "move": {"type": "string"},
@@ -125,7 +186,7 @@ _FIND_PROPERTIES = {
 FIND_SCHEMA = {
     "type": "object",
     "properties": dict(_FIND_PROPERTIES),
-    "required": ["title", "summary", "rationale", "move",
+    "required": ["title", "summary", "rationale", "move", "claim_type",
                  "alternative_explanation",
                  "predicted_daily_cents", "confidence", "verify_after_days",
                  "evidence_observation_ids"],
@@ -192,6 +253,31 @@ not repeat the same point merely to make the paragraph longer.
 each, so they can be shown as a checklist. No numbered lists inside a paragraph.
 - `alternative_explanation`: the operator record, not the card. One or two \
 sentences: the rival reading, then why you reject it.
+- `claim_type`: which KIND of claim this is. Exactly one of the four below.
+
+WHAT KIND OF CLAIM IS THIS? Every find is one of four kinds, and each is held \
+to a different standard by the evidence you cite. Choose honestly: a find that \
+claims more than its evidence carries is moved down to the kind it can carry, \
+and a find whose wording claims more than any kind allows is not shown to the \
+owner at all.
+- `current_state`: something is true of this business RIGHT NOW — a listing is \
+unclaimed, a storefront is not taking orders, a page is missing a photo. The \
+strongest claim available. If you rest it on a row that describes a page's \
+momentary state ("not available right now", "closed now", "sold out"), that \
+capture must have been taken while the business was open. Check the capture \
+time in local time first. A shut restaurant's delivery page is not a broken one.
+- `pattern`: something recurs — customers keep mentioning the wait, reviewers \
+keep naming the same dish. Needs at least TWO sources that can confirm each \
+other. One storefront and its own mirror is one source, however many rows.
+- `opportunity`: something WOULD work — a fixed-price lunch set would sell, a \
+group package would book. Weaker evidence is allowed here, and most good finds \
+are this. What is not allowed is wording that asserts a current state. If your \
+sentence says something is broken, unavailable or unclaimed, it is a \
+`current_state` claim whatever you label it, and it is judged as one.
+- `listing_fact`: ONE verbatim, durable fact from ONE source that the owner can \
+check in under a minute — "Apple Maps shows Claim This Place on your profile". \
+No revenue figure: set predicted_daily_cents to 0. This is the honest answer on \
+a thin night, and a true small fact beats an invented large one.
 
 Hard requirements:
 - Money is INTEGER CENTS PER DAY. $23/day is 2300. Never dollars, never a month.
@@ -260,6 +346,39 @@ disagree."""
 
 
 @dataclass(frozen=True)
+class FindOutcome:
+    """One proposed move, and what the claim standards did to it.
+
+    The structured verdict this tranche produces and does not persist. The
+    status value, the `withheld_reason` column and the board's "held back"
+    panel belong to the tranche landing beside this one; the Analyst hands over
+    the judgement and lets the caller decide where it lives.
+    """
+
+    title: str
+    #: The tier it may be published as. ``None`` means no tier fitted.
+    claim_type: str | None
+    verdict: ClaimVerdict
+    #: The row it was written to, or ``None`` when it was withheld and the
+    #: repository has nowhere to put a withheld find yet.
+    find_id: str | None = None
+    #: What the adversarial pass made of it. ``None`` when no refuter was wired
+    #: for this night, or when the claim standards had already withheld the move
+    #: and there was nothing left to challenge.
+    refutation: Refutation | None = None
+
+    @property
+    def shown(self) -> bool:
+        """Did this move reach the owner's board?
+
+        Two independent ways to be held back — the mechanical claim standards
+        and the adversary — and a caller must not have to remember both.
+        """
+        return not (self.verdict.withheld
+                    or (self.refutation is not None and self.refutation.withheld))
+
+
+@dataclass(frozen=True)
 class AnalystResult:
     run_id: str
     #: The first find of the night. Kept alongside `find_ids` because a night
@@ -271,8 +390,15 @@ class AnalystResult:
     raw_retrieved: int = 0
     query_hits: tuple[int, ...] = ()
     error: str | None = None
-    #: Every find stored tonight, in the order the Analyst ranked them.
+    #: Every find PROPOSED tonight — reaching the owner's board — in the order
+    #: the Analyst ranked them. A withheld find is never in here.
     find_ids: tuple[str, ...] = ()
+    #: Every move the model wrote, withheld ones included, with its verdict.
+    outcomes: tuple[FindOutcome, ...] = ()
+    #: Whether the adversarial pass ran tonight. ``None`` when no refuter was
+    #: wired, ``False`` when one was and it failed — and a False night publishes
+    #: its deck with the dollar figures suppressed rather than blanking it.
+    refutation_checked: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -284,6 +410,11 @@ class RetrievalReceipt:
     raw_hits: int
     #: Deduplicated rows dropped because their source was already at the cap.
     source_capped: int = 0
+    #: Rows the similarity bar kept out of the prompt, and where it sat.
+    floor_removed: int = 0
+    floor_threshold: float = 0.0
+    #: The backstop had to refill the prompt. See `apply_similarity_floor`.
+    low_confidence: bool = False
     # Reused for one owner-memory search. This adds no embedding model call:
     # the centroid is derived from the six market-query vectors already paid for.
     query_vectors: tuple[tuple[float, ...], ...] = ()
@@ -312,6 +443,100 @@ def _cap_per_source(
             seen[identity] += 1
         kept.append(hit)
     return kept, dropped
+
+
+@dataclass(frozen=True)
+class FloorDecision:
+    """What the similarity bar admitted, what it removed, and at what cost."""
+
+    admitted: tuple[Retrieved, ...]
+    removed: tuple[Retrieved, ...]
+    #: The bar actually applied, `max(absolute, relative * top)`.
+    threshold: float
+    top_similarity: float
+    #: Distinct sources among the admitted rows.
+    sources: int
+    #: True when the backstop had to put rows back to reach `min_rows` or
+    #: `min_sources`. It means the night is running on thinner retrieval than
+    #: the bar wanted, which is a fact about the night and belongs in the
+    #: receipt — not a reason to show the owner nothing.
+    low_confidence: bool
+
+
+def _prompt_source_count(rows: Sequence[Retrieved]) -> int:
+    """How many distinct sources these rows represent, for prompt breadth.
+
+    A row with no usable URL counts as its own source. Both readings of a NULL
+    identity were available and neither should fall out of a comprehension:
+    collapsing every URL-less row into one source would make the backstop fire
+    forever for a tenant whose corpus is seeded or owner-uploaded, which is
+    every tenant on night one. This counter answers "how broad is the prompt",
+    and breadth is exactly what a separate unattributed row adds.
+
+    `finds.py` makes the opposite choice for the `pattern` claim standard, where
+    the question is independent confirmation rather than breadth, and a row we
+    cannot attribute cannot be shown to be independent of anything.
+    """
+    seen: set[str] = set()
+    for hit in rows:
+        seen.add(source_identity(hit.source_url) or f"row:{hit.observation_id}")
+    return len(seen)
+
+
+def apply_similarity_floor(
+    ranked: Sequence[Retrieved],
+    *,
+    absolute: float = ABSOLUTE_REJECT,
+    relative: float = RELATIVE_ADMISSION,
+    min_rows: int = MIN_PROMPT_ROWS,
+    min_sources: int = MIN_PROMPT_SOURCES,
+) -> FloorDecision:
+    """Decide which ranked rows are strong enough to reach the model.
+
+    The rule: a row enters iff ``similarity >= max(absolute, relative * top)``.
+    If that admits fewer than *min_rows* rows or fewer than *min_sources*
+    distinct sources, rows are put back in similarity order until both are met.
+
+    The two instructions this implements pull against each other — drop
+    everything under *absolute* always, and never let the bar take the prompt
+    below *min_rows*. The backstop wins, and says so: for a tenant whose whole
+    retrieval sits under 0.10 the alternative is an owner opening the board to
+    nothing with no explanation, which is the failure this tranche exists to
+    avoid. An earlier design of these gates, measured against the real corpus,
+    withheld 9 of 9 live finds. That is not caution, it is a dead product. So
+    the prompt is filled and the night is flagged `low_confidence` instead.
+    """
+    ordered = list(ranked)
+    if not ordered:
+        return FloorDecision(admitted=(), removed=(), threshold=absolute,
+                             top_similarity=0.0, sources=0, low_confidence=True)
+
+    top = max(hit.similarity for hit in ordered)
+    threshold = max(absolute, relative * top)
+
+    admitted = [hit for hit in ordered if hit.similarity >= threshold]
+    held = [hit for hit in ordered if hit.similarity < threshold]
+    # Strongest first, so a top-up restores the best of what the bar rejected.
+    held.sort(key=lambda hit: hit.similarity, reverse=True)
+
+    low_confidence = False
+    while held and (len(admitted) < min_rows
+                    or _prompt_source_count(admitted) < min_sources):
+        admitted.append(held.pop(0))
+        low_confidence = True
+
+    if len(admitted) < min_rows or _prompt_source_count(admitted) < min_sources:
+        low_confidence = True
+
+    admitted.sort(key=lambda hit: hit.similarity, reverse=True)
+    return FloorDecision(
+        admitted=tuple(admitted),
+        removed=tuple(held),
+        threshold=threshold,
+        top_similarity=top,
+        sources=_prompt_source_count(admitted),
+        low_confidence=low_confidence,
+    )
 
 
 def _retrieve_with_receipt(
@@ -343,9 +568,15 @@ def _retrieve_with_receipt(
 
     ordered = sorted(best.values(), key=lambda r: r.similarity, reverse=True)
     kept, capped = _cap_per_source(ordered, MAX_ROWS_PER_SOURCE)
+    # The bar runs after the cap, not before it. A source at its limit has
+    # already lost its weakest rows, and running the bar first would let a
+    # storefront's third fragment take a slot from a different site before the
+    # cap could reject it anyway.
+    floor = apply_similarity_floor(kept)
     # Re-rank so `rank` reflects position in the merged set, not in one query.
     # This is the number that reaches `find_evidence.rank`, so it is numbered
-    # after the cap: a row the model never saw has no retrieval position.
+    # after the cap and after the bar: a row the model never saw has no
+    # retrieval position.
     merged = tuple(
         Retrieved(
             observation_id=r.observation_id, content=r.content, kind=r.kind,
@@ -353,17 +584,131 @@ def _retrieve_with_receipt(
             source_name=r.source_name, source_url=r.source_url,
             subject=r.subject,
         )
-        for rank, r in enumerate(kept)
+        for rank, r in enumerate(floor.admitted)
     )
     return RetrievalReceipt(
         hits=merged,
         query_hits=tuple(query_hits),
         raw_hits=sum(query_hits),
         source_capped=capped,
+        floor_removed=len(floor.removed),
+        floor_threshold=floor.threshold,
+        low_confidence=floor.low_confidence,
         query_vectors=tuple(tuple(float(value) for value in vector) for vector in vectors),
     )
 
 
+
+
+# ---------------------------------------------------------------------------
+# Was it open? — turning a UTC capture stamp into an answer
+# ---------------------------------------------------------------------------
+#
+# The claim standard in finds.py needs one input this system has never held: was
+# the business trading at the moment Radar fetched the page? Nothing stores a
+# timezone, and all three live tenants have a NULL `region` with the state
+# buried in the address string — "1835 W Redondo Beach Blvd, Gardena, CA 90247".
+#
+# So the offset is derived here, in pure Python, from the address and the
+# standard US rule. No zoneinfo, no tzdata: the Lambda image installs psycopg,
+# anthropic and boto3, and a timezone database is not worth widening that for
+# one lookup. An address this cannot place returns None, and None flows all the
+# way through as "we could not tell" — never as a guess dressed up as an answer.
+
+#: US state and territory codes to (standard offset in minutes, observes DST).
+#: Only what the product actually serves. A tenant outside this list gets None,
+#: which costs it the current_state tier and nothing else.
+_US_TIMEZONES: dict[str, tuple[int, bool]] = {
+    **{code: (-300, True) for code in (
+        "CT", "DE", "FL", "GA", "IN", "KY", "MA", "MD", "ME", "MI", "NC", "NH",
+        "NJ", "NY", "OH", "PA", "RI", "SC", "VA", "VT", "WV", "DC")},
+    **{code: (-360, True) for code in (
+        "AL", "AR", "IA", "IL", "KS", "LA", "MN", "MO", "MS", "ND", "NE", "OK",
+        "SD", "TN", "TX", "WI")},
+    **{code: (-420, True) for code in ("CO", "ID", "MT", "NM", "UT", "WY")},
+    **{code: (-480, True) for code in ("CA", "NV", "OR", "WA")},
+    "AZ": (-420, False),   # no DST, so it sits on Mountain Standard all year
+    "HI": (-600, False),
+    "AK": (-540, True),
+    "PR": (-240, False),
+}
+
+#: A two-letter state code as it appears in a US postal address: after a comma,
+#: on its own, usually before a ZIP. The comma is load-bearing — without it
+#: "31208 Palos Verdes Dr W" offers "Dr" and "W" as candidates, and the word
+#: "IN" appears in ordinary prose constantly.
+_STATE_IN_ADDRESS = re.compile(r",\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\b")
+
+
+def _nth_weekday(year: int, month: int, weekday: int, nth: int) -> date:
+    """The *nth* given weekday of a month, e.g. the second Sunday of March."""
+    first = date(year, month, 1)
+    offset = (weekday - first.weekday()) % 7
+    return first + timedelta(days=offset + 7 * (nth - 1))
+
+
+def _in_us_dst(moment: datetime) -> bool:
+    """The federal rule since 2007: second Sunday of March to first Sunday of
+    November, both switching at 02:00 local. The hour of the switch is not
+    modelled — the question this feeds is whether a restaurant was trading, and
+    no restaurant's answer turns on the hour a clock moved at 2am."""
+    start = _nth_weekday(moment.year, 3, 6, 2)   # Sunday == weekday 6
+    end = _nth_weekday(moment.year, 11, 6, 1)
+    return start <= moment.date() < end
+
+
+def local_utc_offset_minutes(place: str | None, moment: datetime) -> int | None:
+    """Minutes to add to a UTC stamp to read it as local time, or ``None``.
+
+    ``place`` is whatever the business record holds — the `region` column, the
+    `city` column, or both joined. Returns ``None`` for anything it cannot
+    place, because a guessed offset produces an openness answer that reads as
+    measured, and a wrong "the shop was open" is exactly the mistake find
+    7c4a9124 made in the other direction.
+    """
+    match = _STATE_IN_ADDRESS.search(str(place or ""))
+    if match is None:
+        return None
+    zone = _US_TIMEZONES.get(match.group(1))
+    if zone is None:
+        return None
+    standard, observes_dst = zone
+    return standard + 60 if observes_dst and _in_us_dst(moment) else standard
+
+
+def capture_was_open(moment, state, offset_minutes: int | None) -> bool | None:
+    """Was this business trading when the page was captured? ``None`` if unknown.
+
+    Three-valued, and the third value is the point. Every observation in the
+    cluster was captured before its tenant opened, so a gate that reads "we
+    could not tell" as "it was open" is no gate at all — and one that reads it
+    as "it was shut" withholds every find in the product. `finds.py` treats
+    ``None`` as "cannot carry a current-state claim", which demotes rather than
+    withholds unless the wording leaves no weaker tier.
+    """
+    if moment is None or state is None or offset_minutes is None:
+        return None
+    local = moment + timedelta(minutes=offset_minutes)
+    minutes = local.hour * 60 + local.minute
+    by_weekday = {day.weekday: day for day in getattr(state, "days", ())}
+
+    today = by_weekday.get(local.weekday())
+    # Yesterday's window may still be running: a Saturday 17:00–02:00 service is
+    # stored as closes=1560, and a Sunday 01:00 capture is inside it.
+    yesterday = by_weekday.get((local.weekday() - 1) % 7)
+    if today is None and yesterday is None:
+        return None
+
+    for day, offset in ((today, 0), (yesterday, 24 * 60)):
+        if day is None:
+            continue
+        for claim in day.claims:
+            if claim.opens is None or claim.closes is None:
+                continue
+            if claim.opens <= minutes + offset < claim.closes:
+                return True
+    # Memory covers this weekday and none of its windows contain the capture.
+    return False if today is not None else None
 
 
 def _owner_memory_context(
@@ -418,29 +763,107 @@ def _owner_memory_context(
     return selected
 
 
-def _business_state(repo: Repository, business, facts: Sequence[str],
-                    business_id: str):
-    """What memory already knows the business *is*, or None.
+def _stored_corpus(repo: Repository, business_id: str) -> list | None:
+    """Every row memory holds for this tenant, or None if it cannot be read.
 
-    Built from the whole stored corpus rather than tonight's retrieval, because
-    the failure it exists to stop is a find recommending something the tenant
-    already sells — and the rows proving that were in memory and unretrieved.
+    Read once per night and used twice: `business_state` needs the whole corpus
+    to know what the tenant already sells, and the claim standards need each
+    row's persisted `statement_type`.
 
     Returns None when the repository predates `all_observations`. The deployed
     Lambda image and the local harness upgrade separately, and a night must not
     fail because the two halves landed in either order; that mistake cost us a
-    night once already over the ledger's `actual_daily_cents` column. Without
-    the block the Analyst is exactly as well informed as it was yesterday.
+    night once already over the ledger's `actual_daily_cents` column.
     """
     reader = getattr(repo, "all_observations", None)
     if reader is None:
         return None
     try:
-        stored = reader(business_id, limit=CORPUS_ROWS_READ)
+        return list(reader(business_id, limit=CORPUS_ROWS_READ))
     except (AttributeError, NotImplementedError, TypeError):
+        return None
+
+
+def _business_state(business, facts: Sequence[str], stored):
+    """What memory already knows the business *is*, or None.
+
+    Built from the whole stored corpus rather than tonight's retrieval, because
+    the failure it exists to stop is a find recommending something the tenant
+    already sells — and the rows proving that were in memory and unretrieved.
+    Without the block the Analyst is exactly as well informed as it was
+    yesterday.
+    """
+    if stored is None:
         return None
     return build_business_state(business=business, facts=facts,
                                 observations=stored)
+
+
+def _evidence_facts(
+    retrieved: Sequence[Retrieved],
+    *,
+    stored,
+    business: dict | None,
+    business_state,
+) -> dict[str, EvidenceFact]:
+    """What the claim standards need to know about each retrieved row.
+
+    Three things `Retrieved` does not carry, assembled here so that `finds.py`
+    stays a pure validator with no repository, no clock and no timezone table.
+
+    `statement_type` prefers the value Radar persisted and falls back to
+    re-classifying the row's own text. The fallback is load-bearing right now:
+    every one of the 124 web rows in the cluster was written before typing
+    existed and carries NULL, so without it the page_state gate would be blind
+    to exactly the rows it was built for. Re-classification is deterministic,
+    offline and free, and is the same function Radar calls on insert.
+    """
+    place = " ".join(str((business or {}).get(field) or "")
+                     for field in ("region", "city"))
+    persisted = {
+        str(getattr(row, "observation_id", "")): getattr(row, "statement_type", None)
+        for row in (stored or ())
+    }
+    facts: dict[str, EvidenceFact] = {}
+    for hit in retrieved:
+        statement_type = (persisted.get(hit.observation_id)
+                          or classify_statement(hit.content))
+        offset = (local_utc_offset_minutes(place, hit.observed_at)
+                  if hit.observed_at is not None else None)
+        facts[hit.observation_id] = EvidenceFact(
+            observation_id=hit.observation_id,
+            statement_type=statement_type,
+            source_identity=source_identity(hit.source_url),
+            captured_while_open=capture_was_open(
+                hit.observed_at, business_state, offset),
+        )
+    return facts
+
+
+def _withheld_status() -> str | None:
+    """The status a find the pipeline declined to show is stored under.
+
+    Probed rather than named, because the status value, the `withheld_reason`
+    column and both migrations belong to the tranche landing beside this one.
+    Until they arrive a withheld find is judged and reported but not written —
+    the alternative is a night that stores nothing at all because one INSERT
+    named a column the cluster has never heard of, which has cost us a night
+    twice: once for `find.alternative_explanation` and once for the ledger's
+    actual column.
+    """
+    return getattr(repository_module, "WITHHELD_STATUS", None)
+
+
+def _can_store_withheld(repo: Repository) -> bool:
+    if _withheld_status() is None:
+        return False
+    try:
+        parameters = inspect.signature(repo.insert_find_with_evidence).parameters
+    except (TypeError, ValueError):
+        return False
+    return ("withheld_reason" in parameters
+            or any(p.kind is inspect.Parameter.VAR_KEYWORD
+                   for p in parameters.values()))
 
 
 def _retrieve(repo: Repository, embedder: Embedder, business_id: str,
@@ -632,6 +1055,12 @@ def _run_note(
     queries: Sequence[str],
     per_query_limit: int,
     owner_memory_ids: Sequence[str] = (),
+    claims_withheld: int = 0,
+    claims_demoted: int = 0,
+    refutation: str | None = None,
+    refuted_withheld: int = 0,
+    refuted_demoted: int = 0,
+    refuted_unpriced: int = 0,
 ) -> str:
     """Pair a readable log sentence with a structured operator receipt."""
     return "\n".join((
@@ -646,6 +1075,15 @@ def _run_note(
             per_query_limit=per_query_limit,
             owner_memory_ids=owner_memory_ids,
             source_capped=receipt.source_capped,
+            floor_removed=receipt.floor_removed,
+            floor_threshold=receipt.floor_threshold,
+            low_confidence=receipt.low_confidence,
+            claims_withheld=claims_withheld,
+            claims_demoted=claims_demoted,
+            refutation=refutation,
+            refuted_withheld=refuted_withheld,
+            refuted_demoted=refuted_demoted,
+            refuted_unpriced=refuted_unpriced,
         ),
     ))
 
@@ -661,12 +1099,20 @@ def run_analyst(
     per_query_limit: int = DEFAULT_PER_QUERY_LIMIT,
     model_id: str | None = None,
     competitors: Sequence = (),
+    refuter: Reasoner | None = None,
 ) -> AnalystResult:
     """Retrieve, reason, and store one night's find.
 
     The run row is opened here and closed by whichever path below ends the
     night. `closing_run` covers the paths that do not exist yet: an abandoned
     row reads to the owner as "the agents are working", forever.
+
+    `refuter` is a second, adversarial model call over the moves this one
+    proposed. Optional because a deployment without one has to behave exactly as
+    it did before — absence is not a failed check, and the receipt keeps the two
+    apart. It runs before anything is written, because "before the owner sees
+    it" means before the row exists: a find stored as `proposed` is already on
+    her board the next time the page loads.
     """
     run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
     with closing_run(repo, run_id):
@@ -674,6 +1120,7 @@ def run_analyst(
             run_id=run_id, repo=repo, embedder=embedder, reasoner=reasoner,
             business_id=business_id, today=today, queries=queries,
             per_query_limit=per_query_limit, competitors=competitors,
+            refuter=refuter,
         )
 
 
@@ -688,6 +1135,7 @@ def _analyst_night(
     queries: Sequence[str],
     per_query_limit: int,
     competitors: Sequence,
+    refuter: Reasoner | None = None,
 ) -> AnalystResult:
     retrieval = _retrieve_with_receipt(
         repo, embedder, business_id, queries, per_query_limit
@@ -728,6 +1176,8 @@ def _analyst_night(
 
     business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
     facts = repo.get_business_facts(business_id)
+    stored = _stored_corpus(repo, business_id)
+    business_state = _business_state(business, facts, stored)
 
     prompt = build_prompt(
         business=business,
@@ -739,7 +1189,15 @@ def _analyst_night(
                                        include_unseen=True),
         competitors=competitors,
         owner_messages=owner_memory_messages,
-        business_state=_business_state(repo, business, facts, business_id),
+        business_state=business_state,
+    )
+
+    # Everything the claim standards need that a `Retrieved` row does not
+    # carry: what each row asserts, which source it belongs to, and whether the
+    # shop was trading when it was captured.
+    evidence_facts = _evidence_facts(
+        retrieved, stored=stored, business=business,
+        business_state=business_state,
     )
 
     similarity_by_id = {r.observation_id: r.similarity for r in retrieved}
@@ -759,10 +1217,10 @@ def _analyst_night(
             proposals = [payload]
         finds = [
             parse_find(item, today=today,
-                       known_observation_ids=similarity_by_id.keys())
+                       known_observation_ids=similarity_by_id.keys(),
+                       evidence_facts=evidence_facts)
             for item in proposals[:MAX_FINDS_PER_NIGHT]
         ]
-        find = finds[0]
     except (ProviderError, InvalidFindError) as e:
         error = f"{type(e).__name__}: {e}"
         repo.finish_run(
@@ -790,8 +1248,60 @@ def _analyst_night(
             error=error,
         )
 
-    find_ids = [
-        repo.insert_find_with_evidence(
+    # The adversarial pass, over the moves the mechanical standards let through
+    # and nothing else. Asking a model to refute something already off the board
+    # spends tokens and seconds on a card nobody will see, and a `publish`
+    # verdict on one must never be able to put it back.
+    survivors = [proposal for proposal in finds if not proposal.claim.withheld]
+    refutation = RefutationResult()
+    refutation_ran = bool(refuter is not None and survivors)
+    if refutation_ran:
+        refutation = refute_finds(
+            reasoner=refuter,
+            finds=survivors,
+            retrieved={hit.observation_id: hit for hit in retrieved},
+            evidence_facts=evidence_facts,
+            business=business,
+            business_state=business_state,
+        )
+
+    # One judgement per proposal, positionally, or None where there was nothing
+    # to challenge. Built as a list rather than looked up by title, because two
+    # moves of a night can and do share a title prefix.
+    judgements: list[Refutation | None] = [None] * len(finds)
+    if refuter is not None:
+        position = 0
+        for index, proposal in enumerate(finds):
+            if proposal.claim.withheld:
+                continue
+            judgements[index] = refutation.for_index(position)
+            position += 1
+
+    def store(proposal: ParsedFind, judgement: Refutation | None) -> str | None:
+        """Write one move, on the board or held back, or not at all."""
+        held = proposal.claim.withheld or (
+            judgement is not None and judgement.withheld)
+        # An unrefuted move keeps its price. A demoted one loses it because a
+        # specific it named was not carried by its evidence, and an unchecked
+        # one loses it because nothing stood between the model's number and the
+        # owner. Zero is the same "no revenue figure" state `listing_fact`
+        # already uses, and the Meter reads a zero prediction as a find with no
+        # bar to clear rather than as a promise of nothing.
+        cents = proposal.predicted_daily_cents
+        if judgement is not None and not judgement.money_allowed:
+            cents = 0
+        extra: dict = {}
+        if held:
+            if not _can_store_withheld(repo):
+                return None
+            reason = (proposal.claim.reason if proposal.claim.withheld
+                      else judgement.reason)
+            extra = {"status": _withheld_status(), "withheld_reason": reason}
+        else:
+            # A fresh find is a proposal, not a decision. The owner holds the
+            # leash, and only an accepted find is ever judged.
+            extra = {"status": "proposed"}
+        return repo.insert_find_with_evidence(
             business_id,
             emoji=proposal.emoji,
             title=proposal.title,
@@ -799,38 +1309,106 @@ def _analyst_night(
             rationale=proposal.rationale,
             move=proposal.move,
             alternative_explanation=proposal.alternative_explanation,
-            predicted_daily_cents=proposal.predicted_daily_cents,
+            # The tier AFTER demotion, not the one the model asked for. It is
+            # the difference between "worth a look" and "your storefront is
+            # broken", and until it had a column it died with the process:
+            # nothing downstream could say which claim a card was making.
+            claim_type=proposal.claim_type,
+            predicted_daily_cents=cents,
             confidence=proposal.confidence,
             verify_after=proposal.verify_after,
-            # A fresh find is a proposal, not a decision. The owner holds the
-            # leash, and only an accepted find is ever judged.
-            status="proposed",
             run_id=run_id,
             evidence=[
                 EvidenceRef(observation_id, similarity_by_id[observation_id],
                             rank=rank_by_id[observation_id])
                 for observation_id in proposal.evidence_observation_ids
             ],
+            **extra,
         )
-        for proposal in finds
-    ]
-    find_id = find_ids[0]
+
+    outcomes = tuple(
+        FindOutcome(title=proposal.title, claim_type=proposal.claim_type,
+                    verdict=proposal.claim,
+                    find_id=store(proposal, judgements[index]),
+                    refutation=judgements[index])
+        for index, proposal in enumerate(finds)
+    )
+    # The board only ever sees what survived — both gates. `find_ids` is what
+    # the caller tells the owner about, so a held-back row must not be in it
+    # however it was persisted.
+    proposed = [outcome for outcome in outcomes if outcome.shown]
+    find_ids = [outcome.find_id for outcome in proposed if outcome.find_id]
+    find_id = find_ids[0] if find_ids else None
+    withheld = len(outcomes) - len(proposed)
+    demoted = sum(1 for outcome in outcomes if outcome.verdict.demoted)
+    claims_withheld = sum(1 for outcome in outcomes if outcome.verdict.withheld)
+    refuted_withheld = sum(1 for judgement in judgements
+                           if judgement is not None and judgement.withheld)
+    refuted_demoted = sum(1 for judgement in judgements
+                          if judgement is not None
+                          and judgement.action == DEMOTE)
+    # Not the same number. A find the model returned no verdict for publishes
+    # unpriced without being demoted, and a card with no money on it has to be
+    # explainable from the run row alone.
+    refuted_unpriced = sum(1 for index, judgement in enumerate(judgements)
+                           if judgement is not None
+                           and outcomes[index].shown
+                           and not judgement.money_allowed)
+    # Absent when no adversarial call was made at all — either nothing is wired,
+    # or the claim standards had already taken every move and there was nothing
+    # left to challenge. "ok" has to mean a model read this deck and could not
+    # fault it, or the key is worth nothing to whoever reads it later.
+    refutation_status = (
+        ("ok" if refutation.checked else "unavailable") if refutation_ran
+        else None)
+
+    if find_id is not None:
+        lead = next(index for index, outcome in enumerate(outcomes)
+                    if outcome.shown)
+        lead_find = finds[lead]
+        lead_cents = (0 if judgements[lead] is not None
+                      and not judgements[lead].money_allowed
+                      else lead_find.predicted_daily_cents)
+        headline = (
+            f"{len(retrieved)} retrieved; proposed {len(proposed)} move(s), "
+            f"led by {lead_find.title!r} at +{lead_cents}c/day, "
+            f"verify after {lead_find.verify_after.isoformat()}"
+        )
+        if withheld:
+            headline += f"; {withheld} held back"
+    else:
+        # Not a failure — the agents looked and did not trust what they saw
+        # enough to put money on it. The run stays 'ok' so the board can say
+        # so, because "we held everything back" and "the night never ran" are
+        # different states and an owner told neither concludes we are broken.
+        headline = (f"{len(retrieved)} retrieved; {withheld} move(s) held "
+                    "back, none proposed")
 
     repo.finish_run(
         run_id,
         status="ok",
         note=_run_note(
-            f"{len(retrieved)} retrieved; proposed {len(finds)} move(s), "
-            f"led by {find.title!r} at +{find.predicted_daily_cents}c/day, "
-            f"verify after {find.verify_after.isoformat()}",
+            headline,
             receipt=retrieval,
-            # Across every find of the night: the receipt is about what the
-            # retrieval earned, and a second find citing more of it counts.
-            cited_hits=sum(len(p.evidence_observation_ids) for p in finds),
+            # Distinct rows across every find of the night: the receipt is
+            # about what the retrieval earned, and a second find citing more of
+            # it counts — but a second find citing the SAME row is not a second
+            # row. This was a sum, which made `cited_hits` exceed `unique_hits`
+            # the moment two moves shared a citation, and `encode_analyst_trace`
+            # raises on that. The whole run note was one overlapping citation
+            # away from being lost.
+            cited_hits=len({observation_id for p in finds
+                            for observation_id in p.evidence_observation_ids}),
             find_id=find_id,
             queries=queries,
             per_query_limit=per_query_limit,
             owner_memory_ids=[message.message_id for message in owner_memory_messages],
+            claims_withheld=claims_withheld,
+            claims_demoted=demoted,
+            refutation=refutation_status,
+            refuted_withheld=refuted_withheld,
+            refuted_demoted=refuted_demoted,
+            refuted_unpriced=refuted_unpriced,
         ),
         **_token_receipt(reasoner),
     )
@@ -842,4 +1420,6 @@ def _analyst_night(
         raw_retrieved=retrieval.raw_hits,
         query_hits=retrieval.query_hits,
         find_ids=tuple(find_ids),
+        outcomes=outcomes,
+        refutation_checked=refutation.checked if refutation_ran else None,
     )

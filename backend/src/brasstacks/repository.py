@@ -70,6 +70,16 @@ OWNER_SEEN_STATUSES = (
     "proposed", "accepted", "later", "rejected", "live", "retired",
 )
 
+#: The pipeline produced this find and declined to show it, with the reason in
+#: ``find.withheld_reason``.
+#:
+#: Deliberately absent from both tuples above. It is not an owner decision — she
+#: never saw it — so the Meter has nothing to judge and the Analyst must stay
+#: free to raise the topic once the evidence is better. The allowlist already
+#: excludes it by construction; naming it here is for callers that need to
+#: recognise the state, not for the filter.
+WITHHELD_STATUS = "withheld"
+
 
 class RepositoryError(RuntimeError):
     """A memory-layer operation violated an invariant or failed."""
@@ -240,6 +250,14 @@ class FindContext:
     #: every find written before 2026-08-03, and for any night where the model
     #: skipped the field — absent, not "none considered".
     alternative_explanation: str | None = None
+    #: Why a quality gate declined to show this one. NULL on every find that
+    #: reached the board: "nothing withheld this", never an empty reason.
+    withheld_reason: str | None = None
+    #: The tier the find was published at, after any demotion. The difference
+    #: between "worth a look" and "your storefront is broken", so it has to
+    #: survive the process that decided it. NULL on finds written before tiers
+    #: existed — absent, never a default of "opportunity".
+    claim_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -405,7 +423,9 @@ class Repository(Protocol):
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = ...,
         alternative_explanation: str | None = ...,
-        status: str = ..., run_id: str | None = ...,
+        status: str = ..., withheld_reason: str | None = ...,
+        claim_type: str | None = ...,
+        run_id: str | None = ...,
         created_at: datetime | None = ..., decided_at: datetime | None = ...,
     ) -> str: ...
 
@@ -631,10 +651,15 @@ class _Find:
     reopen_reason_code: str | None = None
     reopen_reason_note: str | None = None
     run_id: str | None = None
+    claim_type: str | None = None
+    #: Why a quality gate declined to show this one; None on everything that
+    #: reached the board.
+    withheld_reason: str | None = None
     #: One sentence for the card face; the rationale is the full argument.
     summary: str | None = None
     #: The strongest rival reading of the evidence, and why it was rejected.
     alternative_explanation: str | None = None
+    claim_type: str | None = None
     evidence: list[StoredEvidence] = field(default_factory=list)
 
 
@@ -1147,6 +1172,8 @@ class InMemoryRepository:
             reopen_reason_code=found.reopen_reason_code,
             reopen_reason_note=found.reopen_reason_note,
             alternative_explanation=found.alternative_explanation,
+            withheld_reason=found.withheld_reason,
+            claim_type=found.claim_type,
         )
 
     # -- finds -----------------------------------------------------------
@@ -1156,7 +1183,9 @@ class InMemoryRepository:
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = None,
         alternative_explanation: str | None = None,
-        status: str = "proposed", run_id: str | None = None,
+        status: str = "proposed", withheld_reason: str | None = None,
+        claim_type: str | None = None,
+        run_id: str | None = None,
         created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
         if not evidence:
@@ -1184,6 +1213,8 @@ class InMemoryRepository:
             decided_at=decided_at,
             run_id=run_id,
             alternative_explanation=alternative_explanation,
+            withheld_reason=withheld_reason,
+            claim_type=claim_type,
             # rank is the row's position in what retrieval returned, not the
             # order the model happened to cite in. Falling back to the citation
             # index only covers callers with no retrieval position to give;
@@ -1231,6 +1262,14 @@ class InMemoryRepository:
                         source: str = "owner_decision") -> DecisionTransition:
         found = self._finds.get(find_id)
         if found is None or (business_id is not None and found.business_id != business_id):
+            raise RepositoryError("recommendation is no longer available")
+        if found.status == WITHHELD_STATUS:
+            # The owner was never shown this, so there is no decision of hers to
+            # record. A stale tab or a crafted request must not be able to put a
+            # find the pipeline itself refused to stand behind onto the board,
+            # where it would queue Maker work and add its prediction to the
+            # forecast. Same message as an unknown id: the handlers turn it into
+            # a 409 and it reveals nothing about what exists.
             raise RepositoryError("recommendation is no longer available")
 
         moment = decided_at or self._now()

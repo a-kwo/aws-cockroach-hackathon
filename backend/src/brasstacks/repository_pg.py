@@ -38,6 +38,7 @@ from brasstacks.repository import (
     CHAT_OWNER_SOURCE,
     JUDGEABLE_STATUSES,
     OWNER_SEEN_STATUSES,
+    WITHHELD_STATUS,
     ChatMessage,
     DecisionTransition,
     DueFind,
@@ -822,7 +823,7 @@ class PostgresRepository:
                        predicted_daily_cents, confidence, verify_after,
                        decided_at, decision_cycle, reopened_at,
                        reopen_reason_code, reopen_reason_note,
-                       alternative_explanation
+                       alternative_explanation, withheld_reason, claim_type
                 FROM find
                 WHERE id = %s AND business_id = %s
                 """,
@@ -838,7 +839,8 @@ class PostgresRepository:
             verify_after=row[8], decided_at=row[9],
             decision_cycle=int(row[10] or 1), reopened_at=row[11],
             reopen_reason_code=row[12], reopen_reason_note=row[13],
-            alternative_explanation=row[14],
+            alternative_explanation=row[14], withheld_reason=row[15],
+            claim_type=row[16],
         )
 
     # -- finds -----------------------------------------------------------
@@ -848,7 +850,9 @@ class PostgresRepository:
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = None,
         alternative_explanation: str | None = None,
-        status: str = "proposed", run_id: str | None = None,
+        status: str = "proposed", withheld_reason: str | None = None,
+        claim_type: str | None = None,
+        run_id: str | None = None,
         created_at: datetime | None = None, decided_at: datetime | None = None,
     ) -> str:
         """Write a find and its evidence atomically.
@@ -865,10 +869,11 @@ class PostgresRepository:
                 "recommendation with no traceable source cannot be defended"
             )
 
-        # The night writes `alternative_explanation`, and a cluster that has not
-        # had the migration applied has no such column: the INSERT would fail
-        # and the night would store nothing at all. Every other writer of `find`
-        # already self-heals this way.
+        # The night writes `alternative_explanation` and `withheld_reason`, and
+        # a cluster that has not had the migration applied has neither column —
+        # nor 'withheld' in the find_status enum: the INSERT would fail and the
+        # night would store nothing at all. Every other writer of `find` already
+        # self-heals this way.
         ensure_decision_schema(self._conn)
 
         try:
@@ -882,16 +887,17 @@ class PostgresRepository:
                             business_id, run_id, emoji, title, summary,
                             rationale, move, alternative_explanation,
                             predicted_daily_cents, confidence, verify_after,
-                            status, created_at, decided_at
+                            status, withheld_reason, claim_type,
+                            created_at, decided_at
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                coalesce(%s, clock_timestamp()), %s)
+                                %s, %s, coalesce(%s, clock_timestamp()), %s)
                         RETURNING id
                         """,
                         (business_id, run_id, emoji, title, summary,
                          rationale, move, alternative_explanation,
                          predicted_daily_cents, confidence, verify_after, status,
-                         created_at, decided_at),
+                         withheld_reason, claim_type, created_at, decided_at),
                     )
                     find_id = str(cur.fetchone()[0])
 
@@ -940,6 +946,14 @@ class PostgresRepository:
 
                 resolved_business_id = str(row[0])
                 previous_status = str(row[1])
+                if previous_status == WITHHELD_STATUS:
+                    # She was never shown this, so there is no decision of hers
+                    # to record. A stale tab or a crafted request must not be
+                    # able to put a find the pipeline refused to stand behind
+                    # onto the board, where it would queue Maker work and add
+                    # its prediction to the forecast. Same message as an unknown
+                    # id: a 409, revealing nothing about what exists.
+                    raise RepositoryError("recommendation is no longer available")
                 previous_decided_at = row[2]
                 decision_cycle = int(row[3] or 1)
                 if previous_status == status:

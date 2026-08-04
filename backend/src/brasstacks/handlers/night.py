@@ -64,6 +64,13 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
 
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
+    # The adversarial second opinion on what the Analyst just wrote. A separate
+    # instance rather than the same object: `last_usage` is per-client state and
+    # sharing one would make the Analyst's token receipt report the refuter's
+    # call. Same provider, so this costs nothing but the call itself — and if it
+    # fails, `refute_finds` publishes the deck without its dollar figures rather
+    # than blanking the board.
+    refuter = build_reasoner(settings)
     sources = build_night_sources(
         settings, anchor,
         # Live web signal for a real tenant; the committed corpus only if
@@ -100,6 +107,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                     repo=repo,
                     embedder=embedder,
                     reasoner=reasoner,
+                    refuter=refuter,
                     # The deployed Maker owns all drafting. The local run_night
                     # harness can still pass a store when testing the complete
                     # loop in one process.

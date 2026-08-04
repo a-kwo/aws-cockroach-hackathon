@@ -36,6 +36,15 @@ def encode_analyst_trace(
     per_query_limit: int | None = None,
     owner_memory_ids: Sequence[str] = (),
     source_capped: int = 0,
+    floor_removed: int = 0,
+    floor_threshold: float | None = None,
+    low_confidence: bool = False,
+    claims_withheld: int = 0,
+    claims_demoted: int = 0,
+    refutation: str | None = None,
+    refuted_withheld: int = 0,
+    refuted_demoted: int = 0,
+    refuted_unpriced: int = 0,
 ) -> str:
     """Encode one compact, versioned Analyst run receipt.
 
@@ -45,20 +54,40 @@ def encode_analyst_trace(
     resulting find.  `source_capped` is how many deduplicated rows were dropped
     because one source had already contributed its limit — a row the model
     never saw has to be visible as removed rather than quietly absent.
+
+    `refutation` is whether the adversarial pass actually ran: "ok" when a model
+    read this deck and returned verdicts, "unavailable" when the call failed or
+    came back unreadable, and absent when no adversarial call was made at all —
+    either nothing is wired for this deployment, or every move had already been
+    withheld before one could be challenged. The three states must stay
+    distinguishable: a night where nobody could fault a find and a night where
+    nobody looked publish the same deck, and only the receipt says which.
+
+    `floor_removed` is the same promise for the similarity bar, and
+    `floor_threshold` is where that bar actually sat for this tenant tonight —
+    it moves with the tenant's own top similarity, so a number that is not
+    recorded cannot be reconstructed afterwards.  `low_confidence` means the
+    backstop had to put rows back to fill the prompt: the night ran on thinner
+    retrieval than the bar wanted, which is a fact about the night rather than a
+    reason to show the owner nothing.
     """
     hits = [_non_negative(value, "query_hits") for value in query_hits]
     raw = _non_negative(raw_hits, "raw_hits")
     unique = _non_negative(unique_hits, "unique_hits")
     cited = _non_negative(cited_hits, "cited_hits")
     capped = _non_negative(source_capped, "source_capped")
+    floored = _non_negative(floor_removed, "floor_removed")
     if raw != sum(hits):
         raise ValueError("raw_hits must equal the sum of query_hits")
     if unique > raw:
         raise ValueError("unique_hits cannot exceed raw_hits")
     if cited > unique:
         raise ValueError("cited_hits cannot exceed unique_hits")
-    if unique + capped > raw:
-        raise ValueError("unique_hits plus source_capped cannot exceed raw_hits")
+    if unique + capped + floored > raw:
+        raise ValueError(
+            "unique_hits plus source_capped plus floor_removed cannot exceed "
+            "raw_hits"
+        )
 
     payload: dict[str, Any] = {
         "query_hits": hits,
@@ -66,8 +95,33 @@ def encode_analyst_trace(
         "unique_hits": unique,
         "cited_hits": cited,
         "source_capped": capped,
+        "floor_removed": floored,
+        "low_confidence": bool(low_confidence),
+        # How many of the night's moves the claim standards moved down a tier
+        # or refused outright.  A board that is one card short has to be
+        # explainable from the run row alone.
+        "claims_withheld": _non_negative(claims_withheld, "claims_withheld"),
+        "claims_demoted": _non_negative(claims_demoted, "claims_demoted"),
         "find_id": str(find_id) if find_id else None,
     }
+    if refutation is not None:
+        # Only written when a refuter was wired. An absent key means "no
+        # adversary in this deployment"; a zero count would mean "one looked and
+        # faulted nothing", which is a much stronger statement than we have.
+        payload["refutation"] = str(refutation)
+        payload["refuted_withheld"] = _non_negative(
+            refuted_withheld, "refuted_withheld")
+        payload["refuted_demoted"] = _non_negative(
+            refuted_demoted, "refuted_demoted")
+        # Every move that reached the board with its dollar figure cleared,
+        # whatever cleared it. A demotion is the usual cause; a find the model
+        # skipped is the other, and it leaves an unpriced card that
+        # `refuted_demoted` alone reports as zero. An operator asking "why is
+        # there no money on this one?" has to be able to answer it from here.
+        payload["refuted_unpriced"] = _non_negative(
+            refuted_unpriced, "refuted_unpriced")
+    if floor_threshold is not None:
+        payload["floor_threshold"] = round(float(floor_threshold), 4)
     if queries is not None:
         payload["queries"] = [str(query) for query in queries]
     if per_query_limit is not None:
@@ -96,11 +150,16 @@ def parse_analyst_trace(note: str | None) -> dict[str, Any] | None:
             # Runs recorded before the per-source cap existed have no such key,
             # and for them zero is the truth rather than a default.
             capped = int(payload.get("source_capped") or 0)
-            if any(value < 0 for value in (*hits, raw, unique, cited, capped)):
+            # Runs recorded before the similarity bar existed have no such key
+            # either, and for them zero removed and full confidence is the
+            # truth: no bar ran, so no row was withheld by one.
+            floored = int(payload.get("floor_removed") or 0)
+            if any(value < 0 for value in (*hits, raw, unique, cited, capped,
+                                           floored)):
                 return None
             if raw != sum(hits) or unique > raw or cited > unique:
                 return None
-            if unique + capped > raw:
+            if unique + capped + floored > raw:
                 return None
             result: dict[str, Any] = {
                 "query_hits": hits,
@@ -108,8 +167,22 @@ def parse_analyst_trace(note: str | None) -> dict[str, Any] | None:
                 "unique_hits": unique,
                 "cited_hits": cited,
                 "source_capped": capped,
+                "floor_removed": floored,
+                "low_confidence": bool(payload.get("low_confidence")),
+                "claims_withheld": max(0, int(payload.get("claims_withheld") or 0)),
+                "claims_demoted": max(0, int(payload.get("claims_demoted") or 0)),
                 "find_id": payload.get("find_id"),
             }
+            if payload.get("refutation") is not None:
+                result["refutation"] = str(payload["refutation"])
+                result["refuted_withheld"] = max(
+                    0, int(payload.get("refuted_withheld") or 0))
+                result["refuted_demoted"] = max(
+                    0, int(payload.get("refuted_demoted") or 0))
+                result["refuted_unpriced"] = max(
+                    0, int(payload.get("refuted_unpriced") or 0))
+            if payload.get("floor_threshold") is not None:
+                result["floor_threshold"] = float(payload["floor_threshold"])
             if isinstance(payload.get("queries"), list):
                 result["queries"] = [str(query) for query in payload["queries"]]
             if payload.get("per_query_limit") is not None:

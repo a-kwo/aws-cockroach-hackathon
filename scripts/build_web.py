@@ -42,6 +42,7 @@ from brasstacks.finds import (  # noqa: E402
     clean_owner_copy,
     owner_card_summary,
 )
+from brasstacks.repository import WITHHELD_STATUS  # noqa: E402
 
 SITE = REPO / "site"
 #: Anything here is copied to web/assets/ verbatim. The admin console's backdrop
@@ -275,6 +276,14 @@ def timeline(finds: list[dict]) -> list[dict]:
     """
     events = []
     for f in finds:
+        # A withheld find has a `created_at` like any other row, but it was
+        # never put to the owner — a quality gate declined to show it, with the
+        # reason in `find.withheld_reason`. Logging it as "proposed" would put a
+        # proposal that never happened into the operational history, which is
+        # the same shape of untruth as labelling a modelled figure Actual. It
+        # has no measured event either, because nothing was ever acted on.
+        if f["status"] == WITHHELD_STATUS:
+            continue
         if f["createdAt"]:
             events.append({"kind": "proposed", "at": f["createdAt"], "findId": f["id"],
                            "title": f["shortTitle"], "amount": f["predictedDailyTxt"]})

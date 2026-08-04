@@ -47,7 +47,14 @@ CREATE TYPE IF NOT EXISTS find_status AS ENUM (
   'later',         -- owner put it in the Later jar
   'rejected',      -- owner declined
   'live',          -- shipped; the meter is watching it
-  'retired'        -- pulled after the fact (e.g. it was a miss)
+  'retired',       -- pulled after the fact (e.g. it was a miss)
+  -- The pipeline produced it and declined to show it. NOT an owner decision:
+  -- she never saw it, so it must never reach the Analyst's "already proposed"
+  -- list (see OWNER_SEEN_STATUSES in repository.py) and must never be
+  -- accepted. It is stored rather than dropped because "why was the board
+  -- empty on the 4th?" has to have an answer, and because the audit trail is
+  -- the product.
+  'withheld'
 );
 
 CREATE TYPE IF NOT EXISTS ledger_verdict AS ENUM (
@@ -219,6 +226,16 @@ CREATE TABLE IF NOT EXISTS find (
   verify_after          DATE NOT NULL,       -- do not judge this before then
 
   status                find_status NOT NULL DEFAULT 'proposed',
+  -- Why a quality gate declined to show this one. NULL on everything that
+  -- reached the board — "nothing withheld this", never an empty reason. Free
+  -- text rather than a code because the useful part is the specific thing that
+  -- failed ("capture taken 52 minutes before opening"), and a code would flatten
+  -- nine different reasons into three the owner cannot act on.
+  withheld_reason       STRING,
+  -- The tier this was published at, after any demotion: current_state,
+  -- pattern, opportunity or listing_fact. NULL on finds written before tiers
+  -- existed — absent, never defaulted to a tier nobody assigned.
+  claim_type            STRING,
   decided_at            TIMESTAMPTZ,
   -- The first owner decision is cycle 1. Reconsidering an accepted move opens
   -- a new cycle instead of erasing the original Do it, Maker task or receipt.
@@ -577,4 +594,23 @@ ALTER TABLE ledger_entry ALTER COLUMN actual_daily_cents DROP DEFAULT;
 -- would store no finds at all until someone ran this file.
 ALTER TABLE find ADD COLUMN IF NOT EXISTS alternative_explanation STRING;
 
+-- The reason a quality gate declined to show a find. Also in
+-- decision_schema.py, because the night names this column in its INSERT INTO
+-- find alongside the status.
+ALTER TABLE find ADD COLUMN IF NOT EXISTS withheld_reason STRING;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS claim_type STRING;
+
 COMMIT;
+
+-- ---------------------------------------------------------------------------
+-- Outside the transaction on purpose.
+--
+-- CockroachDB refuses ALTER TYPE ... ADD VALUE inside a multi-statement
+-- transaction. Left above the COMMIT it does not fail alone — it fails the
+-- entire file, so a cluster provisioned before 2026-08-04 would get none of
+-- the migrations above it either. CREATE TYPE IF NOT EXISTS does nothing to a
+-- type that already exists, which is why the value added to the enum
+-- declaration near the top of this file does not reach the three live tenants.
+-- ---------------------------------------------------------------------------
+
+ALTER TYPE find_status ADD VALUE IF NOT EXISTS 'withheld';

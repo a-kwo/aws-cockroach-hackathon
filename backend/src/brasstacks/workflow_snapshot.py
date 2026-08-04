@@ -27,6 +27,7 @@ from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
 from brasstacks.decision_schema import ensure_decision_schema
 from brasstacks.finds import SUMMARY_MAX_CHARS, clean_owner_copy, owner_card_summary
+from brasstacks.repository import OWNER_SEEN_STATUSES, WITHHELD_STATUS
 from brasstacks.task_schema import ensure_task_schema
 
 PER_MONTH = 30
@@ -299,6 +300,95 @@ def _analyst_run_receipt(raw_runs: list[dict[str, Any]]) -> dict[str, Any] | Non
     }
 
 
+def _signals_considered(run: dict[str, Any] | None) -> int | None:
+    """How many unique observations an Analyst run actually read.
+
+    Straight off the run's own receipt. There is no estimate and no fallback to
+    the corpus size: "we checked 41 signals" is a claim about one night, and a
+    run with no structured trace does not support it. None means unrecorded,
+    which the page renders as silence rather than as zero.
+    """
+    if run is None:
+        return None
+    trace = parse_analyst_trace(run.get("note"))
+    if trace and trace.get("unique_hits") is not None:
+        return int(trace["unique_hits"])
+    return parse_retrieved_count(run.get("note"))
+
+
+def _held_back(finds: list[dict[str, Any]], raw_runs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """What the most recent night produced and declined to show, and why.
+
+    An owner who opens the board to nothing, with no reason, concludes the
+    product is broken. A night that ran and withheld everything is a state of
+    its own — the agents looked, found candidates, and did not trust them enough
+    to put money on them — and it has to be sayable out loud without inventing
+    any of the detail.
+
+    "The most recent night" is the Analyst run that wrote the newest withheld
+    find, matched by run id. Rows written before runs were recorded fall back to
+    the calendar day, which is the coarsest grouping that is still true.
+    """
+    withheld = [found for found in finds if found["status"] == WITHHELD_STATUS]
+    if not withheld:
+        return None
+
+    newest = max(withheld, key=lambda found: (found["createdAt"] or "", found["id"]))
+    run_database_id = newest.get("runDatabaseId")
+    if run_database_id:
+        def same_night(found: dict[str, Any]) -> bool:
+            return found.get("runDatabaseId") == run_database_id
+    else:
+        night_date = (newest["createdAt"] or "")[:10]
+
+        def same_night(found: dict[str, Any]) -> bool:
+            return not found.get("runDatabaseId") and (found["createdAt"] or "")[:10] == night_date
+
+    group = sorted(
+        (found for found in withheld if same_night(found)),
+        key=lambda found: (found["createdAt"] or "", found["id"]),
+        reverse=True,
+    )
+    # Only a night that put *nothing* in front of the owner earns the "we held
+    # everything back" sentence. One good find and this is an ordinary night
+    # with a footnote, and overstating it would train her to ignore the notice.
+    shown = [found for found in finds
+             if same_night(found) and found["status"] in OWNER_SEEN_STATUSES]
+
+    analyst_runs = [row for row in raw_runs if row.get("agent") == "analyst"]
+    run = next((row for row in analyst_runs
+                if str(row.get("id") or "") == str(run_database_id or "")), None)
+    signals = _signals_considered(run)
+    # raw_runs arrives newest-first per agent. A quiet night three weeks ago
+    # must not go on explaining every empty morning after it — that is the same
+    # untruth as the board claiming work is in progress when none is. Rows with
+    # no run id cannot prove they are current, so they say they are not.
+    newest_analyst_id = str(analyst_runs[0].get("id") or "") if analyst_runs else ""
+    is_latest = bool(run_database_id) and str(run_database_id) == newest_analyst_id
+
+    return {
+        "source": "cluster",
+        "count": len(group),
+        "everything": not shown,
+        "isLatestNight": is_latest,
+        "runId": (run_database_id or "")[:8] or None,
+        "runDatabaseId": run_database_id or None,
+        "at": group[0]["createdAt"] if group else None,
+        "signalsConsidered": signals,
+        "signalsSource": "cluster" if signals is not None else "unrecorded",
+        "finds": [{
+            "id": found["id"],
+            "databaseId": found["databaseId"],
+            "title": found["title"],
+            # The gate's own words. Never paraphrased here: the page shows this
+            # verbatim and the operator has to be able to read the same string
+            # the pipeline stored.
+            "reason": found["withheldReason"],
+            "createdAt": found["createdAt"],
+        } for found in group],
+    }
+
+
 def card_summary(raw_find: dict) -> str:
     """One sentence for the card face, from the model or from the rationale.
 
@@ -498,6 +588,10 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             "reopenedAt": _iso(raw_find.get("reopened_at")),
             "reopenReasonCode": raw_find.get("reopen_reason_code"),
             "reopenReasonNote": raw_find.get("reopen_reason_note"),
+            # Why a quality gate declined to show this one. None on every find
+            # that reached the board — "nothing withheld this", not an empty
+            # reason — and None on any cluster the migration has not reached.
+            "withheldReason": raw_find.get("withheld_reason"),
             "decisionEvents": [{
                 "id": str(event.get("id") or ""),
                 "type": event.get("event_type"),
@@ -544,6 +638,11 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
     ]
     earning = [found for found in finds if found["verdict"] == "verified"]
     judged_finds = [found for found in finds if found["verdict"] is not None]
+    # Not in any of the buckets above, and that is the point: a withheld find
+    # was never proposed, cannot be saved, is not measuring, and has no verdict
+    # to earn. It has its own list so the operator view can reach it.
+    withheld_finds = [found for found in finds if found["status"] == WITHHELD_STATUS]
+    held_back = _held_back(finds, raw_runs)
 
     runs = [{
         "id": str(run.get("id") or "")[:8],
@@ -680,6 +779,10 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
         "measuring": [found["id"] for found in measuring],
         "earning": [found["id"] for found in earning],
         "judged": [found["id"] for found in judged_finds],
+        "withheld": [found["id"] for found in withheld_finds],
+        # None, not an empty block: "no night has held anything back" and "the
+        # last night held everything back" must not render the same.
+        "heldBack": held_back,
         "kinds": [{
             "kind": item.get("kind"),
             "label": KIND_LABEL.get(item.get("kind"), item.get("kind")),
@@ -735,7 +838,8 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
                    rationale, move,
                    predicted_daily_cents, confidence, verify_after, status,
                    decided_at, decision_cycle, reopened_at,
-                   reopen_reason_code, reopen_reason_note, created_at
+                   reopen_reason_code, reopen_reason_note, withheld_reason,
+                   created_at
             FROM find
             WHERE business_id IN ({placeholders})
             ORDER BY business_id, created_at DESC

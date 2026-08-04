@@ -2506,3 +2506,150 @@ def test_maker_email_renderer_does_not_dump_the_complete_working_artifact():
     assert '"html_body": rendered["html"]' in source
     assert "payload.get(\"body\")" not in source
 
+
+
+# ------------------------------------------- the night that held everything back
+#
+# A night that ran and withheld every candidate is a third empty state, distinct
+# from "no night has run yet" and from "you have decided on everything". An owner
+# who opens the board to nothing, with no reason, concludes the product is
+# broken. An owner who reads "41 signals, three candidates, none cleared the bar"
+# learns where the bar is.
+#
+# The trap these guard: an earlier design of the quality gates was measured
+# against the real corpus and withheld 9 of 9 finds. So this screen must never
+# read as an achievement, and it must never soften into "all caught up".
+
+
+def test_the_board_explains_a_night_that_held_everything_back():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "function heldBackNotice(" in html
+    assert "workspace.heldBack" in html
+    # Named as what it is. Not "all caught up", not "nothing new".
+    assert "held everything back" in html
+
+
+def test_the_notice_only_speaks_for_the_most_recent_night():
+    """A quiet night in July must not explain every empty morning after it.
+
+    `isLatestNight` is computed in workflow_snapshot against the newest Analyst
+    run in CockroachDB. The page may not re-derive or ignore it — believing a
+    stale withheld night is the same class of untruth as the board claiming work
+    is in progress over a run that died a day and a half ago.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    # Scoped to the guard inside heldBackNotice, not to the file. The string
+    # occurs twice — once in the guard and once in the heldNow computation — so
+    # a whole-file assertion stayed green when the guard clause was deleted, and
+    # a July night would have explained every morning after it. A mutation run
+    # proved it: removing "!held.isLatestNight ||" left the suite passing.
+    notice = html.split("function heldBackNotice(", 1)[1].split("\n    }", 1)[0]
+    assert "held.isLatestNight" in notice
+    assert "!held.isLatestNight ||" in notice
+
+
+def test_the_notice_quotes_the_reason_the_pipeline_stored():
+    """The reason is `find.withheld_reason`, shown verbatim.
+
+    Paraphrasing it in the page would put words in the agents' mouths about the
+    owner's own business, and the operator view and the owner view would stop
+    showing the same string.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "escapeHtml(row.reason" in html
+    assert "escapeHtml(row.title" in html
+
+
+def test_the_notice_does_not_invent_a_signal_count():
+    """No trace on the run means we do not know how many rows it read.
+
+    "We checked 0 signals" is a worse lie than saying nothing, so the clause is
+    dropped rather than defaulted.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "held.signalsConsidered !== null" in html
+    assert "held.signalsConsidered !== undefined" in html
+
+
+def test_the_notice_puts_no_money_on_a_withheld_find():
+    """A withheld find carries a predicted figure. It must not be shown.
+
+    Quoting "$23/day we passed on" would be the product advertising money it
+    explicitly declined to stand behind — and the honesty rules already say
+    nothing the owner does in the UI may raise the record.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    # The function body, cut at the next JSDoc block rather than at the next
+    # `function`, so the neighbouring comment is not read as this one's code.
+    body = html.split("function heldBackNotice(", 1)[1].split("\n\n    /**", 1)[0]
+
+    assert "predictedDaily" not in body
+    assert "dailyMoney" not in body
+    assert "/day" not in body
+
+
+def test_the_timeline_does_not_say_the_analyst_proposed_a_withheld_find(data):
+    """`created_at` on a withheld row is when it was written, not when it was
+    put to the owner. It never was.
+
+    The static build folds the operational history out of stamps the cluster
+    stored, and "proposed" is the word it uses for `created_at`. A withheld find
+    arriving in an export would be logged as a proposal that never happened —
+    the same shape of untruth as a modelled figure labelled Actual.
+    """
+    from brasstacks.repository import WITHHELD_STATUS
+
+    data["finds"] = [find(status=WITHHELD_STATUS, verdict=None,
+                          measured_at=None, actual_daily_cents=None,
+                          title="Delivery menu is broken")]
+
+    events = build_web.build_model(data)["timeline"]
+
+    assert [event for event in events if event["kind"] == "proposed"] == []
+
+
+def test_the_live_refresh_rebuilds_the_deck_from_an_allowlist():
+    """The second gate, and the one a new status could slip past.
+
+    `applyWorkflowWorkspaces` rebuilds `posts` straight from the live workflow
+    rows rather than from the snapshot's `proposed` list. If that filter named
+    the statuses to *exclude*, a withheld find would become a decision card the
+    moment the board refreshed. It names the ones to include, for the same
+    reason OWNER_SEEN_STATUSES is an allowlist.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert ('["proposed", "accepted", "live", "rejected", "later"].includes('
+            in html)
+    assert '"withheld"' not in html.split("const currentFinds", 1)[1][:400]
+
+
+def test_a_withheld_find_never_becomes_a_decision_card():
+    """`postsFromMemory` filters on the snapshot's `proposed` list.
+
+    That list is built in workflow_snapshot from statuses only, and `withheld`
+    is in none of the owner buckets. Pinned here because the deck is the one
+    surface where a card means "decide on this".
+    """
+    from brasstacks.repository import WITHHELD_STATUS
+    from brasstacks.workflow_snapshot import build_workspace
+
+    workspace = build_workspace({
+        "business": {"id": "b", "name": "Yellow Cow Korean BBQ"},
+        "summary": {}, "corpus": {}, "runs": [], "kinds": [],
+        "finds": [{
+            "id": "11111111-2222-3333-4444-555555555555",
+            "title": "Delivery menu is broken", "rationale": "r", "move": "m",
+            "emoji": "🚚", "predicted_daily_cents": 2300, "confidence": 0.5,
+            "verify_after": "2026-08-18", "status": WITHHELD_STATUS,
+            "withheld_reason": "closed-shop page read as an outage",
+            "created_at": "2026-08-04T06:02:00+00:00", "evidence": [],
+        }],
+    })
+
+    assert workspace["proposed"] == []
+    assert workspace["withheld"] == ["11111111"]

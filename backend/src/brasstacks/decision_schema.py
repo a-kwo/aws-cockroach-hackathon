@@ -38,6 +38,11 @@ DECISION_SCHEMA_STATEMENTS = (
     # "Monday 11:30 am - 8:30 pm". Nullable and undefaulted: the 147 rows
     # written before typing existed keep NULL, meaning "we never looked".
     "ALTER TABLE observation ADD COLUMN IF NOT EXISTS statement_type STRING",
+    # The tier a find was published at, after any demotion. Required of the
+    # model and computed by the claim standards, and until it had a column it
+    # died with the process — nothing downstream could tell a checkable
+    # listing_fact from a current_state claim about the owner's storefront.
+    "ALTER TABLE find ADD COLUMN IF NOT EXISTS claim_type STRING",
     "CREATE INDEX IF NOT EXISTS observation_statement_idx "
     "ON observation (business_id, statement_type, observed_at DESC)",
     "CREATE INDEX IF NOT EXISTS find_reopened_idx ON find (business_id, reopened_at DESC)",
@@ -60,6 +65,26 @@ DECISION_SCHEMA_STATEMENTS = (
       INDEX decision_event_business_idx (business_id, created_at DESC)
     )
     """,
+    # A find the pipeline declines to show. Two statements, one hazard: the
+    # night writes the status and the reason in a single INSERT INTO find, so a
+    # cluster missing either stores no finds at all — the same failure that cost
+    # us `alternative_explanation` and the ledger.
+    #
+    # The ALTER TYPE runs here rather than only in db/schema.sql because
+    # CREATE TYPE IF NOT EXISTS does nothing to a type that already exists, and
+    # all three live tenants' find_status predates 'withheld'. It is safe in this
+    # bootstrap and not inside schema.sql's transaction: CockroachDB refuses
+    # ALTER TYPE ... ADD VALUE in a multi-statement transaction, and
+    # ensure_decision_schema deliberately runs with autocommit on. The app user
+    # owns find_status, which is what ALTER TYPE requires.
+    #
+    # Deliberately the last two statements in this tuple. The loop has no error
+    # isolation and `_READY` is only set once every statement has run, so a
+    # statement that fails takes the whole request path with it. Anything that
+    # has never executed against the live cluster goes at the end, where the
+    # already-proven migrations above it have applied first.
+    "ALTER TABLE find ADD COLUMN IF NOT EXISTS withheld_reason STRING",
+    "ALTER TYPE find_status ADD VALUE IF NOT EXISTS 'withheld'",
 )
 
 DECISION_SCHEMA_SQL = ";\n".join(statement.strip() for statement in DECISION_SCHEMA_STATEMENTS) + ";\n"

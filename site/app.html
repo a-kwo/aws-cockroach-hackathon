@@ -836,6 +836,43 @@
     .inflight-money strong { color: var(--ink); font-size: 15px; font-weight: 780; }
     .inflight-money span { color: var(--muted); font-size: 12px; }
 
+    /* The night that looked and put nothing forward. Deliberately quiet: this
+       is not an achievement and must not be dressed as one. No accent colour,
+       no badge, no figure — a withheld find carries a predicted amount and
+       showing it would advertise money the pipeline declined to stand behind.
+       Each row is a candidate and the agents' own reason for holding it. */
+    .held-back {
+      width: min(520px, 100%);
+      margin: 22px auto 0;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      text-align: left;
+    }
+    .held-lead {
+      max-width: none !important;
+      margin: 0 0 12px !important;
+      color: var(--ink-soft) !important;
+      font-size: 12.5px !important;
+      line-height: 1.55 !important;
+    }
+    .held-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+    .held-list li {
+      display: grid;
+      gap: 3px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(16, 17, 20, .028);
+    }
+    .held-title { color: var(--ink-soft); font-size: 12px; font-weight: 700; }
+    .held-reason { color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .held-foot {
+      max-width: none !important;
+      margin: 12px 0 0 !important;
+      color: var(--muted) !important;
+      font-size: 11px !important;
+      line-height: 1.5 !important;
+    }
+
     /* GROWTH */
     .growth-inner { padding: 34px 0 40px; }
 
@@ -2214,6 +2251,13 @@
 
     .queue-empty h2 { color: var(--app-text); }
     .queue-empty p { color: var(--app-muted); }
+    /* The held-back notice follows the workspace palette, same as the rest of
+       this panel. It stays the quietest thing on the screen in both themes. */
+    .held-back { border-top-color: var(--app-line); }
+    .held-lead { color: var(--app-text) !important; }
+    .held-title { color: var(--app-text); }
+    .held-reason,
+    .held-foot { color: var(--app-muted) !important; }
     .empty-primary { background: #101114; color: #fbf9f4; }
     .empty-secondary { border-color: var(--app-line); background: #ffffff; color: #4b4c53; }
 
@@ -15448,6 +15492,58 @@
     }
 
     /**
+     * The night that looked and put nothing forward.
+     *
+     * A night that ran and withheld every candidate is a state of its own. It
+     * is not "no night has run yet" and it is emphatically not "all caught
+     * up": the agents looked, produced candidates, and did not trust them
+     * enough to put the owner's money on them. An owner who opens the board to
+     * nothing with no reason concludes the product is broken. An owner who
+     * reads how many signals were searched and why each candidate failed
+     * learns where the bar is — which is the only thing that makes an empty
+     * morning survivable.
+     *
+     * Every figure comes from CockroachDB: the reasons are `find.withheld_reason`
+     * verbatim, the count is the number of withheld rows, and the signal count
+     * is off the Analyst run's own stored receipt. Nothing is estimated, and
+     * the predicted amount on a withheld find is deliberately never shown —
+     * quoting money the pipeline refused to stand behind would be advertising.
+     */
+    function heldBackNotice(workspace) {
+      const held = workspace.heldBack;
+      //  Only the most recent night explains this morning. isLatestNight is
+      //  computed in workflow_snapshot against the newest Analyst run in the
+      //  cluster; a quiet night three weeks ago is history, and letting it go
+      //  on explaining every empty board after it is the same untruth as the
+      //  board claiming work is in progress over a run that died.
+      if (!held || !held.isLatestNight || !held.count) return "";
+
+      const rows = (held.finds || []).map(row => `
+        <li>
+          <span class="held-title">${escapeHtml(row.title || "A candidate move")}</span>
+          <span class="held-reason">${escapeHtml(row.reason || "no reason was recorded")}</span>
+        </li>`).join("");
+
+      //  No structured receipt on the run means we do not know how many rows it
+      //  read, and "we checked 0 signals" is a worse lie than saying nothing.
+      //  The clause is dropped rather than defaulted.
+      const counted = held.signalsConsidered !== null && held.signalsConsidered !== undefined;
+      const searched = counted
+        ? `The agents read ${escapeHtml(String(held.signalsConsidered))} signal${held.signalsConsidered === 1 ? "" : "s"} out of your memory`
+        : "The agents searched your memory";
+      const candidates = held.count === 1
+        ? "and turned up one candidate move. It did not clear the bar to be worth acting on."
+        : `and turned up ${held.count} candidate moves. None of them cleared the bar to be worth acting on.`;
+
+      return `
+        <div class="held-back" data-held-back>
+          <p class="held-lead">${searched} ${candidates}</p>
+          <ul class="held-list">${rows}</ul>
+          <p class="held-foot">Those are the agents' own words, kept beside the evidence they were judging. Nothing here was counted, promised, or added to your record.</p>
+        </div>`;
+    }
+
+    /**
      * What the board shows when no card is waiting on a decision.
      *
      * "All caught up" was the wrong frame and the wrong offer. The queue being
@@ -15471,6 +15567,16 @@
         .filter(Boolean)
         .sort()[0];
 
+      //  A night that showed her nothing at all earns a different sentence
+      //  from a night that simply had no new ideas. `everything` is true only
+      //  when the same Analyst run put no find in front of her, so one good
+      //  find downgrades this to a footnote under the ordinary state — the
+      //  notice has to stay rare or she learns to skip it.
+      const held = workspace.heldBack;
+      const heldNow = !!(held && held.isLatestNight && held.count);
+      const heldEverything = heldNow && held.everything === true;
+      const notice = heldBackNotice(workspace);
+
       const heading = inFlight.length === 1
         ? "One move is live"
         : `${inFlight.length} moves are live`;
@@ -15490,15 +15596,20 @@
         </p>` : "";
 
       return `
-        <section class="queue-empty inflight" aria-label="${inFlight.length ? "Accepted moves in flight" : "No moves need a decision"}" data-enter>
+        <section class="queue-empty inflight" aria-label="${inFlight.length ? "Accepted moves in flight" : (heldEverything ? "Last night held everything back" : "No moves need a decision")}" data-enter>
           <div>
             <div class="empty-icon" aria-hidden="true">${icons.approved}</div>
-            <h2>${inFlight.length ? escapeHtml(heading) : "Nothing waiting on you"}</h2>
+            <h2>${inFlight.length
+              ? escapeHtml(heading)
+              : (heldEverything ? "We looked, and held everything back" : "Nothing waiting on you")}</h2>
             ${inFlight.length
               ? `<p>You've decided on everything the agents have found. These are running — the Meter judges each one on its own date.</p>`
-              : `<p>Every recommendation so far has been decided. Passed ideas stay in the decision history.</p>`}
+              : (heldEverything
+                ? `<p>The agents ran and found things. None of it was solid enough to ask you to act on, so none of it reached this board.</p>`
+                : `<p>Every recommendation so far has been decided. Passed ideas stay in the decision history.</p>`)}
             ${inFlight.length ? `<ul class="inflight-list">${rows}</ul>` : ""}
             ${moneyLine}
+            ${notice}
             <div class="empty-actions">
               <button class="empty-primary" type="button" data-start-night>Look for more tonight</button>
               <button class="empty-secondary" type="button" data-switch-growth>Open Growth</button>
