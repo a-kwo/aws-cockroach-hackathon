@@ -2653,3 +2653,46 @@ def test_owner_midnight_experience_is_shared_by_for_you_and_growth():
     assert "overflow-y: auto !important" in block
     assert "-webkit-line-clamp: unset !important" in block
 
+
+
+# --------------------------------------- production owner polish v35
+
+
+def test_desktop_feed_uses_the_full_card_and_scrolls_long_recommendations():
+    """Desktop must never hide action steps behind the persistent footer.
+
+    The decorative artwork column was hidden by the production mobile contract
+    but the desktop grid continued reserving space for it.  The final owner
+    layer gives that space to the action plan and makes the reading region the
+    one scroll owner when agent copy is unusually long.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-polish-v35">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "@media (min-width: 901px)" in block
+    assert "overflow-y: auto !important" in block
+    assert "scrollbar-gutter: stable !important" in block
+    assert '"title action"' in block
+    assert '"signal action"' in block
+    assert "body.autopilot-mode .post-art { display: none !important; }" in block
+    assert "grid-area: action !important" in block
+    assert "min-height: 104px !important" in block
+
+
+def test_growth_process_and_empty_states_share_the_midnight_surface():
+    """Growth must not embed bright white cards inside the dark owner shell."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="owner-production-polish-v35">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert ".growth-chart.is-process-preview" in block
+    assert "height: 100% !important" in block
+    assert "linear-gradient(145deg, rgba(20,25,49,.90), rgba(10,14,30,.80))" in block
+    assert "body.growth-mode .list-empty" in block
+    assert "rgba(255,255,255,.018) !important" in block
+    assert "color: #e8ebf6 !important" in block
+    assert 'panel.classList.add("is-process-preview")' in html
+    assert 'panel.classList.remove("is-process-preview")' in html

@@ -14349,6 +14349,460 @@
     }
   </style>
 
+
+  <style id="owner-production-polish-v35">
+    /*
+      Production owner polish.
+
+      Desktop cards previously reserved an entire second column for artwork that
+      the production mobile rules intentionally hide. That left half the card
+      empty while the real recommendation overflowed behind the decision footer.
+      The content now owns the full card: evidence stays on the left, the action
+      plan becomes the useful second column, and the reading surface scrolls when
+      unusually long agent copy needs more room.
+    */
+    @media (min-width: 901px) {
+      body.autopilot-mode .view-inner {
+        width: min(1380px, calc(100% - 44px)) !important;
+      }
+
+      body.autopilot-mode .deck {
+        width: 100% !important;
+        grid-template-columns: minmax(0, 1fr) 38px !important;
+        gap: 16px !important;
+      }
+
+      body.autopilot-mode .feed-stage {
+        height: clamp(620px, calc(100dvh - 106px), 760px) !important;
+        min-height: 620px !important;
+      }
+
+      body.autopilot-mode .post-body {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: auto !important;
+        align-items: start !important;
+        align-content: start !important;
+        gap: 0 !important;
+        padding: clamp(34px, 3.2vw, 50px) clamp(34px, 4vw, 58px) 34px !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior-y: contain !important;
+        scroll-padding-block: 30px !important;
+        scrollbar-gutter: stable !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(var(--accent-rgb), .48) transparent !important;
+      }
+
+      body.autopilot-mode .post-body::-webkit-scrollbar { width: 9px !important; }
+      body.autopilot-mode .post-body::-webkit-scrollbar-track { background: transparent !important; }
+      body.autopilot-mode .post-body::-webkit-scrollbar-thumb {
+        border: 3px solid transparent !important;
+        border-radius: 999px !important;
+        background: rgba(var(--accent-rgb), .48) !important;
+        background-clip: padding-box !important;
+      }
+
+      /* The decorative cover is intentionally absent in production. The action
+         panel uses this space and carries information instead of ornament. */
+      body.autopilot-mode .post-art { display: none !important; }
+
+      body.autopilot-mode .feed-card .post-copy,
+      body.autopilot-mode .feed-card[data-fit] .post-copy {
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 0 !important;
+        height: auto !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.08fr) minmax(330px, .82fr) !important;
+        grid-template-areas:
+          "meta meta"
+          "reopened reopened"
+          "title action"
+          "signal action" !important;
+        column-gap: clamp(32px, 4vw, 62px) !important;
+        row-gap: 16px !important;
+        align-items: start !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
+      body.autopilot-mode .post-meta-row {
+        grid-area: meta !important;
+        margin: 0 0 4px !important;
+      }
+
+      body.autopilot-mode .reopened-chip {
+        grid-area: reopened !important;
+        justify-self: start !important;
+        margin: 0 !important;
+      }
+
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+        grid-area: title !important;
+        max-width: 18ch !important;
+        font-size: clamp(44px, 3.55vw, 60px) !important;
+        line-height: 1.15 !important;
+        letter-spacing: -.047em !important;
+        text-wrap: balance !important;
+      }
+
+      body.autopilot-mode .post-title::after {
+        width: 88px !important;
+        height: 4px !important;
+        margin-top: 16px !important;
+      }
+
+      body.autopilot-mode .signal-text,
+      body.autopilot-mode .feed-card[data-fit] .signal-text {
+        grid-area: signal !important;
+        max-width: 58ch !important;
+        margin: 0 !important;
+        color: #b8bfd2 !important;
+        font-size: clamp(17px, 1.22vw, 20px) !important;
+        font-weight: 525 !important;
+        line-height: 1.55 !important;
+      }
+
+      body.autopilot-mode .post-copy .recommendation {
+        grid-area: action !important;
+        align-self: start !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        display: grid !important;
+        grid-template-columns: 44px minmax(0, 1fr) !important;
+        gap: 15px !important;
+        align-items: start !important;
+        margin: 2px 0 0 !important;
+        padding: 22px !important;
+        border: 1px solid rgba(195, 178, 255, .18) !important;
+        border-radius: 22px !important;
+        background:
+          radial-gradient(260px 180px at 100% 0%, rgba(var(--accent-rgb), .13), transparent 72%),
+          linear-gradient(150deg, rgba(255,255,255,.062), rgba(255,255,255,.032)) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.055), 0 18px 44px rgba(0,0,0,.17) !important;
+        backdrop-filter: blur(18px) !important;
+        -webkit-backdrop-filter: blur(18px) !important;
+      }
+
+      body.autopilot-mode .post-copy .recommendation-icon {
+        width: 44px !important;
+        height: 44px !important;
+        display: grid !important;
+        place-items: center !important;
+        flex: 0 0 44px !important;
+        border-radius: 15px !important;
+        background: linear-gradient(145deg, rgba(var(--accent-rgb), .28), rgba(139,66,255,.12)) !important;
+        color: #dec8ff !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 10px 26px rgba(115,45,225,.14) !important;
+      }
+
+      body.autopilot-mode .post-copy .recommendation-icon svg {
+        width: 20px !important;
+        height: 20px !important;
+      }
+
+      body.autopilot-mode .recommendation-copy {
+        min-width: 0 !important;
+        display: block !important;
+      }
+
+      body.autopilot-mode .recommendation-copy > span {
+        display: block !important;
+        margin: 1px 0 9px !important;
+        font-size: 11px !important;
+      }
+
+      body.autopilot-mode .recommendation-copy strong,
+      body.autopilot-mode .recommendation-steps {
+        font-size: 14.5px !important;
+        line-height: 1.48 !important;
+      }
+
+      body.autopilot-mode .recommendation-steps {
+        gap: 9px !important;
+        margin-top: 0 !important;
+      }
+
+      body.autopilot-mode .post-footer {
+        min-height: 104px !important;
+        gap: 22px !important;
+        padding: 16px clamp(34px, 4vw, 58px) 18px !important;
+      }
+
+      body.autopilot-mode .impact-summary > strong {
+        font-size: clamp(34px, 2.65vw, 46px) !important;
+      }
+
+      body.autopilot-mode .decision-button {
+        min-width: 146px !important;
+        height: 56px !important;
+        padding-inline: 24px !important;
+        border-radius: 17px !important;
+      }
+    }
+
+    @media (min-width: 901px) and (max-width: 1180px) {
+      body.autopilot-mode .feed-card .post-copy,
+      body.autopilot-mode .feed-card[data-fit] .post-copy {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-areas:
+          "meta"
+          "reopened"
+          "title"
+          "signal"
+          "action" !important;
+        row-gap: 15px !important;
+      }
+
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title {
+        max-width: 20ch !important;
+        font-size: clamp(40px, 5.1vw, 54px) !important;
+      }
+
+      body.autopilot-mode .post-copy .recommendation {
+        margin-top: 4px !important;
+      }
+    }
+
+    /* Growth should feel native to the midnight shell. The former white process
+       preview and white empty list looked like embedded webpages rather than
+       product surfaces, and the progress slide left a large unused lower half. */
+    body.growth-mode .growth-inner {
+      width: min(1180px, calc(100% - 44px)) !important;
+      padding-bottom: 48px !important;
+    }
+
+    body.growth-mode .growth-carousel,
+    body.growth-mode .decision-lists {
+      width: 100% !important;
+      max-width: none !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+
+    body.growth-mode .growth-swipe {
+      min-height: 320px !important;
+      border-radius: 28px !important;
+    }
+
+    body.growth-mode .growth-slide {
+      min-height: 320px !important;
+      height: 320px !important;
+      overflow: hidden !important;
+    }
+
+    body.growth-mode .growth-chart.is-process-preview {
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 100% !important;
+      padding: 22px 24px !important;
+      justify-content: center !important;
+    }
+
+    body.growth-mode .growth-chart.is-process-preview .chart-plot {
+      height: auto !important;
+      margin-top: 12px !important;
+    }
+
+    body.growth-mode .growth-projection {
+      min-height: 225px !important;
+      padding: 18px 18px 12px !important;
+      border: 1px solid rgba(188, 198, 255, .13) !important;
+      border-radius: 22px !important;
+      background:
+        radial-gradient(circle at 84% 12%, rgba(77, 215, 168, .10), transparent 34%),
+        radial-gradient(circle at 12% 90%, rgba(141, 69, 255, .12), transparent 40%),
+        linear-gradient(145deg, rgba(20,25,49,.90), rgba(10,14,30,.80)) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 18px 48px rgba(0,0,0,.18) !important;
+    }
+
+    body.growth-mode .growth-projection-badge {
+      top: 13px !important;
+      right: 14px !important;
+      padding: 7px 10px !important;
+      border-color: rgba(77, 215, 168, .22) !important;
+      background: rgba(77, 215, 168, .08) !important;
+      color: #8ee6c9 !important;
+      font-size: 9.5px !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+    }
+
+    body.growth-mode .growth-projection-badge::before {
+      background: #59d8ad !important;
+      box-shadow: 0 0 0 5px rgba(77,215,168,.09) !important;
+    }
+
+    body.growth-mode .growth-projection svg {
+      height: 126px !important;
+    }
+
+    body.growth-mode .growth-projection-path {
+      opacity: .88 !important;
+      filter: drop-shadow(0 7px 12px rgba(0,0,0,.18)) !important;
+    }
+
+    body.growth-mode .growth-projection-node {
+      fill: #10162b !important;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,.26)) !important;
+    }
+
+    body.growth-mode .growth-projection-labels {
+      gap: 12px !important;
+      margin-top: -3px !important;
+      color: #8f98af !important;
+      font-size: 10.5px !important;
+      line-height: 1.35 !important;
+    }
+
+    body.growth-mode .growth-projection-labels strong {
+      margin-bottom: 4px !important;
+      color: #eef1fb !important;
+      font-size: 12px !important;
+      font-weight: 760 !important;
+    }
+
+    body.growth-mode .decision-lists {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 18px !important;
+      margin-top: 20px !important;
+    }
+
+    body.growth-mode .list-panel {
+      min-width: 0 !important;
+      border-radius: 24px !important;
+    }
+
+    body.growth-mode .list-panel-header {
+      min-height: 76px !important;
+      padding: 18px 21px !important;
+    }
+
+    body.growth-mode .list-panel-title h2 {
+      font-size: 21px !important;
+      letter-spacing: -.03em !important;
+    }
+
+    body.growth-mode .list-panel-title p {
+      margin-top: 4px !important;
+      color: #8d95aa !important;
+      font-size: 11.5px !important;
+    }
+
+    body.growth-mode .list-count {
+      min-width: 38px !important;
+      width: 38px !important;
+      height: 38px !important;
+      background: rgba(255,255,255,.055) !important;
+      color: #aeb6cc !important;
+      font-size: 11px !important;
+    }
+
+    body.growth-mode .list-empty {
+      min-height: 184px !important;
+      border-top: 0 !important;
+      background:
+        radial-gradient(260px 150px at 50% 115%, rgba(141,69,255,.08), transparent 72%),
+        rgba(255,255,255,.018) !important;
+    }
+
+    body.growth-mode .list-empty-icon {
+      width: 46px !important;
+      height: 46px !important;
+      border: 1px solid rgba(188,198,255,.10) !important;
+      border-radius: 15px !important;
+      background: rgba(255,255,255,.045) !important;
+      color: #9aa4ba !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+    }
+
+    body.growth-mode .list-empty strong {
+      margin-top: 13px !important;
+      color: #e8ebf6 !important;
+      font-size: 14px !important;
+      font-weight: 720 !important;
+    }
+
+    body.growth-mode .list-empty span {
+      max-width: 320px !important;
+      margin-top: 7px !important;
+      color: #8d96ad !important;
+      font-size: 11.5px !important;
+      line-height: 1.5 !important;
+    }
+
+    @media (max-width: 1050px) {
+      body.growth-mode .growth-inner {
+        width: min(900px, calc(100% - 28px)) !important;
+      }
+
+      body.growth-mode .decision-lists {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+    }
+
+    @media (max-width: 900px) {
+      /* The action icon is intentionally hidden on mobile. Collapse its grid
+         column too, otherwise the complete recommendation wraps one word per
+         line inside the abandoned 42px icon track. */
+      body.autopilot-mode .post-copy .recommendation {
+        display: block !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+
+      body.autopilot-mode .post-copy .recommendation-icon {
+        display: none !important;
+      }
+
+      body.autopilot-mode .recommendation-copy {
+        width: 100% !important;
+        min-width: 0 !important;
+        display: block !important;
+      }
+
+      body.growth-mode .growth-inner {
+        width: 100% !important;
+        padding: 18px 14px 38px !important;
+      }
+
+      body.growth-mode .growth-slide,
+      body.growth-mode .growth-swipe {
+        min-height: 306px !important;
+        height: 306px !important;
+      }
+
+      body.growth-mode .growth-chart.is-process-preview {
+        padding: 18px !important;
+      }
+
+      body.growth-mode .growth-projection {
+        min-height: 214px !important;
+        padding-inline: 14px !important;
+      }
+    }
+
+    @media (max-width: 560px) {
+      body.growth-mode .growth-slide,
+      body.growth-mode .growth-swipe {
+        min-height: 292px !important;
+        height: 292px !important;
+      }
+
+      body.growth-mode .growth-projection {
+        min-height: 204px !important;
+      }
+
+      body.growth-mode .growth-projection svg { height: 108px !important; }
+      body.growth-mode .growth-projection-labels { gap: 6px !important; font-size: 9.5px !important; }
+      body.growth-mode .growth-projection-labels strong { font-size: 10.5px !important; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -17544,6 +17998,7 @@
      */
     function renderGrowthProjectionPlaceholder(panel, frame) {
       panel.hidden = false;
+      panel.classList.add("is-process-preview");
       if (frame) frame.classList.remove("no-chart");
 
       const approved = getApprovedPosts().length;
@@ -17592,6 +18047,7 @@
         return;
       }
       panel.hidden = false;
+      panel.classList.remove("is-process-preview");
       if (frame) frame.classList.remove("no-chart");
 
       const verifiedMonths = months.filter(m => !m.projected);
