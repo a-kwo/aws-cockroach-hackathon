@@ -16691,6 +16691,92 @@
       font-weight: 620;
     }
 
+    body.autopilot-mode .feed-proof-button {
+      width: 100%;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 27px minmax(0, 1fr) 18px;
+      gap: 9px;
+      align-items: center;
+      padding: 5px 8px 5px 0;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+    }
+
+    body.autopilot-mode .feed-proof-button:hover {
+      background: rgba(var(--accent-rgb), .08);
+      box-shadow: 0 0 0 1px rgba(var(--accent-rgb), .13);
+      transform: translateY(-1px);
+    }
+
+    body.autopilot-mode .feed-proof-button:focus-visible {
+      outline: 2px solid rgba(var(--accent-rgb), .78);
+      outline-offset: 3px;
+    }
+
+    body.autopilot-mode .feed-proof-button > i {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      color: #a995df;
+    }
+
+    body.autopilot-mode .feed-proof-button > i svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    body.autopilot-mode .feed-proof-button > span { min-width: 0; }
+    body.autopilot-mode .feed-proof-button strong,
+    body.autopilot-mode .feed-proof-button small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    body.autopilot-mode .feed-proof-button strong { color:#edf0fb; font-size:12px; line-height:1.25; font-weight:730; }
+    body.autopilot-mode .feed-proof-button small { margin-top:3px; color:#7f8aa6; font-size:9.5px; line-height:1.2; font-weight:620; }
+    body.autopilot-mode .feed-proof-button .feed-proof-chevron {
+      display:grid; place-items:center; color:#8576b6; transition:transform .18s ease;
+    }
+    body.autopilot-mode .feed-proof-button:hover .feed-proof-chevron { transform:translateX(2px); }
+
+    .evidence-sheet[hidden] { display:none !important; }
+    .evidence-sheet { position:fixed; inset:0; z-index:2800; display:grid; align-items:end; justify-items:center; }
+    .evidence-sheet-scrim { position:absolute; inset:0; border:0; background:rgba(2,5,14,.72); backdrop-filter:blur(12px); cursor:default; }
+    .evidence-sheet-panel {
+      position:relative; width:min(760px, calc(100vw - 32px)); max-height:min(78vh, 820px); margin:0 16px 18px;
+      display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(205,214,255,.17); border-radius:24px;
+      background:radial-gradient(420px 260px at 100% 0%, rgba(var(--accent-rgb, 155,86,255),.13), transparent 72%), linear-gradient(155deg,#11182d,#080d1b 78%);
+      box-shadow:0 32px 90px rgba(0,0,0,.56), inset 0 1px 0 rgba(255,255,255,.05);
+      animation:evidenceSheetIn .24s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes evidenceSheetIn { from { opacity:0; transform:translateY(22px) scale(.985); } to { opacity:1; transform:none; } }
+    .evidence-sheet-head { display:flex; align-items:flex-start; gap:16px; padding:22px 22px 18px; border-bottom:1px solid rgba(205,214,255,.11); }
+    .evidence-sheet-head > div { min-width:0; flex:1; }
+    .evidence-sheet-eyebrow { display:block; color:#b38aff; font-size:10px; font-weight:850; letter-spacing:.09em; text-transform:uppercase; }
+    .evidence-sheet-title { margin:7px 0 0; color:#f4f5fb; font-size:clamp(20px,3vw,28px); line-height:1.15; letter-spacing:-.025em; }
+    .evidence-sheet-subtitle { margin:8px 0 0; color:#8e98b3; font-size:12px; line-height:1.45; }
+    .evidence-sheet-close { width:38px; height:38px; flex:0 0 auto; display:grid; place-items:center; border:1px solid rgba(205,214,255,.14); border-radius:12px; background:rgba(255,255,255,.035); color:#bbc3da; cursor:pointer; }
+    .evidence-sheet-close:hover { background:rgba(255,255,255,.07); color:white; }
+    .evidence-sheet-list { margin:0; padding:14px 18px 22px; list-style:none; overflow:auto; overscroll-behavior:contain; }
+    .evidence-sheet-item { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:13px; align-items:start; padding:15px 8px; border-bottom:1px solid rgba(205,214,255,.085); }
+    .evidence-sheet-item:last-child { border-bottom:0; }
+    .evidence-rank { width:30px; height:30px; display:grid; place-items:center; border:1px solid rgba(var(--accent-rgb,155,86,255),.28); border-radius:10px; background:rgba(var(--accent-rgb,155,86,255),.08); color:#c7a9ff; font-size:11px; font-weight:800; }
+    .evidence-copy { min-width:0; }
+    .evidence-copy p { margin:0; color:#e3e6f2; font-size:13px; line-height:1.52; }
+    .evidence-meta { display:flex; flex-wrap:wrap; gap:6px 11px; margin-top:9px; color:#7f8aa6; font-size:10px; font-weight:650; }
+    .evidence-meta span { display:inline-flex; align-items:center; gap:5px; }
+    .evidence-similarity { min-width:56px; padding:7px 8px; border:1px solid rgba(205,214,255,.11); border-radius:10px; color:#aab3ca; font-size:10px; font-weight:760; text-align:center; }
+    .evidence-sheet-empty { padding:34px 24px 40px; color:#8e98b3; text-align:center; font-size:13px; line-height:1.55; }
+    body.evidence-sheet-open { overflow:hidden; }
+
     body.autopilot-mode .feed-detail-panel {
       min-width: 0;
       align-self: start;
@@ -17147,6 +17233,13 @@
         padding: 0 !important;
         border-left: 0;
       }
+
+      .evidence-sheet { align-items:end; }
+      .evidence-sheet-panel { width:100%; max-height:88dvh; margin:0; border-radius:22px 22px 0 0; }
+      .evidence-sheet-head { padding:18px 18px 15px; }
+      .evidence-sheet-list { padding:8px 12px calc(22px + env(safe-area-inset-bottom)); }
+      .evidence-sheet-item { grid-template-columns:30px minmax(0,1fr); gap:11px; padding:14px 6px; }
+      .evidence-similarity { grid-column:2; justify-self:start; margin-top:-3px; }
 
       body.autopilot-mode .feed-detail-heading {
         flex-wrap: wrap;
@@ -18177,11 +18270,88 @@
         { icon: "confidence", value: confidenceLabel, label: "Analyst confidence" },
         { icon: "calendar", value: post.measurementWindowLabel, label: "Measurement window" },
       ];
-      return items.map(item => `
-        <span class="feed-proof-item">
-          <i>${feedDetailIcon(item.icon)}</i>
-          <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>
-        </span>`).join("");
+      return items.map((item, index) => index === 0
+        ? `<span class="feed-proof-item">
+            <button class="feed-proof-button" type="button" data-open-evidence="${escapeHtml(post.id)}" aria-haspopup="dialog" aria-label="Open ${escapeHtml(item.value)} for ${escapeHtml(post.title)}">
+              <i>${feedDetailIcon(item.icon)}</i>
+              <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)} · View sources</small></span>
+              <span class="feed-proof-chevron" aria-hidden="true">›</span>
+            </button>
+          </span>`
+        : `<span class="feed-proof-item">
+            <i>${feedDetailIcon(item.icon)}</i>
+            <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>
+          </span>`).join("");
+    }
+
+    let evidenceSheetOpener = null;
+
+    function evidenceSheetMarkup(post) {
+      const evidence = Array.isArray(post?.evidence) ? post.evidence : [];
+      const rows = evidence.map((item, index) => {
+        const rank = Number.isFinite(Number(item.rank)) ? Number(item.rank) + 1 : index + 1;
+        const source = item.sourceName || item.source || item.kind || "Stored memory";
+        const similarity = Number(item.similarity);
+        return `<li class="evidence-sheet-item">
+          <span class="evidence-rank">${escapeHtml(String(rank).padStart(2, "0"))}</span>
+          <div class="evidence-copy">
+            <p>${escapeHtml(item.content || "Evidence text was not included in this snapshot.")}</p>
+            <div class="evidence-meta">
+              <span>${escapeHtml(source)}</span>
+              ${item.subject ? `<span>${escapeHtml(item.subject)}</span>` : ""}
+              ${item.when ? `<span>${escapeHtml(item.when)}</span>` : ""}
+            </div>
+          </div>
+          ${Number.isFinite(similarity) ? `<span class="evidence-similarity" title="Vector similarity">${escapeHtml(similarity.toFixed(3))}</span>` : ""}
+        </li>`;
+      }).join("");
+      return `<div class="evidence-sheet" id="evidenceSheet" role="dialog" aria-modal="true" aria-labelledby="evidenceSheetTitle" style="--accent:${escapeHtml(post?.accent || "#9b56ff")};--accent-rgb:${escapeHtml(post?.accentRgb || "155,86,255")}">
+        <button class="evidence-sheet-scrim" type="button" data-close-evidence tabindex="-1" aria-label="Close evidence"></button>
+        <section class="evidence-sheet-panel" tabindex="-1">
+          <header class="evidence-sheet-head">
+            <div>
+              <span class="evidence-sheet-eyebrow">Analyst evidence</span>
+              <h2 class="evidence-sheet-title" id="evidenceSheetTitle">${escapeHtml(post?.title || "Recommendation evidence")}</h2>
+              <p class="evidence-sheet-subtitle">${escapeHtml(String(evidence.length))} cited ${evidence.length === 1 ? "row" : "rows"} stored with this recommendation. Sources are shown in retrieval order.</p>
+            </div>
+            <button class="evidence-sheet-close" type="button" data-close-evidence aria-label="Close evidence">×</button>
+          </header>
+          ${rows ? `<ol class="evidence-sheet-list">${rows}</ol>` : `<p class="evidence-sheet-empty">The evidence count is stored, but the source text was not included in this snapshot.</p>`}
+        </section>
+      </div>`;
+    }
+
+    function openEvidenceSheet(postId, opener) {
+      const post = posts.find(item => String(item.id) === String(postId));
+      if (!post) return;
+      closeEvidenceSheet(false);
+      evidenceSheetOpener = opener || document.activeElement;
+      document.body.insertAdjacentHTML("beforeend", evidenceSheetMarkup(post));
+      document.body.classList.add("evidence-sheet-open");
+      const panel = document.querySelector("#evidenceSheet .evidence-sheet-panel");
+      const close = document.querySelector("#evidenceSheet .evidence-sheet-close");
+      close?.focus();
+      panel?.addEventListener("keydown", event => {
+        if (event.key !== "Tab") return;
+        const focusable = [...panel.querySelectorAll('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')];
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      });
+      document.querySelectorAll("#evidenceSheet [data-close-evidence]").forEach(button => {
+        button.addEventListener("click", () => closeEvidenceSheet());
+      });
+    }
+
+    function closeEvidenceSheet(restoreFocus = true) {
+      const sheet = document.getElementById("evidenceSheet");
+      if (!sheet) return;
+      sheet.remove();
+      document.body.classList.remove("evidence-sheet-open");
+      if (restoreFocus && evidenceSheetOpener?.isConnected) evidenceSheetOpener.focus();
+      evidenceSheetOpener = null;
     }
 
     function renderFeedDetailPanel(post) {
@@ -24130,6 +24300,10 @@ ledger_entry · artifact · agent_run`,
 
     restartDemoButton.addEventListener("click", restartDemo);
 
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && document.getElementById("evidenceSheet")) closeEvidenceSheet();
+    });
+
     function bindDynamicActions() {
       document.querySelectorAll("[data-start-night]").forEach(button => {
         //  The note lives beside the button rather than at one fixed id, so
@@ -24143,6 +24317,12 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-open-post]").forEach(button => {
         button.onclick = () => openDrawer(button.dataset.openPost);
+      });
+      document.querySelectorAll("[data-open-evidence]").forEach(button => {
+        button.onclick = event => {
+          event.stopPropagation();
+          openEvidenceSheet(button.dataset.openEvidence, button);
+        };
       });
       document.querySelectorAll("[data-decide]").forEach(button => {
         button.onclick = () => {

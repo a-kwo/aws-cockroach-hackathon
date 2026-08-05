@@ -3043,3 +3043,25 @@ def test_feed_brief_frontend_preserves_honest_empty_prices_and_precise_tags():
     assert "Preserve a precise two- or three-tag Analyst brief" in normaliser
     assert "Analyst confidence" in html
     assert 'String(value ?? "")' in html
+
+
+def test_feed_evidence_rows_open_an_accessible_inline_sheet():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'data-open-evidence="${escapeHtml(post.id)}"' in html
+    assert 'aria-haspopup="dialog"' in html
+    assert 'role="dialog" aria-modal="true"' in html
+    assert 'id="evidenceSheetTitle"' in html
+    assert 'function openEvidenceSheet(postId, opener)' in html
+    assert 'function closeEvidenceSheet(restoreFocus = true)' in html
+    assert 'if (event.key === "Escape" && document.getElementById("evidenceSheet"))' in html
+
+
+def test_feed_evidence_sheet_renders_source_metadata_and_mobile_bottom_sheet():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'item.sourceName || item.source || item.kind || "Stored memory"' in html
+    assert 'Sources are shown in retrieval order.' in html
+    assert 'title="Vector similarity"' in html
+    assert '.evidence-sheet-panel { width:100%; max-height:88dvh;' in html
+    assert 'border-radius:22px 22px 0 0' in html
