@@ -13442,7 +13442,7 @@
        none of them may wear the green this product uses for verified money. The
        ink is #4a58d6 and the dashes are the chart's projected mark language —
        the same treatment as the single dashed month, chosen so an owner who has
-       learned that dashed indigo means "not measured yet" over there reads it
+       learned that dashed indigo means "not earned" over there reads it
        the same way here.
 
        Every colour here carries !important, and that is not tidiness. This
@@ -16402,6 +16402,72 @@
     }
 </style>
 
+  <style id="requested-ui-cleanup-v39">
+    /* Keep KPI explanations readable. The decorative efficiency circles used
+       overflow:hidden on the whole card, which also clipped the tooltip. */
+    .memory-engine .engine-kpis { overflow: visible; }
+    .memory-engine .engine-kpi { z-index: 1; }
+    .memory-engine .engine-kpi:hover,
+    .memory-engine .engine-kpi:focus-within { z-index: 30; }
+    .memory-engine .engine-kpi.is-efficiency,
+    .memory-engine .engine-kpi.is-token,
+    .memory-engine .engine-kpi.is-zero-token {
+      overflow: visible;
+      background:
+        radial-gradient(circle at 100% 100%, rgba(47,126,114,.08) 0 38px, transparent 39px),
+        var(--engine-panel);
+    }
+    .memory-engine .engine-kpi.is-efficiency::after,
+    .memory-engine .engine-kpi.is-token::after,
+    .memory-engine .engine-kpi.is-zero-token::after { display: none; }
+
+    /* KPI cards sit near the top of the scroll surface. Open their explanations
+       downward so the viewport edge cannot cut off the first line. */
+    @media (min-width: 721px) {
+      .memory-engine .engine-kpi .metric-help::after {
+        top: calc(100% + 12px);
+        bottom: auto;
+        transform: translateY(-4px);
+      }
+      .memory-engine .engine-kpi .metric-help::before {
+        top: calc(100% + 7px);
+        bottom: auto;
+        border-top-color: transparent;
+        border-bottom-color: rgba(31,38,42,.97);
+        transform: translateY(-4px);
+      }
+      .memory-engine .engine-kpi .metric-help:hover::before,
+      .memory-engine .engine-kpi .metric-help:hover::after,
+      .memory-engine .engine-kpi .metric-help:focus-visible::before,
+      .memory-engine .engine-kpi .metric-help:focus-visible::after {
+        transform: translateY(0);
+      }
+    }
+
+    /* Growth is a glanceable decision record, not a second explanation page. */
+    body.growth-mode .growth-slide-summary .growth-total.forecast strong {
+      margin-top: 0 !important;
+    }
+    body.growth-mode .growth-slide-summary .growth-total-tag {
+      margin-top: 22px !important;
+    }
+    body.growth-mode .decision-row {
+      min-height: 68px !important;
+      padding: 11px 18px !important;
+    }
+    body.growth-mode .decision-row-copy strong {
+      -webkit-line-clamp: 2 !important;
+    }
+    body.growth-mode .growth-projection-labels span {
+      min-height: 28px;
+      display: grid !important;
+      place-items: center;
+    }
+    body.growth-mode .growth-projection-labels strong {
+      margin: 0 !important;
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -16497,16 +16563,14 @@
                   it moves the instant they press Do it. It used to be captioned
                   "Added by the moves you approved" in the verified green, above
                   a list headed "Your wins", on a board whose ledger held zero
-                  rows. Everything here — label, tag, colour, copy — exists to
+                  rows. Everything here — status tag and colour — exists to
                   keep it apart from the money the Meter has actually verified.
                 -->
-                <article class="growth-slide growth-slide-summary" aria-label="Forecast from approved moves">
+                <article class="growth-slide growth-slide-summary" aria-label="Projected monthly value from approved moves. Not earned until verified by the Ledger.">
                   <div class="growth-overview">
                     <div class="growth-total forecast">
-                      <span>Forecast · not earned</span>
                       <strong id="approvedAmount">$0</strong>
-                      <p class="growth-total-tag">Projected · not measured</p>
-                      <p>Predicted monthly value of the moves you approved. Only a verified verdict on the Ledger is money you have earned.</p>
+                      <p class="growth-total-tag">Projected · not earned</p>
                     </div>
                     <div class="growth-counts" hidden aria-hidden="true">
                       <div class="growth-count approved"><span>Approved</span><strong id="approvedCount">0</strong></div>
@@ -18059,6 +18123,12 @@
             const siblings = [...detail.parentElement.querySelectorAll(".owner-memory-disclosure")];
             return `${owner}::${siblings.indexOf(detail)}`;
           }),
+        makerTasks: [...document.querySelectorAll("#ownerPipelines .owner-pipeline-details[open] .maker-task-item[open]")]
+          .map(detail => ({
+            ownerId: detail.closest("[data-owner-id]")?.dataset.ownerId || "",
+            taskId: detail.dataset.taskId || "",
+          }))
+          .filter(item => item.ownerId && item.taskId),
         system: Boolean(document.getElementById("memorySystemDetails")?.open),
       };
     }
@@ -18078,6 +18148,10 @@
         const [ownerId, rawIndex] = key.split("::");
         const row = document.querySelector(`#ownerPipelines [data-owner-id="${escape(ownerId)}"]`);
         const detail = row?.querySelectorAll(".owner-memory-disclosure")?.[Number(rawIndex)];
+        if (detail) detail.open = true;
+      });
+      (openState.makerTasks || []).forEach(({ ownerId, taskId }) => {
+        const detail = document.querySelector(`#ownerPipelines [data-owner-id="${escape(ownerId)}"] .maker-task-item[data-task-id="${escape(taskId)}"]`);
         if (detail) detail.open = true;
       });
       const system = document.getElementById("memorySystemDetails");
@@ -19608,7 +19682,6 @@
       panel.classList.add("is-process-preview");
       if (frame) frame.classList.remove("no-chart");
 
-      const approved = getApprovedPosts().length;
       document.getElementById("growthChartSub").textContent = "No measured growth yet";
       document.getElementById("chartPlot").innerHTML = `
         <div class="growth-projection" role="img" aria-label="Growth process preview: approve a move, Maker ships it, then Meter verifies the result">
@@ -19627,17 +19700,15 @@
             <circle class="growth-projection-node" cx="606" cy="33" r="13" stroke="#2f7468"/>
           </svg>
           <div class="growth-projection-labels" aria-hidden="true">
-            <span><strong>1 · Approve</strong>Choose a move</span>
-            <span><strong>2 · Launch</strong>Maker prepares it</span>
-            <span><strong>3 · Verify</strong>Meter records impact</span>
+            <span><strong>1 · Approve</strong></span>
+            <span><strong>2 · Launch</strong></span>
+            <span><strong>3 · Verify</strong></span>
           </div>
         </div>`;
 
       const note = document.getElementById("chartNote");
-      note.innerHTML = approved
-        ? `<b>${approved} approved move${approved === 1 ? "" : "s"} in progress</b><span>The verified growth line appears after Meter completes a measurement window.</span>`
-        : `<b>Your verified growth line starts with the first approved move.</b><span>No revenue is projected or claimed here.</span>`;
-      note.hidden = false;
+      note.replaceChildren();
+      note.hidden = true;
       document.getElementById("chartTable").innerHTML = `
         <p>There are not yet enough measured monthly results to draw a growth chart. The process is approve, launch, then verify.</p>`;
       lastDrawnMonths = null;
@@ -19685,7 +19756,7 @@
             ${months.map(m => `<tr>
               <td>${escapeHtml(m.label)}</td>
               <td>${escapeHtml(m.txt)}</td>
-              <td>${m.projected ? "Projected, not measured" : `Verified — ${m.verified} verified, ${m.miss} missed`}</td>
+              <td>${m.projected ? "Projected, not earned" : `Verified — ${m.verified} verified, ${m.miss} missed`}</td>
             </tr>`).join("")}
           </tbody>
         </table>
@@ -22323,14 +22394,13 @@ ledger_entry · artifact · agent_run`,
       const projected = status === "approved";
       const value = projected ? `${projectedMoney(post.amount)}/mo` : "Not pursued";
       const spoken = projected
-        ? `${value}, projected, not yet measured`
+        ? `${value}, projected, not earned`
         : value;
       return `
         <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}. ${spoken}.">
           <span class="decision-row-icon" aria-hidden="true">${icons[post.featureKey]}</span>
           <span class="decision-row-copy">
             <strong>${post.title}</strong>
-            <span>${post.recommendation}</span>
           </span>
           <span class="decision-row-value ${projected ? "forecast" : status === "rejected" ? "rejected" : ""}" aria-hidden="true">${value}</span>
         </button>
@@ -23557,7 +23627,7 @@ ledger_entry · artifact · agent_run`,
         { icon: "memory", className: "", iconClass: "memory", value: memories.toLocaleString("en-US"), label: "Persistent memories", note: "all owner accounts", tooltip: "The total searchable market observations stored in CockroachDB across all owner accounts. These memories remain available between agent runs instead of being resent or recreated each time." },
         { icon: "filter", className: "is-efficiency", value: efficiency.reductionDisplay, label: "Context kept out", note: "All owners", tooltip: "The portfolio-wide share of stored memory excluded before the Analyst model prompt. CockroachDB retrieves only relevant rows. The ≥ symbol means this is a conservative lower bound based on configured retrieval limits until exact live run receipts are available." },
         { icon: "tokens", className: "is-token", value: tokenValue, label: "Analyst model tokens", note: tokenNote, tooltip: "Actual input plus output tokens recorded by Analyst model runs for all owners. Pending means this snapshot has no linked live token receipt; it does not mean zero tokens were used." },
-        { icon: "zero", className: "is-zero-token", value: "0", label: "LLM tokens / refresh", note: "all owners · SQL-only read", tooltip: "Refreshing Memory Engine reads operational state directly from CockroachDB through the /workflow endpoint. It does not invoke an LLM, so each dashboard refresh consumes zero model tokens." },
+        { icon: "zero", className: "is-zero-token", value: "0", label: "Refresh model tokens", note: "SQL-only · no model call", tooltip: "Refreshing Memory Engine reads operational state directly from CockroachDB through the /workflow endpoint. It does not invoke a model, so each dashboard refresh consumes zero LLM tokens." },
       ].map(item => `
         <article class="engine-kpi ${escapeHtml(item.className || "")}">
           <button class="metric-help" type="button" aria-label="Explain ${escapeHtml(item.label)}" data-tooltip="${escapeHtml(item.tooltip)}">?</button>
