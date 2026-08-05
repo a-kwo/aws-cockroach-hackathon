@@ -40,6 +40,7 @@ from brasstacks.ask_trace import parse_ask_trace  # noqa: E402
 from brasstacks.finds import (  # noqa: E402
     SUMMARY_MAX_CHARS,
     clean_owner_copy,
+    feed_brief_for_display,
     owner_card_summary,
 )
 from brasstacks.repository import WITHHELD_STATUS  # noqa: E402
@@ -176,6 +177,35 @@ def card_summary(find: dict) -> str:
         if text and not text.endswith("."):
             text += "."
     return owner_card_summary(text)
+
+
+def _date_value(value: object) -> date | None:
+    """Coerce fixture timestamps to dates without depending on local time."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+    except ValueError:
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return None
+
+
+def verification_days(find: dict, default: int = 14) -> int:
+    """Return the promised window, stable across build and live refresh."""
+    verify_after = _date_value(find.get("verify_after"))
+    created_at = _date_value(find.get("created_at"))
+    if verify_after is None or created_at is None:
+        return default
+    return max(1, (verify_after - created_at).days)
 
 
 def bullets(move: str) -> list[str]:
@@ -431,6 +461,17 @@ def build_model(data: dict) -> dict:
         predicted = int(f["predicted_daily_cents"])
         actual = f["actual_daily_cents"]
         run_database_id = str(f.get("run_id") or "")
+        title = " ".join((f.get("title") or "").split())
+        move = " ".join((f.get("move") or "").split())
+        summary_text = card_summary(f)
+        feed_brief = feed_brief_for_display(
+            f.get("feed_brief"),
+            title=title,
+            summary=summary_text,
+            move=move,
+            verify_after_days=verification_days(f),
+            evidence_kinds=[str(item.get("kind") or "") for item in evidence],
+        )
         finds.append({
             "id": f["id"][:8],
             "databaseId": f["id"],
@@ -438,16 +479,17 @@ def build_model(data: dict) -> dict:
             "runDatabaseId": run_database_id or None,
             "origin": "agent_run" if run_database_id else "historical_import",
             "emoji": f["emoji"] or "💡",
-            "title": " ".join(f["title"].split()),
-            "shortTitle": short_title(f["title"]),
-            "tinyTitle": short_title(f["title"], 20),
-            "move": " ".join((f["move"] or "").split()),
-            "bullets": bullets(f["move"]),
+            "title": title,
+            "shortTitle": short_title(title),
+            "tinyTitle": short_title(title, 20),
+            "move": move,
+            "bullets": bullets(move),
             # The card face. Falls back to the rationale's first sentence for
             # rows written before the Analyst produced summaries, so an older
             # export still renders rather than showing an empty card.
-            "summary": card_summary(f),
+            "summary": summary_text,
             "rationale": " ".join((f["rationale"] or "").split()),
+            "feedBrief": feed_brief,
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),
             "predictedMonthlyTxt": money(predicted * PER_MONTH),

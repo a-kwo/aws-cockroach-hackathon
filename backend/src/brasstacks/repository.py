@@ -258,6 +258,11 @@ class FindContext:
     #: survive the process that decided it. NULL on finds written before tiers
     #: existed — absent, never a default of "opportunity".
     claim_type: str | None = None
+    #: Compact, bounded labels for the For You decision surface. Revenue,
+    #: evidence, approval and timing remain separate deterministic fields.
+    #: JSON-shaped so the repository contract stays independent of the
+    #: Analyst's dataclass. None on finds written before the field existed.
+    feed_brief: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -423,6 +428,7 @@ class Repository(Protocol):
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = ...,
         alternative_explanation: str | None = ...,
+        feed_brief: Mapping[str, Any] | None = ...,
         status: str = ..., withheld_reason: str | None = ...,
         claim_type: str | None = ...,
         run_id: str | None = ...,
@@ -659,7 +665,8 @@ class _Find:
     summary: str | None = None
     #: The strongest rival reading of the evidence, and why it was rejected.
     alternative_explanation: str | None = None
-    claim_type: str | None = None
+    #: Compact owner-facing metadata; absent on legacy rows.
+    feed_brief: dict[str, Any] | None = None
     evidence: list[StoredEvidence] = field(default_factory=list)
 
 
@@ -1174,6 +1181,8 @@ class InMemoryRepository:
             alternative_explanation=found.alternative_explanation,
             withheld_reason=found.withheld_reason,
             claim_type=found.claim_type,
+            feed_brief=(dict(found.feed_brief)
+                        if found.feed_brief is not None else None),
         )
 
     # -- finds -----------------------------------------------------------
@@ -1183,6 +1192,7 @@ class InMemoryRepository:
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = None,
         alternative_explanation: str | None = None,
+        feed_brief: Mapping[str, Any] | None = None,
         status: str = "proposed", withheld_reason: str | None = None,
         claim_type: str | None = None,
         run_id: str | None = None,
@@ -1213,6 +1223,7 @@ class InMemoryRepository:
             decided_at=decided_at,
             run_id=run_id,
             alternative_explanation=alternative_explanation,
+            feed_brief=(dict(feed_brief) if feed_brief is not None else None),
             withheld_reason=withheld_reason,
             claim_type=claim_type,
             # rank is the row's position in what retrieval returned, not the

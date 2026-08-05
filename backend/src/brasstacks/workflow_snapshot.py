@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -26,7 +26,9 @@ from brasstacks.agents.ask import TRAIL_PREFIX
 from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
 from brasstacks.decision_schema import ensure_decision_schema
-from brasstacks.finds import SUMMARY_MAX_CHARS, clean_owner_copy, owner_card_summary
+from brasstacks.finds import (
+    SUMMARY_MAX_CHARS, clean_owner_copy, normalise_feed_brief, owner_card_summary,
+)
 from brasstacks.repository import OWNER_SEEN_STATUSES, WITHHELD_STATUS
 from brasstacks.task_schema import ensure_task_schema
 
@@ -85,6 +87,35 @@ def _float(value: Any, default: float = 0.0) -> float:
     if value is None:
         return default
     return float(value)
+
+
+def _date_value(value: Any) -> date | None:
+    """Read a DATE/TIMESTAMPTZ/ISO value without letting display data fail a read."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+    except ValueError:
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return None
+
+
+def _verification_days(raw_find: dict[str, Any], default: int = 14) -> int:
+    """Return the promised measurement window for a live or legacy find."""
+    verify_after = _date_value(raw_find.get("verify_after"))
+    created_at = _date_value(raw_find.get("created_at"))
+    if verify_after is None or created_at is None:
+        return default
+    return max(1, (verify_after - created_at).days)
 
 
 def money(cents: int) -> str:
@@ -551,6 +582,18 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
         actual = _int(actual_raw) if actual_raw is not None else None
         find_id = str(raw_find.get("id") or "")
         run_database_id = str(raw_find.get("run_id") or "")
+        # The public contract remains exactly `"summary": card_summary(raw_find)`;
+        # compute it once because the same bounded sentence seeds the legacy
+        # feed-brief fallback below.
+        summary_text = card_summary(raw_find)
+        brief = normalise_feed_brief(
+            raw_find.get("feed_brief"),
+            title=" ".join((raw_find.get("title") or "").split()),
+            summary=summary_text,
+            move=" ".join((raw_find.get("move") or "").split()),
+            verify_after_days=_verification_days(raw_find),
+            evidence_kinds=[str(item.get("kind") or "") for item in evidence],
+        )
         finds.append({
             "id": find_id[:8],
             "databaseId": find_id,
@@ -567,8 +610,18 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             # and the live read did not select it at all until 2026-08-02 —
             # which is why the board fell back to the full rationale and the
             # deck overflowed again.
-            "summary": card_summary(raw_find),
+            "summary": summary_text,
             "rationale": " ".join((raw_find.get("rationale") or "").split()),
+            "feedBrief": {
+                "effort": brief.effort,
+                "category": brief.category,
+                "moveType": brief.move_type,
+                "pricePoint": brief.price_point,
+                "goal": brief.goal,
+                "beneficiary": brief.beneficiary,
+                "successSignal": brief.success_signal,
+                "tags": list(brief.tags),
+            },
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),
             "predictedMonthlyTxt": money(predicted * PER_MONTH),
@@ -835,7 +888,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
 
         finds = _rows(cursor, f"""
             SELECT business_id, id, run_id, emoji, title, summary,
-                   rationale, move,
+                   rationale, move, feed_brief,
                    predicted_daily_cents, confidence, verify_after, status,
                    decided_at, decision_cycle, reopened_at,
                    reopen_reason_code, reopen_reason_note, withheld_reason,

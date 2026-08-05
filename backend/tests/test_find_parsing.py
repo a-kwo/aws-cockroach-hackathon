@@ -16,6 +16,7 @@ from brasstacks.finds import (
     SUMMARY_MAX_CHARS,
     InvalidFindError,
     clean_owner_copy,
+    normalise_feed_brief,
     owner_card_summary,
     parse_find,
 )
@@ -355,3 +356,103 @@ class TestSummary:
         assert owner_card_summary(summary) == (
             "Lunch bentos are praised in reviews but barely visible online."
         )
+
+
+class TestFeedBrief:
+    """The owner feed gets a compact, structured brief instead of prose soup."""
+
+    def test_a_structured_feed_brief_survives_parsing(self):
+        find = parse_find(
+            payload(feed_brief={
+                "effort": "low",
+                "category": "Menu & offerings",
+                "move_type": "Product improvement",
+                "price_point": "$9 dessert",
+                "goal": "Lift dessert margin",
+                "beneficiary": "Dinner customers",
+                "success_signal": "More tiramisu revenue per cover",
+                "tags": ["Pricing", "Dessert", "Customer value"],
+            }),
+            today=TODAY,
+            known_observation_ids=KNOWN_IDS,
+        )
+
+        assert find.feed_brief.as_dict() == {
+            "effort": "low",
+            "category": "Menu & offerings",
+            "move_type": "Product improvement",
+            "price_point": "$9 dessert",
+            "goal": "Lift dessert margin",
+            "beneficiary": "Dinner customers",
+            "success_signal": "More tiramisu revenue per cover",
+            "tags": ["Pricing", "Dessert", "Customer value"],
+        }
+
+    def test_a_missing_feed_brief_does_not_cost_the_night(self):
+        find = parse_find(payload(), today=TODAY,
+                          known_observation_ids=KNOWN_IDS)
+
+        assert find.feed_brief.effort in {"low", "medium", "high"}
+        assert find.feed_brief.category
+        assert find.feed_brief.move_type
+        assert find.feed_brief.goal
+        assert find.feed_brief.tags
+        assert find.feed_brief.success_signal == "Meter verdict after 14 days"
+
+    def test_legacy_feed_brief_classifies_the_move_not_its_source_kind(self):
+        brief = normalise_feed_brief(
+            None,
+            title="Fix delivery value: add a fixed-price sushi set",
+            summary="Delivery customers say the portion feels small for the price.",
+            move=(
+                "Build one fixed-price sushi set for two. Photograph it in the "
+                "takeout box and list it on the ordering page."
+            ),
+            verify_after_days=20,
+            evidence_kinds=("trend", "trend"),
+        )
+
+        assert brief.category == "Menu & offerings"
+        assert brief.move_type == "Product improvement"
+        assert brief.goal == "Improve customer value and repeat orders"
+        assert brief.beneficiary == "Takeout customers"
+        assert brief.success_signal == "Meter verdict after 20 days"
+
+    def test_listing_fallback_does_not_repeat_the_title_as_the_goal(self):
+        brief = normalise_feed_brief(
+            None,
+            title="Publish and photograph the weekday lunch bento",
+            summary="The lunch offer is barely visible online.",
+            move="Add photos and prices to the website and Google Business Profile.",
+            verify_after_days=29,
+            evidence_kinds=("trend",),
+        )
+
+        assert brief.category == "Digital presence"
+        assert brief.move_type == "Listing improvement"
+        assert brief.goal == "Make the offer easier to discover"
+        assert brief.goal != "Publish and photograph the weekday lunch bento"
+
+    def test_feed_brief_copy_is_bounded_deduplicated_and_owner_safe(self):
+        find = parse_find(
+            payload(feed_brief={
+                "effort": "tiny",
+                "category": "Menu optimization",
+                "move_type": "Pricing experiment",
+                "price_point": "",
+                "goal": "Use observation 51db9a91 to " + ("raise value " * 20),
+                "beneficiary": "Customers",
+                "success_signal": "Revenue per dessert order",
+                "tags": ["Pricing", "pricing", "51db9a91", "Dessert", "Extra"],
+            }),
+            today=TODAY,
+            known_observation_ids=KNOWN_IDS,
+        )
+
+        assert find.feed_brief.effort in {"low", "medium", "high"}
+        assert find.feed_brief.price_point is None
+        assert len(find.feed_brief.goal) <= 72
+        assert "51db9a91" not in find.feed_brief.goal
+        assert len(find.feed_brief.tags) <= 3
+        assert len({tag.casefold() for tag in find.feed_brief.tags}) == len(find.feed_brief.tags)
+        assert all("51db9a91" not in tag for tag in find.feed_brief.tags)

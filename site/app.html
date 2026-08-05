@@ -16468,6 +16468,783 @@
     }
   </style>
 
+
+  <style id="analyst-feed-brief-v40">
+    /*
+      V40 turns the Analyst's prose into a decision brief. The left side answers
+      "why this move"; the right side answers "what kind of move is it". Every
+      number remains traceable to the existing find, evidence and Meter fields.
+    */
+    body.autopilot-mode .post-copy::after {
+      display: none !important;
+    }
+
+    body.autopilot-mode .feed-meta-cluster {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    body.autopilot-mode .feed-for-you-chip {
+      min-height: 31px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 13px;
+      border: 1px solid rgba(var(--accent-rgb), .32);
+      border-radius: 10px;
+      background: rgba(var(--accent-rgb), .11);
+      color: #dcbcff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 820;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .post-meta-row {
+      width: 100%;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 18px !important;
+      margin: 0 !important;
+    }
+
+    body.autopilot-mode .social-context {
+      min-width: 0;
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+    }
+
+    body.autopilot-mode .context-avatar {
+      width: 34px !important;
+      height: 34px !important;
+      border: 1px solid rgba(var(--accent-rgb), .18) !important;
+      border-radius: 11px !important;
+      background: rgba(var(--accent-rgb), .09) !important;
+      color: #ccb4ff !important;
+      box-shadow: none !important;
+    }
+
+    body.autopilot-mode .context-copy {
+      min-width: 0;
+      display: flex !important;
+      align-items: baseline !important;
+      gap: 9px !important;
+    }
+
+    body.autopilot-mode .context-copy strong {
+      color: #f5f4ff !important;
+      font-size: 12px !important;
+      font-weight: 760 !important;
+      letter-spacing: -.01em !important;
+    }
+
+    body.autopilot-mode .context-copy small {
+      color: #818ca7 !important;
+      font-size: 10.5px !important;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-card .post-title,
+    body.autopilot-mode .feed-card[data-fit] .post-title,
+    body.autopilot-mode .feed-card .post-copy h2.post-title,
+    body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+      max-width: 25ch !important;
+      margin: 0 !important;
+      color: #fafaff !important;
+      font-size: clamp(31px, 2.45vw, 40px) !important;
+      line-height: 1.18 !important;
+      letter-spacing: -.043em !important;
+      font-weight: 780 !important;
+      text-wrap: balance !important;
+      -webkit-line-clamp: 3 !important;
+    }
+
+    body.autopilot-mode .post-title::after {
+      width: 68px !important;
+      height: 3px !important;
+      margin-top: 14px !important;
+      border-radius: 999px !important;
+      background: linear-gradient(90deg, rgba(var(--accent-rgb), .95), rgba(218,48,174,.86)) !important;
+      box-shadow: 0 0 18px rgba(var(--accent-rgb), .22) !important;
+    }
+
+    body.autopilot-mode .signal-text,
+    body.autopilot-mode .feed-card[data-fit] .signal-text {
+      max-width: 60ch !important;
+      margin: 0 !important;
+      color: #b8c0d5 !important;
+      font-size: clamp(15px, 1.18vw, 18px) !important;
+      line-height: 1.58 !important;
+      font-weight: 510 !important;
+      -webkit-line-clamp: 4 !important;
+    }
+
+    body.autopilot-mode .feed-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin: 0;
+    }
+
+    body.autopilot-mode .feed-tag-list span {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 12px;
+      border: 1px solid rgba(var(--accent-rgb), .24);
+      border-radius: 11px;
+      background: rgba(var(--accent-rgb), .075);
+      color: #ceb5ff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+      font-size: 10.5px;
+      line-height: 1;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-tag-list span[data-tag-tone="2"] {
+      border-color: rgba(112,133,255,.24);
+      background: rgba(85,105,230,.085);
+      color: #aebcff;
+    }
+
+    body.autopilot-mode .feed-tag-list span[data-tag-tone="3"] {
+      border-color: rgba(226,72,174,.22);
+      background: rgba(201,55,160,.075);
+      color: #efa6d8;
+    }
+
+    body.autopilot-mode .feed-proof-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0;
+      margin-top: 2px;
+      padding-top: 17px;
+      border-top: 1px solid rgba(205,214,255,.11);
+    }
+
+    body.autopilot-mode .feed-proof-item {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 27px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      padding: 0 14px;
+      border-left: 1px solid rgba(205,214,255,.10);
+    }
+
+    body.autopilot-mode .feed-proof-item:first-child {
+      padding-left: 0;
+      border-left: 0;
+    }
+
+    body.autopilot-mode .feed-proof-item:last-child {
+      padding-right: 0;
+    }
+
+    body.autopilot-mode .feed-proof-item > i {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      color: #a995df;
+    }
+
+    body.autopilot-mode .feed-proof-item > i svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    body.autopilot-mode .feed-proof-item > span {
+      min-width: 0;
+      display: block;
+    }
+
+    body.autopilot-mode .feed-proof-item strong,
+    body.autopilot-mode .feed-proof-item small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-proof-item strong {
+      color: #edf0fb;
+      font-size: 12px;
+      line-height: 1.25;
+      font-weight: 730;
+    }
+
+    body.autopilot-mode .feed-proof-item small {
+      margin-top: 3px;
+      color: #7f8aa6;
+      font-size: 9.5px;
+      line-height: 1.2;
+      font-weight: 620;
+    }
+
+    body.autopilot-mode .feed-detail-panel {
+      min-width: 0;
+      align-self: start;
+      padding: 18px 19px 16px;
+      border: 1px solid rgba(205,214,255,.13);
+      border-radius: 22px;
+      background:
+        radial-gradient(360px 230px at 100% 0%, rgba(var(--accent-rgb), .095), transparent 72%),
+        linear-gradient(155deg, rgba(17,24,45,.96), rgba(8,13,27,.96));
+      box-shadow: 0 20px 54px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.035);
+    }
+
+    body.autopilot-mode .feed-detail-heading,
+    body.autopilot-mode .feed-glance-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 28px;
+    }
+
+    body.autopilot-mode .feed-detail-heading::after,
+    body.autopilot-mode .feed-glance-heading::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: rgba(205,214,255,.13);
+    }
+
+    body.autopilot-mode .feed-detail-heading > span,
+    body.autopilot-mode .feed-glance-heading > span {
+      color: #b38aff;
+      font-size: 10.5px;
+      line-height: 1;
+      font-weight: 830;
+      letter-spacing: .075em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-detail-heading > small {
+      order: 3;
+      padding: 5px 8px;
+      border: 1px solid rgba(207,164,255,.16);
+      border-radius: 999px;
+      background: rgba(168,92,246,.075);
+      color: #aeb5ca;
+      font-size: 8.5px;
+      line-height: 1;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-detail-list {
+      margin: 7px 0 0;
+      padding: 0;
+    }
+
+    body.autopilot-mode .feed-detail-row {
+      min-height: 45px;
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(120px, 1.1fr);
+      gap: 15px;
+      align-items: center;
+      border-bottom: 1px dashed rgba(205,214,255,.10);
+    }
+
+    body.autopilot-mode .feed-detail-row:last-child {
+      border-bottom: 0;
+    }
+
+    body.autopilot-mode .feed-detail-row dt {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #a9b2c9;
+      font-size: 11.5px;
+      font-weight: 610;
+    }
+
+    body.autopilot-mode .feed-detail-row dt i {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 22px;
+      color: #a996d5;
+    }
+
+    body.autopilot-mode .feed-detail-row dt svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    body.autopilot-mode .feed-detail-row dd {
+      min-width: 0;
+      margin: 0;
+      color: #e1e5f2;
+      font-size: 11.5px;
+      line-height: 1.35;
+      font-weight: 670;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    body.autopilot-mode .feed-detail-row.is-impact dd {
+      color: #c58cff;
+      font-size: 13.5px;
+      font-weight: 810;
+    }
+
+    body.autopilot-mode .feed-effort-pill {
+      min-height: 27px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      border: 1px solid rgba(113,229,181,.25);
+      border-radius: 9px;
+      background: rgba(62,194,143,.09);
+      color: #83e2bd;
+      font-size: 10.5px;
+      line-height: 1;
+      font-weight: 790;
+    }
+
+    body.autopilot-mode .feed-effort-pill.is-medium {
+      border-color: rgba(242,198,125,.25);
+      background: rgba(219,165,73,.09);
+      color: #efc887;
+    }
+
+    body.autopilot-mode .feed-effort-pill.is-high {
+      border-color: rgba(255,151,172,.25);
+      background: rgba(223,86,117,.09);
+      color: #ffabba;
+    }
+
+    body.autopilot-mode .feed-glance-heading {
+      margin-top: 11px;
+    }
+
+    body.autopilot-mode .feed-glance-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 7px;
+    }
+
+    body.autopilot-mode .feed-glance-item {
+      min-width: 0;
+      min-height: 104px;
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      padding: 11px 10px 8px;
+      border-left: 1px solid rgba(205,214,255,.11);
+      text-align: center;
+    }
+
+    body.autopilot-mode .feed-glance-item:first-child {
+      border-left: 0;
+    }
+
+    body.autopilot-mode .feed-glance-item > i {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      color: #db4caf;
+    }
+
+    body.autopilot-mode .feed-glance-item > i svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    body.autopilot-mode .feed-glance-item strong {
+      margin-top: 7px;
+      color: #e35bb7;
+      font-size: 10.5px;
+      line-height: 1.2;
+      font-weight: 780;
+    }
+
+    body.autopilot-mode .feed-glance-item p {
+      margin: 6px 0 0;
+      color: #c5cbda;
+      font-size: 10.5px;
+      line-height: 1.38;
+      font-weight: 520;
+      overflow-wrap: anywhere;
+    }
+
+    body.autopilot-mode .feed-plan {
+      margin-top: 10px;
+      border: 1px solid rgba(205,214,255,.105);
+      border-radius: 13px;
+      background: rgba(255,255,255,.022);
+      overflow: hidden;
+    }
+
+    body.autopilot-mode .feed-plan summary {
+      min-height: 43px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 12px;
+      color: #dce1ef;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+
+    body.autopilot-mode .feed-plan summary::-webkit-details-marker {
+      display: none;
+    }
+
+    body.autopilot-mode .feed-plan summary > span {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    body.autopilot-mode .feed-plan summary i {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      color: #ad91e1;
+    }
+
+    body.autopilot-mode .feed-plan summary svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    body.autopilot-mode .feed-plan summary b {
+      font-size: 10.5px;
+      font-weight: 740;
+    }
+
+    body.autopilot-mode .feed-plan summary small {
+      color: #818ba4;
+      font-size: 9.5px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-plan[open] summary {
+      border-bottom: 1px solid rgba(205,214,255,.09);
+      background: rgba(var(--accent-rgb), .045);
+    }
+
+    body.autopilot-mode .feed-plan-body {
+      padding: 13px 14px 14px;
+    }
+
+    body.autopilot-mode .feed-plan-body .recommendation-steps {
+      display: grid !important;
+      gap: 8px !important;
+      margin: 0 !important;
+      padding-left: 19px !important;
+      color: #c3cada !important;
+      font-size: 11px !important;
+      line-height: 1.48 !important;
+      font-weight: 560 !important;
+    }
+
+    body.autopilot-mode .feed-plan-body .recommendation-steps li {
+      display: list-item !important;
+      overflow: visible !important;
+      -webkit-line-clamp: unset !important;
+    }
+
+    body.autopilot-mode .feed-plan-body > strong {
+      color: #c3cada;
+      font-size: 11px;
+      line-height: 1.5;
+      font-weight: 560;
+    }
+
+    body.autopilot-mode .post-footer-summary {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    body.autopilot-mode .feed-read-time {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #7f89a3;
+      font-size: 10.5px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    body.autopilot-mode .feed-read-time svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    @media (min-width: 901px) {
+      body.autopilot-mode .post-body {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.04fr) minmax(390px, .96fr) !important;
+        gap: clamp(30px, 3.7vw, 58px) !important;
+        align-items: start !important;
+        align-content: start !important;
+        padding: clamp(27px, 2.45vw, 38px) clamp(30px, 3.3vw, 50px) 26px !important;
+      }
+
+      body.autopilot-mode .feed-card .post-copy,
+      body.autopilot-mode .feed-card[data-fit] .post-copy {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 0 !important;
+        height: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+        align-items: flex-start !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
+      body.autopilot-mode .post-footer {
+        min-height: 96px !important;
+        padding: 15px clamp(25px, 3.1vw, 45px) !important;
+      }
+    }
+
+    @media (max-width: 1120px) and (min-width: 901px) {
+      body.autopilot-mode .post-body {
+        grid-template-columns: minmax(0, 1fr) minmax(330px, .9fr) !important;
+        gap: 27px !important;
+        padding-inline: 28px !important;
+      }
+
+      body.autopilot-mode .feed-card .post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-title,
+      body.autopilot-mode .feed-card .post-copy h2.post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+        font-size: clamp(30px, 3.05vw, 38px) !important;
+      }
+
+      body.autopilot-mode .feed-proof-item {
+        grid-template-columns: 23px minmax(0, 1fr);
+        gap: 7px;
+        padding-inline: 9px;
+      }
+
+      body.autopilot-mode .feed-detail-panel {
+        padding-inline: 15px;
+      }
+
+      body.autopilot-mode .feed-detail-row {
+        grid-template-columns: minmax(0, .85fr) minmax(105px, 1.15fr);
+        gap: 10px;
+      }
+
+      body.autopilot-mode .feed-glance-item {
+        padding-inline: 6px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      body.autopilot-mode .post-body {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: none !important;
+        grid-auto-rows: max-content !important;
+        gap: 20px !important;
+        align-items: start !important;
+        align-content: start !important;
+        padding: 24px 18px calc(184px + env(safe-area-inset-bottom)) !important;
+        overflow-y: auto !important;
+      }
+
+      body.autopilot-mode .feed-card .post-copy,
+      body.autopilot-mode .feed-card[data-fit] .post-copy {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      body.autopilot-mode .feed-card .post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-title,
+      body.autopilot-mode .feed-card .post-copy h2.post-title,
+      body.autopilot-mode .feed-card[data-fit] .post-copy h2.post-title {
+        max-width: 24ch !important;
+        font-size: clamp(29px, 7.7vw, 38px) !important;
+        -webkit-line-clamp: unset !important;
+        overflow: visible !important;
+      }
+
+      body.autopilot-mode .signal-text,
+      body.autopilot-mode .feed-card[data-fit] .signal-text {
+        max-width: none !important;
+        font-size: 15px !important;
+        -webkit-line-clamp: unset !important;
+        overflow: visible !important;
+      }
+
+      body.autopilot-mode .feed-detail-panel {
+        width: 100%;
+        padding: 17px 16px 15px;
+        border-radius: 19px;
+      }
+
+      body.autopilot-mode .post-footer-summary {
+        justify-content: space-between;
+      }
+
+      body.autopilot-mode .post-footer {
+        gap: 10px !important;
+      }
+    }
+
+    @media (max-width: 620px) {
+      body.autopilot-mode .post-meta-row {
+        align-items: flex-start !important;
+      }
+
+      body.autopilot-mode .feed-meta-cluster {
+        gap: 10px;
+      }
+
+      body.autopilot-mode .context-copy {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+        gap: 2px !important;
+      }
+
+      body.autopilot-mode .feed-proof-strip {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      body.autopilot-mode .feed-proof-item,
+      body.autopilot-mode .feed-proof-item:first-child,
+      body.autopilot-mode .feed-proof-item:last-child {
+        min-height: 39px;
+        padding: 0 !important;
+        border-left: 0;
+      }
+
+      body.autopilot-mode .feed-detail-heading {
+        flex-wrap: wrap;
+      }
+
+      body.autopilot-mode .feed-detail-heading::after {
+        order: 2;
+      }
+
+      body.autopilot-mode .feed-detail-heading > small {
+        width: 100%;
+        order: 4;
+        justify-self: start;
+        text-align: center;
+      }
+
+      body.autopilot-mode .feed-detail-row {
+        grid-template-columns: minmax(0, .95fr) minmax(110px, 1.05fr);
+        gap: 10px;
+      }
+
+      body.autopilot-mode .feed-detail-row dt,
+      body.autopilot-mode .feed-detail-row dd {
+        font-size: 10.5px;
+      }
+
+      body.autopilot-mode .feed-glance-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+      }
+
+      body.autopilot-mode .feed-glance-item {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 30px minmax(96px, .6fr) minmax(0, 1fr);
+        gap: 9px;
+        align-items: center;
+        padding: 11px 0;
+        border-left: 0;
+        border-top: 1px solid rgba(205,214,255,.09);
+        text-align: left;
+      }
+
+      body.autopilot-mode .feed-glance-item:first-child {
+        border-top: 0;
+      }
+
+      body.autopilot-mode .feed-glance-item > i,
+      body.autopilot-mode .feed-glance-item strong,
+      body.autopilot-mode .feed-glance-item p {
+        margin: 0;
+      }
+
+      body.autopilot-mode .feed-read-time {
+        display: none;
+      }
+    }
+
+    @media (max-width: 430px) {
+      body.autopilot-mode .post-body {
+        padding-inline: 14px !important;
+      }
+
+      body.autopilot-mode .feed-for-you-chip {
+        min-height: 29px;
+        padding-inline: 10px;
+      }
+
+      body.autopilot-mode .feed-tag-list {
+        gap: 7px;
+      }
+
+      body.autopilot-mode .feed-tag-list span {
+        min-height: 31px;
+        padding-inline: 9px;
+        font-size: 9.5px;
+      }
+
+      body.autopilot-mode .feed-detail-row {
+        grid-template-columns: minmax(0, .9fr) minmax(100px, 1.1fr);
+      }
+
+      body.autopilot-mode .feed-detail-row dt i {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .visual-flow-particle,
+      body.autopilot-mode .feed-plan summary,
+      body.autopilot-mode .feed-tag-list span,
+      body.autopilot-mode .feed-detail-panel {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -17179,6 +17956,285 @@
       return completeOwnerSummary((match ? match[0] : rationale).trim());
     }
 
+
+    function boundedBriefText(value, fallback = "", limit = 72) {
+      let text = cleanOwnerCopy(value || "").replace(/\s+/g, " ").trim();
+      if (!text) text = cleanOwnerCopy(fallback || "").replace(/\s+/g, " ").trim();
+      if (text.length <= limit) return text;
+      const shortened = text.slice(0, limit).replace(/\s+\S*$/, "").replace(/[ ,;:—-]+$/, "");
+      return shortened || text.slice(0, limit).replace(/[ ,;:—-]+$/, "");
+    }
+
+    function extractPricePoint(find) {
+      const text = [find?.title, find?.summary, find?.move]
+        .map(value => cleanOwnerCopy(value || ""))
+        .join(" ");
+      const match = text.match(/\$\s?\d[\d,]*(?:\.\d{1,2})?(?:\s*(?:each|per\s+\w+|\/\s*\w+))?/i);
+      if (match) return match[0].replace(/\$\s+/, "$");
+      if (/no price change/i.test(text)) return "No price change";
+      if (/fixed[-\s]price/i.test(text)) return "Fixed-price offer";
+      return "Not specified";
+    }
+
+    function calendarDayNumber(value) {
+      // Verification is a calendar-date promise. Subtracting a TIMESTAMPTZ
+      // created_at from midnight on a DATE can lose a day depending on the
+      // owner's time zone and the hour the find was created.
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!match) return null;
+      return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+
+    function measurementWindowLabel(find) {
+      const verifyDay = calendarDayNumber(find?.verifyAfter);
+      const createdDay = calendarDayNumber(find?.createdAt);
+      if (Number.isFinite(verifyDay) && Number.isFinite(createdDay)) {
+        const days = Math.max(1, Math.round((verifyDay - createdDay) / 86400000));
+        return `${days}-day measurement`;
+      }
+      if (Number.isFinite(verifyDay)) {
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          month: "short", day: "numeric", timeZone: "UTC",
+        });
+        return `Measure by ${formatter.format(new Date(verifyDay))}`;
+      }
+      return "Measurement scheduled";
+    }
+
+    function estimatedReadMinutes(find) {
+      const words = [find?.summary, find?.rationale, find?.move]
+        .map(value => cleanOwnerCopy(value || ""))
+        .join(" ")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean).length;
+      return Math.max(1, Math.min(4, Math.ceil(words / 180)));
+    }
+
+    function inferredFeedCategory(find) {
+      const heading = String(find?.title || "").toLowerCase();
+      const text = `${find?.title || ""} ${find?.move || ""}`.toLowerCase();
+      const digital = /listing|website|photograph|photo|profile|maps|google business|yelp|order page|publish/;
+      const menu = /price|menu|dish|bundle|set|portion|offer|bento|package/;
+      const operations = /staff|schedule|wait|hours|service|prep|shift/;
+      if (digital.test(heading)) return "Digital presence";
+      if (menu.test(heading)) return "Menu & offerings";
+      if (operations.test(heading)) return "Operations";
+      if (digital.test(text)) return "Digital presence";
+      if (menu.test(text)) return "Menu & offerings";
+      if (operations.test(text)) return "Operations";
+      const kind = postCategory(find);
+      if (kind === "reviews") return "Customer experience";
+      if (kind === "competitors") return "Market position";
+      return "Growth opportunity";
+    }
+
+    function inferredMoveType(find) {
+      const heading = String(find?.title || "").toLowerCase();
+      const text = `${find?.title || ""} ${find?.move || ""}`.toLowerCase();
+      const listing = /listing|website|photograph|photo|profile|maps|google business|yelp|publish/;
+      const product = /bundle|set|menu|dish|package|portion|bento/;
+      const operations = /staff|schedule|hours|prep|wait|service|shift/;
+      const pricing = /raise price|lower price|change price|reprice|price at|set the price|discount|margin/;
+      if (listing.test(heading)) return "Listing improvement";
+      if (product.test(heading)) return "Product improvement";
+      if (pricing.test(heading)) return "Pricing improvement";
+      if (operations.test(heading)) return "Operational improvement";
+      if (pricing.test(text)) return "Pricing improvement";
+      if (product.test(text)) return "Product improvement";
+      if (listing.test(text)) return "Listing improvement";
+      if (operations.test(text)) return "Operational improvement";
+      if (/promote|marketing|campaign/.test(text)) return "Demand generation";
+      return "Growth experiment";
+    }
+
+    function inferredGoal(category, moveType) {
+      if (moveType === "Listing improvement" || category === "Digital presence") {
+        return "Make the offer easier to discover";
+      }
+      if (moveType === "Product improvement" || category === "Menu & offerings") {
+        return "Improve customer value and repeat orders";
+      }
+      if (moveType === "Pricing improvement" || category === "Menu & pricing") {
+        return "Improve value perception and conversion";
+      }
+      if (moveType === "Operational improvement" || category === "Operations") {
+        return "Improve service speed and consistency";
+      }
+      if (moveType === "Demand generation" || category === "Demand generation") {
+        return "Increase qualified customer demand";
+      }
+      if (category === "Customer experience") return "Improve the customer experience";
+      return "Test a measurable growth opportunity";
+    }
+
+    function inferredBeneficiary(find) {
+      const text = `${find?.title || ""} ${find?.summary || ""} ${find?.move || ""}`.toLowerCase();
+      if (/takeout|delivery|pickup/.test(text)) return "Takeout customers";
+      if (/lunch|dinner|breakfast/.test(text)) return "Meal-period customers";
+      return "Customers and the business";
+    }
+
+    function inferredEffort(find) {
+      const move = cleanOwnerCopy(find?.move || "").toLowerCase();
+      if (/renovat|construction|new location|sign a lease|replace the kitchen|build out/.test(move)) return "high";
+      const steps = Array.isArray(find?.bullets) ? find.bullets.filter(Boolean).length : 0;
+      if (steps >= 3 || /train |schedule |extend hours|launch |introduce |new menu|campaign|photograph/.test(move)) return "medium";
+      return "low";
+    }
+
+    function normaliseFeedBrief(find) {
+      const hasStructuredBrief = Boolean(
+        find?.feedBrief && typeof find.feedBrief === "object" && !Array.isArray(find.feedBrief)
+      );
+      const raw = hasStructuredBrief ? find.feedBrief : {};
+      const effortValue = String(raw.effort || "").trim().toLowerCase();
+      const effort = ["low", "medium", "high"].includes(effortValue)
+        ? effortValue
+        : inferredEffort(find);
+      const category = boundedBriefText(raw.category, inferredFeedCategory(find), 48);
+      const moveType = boundedBriefText(raw.moveType || raw.move_type, inferredMoveType(find), 48);
+      const goal = boundedBriefText(raw.goal, inferredGoal(category, moveType), 72);
+      const beneficiary = boundedBriefText(raw.beneficiary, inferredBeneficiary(find), 72);
+      const successSignal = boundedBriefText(
+        raw.successSignal || raw.success_signal,
+        `Meter verdict after the ${measurementWindowLabel(find).replace(" measurement", "")}`,
+        72
+      );
+
+      // A structured brief with an empty price is an intentional "not
+      // specified" from the Analyst. Only legacy rows with no brief at all may
+      // copy a price already present in the title, summary or move.
+      const suppliedPrice = boundedBriefText(raw.pricePoint ?? raw.price_point, "", 48);
+      const pricePoint = hasStructuredBrief
+        ? (suppliedPrice && !/^not applicable$/i.test(suppliedPrice)
+            ? suppliedPrice
+            : "Not specified")
+        : extractPricePoint(find);
+
+      const tags = [];
+      const seen = new Set();
+      const addTag = candidate => {
+        if (tags.length >= 3) return;
+        const tag = boundedBriefText(candidate, "", 28);
+        const key = tag.toLowerCase();
+        if (!tag || seen.has(key)) return;
+        seen.add(key);
+        tags.push(tag);
+      };
+      if (Array.isArray(raw.tags)) raw.tags.forEach(addTag);
+      // Preserve a precise two- or three-tag Analyst brief. Add deterministic
+      // fallbacks only when the model did not provide enough useful labels.
+      if (tags.length < 2) {
+        [category, moveType, beneficiary, "Measurable", "Owner reviewed"].forEach(candidate => {
+          if (tags.length < 2) addTag(candidate);
+        });
+      }
+
+      return { effort, category, moveType, pricePoint, goal, beneficiary, successSignal, tags };
+    }
+
+    function feedDetailIcon(name) {
+      const paths = {
+        impact: '<path d="M4 15l5-5 4 4 7-8"/><path d="M15 6h5v5"/>',
+        effort: '<circle cx="12" cy="13" r="7"/><path d="M12 13l3-2M9 3h6M12 6V3"/>',
+        category: '<path d="M3 6.5h7l2 2h9v10.5H3z"/>',
+        type: '<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8.5" cy="8.5" r="1"/>',
+        price: '<circle cx="12" cy="12" r="9"/><path d="M15 8.5c-.7-.5-1.7-.8-2.8-.8-1.6 0-2.7.8-2.7 2s1.1 1.8 2.8 2.1c1.8.3 2.9.9 2.9 2.3s-1.2 2.2-3 2.2c-1.3 0-2.5-.4-3.3-1.1M12 6v12"/>',
+        approval: '<path d="M12 3l8 3v5c0 5-3.2 8.5-8 10-4.8-1.5-8-5-8-10V6z"/><path d="M8.5 12l2.2 2.2 4.8-5"/>',
+        goal: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M15 9l5-5M16 4h4v4"/>',
+        people: '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6M14 15c3.5-.3 5.8 1.4 6.5 4.5"/>',
+        signal: '<circle cx="12" cy="12" r="9"/><path d="M8 12l2.6 2.6L16.5 9"/>',
+        evidence: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+        confidence: '<path d="M4 17l5-5 4 3 7-8"/><path d="M16 7h4v4"/>',
+        calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 9h18"/>',
+        clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+      };
+      return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.signal}</svg>`;
+    }
+
+    function titleCaseLabel(value) {
+      const text = String(value || "");
+      return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+    }
+
+    function renderFeedTags(post) {
+      const tags = (post.feedBrief?.tags || []).slice(0, 3);
+      return tags.map((tag, index) =>
+        `<span data-tag-tone="${index + 1}">${escapeHtml(tag)}</span>`
+      ).join("");
+    }
+
+    function renderFeedProofStrip(post) {
+      const evidenceCount = Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0));
+      const rawConfidence = Number(post.confidence);
+      const confidence = Number.isFinite(rawConfidence)
+        ? Math.max(0, Math.min(100, Math.round(rawConfidence)))
+        : 0;
+      const confidenceLabel = `${confidence}% confidence`;
+      const items = [
+        { icon: "evidence", value: String(evidenceCount), label: evidenceCount === 1 ? "Evidence row" : "Evidence rows" },
+        { icon: "confidence", value: confidenceLabel, label: "Analyst confidence" },
+        { icon: "calendar", value: post.measurementWindowLabel, label: "Measurement window" },
+      ];
+      return items.map(item => `
+        <span class="feed-proof-item">
+          <i>${feedDetailIcon(item.icon)}</i>
+          <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>
+        </span>`).join("");
+    }
+
+    function renderFeedDetailPanel(post) {
+      const brief = post.feedBrief;
+      const detailRows = [
+        { icon: "impact", label: "Projected impact", value: `${formatMoney(post.amount)} / month`, tone: "impact" },
+        { icon: "effort", label: "Effort", value: titleCaseLabel(brief.effort), tone: `effort-${brief.effort}` },
+        { icon: "category", label: "Category", value: brief.category },
+        { icon: "type", label: "Type", value: brief.moveType },
+        { icon: "price", label: "Price point", value: brief.pricePoint },
+        { icon: "approval", label: "Owner approval", value: "Required" },
+      ];
+      const glance = [
+        { icon: "goal", label: "Goal", value: brief.goal },
+        { icon: "people", label: "Who benefits", value: brief.beneficiary },
+        { icon: "signal", label: "Success signal", value: brief.successSignal },
+      ];
+      const stepCount = (post.steps || []).filter(Boolean).length || 1;
+
+      return `
+        <aside class="feed-detail-panel" aria-label="Recommendation details">
+          <div class="feed-detail-heading">
+            <span>Key details</span>
+            <small>Projected · not earned</small>
+          </div>
+          <dl class="feed-detail-list">
+            ${detailRows.map(row => `
+              <div class="feed-detail-row ${row.tone ? `is-${row.tone}` : ""}">
+                <dt><i>${feedDetailIcon(row.icon)}</i><span>${escapeHtml(row.label)}</span></dt>
+                <dd>${row.label === "Effort"
+                  ? `<span class="feed-effort-pill is-${escapeHtml(brief.effort)}">${escapeHtml(row.value)}</span>`
+                  : escapeHtml(row.value || "Not specified")}</dd>
+              </div>`).join("")}
+          </dl>
+          <div class="feed-glance-heading"><span>At a glance</span></div>
+          <div class="feed-glance-grid">
+            ${glance.map(item => `
+              <section class="feed-glance-item">
+                <i>${feedDetailIcon(item.icon)}</i>
+                <strong>${escapeHtml(item.label)}</strong>
+                <p>${escapeHtml(item.value)}</p>
+              </section>`).join("")}
+          </div>
+          <details class="feed-plan">
+            <summary>
+              <span><i>${feedDetailIcon("signal")}</i><b>Execution plan</b></span>
+              <small>${stepCount} step${stepCount === 1 ? "" : "s"}</small>
+            </summary>
+            <div class="feed-plan-body">${renderSteps(post)}</div>
+          </details>
+        </aside>`;
+    }
+
     function findToPost(find, { serverVerified = false } = {}) {
       const featureKey = postCategory(find);
       const styles = {
@@ -17198,6 +18254,7 @@
         // phone and desktop; the clean rationale remains available in details.
         signal: conciseFindSummary(find),
         fullSignal: cleanOwnerCopy(find.rationale || find.summary || ""),
+        feedBrief: normaliseFeedBrief(find),
         recommendation: find.move,
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],
@@ -17206,7 +18263,10 @@
         highlightLabel: "Evidence used",
         highlightValue: `${find.evidenceCount || 0} memories`,
         confidence: find.confidence,
+        evidenceCount: Math.max(0, Number(find.evidenceCount || find.evidence?.length || 0)),
         evidence: find.evidence || [],
+        measurementWindowLabel: measurementWindowLabel(find),
+        readMinutes: estimatedReadMinutes(find),
         artifacts: Array.isArray(find.artifacts) ? find.artifacts : [],
         verifyAfter: find.verifyAfter,
         workflowStatus: String(find.status || "proposed"),
@@ -18816,8 +19876,8 @@
         <article
           class="feed-card ${positionClass}"
           style="--accent:${post.accent};--accent-rgb:${post.accentRgb}"
-          data-post-id="${post.id}"
-          data-feature="${post.featureKey}"
+          data-post-id="${escapeHtml(post.id)}"
+          data-feature="${escapeHtml(post.featureKey)}"
           data-index="${index}"
           aria-hidden="${index === currentIndex ? "false" : "true"}"
         >
@@ -18833,41 +19893,43 @@
               </div>
               <div class="post-copy">
                 <div class="post-meta-row">
-                  <div class="social-context">
-                    <span class="context-avatar" aria-hidden="true">${icons[post.featureKey]}</span>
-                    <span class="context-copy"><strong>${post.feature}</strong><small>${post.sourceTime}</small></span>
+                  <div class="feed-meta-cluster">
+                    <span class="feed-for-you-chip">For you</span>
+                    <div class="social-context">
+                      <span class="context-avatar" aria-hidden="true">${icons[post.featureKey]}</span>
+                      <span class="context-copy"><strong>${escapeHtml(post.feature)}</strong><small>${escapeHtml(post.sourceTime)}</small></span>
+                    </div>
                   </div>
-                  <button class="details-button top-details-button" type="button" data-open-post="${post.id}" aria-label="Open details for ${post.title}">
+                  <button class="details-button top-details-button" type="button" data-open-post="${escapeHtml(post.id)}" aria-label="Open details for ${escapeHtml(post.title)}">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 11v5M12 8h.01" /></svg>
                   </button>
                 </div>
                 ${post.reopenedAt ? `<span class="reopened-chip">Reopened · previously approved</span>` : ""}
-                <h2 class="post-title">${post.title}</h2>
+                <h2 class="post-title">${escapeHtml(post.title)}</h2>
                 <p class="signal-text">${escapeHtml(post.signal || "")}</p>
-                <div class="recommendation">
-                  <span class="recommendation-icon" aria-hidden="true">${icons.action}</span>
-                  <span class="recommendation-copy">
-                    <span>Try this</span>
-                    ${renderSteps(post)}
-                  </span>
-                </div>
+                <div class="feed-tag-list" aria-label="Recommendation tags">${renderFeedTags(post)}</div>
+                <div class="feed-proof-strip" aria-label="Recommendation proof">${renderFeedProofStrip(post)}</div>
               </div>
+              ${renderFeedDetailPanel(post)}
             </div>
 
             <footer class="post-footer">
-              <div class="impact-summary">
-                <strong>${formatMoney(post.amount)}</strong>
-                <span>
-                  <b>Monthly potential</b>
-                  <small>${decisionSyncPending ? "Checking latest decision status…" : "Nothing changes until approved"}</small>
-                </span>
+              <div class="post-footer-summary">
+                <div class="impact-summary">
+                  <strong>${formatMoney(post.amount)}</strong>
+                  <span>
+                    <b>Monthly potential</b>
+                    <small>${decisionSyncPending ? "Checking latest decision status…" : "Nothing changes until approved"}</small>
+                  </span>
+                </div>
+                <span class="feed-read-time">${feedDetailIcon("clock")} ${post.readMinutes} min read</span>
               </div>
 
               <div class="decision-actions" aria-label="Respond to this recommendation">
-                <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}"${decisionDisabled}>
+                <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${escapeHtml(post.id)}"${decisionDisabled}>
                   ${icons.rejected}<span>Pass</span>
                 </button>
-                <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}"${decisionDisabled}>
+                <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${escapeHtml(post.id)}"${decisionDisabled}>
                   ${icons.approved}<span>Do it</span>
                 </button>
               </div>
@@ -23015,7 +24077,7 @@ ledger_entry · artifact · agent_run`,
     });
 
     function escapeHtml(value) {
-      return value.replace(/[&<>'"]/g, character => ({
+      return String(value ?? "").replace(/[&<>'"]/g, character => ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",

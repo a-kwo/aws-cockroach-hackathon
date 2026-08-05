@@ -157,6 +157,17 @@ CORPUS_ROWS_READ = 500
 #: thinner — asking for ten would buy seven restatements of the first.
 MAX_FINDS_PER_NIGHT = 3
 
+_FEED_BRIEF_PROPERTIES = {
+    "effort": {"type": "string"},
+    "category": {"type": "string"},
+    "move_type": {"type": "string"},
+    "price_point": {"type": "string"},
+    "goal": {"type": "string"},
+    "beneficiary": {"type": "string"},
+    "success_signal": {"type": "string"},
+    "tags": {"type": "array", "items": {"type": "string"}},
+}
+
 _FIND_PROPERTIES = {
     "emoji": {"type": "string"},
     "title": {"type": "string"},
@@ -170,6 +181,16 @@ _FIND_PROPERTIES = {
     "summary": {"type": "string"},
     "rationale": {"type": "string"},
     "move": {"type": "string"},
+    # Compact display metadata for the owner feed. Bounds and vocabulary are
+    # described in the prompt rather than with maxLength/enum: Anthropic's
+    # structured-output endpoint rejects several otherwise-valid JSON Schema
+    # keywords, and one unsupported keyword would cost the entire night.
+    "feed_brief": {
+        "type": "object",
+        "properties": dict(_FEED_BRIEF_PROPERTIES),
+        "required": list(_FEED_BRIEF_PROPERTIES),
+        "additionalProperties": False,
+    },
     "alternative_explanation": {"type": "string"},
     "predicted_daily_cents": {"type": "integer"},
     "confidence": {"type": "number"},
@@ -186,8 +207,8 @@ _FIND_PROPERTIES = {
 FIND_SCHEMA = {
     "type": "object",
     "properties": dict(_FIND_PROPERTIES),
-    "required": ["title", "summary", "rationale", "move", "claim_type",
-                 "alternative_explanation",
+    "required": ["title", "summary", "rationale", "move", "feed_brief",
+                 "claim_type", "alternative_explanation",
                  "predicted_daily_cents", "confidence", "verify_after_days",
                  "evidence_observation_ids"],
     "additionalProperties": False,
@@ -251,6 +272,15 @@ record. Reference observation ids here only, never in the title or summary. Do \
 not repeat the same point merely to make the paragraph longer.
 - `move`: the steps to take. Write them as separate short sentences, one action \
 each, so they can be shown as a checklist. No numbered lists inside a paragraph.
+- `feed_brief`: the compact structure beside the recommendation. It must not introduce a fact \
+that is absent from the title, summary, move, owner context, or cited evidence. Keep every \
+label concrete and short. `effort` is exactly `low`, `medium`, or `high`; `category` and \
+`move_type` are plain owner language; `price_point` is the exact price or pricing rule already \
+supported by the move, otherwise an empty string — never invent a price; `goal`, `beneficiary`, and \
+`success_signal` form the three-item "At a glance" block; `success_signal` names the observable \
+outcome Meter should check, never a vague promise; and `tags` contains two or three distinct \
+labels, each no more than a few words. This object organises the same recommendation — it \
+must not introduce a fact, inflate the prediction, or smuggle an unsupported detail onto the card.
 - `alternative_explanation`: the operator record, not the card. One or two \
 sentences: the rival reading, then why you reject it.
 - `claim_type`: which KIND of claim this is. Exactly one of the four below.
@@ -1308,6 +1338,7 @@ def _analyst_night(
             summary=proposal.summary,
             rationale=proposal.rationale,
             move=proposal.move,
+            feed_brief=proposal.feed_brief.as_dict(),
             alternative_explanation=proposal.alternative_explanation,
             # The tier AFTER demotion, not the one the model asked for. It is
             # the difference between "worth a look" and "your storefront is

@@ -960,3 +960,61 @@ class TestFindsSchemaIsAcceptedByTheProvider:
         from brasstacks.agents.analyst import MAX_FINDS_PER_NIGHT
 
         assert MAX_FINDS_PER_NIGHT == 3
+
+
+def test_analyst_requests_a_structured_owner_feed_brief(repo, business):
+    from brasstacks.agents.analyst import FIND_SCHEMA
+
+    embedder = FakeEmbedder()
+    ids = []
+    for text in ("customers praise tiramisu", "rivals charge more for dessert"):
+        [vector] = embedder.embed([text])
+        ids.append(repo.insert_observation(
+            business, content=text, kind="review", embedding=vector,
+            observed_at=NOW,
+        ))
+    reasoner = FakeReasoner([find_payload(evidence_observation_ids=ids)])
+
+    run_analyst(repo=repo, embedder=embedder, reasoner=reasoner,
+                business_id=business, today=TODAY)
+
+    system = reasoner.calls[0]["system"]
+    brief = FIND_SCHEMA["properties"]["feed_brief"]
+    assert "feed_brief" in FIND_SCHEMA["required"]
+    assert set(brief["properties"]) == {
+        "effort", "category", "move_type", "price_point", "goal",
+        "beneficiary", "success_signal", "tags",
+    }
+    assert "At a glance" in system
+    assert "low`, `medium`, or `high" in system
+    assert "must not introduce a fact" in system
+
+
+def test_analyst_stores_the_structured_feed_brief(repo, business):
+    embedder = FakeEmbedder()
+    [vector] = embedder.embed(["customers praise tiramisu"])
+    observation_id = repo.insert_observation(
+        business, content="customers praise tiramisu", kind="review",
+        embedding=vector, observed_at=NOW,
+    )
+    reasoner = FakeReasoner([find_payload(
+        evidence_observation_ids=[observation_id],
+        feed_brief={
+            "effort": "low",
+            "category": "Menu & offerings",
+            "move_type": "Pricing improvement",
+            "price_point": "$9 dessert",
+            "goal": "Lift dessert margin",
+            "beneficiary": "Dinner customers",
+            "success_signal": "Higher dessert revenue per cover",
+            "tags": ["Pricing", "Dessert"],
+        },
+    )])
+
+    result = run_analyst(repo=repo, embedder=embedder, reasoner=reasoner,
+                         business_id=business, today=TODAY)
+    context = repo.get_find_context(business, result.find_id)
+
+    assert context.feed_brief["effort"] == "low"
+    assert context.feed_brief["move_type"] == "Pricing improvement"
+    assert context.feed_brief["tags"] == ["Pricing", "Dessert"]

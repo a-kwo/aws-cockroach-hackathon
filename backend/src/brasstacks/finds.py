@@ -47,6 +47,15 @@ MAX_VERIFY_AFTER_DAYS = 180
 
 DEFAULT_EMOJI = "💡"
 
+#: The For You card is a decision surface, not a second rationale. These
+#: bounds keep the Analyst's structured labels scan-friendly while preserving
+#: the full argument and action plan in their existing fields.
+FEED_BRIEF_EFFORTS = ("low", "medium", "high")
+FEED_BRIEF_MAX_TAGS = 3
+FEED_BRIEF_TAG_MAX_CHARS = 28
+FEED_BRIEF_LABEL_MAX_CHARS = 48
+FEED_BRIEF_GLANCE_MAX_CHARS = 72
+
 
 class InvalidFindError(ValueError):
     """The model's proposal is not trustworthy enough to store."""
@@ -169,6 +178,39 @@ class ClaimVerdict:
     def reason(self) -> str:
         """One sentence for a `withheld_reason` column or an operator log."""
         return "; ".join(self.reasons)
+
+
+@dataclass(frozen=True)
+class FeedBrief:
+    """Compact, owner-facing structure for one For You recommendation.
+
+    The fields are deliberately descriptive rather than evidential. Impact,
+    confidence, evidence count, approval policy and the verification date stay
+    deterministic elsewhere in the product; the model only supplies the short
+    labels that help an owner understand what kind of move this is.
+    """
+
+    effort: str
+    category: str
+    move_type: str
+    price_point: str | None
+    goal: str
+    beneficiary: str
+    success_signal: str
+    tags: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, Any]:
+        """JSON-safe representation stored in CockroachDB."""
+        return {
+            "effort": self.effort,
+            "category": self.category,
+            "move_type": self.move_type,
+            "price_point": self.price_point,
+            "goal": self.goal,
+            "beneficiary": self.beneficiary,
+            "success_signal": self.success_signal,
+            "tags": list(self.tags),
+        }
 
 
 def _independent_sources(facts: Sequence[EvidenceFact]) -> int:
@@ -337,6 +379,20 @@ class ParsedFind:
     #: is not stored: `find_evidence.rank` is the row's position in what
     #: retrieval returned, looked up per id by the Analyst.
     evidence_observation_ids: tuple[str, ...]
+    #: Structured copy for the owner feed. The default keeps older direct
+    #: constructors (notably the Refuter tests and historical integrations)
+    #: source-compatible; `parse_find` always replaces it with a brief derived
+    #: from the proposal and its real measurement window.
+    feed_brief: FeedBrief = field(default_factory=lambda: FeedBrief(
+        effort="medium",
+        category="Growth opportunity",
+        move_type="Growth experiment",
+        price_point=None,
+        goal="Review the proposed move",
+        beneficiary="Customers and the business",
+        success_signal="Meter verdict after the measurement window",
+        tags=("Measurable", "Owner reviewed"),
+    ))
     #: The strongest rival reading of the same evidence, and why it was
     #: rejected. Optional rather than required: this is a prompt rule, not a
     #: gate, and losing a whole night's deck because a model skipped a field
@@ -417,6 +473,324 @@ def owner_card_summary(text: str, limit: int = SUMMARY_MAX_CHARS) -> str:
     if stem and stem[-1] not in ".!?":
         stem += "."
     return stem
+
+
+def _bounded_owner_label(value: Any, fallback: str, limit: int) -> str:
+    """Clean one short owner-facing label and cap it at a word boundary."""
+    text = clean_owner_copy(value) if isinstance(value, str) else ""
+    text = " ".join(text.split()) or " ".join(clean_owner_copy(fallback).split())
+    if len(text) <= limit:
+        return text
+    shortened = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:—-")
+    return shortened or text[:limit].rstrip(" ,;:—-")
+
+
+def _feed_effort(raw: Any, move: str) -> str:
+    value = str(raw or "").strip().lower().replace("_", " ")
+    aliases = {
+        "easy": "low", "light": "low", "small": "low", "tiny": "low",
+        "moderate": "medium", "mid": "medium", "medium effort": "medium",
+        "large": "high", "heavy": "high", "complex": "high",
+    }
+    value = aliases.get(value, value)
+    if value in FEED_BRIEF_EFFORTS:
+        return value
+
+    lowered = move.lower()
+    if any(term in lowered for term in (
+        "renovat", "construction", "new location", "sign a lease",
+        "hire a manager", "replace the kitchen", "build out",
+    )):
+        return "high"
+    steps = len([part for part in re.split(r"[.;]\s+|\s+and\s+", move) if part.strip()])
+    if steps >= 3 or any(term in lowered for term in (
+        "train ", "schedule ", "extend hours", "launch ", "introduce ",
+        "new menu", "campaign", "photograph", "update every",
+    )):
+        return "medium"
+    return "low"
+
+
+def _feed_category(*, title: str, move: str,
+                   evidence_kinds: Sequence[str]) -> str:
+    """Classify the move, using source kind only when the move is ambiguous.
+
+    A recommendation supported by a trend row is not automatically a demand
+    campaign. The owner is deciding what will change, so title and move intent
+    outrank where Radar happened to find the evidence.
+    """
+    heading = title.lower()
+    text = f"{title} {move}".lower()
+    digital_terms = (
+        "listing", "website", "photograph", "photo", "profile", "maps",
+        "google business", "yelp", "order page", "publish",
+    )
+    menu_terms = (
+        "price", "menu", "dish", "bundle", "set", "portion", "offer",
+        "bento", "package",
+    )
+    operations_terms = (
+        "staff", "schedule", "wait", "hours", "service", "prep", "shift",
+    )
+
+    # The title is the Analyst's statement of intent and avoids a long move
+    # being misclassified merely because one implementation step says
+    # "upload a photo" or "confirm the price".
+    if any(term in heading for term in digital_terms):
+        return "Digital presence"
+    if any(term in heading for term in menu_terms):
+        return "Menu & offerings"
+    if any(term in heading for term in operations_terms):
+        return "Operations"
+    if any(term in text for term in digital_terms):
+        return "Digital presence"
+    if any(term in text for term in menu_terms):
+        return "Menu & offerings"
+    if any(term in text for term in operations_terms):
+        return "Operations"
+
+    kinds = {str(kind or "").lower() for kind in evidence_kinds}
+    if kinds & {"rival_price", "rival_menu"}:
+        return "Menu & pricing"
+    if "review" in kinds:
+        return "Customer experience"
+    if kinds & {"trend", "social"}:
+        return "Demand generation"
+    if "owner_upload" in kinds:
+        return "Operations"
+    return "Growth opportunity"
+
+
+def _feed_move_type(title: str, move: str) -> str:
+    """Name the intervention, not incidental words in its checklist."""
+    heading = title.lower()
+    text = f"{title} {move}".lower()
+    listing_terms = (
+        "listing", "website", "photograph", "photo", "profile", "maps",
+        "google business", "yelp", "publish",
+    )
+    product_terms = (
+        "bundle", "set", "menu", "dish", "package", "portion", "bento",
+    )
+    operations_terms = (
+        "staff", "schedule", "hours", "prep", "wait", "service", "shift",
+    )
+    pricing_actions = (
+        "raise price", "lower price", "change price", "reprice", "price at",
+        "set the price", "discount", "margin",
+    )
+
+    if any(term in heading for term in listing_terms):
+        return "Listing improvement"
+    if any(term in heading for term in product_terms):
+        return "Product improvement"
+    if any(term in heading for term in pricing_actions):
+        return "Pricing improvement"
+    if any(term in heading for term in operations_terms):
+        return "Operational improvement"
+    if any(term in text for term in pricing_actions):
+        return "Pricing improvement"
+    if any(term in text for term in product_terms):
+        return "Product improvement"
+    if any(term in text for term in listing_terms):
+        return "Listing improvement"
+    if any(term in text for term in operations_terms):
+        return "Operational improvement"
+    if any(term in text for term in ("promote", "marketing", "campaign")):
+        return "Demand generation"
+    return "Growth experiment"
+
+
+def _feed_goal(category: str, move_type: str) -> str:
+    """Provide a useful legacy fallback without repeating the card title."""
+    if move_type == "Listing improvement" or category == "Digital presence":
+        return "Make the offer easier to discover"
+    if move_type == "Product improvement" or category == "Menu & offerings":
+        return "Improve customer value and repeat orders"
+    if move_type == "Pricing improvement" or category == "Menu & pricing":
+        return "Improve value perception and conversion"
+    if move_type == "Operational improvement" or category == "Operations":
+        return "Improve service speed and consistency"
+    if move_type == "Demand generation" or category == "Demand generation":
+        return "Increase qualified customer demand"
+    if category == "Customer experience":
+        return "Improve the customer experience"
+    return "Test a measurable growth opportunity"
+
+
+_PRICE_POINT = re.compile(r"\$\s?\d[\d,]*(?:\.\d{1,2})?")
+
+
+def _feed_price_point(
+    raw: Any, *, title: str, summary: str, move: str, infer: bool,
+) -> str | None:
+    """Return an explicit price label, never a model-invented one.
+
+    A present-but-empty `price_point` is an intentional "not specified" from
+    the Analyst and must stay empty. Inference is reserved for legacy rows that
+    predate the object entirely; even then it only copies a currency value or
+    the exact phrase "no price change" from owner-facing source fields.
+    """
+    if isinstance(raw, str):
+        if raw.strip():
+            return _bounded_owner_label(raw, "", FEED_BRIEF_LABEL_MAX_CHARS) or None
+        return None
+    if not infer:
+        return None
+    text = " ".join((title, move, summary))
+    match = _PRICE_POINT.search(text)
+    if match:
+        return match.group(0).replace(" ", "")
+    if "no price change" in text.lower():
+        return "No price change"
+    return None
+
+
+def _feed_beneficiary(*, title: str, summary: str, move: str,
+                      evidence_kinds: Sequence[str]) -> str:
+    text = f"{title} {summary} {move}".lower()
+    if any(term in text for term in ("takeout", "delivery", "pickup")):
+        return "Takeout customers"
+    if any(term in text for term in ("lunch", "dinner", "breakfast")):
+        return "Meal-period customers"
+    if "review" in {str(kind or "").lower() for kind in evidence_kinds}:
+        return "Customers"
+    return "Customers and the business"
+
+
+def _feed_tags(raw: Any, *, category: str, move_type: str,
+               beneficiary: str) -> tuple[str, ...]:
+    """Clean model tags without silently changing a valid two-tag brief."""
+    tags: list[str] = []
+    seen: set[str] = set()
+
+    def add(candidate: Any) -> None:
+        if not isinstance(candidate, str) or len(tags) >= FEED_BRIEF_MAX_TAGS:
+            return
+        tag = _bounded_owner_label(candidate, "", FEED_BRIEF_TAG_MAX_CHARS)
+        key = tag.casefold()
+        if not tag or key in seen:
+            return
+        seen.add(key)
+        tags.append(tag)
+
+    if isinstance(raw, (list, tuple)):
+        for candidate in raw:
+            add(candidate)
+        # Two specific model labels already satisfy the contract. Adding a
+        # generic category here makes a carefully authored brief noisier and
+        # creates a static/live mismatch for no owner benefit.
+        if len(tags) >= 2:
+            return tuple(tags)
+
+    for candidate in (category, move_type, beneficiary):
+        add(candidate)
+        if len(tags) >= 2:
+            break
+    for fallback in ("Measurable", "Owner reviewed"):
+        add(fallback)
+        if len(tags) >= 2:
+            break
+    return tuple(tags)
+
+
+def normalise_feed_brief(
+    value: Any,
+    *,
+    title: str,
+    summary: str,
+    move: str,
+    verify_after_days: int,
+    evidence_kinds: Sequence[str] = (),
+) -> FeedBrief:
+    """Return a complete, bounded brief from model JSON or legacy find copy.
+
+    The model is prompted and schema-bound to produce this object, but the
+    parser deliberately does not turn presentation metadata into a rejection
+    gate. A malformed brief is repaired from the trusted title, move,
+    verification window and evidence kinds; it never fabricates a price.
+    """
+    raw = value if isinstance(value, Mapping) else {}
+    category_fallback = _feed_category(
+        title=title, move=move, evidence_kinds=evidence_kinds,
+    )
+    category = _bounded_owner_label(
+        raw.get("category"), category_fallback, FEED_BRIEF_LABEL_MAX_CHARS,
+    )
+    move_type = _bounded_owner_label(
+        raw.get("move_type", raw.get("moveType")),
+        _feed_move_type(title, move), FEED_BRIEF_LABEL_MAX_CHARS,
+    )
+    beneficiary = _bounded_owner_label(
+        raw.get("beneficiary"),
+        _feed_beneficiary(
+            title=title, summary=summary, move=move,
+            evidence_kinds=evidence_kinds,
+        ),
+        FEED_BRIEF_GLANCE_MAX_CHARS,
+    )
+    goal = _bounded_owner_label(
+        raw.get("goal"), _feed_goal(category, move_type),
+        FEED_BRIEF_GLANCE_MAX_CHARS,
+    )
+    success_signal = _bounded_owner_label(
+        raw.get("success_signal", raw.get("successSignal")),
+        f"Meter verdict after {max(1, int(verify_after_days))} days",
+        FEED_BRIEF_GLANCE_MAX_CHARS,
+    )
+    return FeedBrief(
+        effort=_feed_effort(raw.get("effort"), move),
+        category=category,
+        move_type=move_type,
+        price_point=_feed_price_point(
+            raw.get("price_point", raw.get("pricePoint")),
+            title=title, summary=summary, move=move,
+            infer=not bool(raw),
+        ),
+        goal=goal,
+        beneficiary=beneficiary,
+        success_signal=success_signal,
+        tags=_feed_tags(
+            raw.get("tags"), category=category, move_type=move_type,
+            beneficiary=beneficiary,
+        ),
+    )
+
+
+def feed_brief_for_display(
+    value: Any,
+    *,
+    title: str,
+    summary: str,
+    move: str,
+    verify_after_days: int,
+    evidence_kinds: Sequence[str] = (),
+) -> dict[str, Any]:
+    """Return the stable camelCase contract consumed by the owner feed.
+
+    Static builds and the live workflow endpoint intentionally call the same
+    normaliser so an old CockroachDB row cannot look different after the first
+    refresh. Only descriptive labels come from the model. Revenue, approval,
+    evidence and dates remain deterministic fields elsewhere in the response.
+    """
+    brief = normalise_feed_brief(
+        value,
+        title=title,
+        summary=summary,
+        move=move,
+        verify_after_days=verify_after_days,
+        evidence_kinds=evidence_kinds,
+    )
+    return {
+        "effort": brief.effort,
+        "category": brief.category,
+        "moveType": brief.move_type,
+        "pricePoint": brief.price_point,
+        "goal": brief.goal,
+        "beneficiary": brief.beneficiary,
+        "successSignal": brief.success_signal,
+        "tags": list(brief.tags),
+    }
 
 
 def _require_text(payload: Mapping[str, Any], field: str) -> str:
@@ -585,6 +959,14 @@ def parse_find(
     move = _require_text(payload, "move")
     cents = _require_cents(payload)
     cited = _require_evidence(payload, known_observation_ids)
+    verify_after = _require_verify_after(payload, today)
+    feed_brief = normalise_feed_brief(
+        payload.get("feed_brief"),
+        title=title,
+        summary=summary,
+        move=move,
+        verify_after_days=(verify_after - today).days,
+    )
 
     requested = _known_claim_type(payload.get("claim_type"))
     if evidence_facts is None:
@@ -617,9 +999,10 @@ def parse_find(
         summary=summary,
         rationale=rationale,
         move=move,
+        feed_brief=feed_brief,
         predicted_daily_cents=cents,
         confidence=_require_confidence(payload),
-        verify_after=_require_verify_after(payload, today),
+        verify_after=verify_after,
         evidence_observation_ids=cited,
         alternative_explanation=_optional_text(payload, "alternative_explanation"),
         claim_type=verdict.tier,

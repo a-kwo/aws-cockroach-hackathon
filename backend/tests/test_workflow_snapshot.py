@@ -417,3 +417,43 @@ def test_an_estimated_ledger_row_reports_no_actual():
     assert first["verdict"] == "estimated"
     assert first["actualDaily"] is None
     assert first["actualDailyTxt"] is None
+
+
+def test_workspace_exposes_the_structured_owner_feed_brief():
+    data = demo_data()
+    data["finds"][0]["feed_brief"] = {
+        "effort": "low",
+        "category": "Menu & offerings",
+        "move_type": "Product improvement",
+        "price_point": "$9 dessert",
+        "goal": "Lift dessert margin",
+        "beneficiary": "Dinner customers",
+        "success_signal": "More dessert revenue per cover",
+        "tags": ["Pricing", "Dessert"],
+    }
+
+    [found, *_] = build_workspace(data)["finds"]
+    assert found["feedBrief"] == {
+        "effort": "low",
+        "category": "Menu & offerings",
+        "moveType": "Product improvement",
+        "pricePoint": "$9 dessert",
+        "goal": "Lift dessert margin",
+        "beneficiary": "Dinner customers",
+        "successSignal": "More dessert revenue per cover",
+        "tags": ["Pricing", "Dessert"],
+    }
+
+
+def test_workspace_builds_an_honest_brief_for_legacy_finds():
+    data = demo_data()
+    data["finds"][0].pop("feed_brief", None)
+
+    [found, *_] = build_workspace(data)["finds"]
+    brief = found["feedBrief"]
+    assert brief["effort"] in {"low", "medium", "high"}
+    assert brief["category"]
+    assert brief["moveType"]
+    assert brief["goal"]
+    assert brief["successSignal"].startswith("Meter verdict after ")
+    assert brief["tags"]

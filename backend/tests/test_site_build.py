@@ -2421,6 +2421,20 @@ def test_a_calendar_date_is_not_shifted_into_the_previous_day():
     assert "T00:00:00" in shortdate
 
 
+def test_measurement_window_uses_calendar_days_not_timestamp_hours():
+    """A DATE minus a late-afternoon TIMESTAMPTZ can appear one day shorter.
+    The proof strip and the Analyst brief must describe the same window."""
+    html = (build_web.REPO / "site" / "app.html").read_text(encoding="utf-8")
+    block = html.split("function calendarDayNumber", 1)[1].split(
+        "function estimatedReadMinutes", 1
+    )[0]
+
+    assert "Date.UTC" in block
+    assert "verifyDay - createdDay" in block
+    assert 'timeZone: "UTC"' in block
+    assert "Date.parse(find?.createdAt" not in block
+
+
 # ------------------------------- the Growth board's headline is a forecast
 #
 # The three tests below are one rule seen from three sides. `approvedAmount` is
@@ -2957,3 +2971,75 @@ def test_v38_owner_layer_does_not_restyle_memory_engine():
     assert "body.growth-mode" in block
     assert "body.console-mode" not in block
     assert ".memory-engine" not in block
+
+
+# --------------------------------------- structured Analyst feed v40
+
+
+def test_for_you_feed_renders_a_structured_analyst_brief():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    card = html.split("function renderFeedCard", 1)[1].split(
+        "function feedCardAt", 1
+    )[0]
+
+    assert "renderFeedDetailPanel(post)" in card
+    assert 'class="feed-for-you-chip"' in card
+    assert 'class="feed-tag-list"' in card
+    assert 'class="feed-proof-strip"' in card
+    assert 'class="feed-detail-panel"' in html
+    assert "Key details" in html
+    assert "At a glance" in html
+    assert "Owner approval" in html
+    assert "Execution plan" in html
+    assert "post.feedBrief" in html
+    assert "pricePoint" in html
+    assert "successSignal" in html
+
+
+def test_for_you_feed_uses_smaller_aligned_title_and_responsive_geometry():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    block = html.split('<style id="analyst-feed-brief-v40">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert "grid-template-columns: minmax(0, 1.04fr) minmax(390px, .96fr)" in block
+    assert "font-size: clamp(31px, 2.45vw, 40px) !important" in block
+    assert "max-width: 25ch !important" in block
+    assert ".feed-detail-row" in block
+    assert ".feed-glance-grid" in block
+    assert ".feed-plan" in block
+    assert "@media (max-width: 1120px)" in block
+    assert "@media (max-width: 900px)" in block
+    assert "grid-template-columns: minmax(0, 1fr) !important" in block
+    # The legacy mobile grid declared one flexible row. Without explicit
+    # max-content auto rows the copy and detail panel occupy the same track and
+    # visually overlap even though both are present in the DOM.
+    assert "grid-template-rows: none !important" in block
+    assert "grid-auto-rows: max-content !important" in block
+
+
+def test_find_to_post_carries_the_analyst_feed_brief_without_trusting_it_blindly():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    mapper = html.split("function findToPost", 1)[1].split(
+        "function postsFromMemory", 1
+    )[0]
+
+    assert "normaliseFeedBrief(find)" in mapper
+    assert "feedBrief:" in mapper
+    assert "measurementWindowLabel" in mapper
+    assert "estimatedReadMinutes" in mapper
+
+
+def test_feed_brief_frontend_preserves_honest_empty_prices_and_precise_tags():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    normaliser = html.split("function normaliseFeedBrief", 1)[1].split(
+        "function feedDetailIcon", 1
+    )[0]
+
+    assert "hasStructuredBrief" in normaliser
+    assert '"Not specified"' in normaliser
+    assert "Only legacy rows with no brief at all" in normaliser
+    assert "if (tags.length < 2)" in normaliser
+    assert "Preserve a precise two- or three-tag Analyst brief" in normaliser
+    assert "Analyst confidence" in html
+    assert 'String(value ?? "")' in html

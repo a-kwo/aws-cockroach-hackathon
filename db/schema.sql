@@ -212,6 +212,11 @@ CREATE TABLE IF NOT EXISTS find (
   summary               STRING,
   rationale             STRING NOT NULL,     -- why the agent believes it
   move                  STRING,              -- what we will actually do
+  -- Compact, bounded labels used by the For You decision surface: effort,
+  -- category, move type, price point, goal, beneficiary, success signal and
+  -- tags. Nullable for every find written before v40. The full argument and
+  -- executable plan remain in rationale/move; this object never replaces them.
+  feed_brief            JSONB,
   -- The strongest rival reading of the same evidence, and why the Analyst
   -- rejected it. Find 7c4a9124 called a Grubhub storefront broken on three
   -- fragments of one page fetched at 08:07, an hour before the restaurant
@@ -562,6 +567,7 @@ CREATE INDEX IF NOT EXISTS find_reopened_idx
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE find ADD COLUMN IF NOT EXISTS summary STRING;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS feed_brief JSONB;
 
 -- An account is created before its business (see owner_account above). Clusters
 -- provisioned when this was NOT NULL need the constraint dropped.

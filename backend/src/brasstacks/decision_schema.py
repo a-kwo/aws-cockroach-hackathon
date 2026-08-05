@@ -23,6 +23,11 @@ DECISION_SCHEMA_STATEMENTS = (
     # reached would store no finds at all rather than one without a rejected
     # alternative.
     "ALTER TABLE find ADD COLUMN IF NOT EXISTS alternative_explanation STRING",
+    # The Analyst now writes a compact owner-feed brief beside the full move.
+    # Nullable keeps rolling deploys and every pre-v40 find valid; request-time
+    # bootstrapping prevents a newer Lambda from losing the whole night merely
+    # because the explicit migration has not reached the cluster yet.
+    "ALTER TABLE find ADD COLUMN IF NOT EXISTS feed_brief JSONB",
     # Same hazard again, at the other end of the loop. The Meter now writes NULL
     # into `actual_daily_cents` for a verdict with no measurement, because
     # storing the prediction there was the ledger reporting a forecast back as

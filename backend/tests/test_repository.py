@@ -1201,3 +1201,29 @@ def test_profile_fact_replacement_preserves_unrelated_owner_memory():
     assert repo._facts[chat_fact]["superseded_by"] is None
     assert repo._facts[first[0]]["superseded_by"] == second[0]
     assert repo._facts[second[0]]["profile_managed"] is True
+
+
+def test_find_context_round_trips_the_owner_feed_brief(repo, business):
+    observation_id = repo.insert_observation(
+        business, content="Customers want a fixed-price set", kind="review",
+        embedding=DESSERT, observed_at=datetime.now(timezone.utc),
+    )
+    brief = {
+        "effort": "medium",
+        "category": "Menu & offerings",
+        "move_type": "Product improvement",
+        "price_point": "$24 fixed-price set",
+        "goal": "Improve value perception",
+        "beneficiary": "Takeout customers",
+        "success_signal": "Higher reorder rate",
+        "tags": ["Takeout", "Customer value"],
+    }
+    find_id = repo.insert_find_with_evidence(
+        business, title="Add a fixed-price set", rationale="Customers asked.",
+        move="Define and list one set.", emoji="🍱",
+        predicted_daily_cents=1600, confidence=.72, verify_after=TODAY,
+        evidence=[EvidenceRef(observation_id, .8)], feed_brief=brief,
+    )
+
+    context = repo.get_find_context(business, find_id)
+    assert context.feed_brief == brief

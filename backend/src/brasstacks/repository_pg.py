@@ -823,7 +823,8 @@ class PostgresRepository:
                        predicted_daily_cents, confidence, verify_after,
                        decided_at, decision_cycle, reopened_at,
                        reopen_reason_code, reopen_reason_note,
-                       alternative_explanation, withheld_reason, claim_type
+                       alternative_explanation, withheld_reason, claim_type,
+                       feed_brief
                 FROM find
                 WHERE id = %s AND business_id = %s
                 """,
@@ -840,7 +841,7 @@ class PostgresRepository:
             decision_cycle=int(row[10] or 1), reopened_at=row[11],
             reopen_reason_code=row[12], reopen_reason_note=row[13],
             alternative_explanation=row[14], withheld_reason=row[15],
-            claim_type=row[16],
+            claim_type=row[16], feed_brief=_mapping(row[17]) or None,
         )
 
     # -- finds -----------------------------------------------------------
@@ -850,6 +851,7 @@ class PostgresRepository:
         verify_after: date, evidence: Sequence[EvidenceRef],
         summary: str | None = None,
         alternative_explanation: str | None = None,
+        feed_brief: Mapping[str, Any] | None = None,
         status: str = "proposed", withheld_reason: str | None = None,
         claim_type: str | None = None,
         run_id: str | None = None,
@@ -885,19 +887,21 @@ class PostgresRepository:
                         """
                         INSERT INTO find (
                             business_id, run_id, emoji, title, summary,
-                            rationale, move, alternative_explanation,
+                            rationale, move, feed_brief, alternative_explanation,
                             predicted_daily_cents, confidence, verify_after,
                             status, withheld_reason, claim_type,
                             created_at, decided_at
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                %s, %s, coalesce(%s, clock_timestamp()), %s)
+                                %s, %s, %s, coalesce(%s, clock_timestamp()), %s)
                         RETURNING id
                         """,
                         (business_id, run_id, emoji, title, summary,
-                         rationale, move, alternative_explanation,
-                         predicted_daily_cents, confidence, verify_after, status,
-                         withheld_reason, claim_type, created_at, decided_at),
+                         rationale, move,
+                         Jsonb(dict(feed_brief)) if feed_brief is not None else None,
+                         alternative_explanation, predicted_daily_cents,
+                         confidence, verify_after, status, withheld_reason,
+                         claim_type, created_at, decided_at),
                     )
                     find_id = str(cur.fetchone()[0])
 
