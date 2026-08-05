@@ -1125,6 +1125,37 @@ def test_live_workflow_refresh_is_polled_only_while_the_operator_view_is_visible
     assert "setTimeout" in source
 
 
+def test_live_workflow_refresh_preserves_the_open_maker_task():
+    """A polling render replaces the ledger markup. Nested task disclosures
+    need their own stable owner/task key or the task being read snaps shut."""
+    capture = APP[APP.index("function captureMemoryOpenState"):]
+    capture = capture[:capture.index("function restoreMemoryOpenState")]
+    restore = APP[APP.index("function restoreMemoryOpenState"):]
+    restore = restore[:restore.index("function renderLiveWorkflowViews")]
+
+    assert '.maker-task-item[open]' in capture
+    assert "ownerId" in capture
+    assert "taskId" in capture
+    assert "openState.makerTasks" in restore
+    assert '.maker-task-item[data-task-id=' in restore
+    assert "detail.open = true" in restore
+
+
+def test_memory_kpi_tooltips_are_not_clipped_by_the_decorative_card_mask():
+    """The context and token cards used overflow:hidden for a corner circle;
+    that same mask cut off the help tooltip. Decoration may not own clipping."""
+    block = APP.split('<style id="requested-ui-cleanup-v39">', 1)[1].split(
+        "</style>", 1
+    )[0]
+
+    assert ".engine-kpi.is-efficiency" in block
+    assert "overflow: visible" in block
+    assert ".engine-kpi.is-efficiency::after" in block
+    assert "display: none" in block
+    assert ".engine-kpi .metric-help::after" in block
+    assert "top: calc(100% + 12px)" in block
+
+
 def test_deploy_template_exposes_the_workflow_read_route():
     template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
     assert "WorkflowFunction:" in template
@@ -1386,6 +1417,8 @@ def test_visual_memory_view_has_an_owner_scoped_token_efficiency_chart():
 
 def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
     assert "0 LLM tokens" in APP
+    assert 'label: "Refresh model tokens"' in APP
+    assert 'note: "SQL-only · no model call"' in APP
     assert "/workflow" in APP
     assert "SQL-only CockroachDB read" in APP
 
@@ -2018,7 +2051,8 @@ def test_empty_growth_history_shows_an_honest_process_projection():
 
     assert "No measured growth yet" in block
     assert "Approve" in block and "Launch" in block and "Verify" in block
-    assert "No revenue is projected or claimed here" in block
+    assert "No revenue is projected or claimed here" not in block
+    assert "note.hidden = true" in block
     assert "growth-projection" in block
     assert "Your momentum" not in html
 
@@ -2400,19 +2434,18 @@ def test_a_calendar_date_is_not_shifted_into_the_previous_day():
 # answers — wearing the vocabulary of the first two.
 
 
-def test_the_growth_headline_names_itself_a_forecast():
-    """CLAUDE.md: a modelled figure is labelled Modelled, never Actual, and
-    nothing the owner does in the UI may increase the verified record."""
+def test_the_growth_headline_names_the_projection_without_explainer_copy():
+    """The Growth view is a glanceable record. It keeps one truthful status
+    label and moves the longer explanation into the slide's accessible name."""
     slide = APP.split('class="growth-slide growth-slide-summary"', 1)[1].split(
         "</article>", 1)[0]
 
     assert "Added by the moves you approved" not in APP_MARKUP
     assert 'id="approvedAmount"' in slide
-    # A label of its own, a tag of its own, and copy that says where earned
-    # money actually comes from.
-    assert "Forecast" in slide
-    assert "Projected · not measured" in slide
-    assert "Only a verified verdict on the Ledger is money you have earned." in slide
+    assert "Projected · not earned" in slide
+    assert "Projected · not measured" not in slide
+    assert "Predicted monthly value of the moves you approved" not in slide
+    assert "Not earned until verified by the Ledger" in slide
 
 
 def test_the_forecast_total_is_not_dressed_as_earned_money():
@@ -2451,7 +2484,20 @@ def test_the_approved_list_does_not_call_a_forecast_a_win():
         "\n    }", 1)[0]
     assert "projectedMoney(post.amount)" in row
     assert "formatMoney(" not in row
-    assert "projected, not yet measured" in row      # the screen-reader label
+    assert "projected, not earned" in row            # the screen-reader label
+    assert "${post.recommendation}" not in row       # keep the list minimal
+
+
+def test_the_growth_process_preview_uses_only_the_three_action_labels():
+    source = APP.split("function renderGrowthProjectionPlaceholder", 1)[1].split(
+        "function renderRevenueChart", 1
+    )[0]
+
+    for label in ("1 · Approve", "2 · Launch", "3 · Verify"):
+        assert label in source
+    for detail in ("Choose a move", "Maker prepares it", "Meter records impact"):
+        assert detail not in source
+    assert "note.hidden = true" in source
 
 
 def test_the_forecast_colour_actually_wins_the_cascade():
@@ -2829,7 +2875,7 @@ def test_growth_lists_remove_redundant_explanatory_copy():
     assert "function renderGrowthDecisionList" in html
     assert 'panel.classList.toggle("is-empty", items.length === 0)' in html
     # Forecast meaning remains in the row's accessible label.
-    assert "projected, not yet measured" in html
+    assert "projected, not earned" in html
 
 
 def test_empty_growth_panels_collapse_to_their_title_and_count():
