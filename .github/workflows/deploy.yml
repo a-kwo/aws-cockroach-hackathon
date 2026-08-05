@@ -61,6 +61,12 @@ jobs:
       - name: Run backend tests
         run: python -m pytest backend/tests -q
 
+      - name: Run CockroachDB schema migration
+        env:
+          COCKROACH_DATABASE_URL: ${{ secrets.COCKROACH_DATABASE_URL }}
+        run: python db/migrate.py --schema-only
+
+
       - name: Build Lambda container images
         run: sam build --template deploy/template.yaml
 
