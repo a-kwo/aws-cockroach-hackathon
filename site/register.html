@@ -116,6 +116,43 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
   line-height: 1.45;
 }
 .error.visible { display: block; }
+
+/* Hidden unless the build was told an OAuth client exists. A Sign in with
+   Google button that 404s is worse than no button. */
+.alt-auth { display: none; }
+.alt-auth.available { display: block; }
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 18px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.oauth {
+  width: 100%;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  border: 1px solid #d9d7d1;
+  border-radius: 15px;
+  color: var(--ink);
+  background: rgba(255,255,255,.82);
+  font-size: 14px;
+  font-weight: 720;
+  cursor: pointer;
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s;
+}
+.oauth:hover:not(:disabled) { transform: translateY(-1px); background: #fff; box-shadow: 0 12px 26px rgba(37,43,47,.10); }
+.oauth:disabled { opacity: .55; cursor: default; }
+.oauth svg { width: 18px; height: 18px; flex: none; }
+
 .foot { margin: 22px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .foot a { color: var(--teal); font-weight: 700; }
 .note { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
@@ -153,6 +190,20 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
       <button class="submit" id="submit" type="submit">Continue</button>
       <p class="error" id="error"></p>
     </form>
+
+    <div class="alt-auth" id="altAuth">
+      <div class="divider">or</div>
+      <button class="oauth" id="googleButton" type="button">
+        <svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+          <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+          <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+        </svg>
+        <span id="googleLabel">Continue with Google</span>
+      </button>
+      <p class="note">Your invite code above is still required — creating a workspace costs the same either way.</p>
+    </div>
 
     <p class="foot">Already signed up? <a href="../login/">Sign in</a>.</p>
   </section>
@@ -232,6 +283,43 @@ form.addEventListener("submit", async event => {
     button.textContent = "Continue";
   }
 });
+
+//  --- Sign in with Google ------------------------------------------------
+//  Drawn only when the build was told an OAuth client exists. See
+//  GOOGLE_OAUTH_ENABLED in scripts/build_web.py.
+const googleStart = String(DATA.api?.googleStartEndpoint || "").trim();
+const googleButton = document.getElementById("googleButton");
+
+if (googleStart) {
+  document.getElementById("altAuth").classList.add("available");
+
+  googleButton.addEventListener("click", () => {
+    error.classList.remove("visible");
+    const invite = document.getElementById("inviteCode");
+    const inviteCode = invite.value.trim();
+    //  The gate is a spend control, not a formality -- a workspace runs live
+    //  models nightly whichever way you signed in. Checked here so the owner
+    //  finds out before a trip to Google; the server checks again.
+    if (!inviteCode) {
+      fail("Enter your invite code first — it is required either way.");
+      invite.focus();
+      return;
+    }
+
+    googleButton.disabled = true;
+    document.getElementById("googleLabel").textContent = "Redirecting to Google";
+    //  A real navigation, not fetch(): OAuth is a browser redirect and has to
+    //  happen in the address bar where the person can see whose domain it is.
+    window.location.href =
+      `${googleStart}?invite=${encodeURIComponent(inviteCode)}`;
+  });
+}
+
+//  Google sends people back here when they cancel at the consent screen.
+if (new URLSearchParams(window.location.search).get("error") === "cancelled") {
+  fail("That sign-in was cancelled. Try again, or create a password instead.");
+  history.replaceState(null, "", window.location.pathname);
+}
 </script>
 </body>
 </html>

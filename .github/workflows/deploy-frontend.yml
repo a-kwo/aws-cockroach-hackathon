@@ -61,6 +61,19 @@ jobs:
           ONBOARDING_ENDPOINT=$(value OnboardingEndpoint)
           RUN_ENDPOINT=$(value RunEndpoint)
           ADMIN_ENDPOINT=$(value AdminWorkspacesEndpoint)
+          GOOGLE_START_ENDPOINT=$(value GoogleStartEndpoint)
+          GOOGLE_COMPLETE_ENDPOINT=$(value GoogleCompleteEndpoint)
+
+          # Draw the Sign in with Google button only once an OAuth client
+          # actually exists. The routes are always deployed; without the client
+          # they answer 404, and a button that 404s is worse than no button.
+          if aws ssm get-parameter \
+               --name "/brasstacks/GOOGLE_OAUTH_CLIENT_ID" \
+               --region us-east-1 >/dev/null 2>&1; then
+            GOOGLE_OAUTH_ENABLED=1
+          else
+            GOOGLE_OAUTH_ENABLED=
+          fi
 
           DISTRIBUTION_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?DomainName=='${SITE_URL#https://}'].Id | [0]" \
@@ -75,6 +88,9 @@ jobs:
           echo "onboarding_endpoint=$ONBOARDING_ENDPOINT" >> "$GITHUB_OUTPUT"
           echo "run_endpoint=$RUN_ENDPOINT" >> "$GITHUB_OUTPUT"
           echo "admin_endpoint=$ADMIN_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "google_start_endpoint=$GOOGLE_START_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "google_complete_endpoint=$GOOGLE_COMPLETE_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "google_oauth_enabled=$GOOGLE_OAUTH_ENABLED" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$DISTRIBUTION_ID" >> "$GITHUB_OUTPUT"
 
       - name: Validate deployment values
@@ -100,6 +116,9 @@ jobs:
           ONBOARDING_API_ENDPOINT: ${{ steps.outputs.outputs.onboarding_endpoint }}
           RUN_API_ENDPOINT: ${{ steps.outputs.outputs.run_endpoint }}
           ADMIN_API_ENDPOINT: ${{ steps.outputs.outputs.admin_endpoint }}
+          GOOGLE_START_API_ENDPOINT: ${{ steps.outputs.outputs.google_start_endpoint }}
+          GOOGLE_COMPLETE_API_ENDPOINT: ${{ steps.outputs.outputs.google_complete_endpoint }}
+          GOOGLE_OAUTH_ENABLED: ${{ steps.outputs.outputs.google_oauth_enabled }}
         run: python scripts/build_web.py
 
       - name: Upload frontend to S3

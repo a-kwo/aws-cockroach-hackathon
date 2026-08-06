@@ -89,7 +89,12 @@ def login(event: Any, *, repo: Any, now: datetime | None = None) -> dict[str, An
     account = repo.find_account(username)
     # Verify regardless. An early return for an unknown username would skip the
     # KDF and make non-existent users measurably faster to probe.
-    stored = account["password_hash"] if account else _DECOY_HASH
+    #
+    # The decoy also covers accounts with no password at all — the ones created
+    # by Sign in with Google, where `password_hash` is NULL. `verify_password`
+    # already refuses a null hash, but it refuses it *instantly*, which would
+    # make "this username signs in with Google" measurable from outside.
+    stored = (account or {}).get("password_hash") or _DECOY_HASH
     if not verify_password(password, stored) or account is None:
         return respond(401, dict(REFUSAL))
 

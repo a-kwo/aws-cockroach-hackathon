@@ -749,6 +749,7 @@ class InMemoryRepository:
         self._ledger: list[_LedgerEntry] = []
         self._accounts: dict[str, dict[str, Any]] = {}
         self._sessions: dict[str, dict[str, Any]] = {}
+        self._handoffs: dict[str, dict[str, Any]] = {}
         self._clock = 0
 
     _EPOCH = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -854,17 +855,51 @@ class InMemoryRepository:
 
     # -- owners ----------------------------------------------------------
     def create_account(self, business_id: str | None, *, username: str,
-                       password_hash: str) -> str:
+                       password_hash: str | None,
+                       auth_provider: str = "password",
+                       provider_subject: str | None = None,
+                       email: str | None = None,
+                       display_name: str | None = None) -> str:
+        """Create an owner account.
+
+        `password_hash` is None exactly when the account signs in through an
+        identity provider — there is no password to hash and none to leak. It
+        stays a required argument rather than defaulting to None so a caller
+        cannot create a passwordless password-account by forgetting it.
+        """
         if username in self._accounts:
             raise RepositoryError(f"username {username!r} is already taken")
+        if provider_subject is not None and self.find_account_by_provider(
+                auth_provider, provider_subject) is not None:
+            raise RepositoryError(
+                f"{auth_provider} identity {provider_subject!r} already has an account")
         account_id = str(uuid.uuid4())
         self._accounts[username] = {
             "id": account_id, "business_id": business_id,
             "username": username, "password_hash": password_hash,
-            "display_name": None, "email": None,
+            "display_name": display_name, "email": email,
+            "auth_provider": auth_provider,
+            "provider_subject": provider_subject,
             "is_admin": False,
         }
         return account_id
+
+    def find_account_by_provider(self, provider: str,
+                                 subject: str) -> dict[str, Any] | None:
+        """The account for an external identity, keyed on the provider's stable
+        subject rather than the email — people change their address."""
+        if not subject:
+            return None
+        found = next(
+            (a for a in self._accounts.values()
+             if a.get("auth_provider") == provider
+             and a.get("provider_subject") == subject), None)
+        return dict(found) if found else None
+
+    def find_account_by_id(self, account_id: str) -> dict[str, Any] | None:
+        found = next(
+            (a for a in self._accounts.values() if a["id"] == account_id), None)
+        return dict(found) if found else None
 
     def attach_business(self, account_id: str, *, business_id: str) -> None:
         """Point an account at the business it just created.
@@ -919,6 +954,24 @@ class InMemoryRepository:
 
     def delete_session(self, token_hash: str) -> None:
         self._sessions.pop(token_hash, None)
+
+    def create_handoff(self, code_hash: str, *, account_id: str,
+                       expires_at: datetime) -> None:
+        """Park an account against a one-time code for the OAuth redirect.
+
+        This exists so the callback never has to put a session token in a URL.
+        Only the code's fingerprint is stored, like a session token.
+        """
+        self._handoffs[code_hash] = {"account_id": account_id,
+                                     "expires_at": expires_at}
+
+    def consume_handoff(self, code_hash: str, *,
+                        now: datetime) -> str | None:
+        """Redeem a one-time code, or None. Redeeming it destroys it."""
+        handoff = self._handoffs.pop(code_hash, None)
+        if handoff is None or handoff["expires_at"] <= now:
+            return None
+        return handoff["account_id"]
 
     def set_account_admin(self, username: str, *, is_admin: bool) -> None:
         if username not in self._accounts:

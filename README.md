@@ -91,6 +91,58 @@ unsafe public tenant-provisioning endpoint. A future authenticated endpoint can 
 build time with `ONBOARDING_API_ENDPOINT`; the signup payload already matches the business
 facts and owner rules the Analyst consumes.
 
+### Sign in with Google (optional)
+
+Owners can create an account with a username and password, or with Google. Both
+paths land in the same place — an `owner_account` row with no business attached —
+and both go through the same invite gate.
+
+**It is off until you configure it.** With no OAuth client the three routes answer
+404 and the sign-up page draws no button, so a fresh clone and the current deploy
+behave exactly as before.
+
+To turn it on:
+
+1. In the Google Cloud console, **APIs & Services → Credentials → Create
+   credentials → OAuth client ID**, type **Web application**.
+2. Under **Authorized redirect URIs** paste the stack's `GoogleCallbackEndpoint`
+   output verbatim — Google string-matches it, so a missing `/v1` or a trailing
+   slash is a `redirect_uri_mismatch`.
+3. Put five values in Parameter Store under `/brasstacks/`:
+   `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
+   `GOOGLE_OAUTH_REDIRECT_URI` (the same URL as step 2),
+   `GOOGLE_OAUTH_STATE_SECRET` (any long random string), and
+   `BRASSTACKS_SITE_URL` if it is not already there.
+4. Re-run the frontend deploy. It checks for `GOOGLE_OAUTH_CLIENT_ID` and draws
+   the button only if it exists.
+
+The consent screen needs only the default `openid email profile` scopes. This
+flow reads an identity and stores no Google access token, so it does not need
+verification review.
+
+Three details that are deliberate rather than incidental:
+
+- **The invite code is still required.** It is a spend control, not a formality —
+  a workspace created through Google runs the same nightly Tavily search, ~50
+  embeddings and Claude call as any other. The code is checked *before* the
+  redirect and carried across the round trip inside the HMAC-signed `state`, so
+  it cannot be edited in the browser on the way back.
+- **The callback never returns a session token.** It is a redirect, and a token
+  in a redirect is a token in browser history and in the next request's
+  `Referer`. It hands over a one-time code instead — two minutes, single use,
+  stored only as a SHA-256 — which the landing page trades for a real token over
+  POST. Same rule the rest of the app follows: a database read must not be enough
+  to impersonate an owner.
+- **Accounts are keyed on Google's subject, never on the email address.** An
+  address here is not unique (several seeded tenants share one inbox), so it
+  identifies nobody, and matching on it would let an address that changed hands
+  inherit somebody's business. Signing in with Google therefore always yields its
+  own account and never adopts an existing password account.
+
+There is still no password reset, no email verification of our own, and no
+lockout after repeated failures — see `backend/src/brasstacks/auth.py`. Google
+sign-in does not change that; it sidesteps it for the owners who use it.
+
 ## Where things live
 
 ```

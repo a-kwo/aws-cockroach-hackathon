@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Finishing your Brass Tacks sign-in.">
+<meta name="theme-color" content="#f4f1eb">
+<meta name="robots" content="noindex">
+<title>Signing you in — Brass Tacks</title>
+<style>
+:root {
+  --bg: #f4f1eb;
+  --paper: rgba(255,255,255,.88);
+  --ink: #20262b;
+  --ink-2: #3f4b53;
+  --soft: #71808a;
+  --muted: #98a2a8;
+  --line: #dedbd4;
+  --teal: #2b8172;
+  --teal-soft: #e4f1ee;
+  --danger: #a74945;
+  --shadow: 0 26px 70px rgba(37,43,47,.10), 0 2px 8px rgba(37,43,47,.05);
+  --ease: cubic-bezier(.16,1,.3,1);
+}
+* { box-sizing: border-box; }
+html { min-height: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 6% 4%, rgba(43,129,114,.10), transparent 30rem),
+    radial-gradient(circle at 96% 12%, rgba(152,98,122,.10), transparent 32rem),
+    linear-gradient(180deg, #f8f6f2 0%, var(--bg) 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 3px solid rgba(43,129,114,.24); outline-offset: 3px; }
+
+.topbar {
+  min-height: 76px;
+  padding: 0 30px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(59,65,68,.08);
+  background: rgba(248,246,242,.72);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+.brand { display: inline-flex; align-items: center; gap: 11px; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 7px rgba(43,129,114,.10); }
+
+main { display: grid; place-items: center; padding: 70px 24px 90px; }
+.card {
+  width: min(440px, 100%);
+  padding: 40px 38px 34px;
+  border: 1px solid rgba(77,82,84,.12);
+  border-radius: 28px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  text-align: center;
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+}
+h1 { margin: 20px 0 0; font-size: 26px; line-height: 1.1; letter-spacing: -.03em; font-weight: 720; }
+.lede { margin: 12px 0 0; color: var(--soft); font-size: 14px; line-height: 1.55; }
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
+  border: 3px solid rgba(43,129,114,.18);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
+
+.retry {
+  display: none;
+  margin-top: 22px;
+  min-height: 48px;
+  padding: 0 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  color: #fff;
+  background: var(--ink);
+  font-size: 14px;
+  font-weight: 720;
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.retry:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(16,17,20,.16); }
+.failed .spinner { display: none; }
+.failed .retry { display: inline-flex; }
+.failed h1 { color: var(--danger); }
+</style>
+</head>
+<body>
+<script id="bt-data" type="application/json">{}</script>
+
+<header class="topbar">
+  <a class="brand" href="../../"><span class="brand-dot"></span><span>Brass Tacks</span></a>
+</header>
+
+<main>
+  <section class="card" id="card">
+    <div class="spinner" id="spinner" role="status" aria-live="polite"></div>
+    <h1 id="heading">Signing you in</h1>
+    <p class="lede" id="detail">One moment — finishing up with Google.</p>
+    <a class="retry" id="retry" href="../../register/">Back to sign-up</a>
+  </section>
+</main>
+
+<script>
+//  Where Google's redirect lands.
+//
+//  The callback endpoint deliberately does not hand back a session token: it
+//  is a browser redirect, so anything it returned would sit in the address bar,
+//  in history, and in the Referer of the next request. Instead it puts a
+//  one-time code -- good for two minutes, redeemable once -- in the URL
+//  fragment, and this page trades it for the real token over POST.
+//
+//  A fragment rather than a query string because a fragment is never sent to a
+//  server and so never reaches an access log.
+const DATA = JSON.parse(document.getElementById("bt-data").textContent || "{}");
+const endpoint = String(DATA.api?.googleCompleteEndpoint || "").trim();
+
+//  Same key the board and the login page use.
+const SESSION_KEY = "brass-tacks-session-v1";
+
+const card = document.getElementById("card");
+const heading = document.getElementById("heading");
+const detail = document.getElementById("detail");
+
+function fail(message) {
+  card.classList.add("failed");
+  heading.textContent = "That did not work";
+  detail.textContent = message;
+}
+
+async function finish() {
+  const code = new URLSearchParams(
+    window.location.hash.replace(/^#/, "")).get("code");
+
+  //  Off the URL before anything else, and before any await: it is single-use,
+  //  but there is no reason for it to survive in the address bar or in history
+  //  while the request is in flight.
+  history.replaceState(null, "", window.location.pathname);
+
+  if (!code) {
+    fail("This page is where Google sends you after signing in. There is nothing to finish from here.");
+    return;
+  }
+  if (!endpoint) {
+    fail("This page was built without a sign-in endpoint, so Google sign-in is not wired up yet.");
+    return;
+  }
+
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+  } catch (e) {
+    fail("Could not reach the server. Check your connection and try again.");
+    return;
+  }
+
+  let payload = {};
+  try { payload = await response.json(); } catch (_) {}
+
+  if (!response.ok) {
+    //  One message covers expired, already-spent and never-issued alike,
+    //  because the API does not distinguish them either.
+    fail(payload.error || `Could not finish signing you in (${response.status}).`);
+    return;
+  }
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    token: payload.token,
+    businessId: payload.business_id,
+    expiresAt: payload.expires_at,
+  }));
+
+  //  An account exists now; a business may not. Same fork as /register --
+  //  no business yet means the profile wizard, not the board.
+  window.location.replace(payload.business_id ? "../../app/" : "../../signup/");
+}
+
+finish();
+</script>
+</body>
+</html>
