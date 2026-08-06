@@ -17,6 +17,12 @@ for the task contract, idempotency model, tool roadmap and acceptance tests.
 
 Prerequisites: AWS SAM CLI, Docker, and an AWS profile that is **not** root.
 
+GitHub Actions reads AWS credentials from repository secrets named
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`; no credential belongs in a
+workflow file. If a key has ever been committed, revoke it in IAM before adding
+a newly issued key to GitHub. GitHub OIDC with a scoped deploy role is the
+preferred long-term replacement for stored access keys.
+
 ---
 
 ## 1. Stop using root credentials
@@ -126,6 +132,28 @@ aws ssm put-parameter --type String --overwrite \
 aws ssm put-parameter --type String --overwrite \
   --name /brasstacks/COCKROACH_DATABASE --value defaultdb
 ```
+
+### Configure owner-confirmed Google Business publishing
+
+The stack creates a dedicated KMS key and a `GoogleBusinessFunction`. Before
+publishing can work, Google must approve the Cloud project for Business Profile
+API access and the OAuth client must include the stack's
+`GoogleBusinessCallbackEndpoint` output as an Authorized redirect URI. Store the
+same URI under the deployment SSM prefix as `GOOGLE_BUSINESS_REDIRECT_URI`. The
+function reuses `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
+`GOOGLE_OAUTH_STATE_SECRET`, and `BRASSTACKS_SITE_URL`.
+
+Run the additive schema migration before deploying:
+
+```bash
+python db/migrate.py --schema-only
+```
+
+The owner then connects from a completed Google Business post inside the Maker
+workspace. Multiple locations require an explicit choice. Publishing requires a
+second confirmation of the exact destination and artifact revision. Duplicate
+clicks converge on one `tool_execution` receipt, and an uncertain network failure
+is never retried automatically.
 
 ### Configure the first Maker execution tool: SES review email
 

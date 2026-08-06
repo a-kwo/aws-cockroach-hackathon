@@ -27,6 +27,7 @@ FINDS_SCANNED = 20
 MAX_OWNER_QUESTIONS = 3
 MAX_SECTIONS = 5
 MAX_SUMMARY_CHARS = 220
+ACTION_MANIFEST_VERSION = 1
 
 ARTIFACT_TYPES = (
     "customer_email",
@@ -260,6 +261,27 @@ def _sections(value: Any) -> list[dict[str, str]]:
     return output
 
 
+def _action_manifest(payload: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Return the only executable action Maker may propose today.
+
+    The model chooses an artifact type; the server translates that bounded
+    value into a deterministic manifest.  No account, token, destination or
+    arbitrary URL is accepted from model output.
+    """
+    if (
+        payload.get("artifact_type") == "google_business_post"
+        and payload.get("review_state") == "ready_for_review"
+    ):
+        return {
+            "version": ACTION_MANIFEST_VERSION,
+            "action_type": "google_business.publish_post",
+            "state": "ready_for_approval",
+            "requires_owner_confirmation": True,
+            "content_source": "artifact.body",
+        }
+    return None
+
+
 def _normalize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     title = _compact(payload.get("title"), 100)
     body = str(payload.get("body") or "").strip()
@@ -439,6 +461,7 @@ def _maker_draft(
         "owner_questions": payload["owner_questions"],
         "sections": payload["sections"],
         "revision_instruction": _compact(revision_instruction, 900) if revision_instruction else None,
+        "action_manifest": _action_manifest(payload),
     }
     try:
         artifact_id = repo.insert_artifact(

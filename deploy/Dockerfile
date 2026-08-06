@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir \
         "psycopg[binary]>=3.2" \
         "anthropic[bedrock]>=0.40" \
         "boto3>=1.35" \
+        "httpx>=0.27" \
         "certifi"
 
 # The source tree keeps its repository shape rather than being pip-installed

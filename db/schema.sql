@@ -512,6 +512,30 @@ CREATE TABLE IF NOT EXISTS tool_execution (
   INDEX tool_execution_business_idx (business_id, started_at DESC)
 );
 
+-- OAuth connections for constrained external actions. Refresh tokens are KMS
+-- ciphertext; no plaintext credential is stored in CockroachDB. One provider
+-- connection per tenant keeps destination selection deterministic.
+CREATE TABLE IF NOT EXISTS external_connection (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id            UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  provider               STRING NOT NULL,
+  account_id             UUID NOT NULL REFERENCES owner_account(id) ON DELETE CASCADE,
+  status                 STRING NOT NULL DEFAULT 'pending_selection'
+                         CHECK (status IN ('pending_selection', 'connected', 'error', 'revoked')),
+  token_ciphertext       STRING NOT NULL,
+  scopes                 JSONB NOT NULL DEFAULT '[]'::JSONB,
+  external_account_name  STRING,
+  external_location_name STRING,
+  display_name           STRING,
+  metadata               JSONB NOT NULL DEFAULT '{}'::JSONB,
+  last_error             STRING,
+  connected_at           TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  UNIQUE INDEX external_connection_provider_idx (business_id, provider),
+  INDEX external_connection_account_idx (account_id, updated_at DESC)
+);
+
 -- Immutable provider delivery events for each review email. EventBridge is
 -- best-effort and may duplicate or reorder events, so the provider event id is
 -- unique and the UI derives delivery state from the full timeline.
@@ -678,3 +702,9 @@ COMMIT;
 -- ---------------------------------------------------------------------------
 
 ALTER TYPE find_status ADD VALUE IF NOT EXISTS 'withheld';
+
+-- A real external action starts the measurement clock. Nullable keeps every
+-- pre-execution and legacy recommendation valid.
+ALTER TABLE find ADD COLUMN IF NOT EXISTS executed_at TIMESTAMPTZ;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS execution_tool_id UUID REFERENCES tool_execution(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS find_execution_idx ON find (business_id, executed_at DESC);

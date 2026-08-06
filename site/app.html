@@ -13387,6 +13387,58 @@
       .maker-email-timeline { grid-template-columns: repeat(2,minmax(0,1fr)); }
     }
   </style>
+
+  <style id="maker-google-business-execution-v42">
+    .maker-action-card { display:grid; gap:14px; margin:0 20px 18px; padding:17px; border:1px solid rgba(47,116,104,.2); border-radius:18px; background:linear-gradient(145deg,rgba(244,250,247,.95),rgba(255,255,255,.82)); box-shadow:0 14px 36px rgba(31,38,42,.06); }
+    .maker-action-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+    .maker-action-title { display:grid; grid-template-columns:38px minmax(0,1fr); gap:11px; align-items:center; }
+    .maker-action-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:12px; background:#fff; border:1px solid rgba(47,116,104,.14); color:#2f7468; font:900 17px/1 var(--sans); box-shadow:0 7px 16px rgba(47,116,104,.08); }
+    .maker-action-title div { display:grid; gap:3px; min-width:0; }
+    .maker-action-title small { color:#2f7468; font-size:9px; font-weight:850; letter-spacing:.09em; text-transform:uppercase; }
+    .maker-action-title strong { font-size:14px; line-height:1.35; }
+    .maker-action-state { flex:0 0 auto; padding:6px 9px; border-radius:999px; background:#eaf0ed; color:#52645f; font-size:9px; font-weight:850; }
+    .maker-action-state.ready { background:#e0f0e9; color:#267561; }
+    .maker-action-state.failed { background:#f8e7e6; color:#a33f3b; }
+    .maker-action-copy { margin:0; color:var(--theme-copy); font-size:11px; line-height:1.55; }
+    .maker-action-destination { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; padding:12px 13px; border-radius:13px; background:rgba(255,255,255,.88); border:1px solid rgba(31,38,42,.08); }
+    .maker-action-destination div { display:grid; gap:3px; min-width:0; }
+    .maker-action-destination small { color:var(--muted); font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    .maker-action-destination strong { overflow-wrap:anywhere; font-size:12px; }
+    .maker-action-destination span { color:#267561; font-size:10px; font-weight:750; }
+    .maker-action-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .maker-action-controls select { flex:1 1 240px; min-height:42px; padding:0 36px 0 12px; border:1px solid rgba(31,38,42,.15); border-radius:12px; background:#fff; color:var(--theme-ink); font:700 11px/1.2 var(--sans); }
+    .maker-action-button { min-height:42px; padding:0 15px; border:1px solid rgba(47,116,104,.25); border-radius:12px; background:#fff; color:#24695f; font:800 11px/1 var(--sans); cursor:pointer; }
+    .maker-action-button.primary { border-color:#2f7468; background:#2f7468; color:#fff; box-shadow:0 8px 18px rgba(47,116,104,.18); }
+    .maker-action-button:disabled { opacity:.55; cursor:wait; }
+    .maker-action-alert { margin:0; padding:10px 11px; border-radius:11px; background:#f8e7e6; color:#923c39; font-size:10px; line-height:1.5; }
+    .maker-action-success { display:grid; gap:10px; padding:13px; border-radius:14px; background:#e4f2eb; border:1px solid rgba(38,117,97,.16); }
+    .maker-action-success strong { color:#205f50; font-size:13px; }
+    .maker-action-success span { color:#40655d; font-size:10px; line-height:1.45; }
+    .maker-action-success a { width:fit-content; color:#205f50; font-size:10px; font-weight:850; text-decoration:underline; text-underline-offset:3px; }
+    .maker-publish-dialog { width:min(620px,calc(100vw - 28px)); max-height:min(84vh,760px); padding:0; border:0; border-radius:22px; background:#fff; color:var(--theme-ink); box-shadow:0 28px 90px rgba(16,25,29,.3); overflow:hidden; }
+    .maker-publish-dialog::backdrop { background:rgba(18,26,31,.62); backdrop-filter:blur(4px); }
+    .maker-publish-dialog form { display:grid; max-height:inherit; }
+    .maker-publish-dialog header { display:grid; gap:5px; padding:20px 22px 15px; border-bottom:1px solid rgba(31,38,42,.09); }
+    .maker-publish-dialog header small { color:#2f7468; font-size:9px; font-weight:850; letter-spacing:.09em; text-transform:uppercase; }
+    .maker-publish-dialog header strong { font-size:18px; line-height:1.3; }
+    .maker-publish-dialog .publish-dialog-body { display:grid; gap:13px; padding:18px 22px; overflow:auto; }
+    .publish-dialog-destination { display:grid; gap:4px; padding:12px; border-radius:13px; background:#f3f7f5; }
+    .publish-dialog-destination small { color:var(--muted); font-size:8px; text-transform:uppercase; letter-spacing:.08em; }
+    .publish-dialog-destination strong { font-size:12px; }
+    .publish-dialog-preview { margin:0; max-height:300px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; padding:14px; border:1px solid rgba(31,38,42,.1); border-radius:13px; background:#fbfbfa; font:12px/1.65 var(--sans); }
+    .publish-dialog-confirm { display:flex; gap:9px; align-items:flex-start; color:var(--theme-copy); font-size:11px; line-height:1.45; }
+    .publish-dialog-confirm input { margin-top:2px; accent-color:#2f7468; }
+    .maker-publish-dialog footer { display:flex; justify-content:flex-end; gap:9px; padding:14px 22px 20px; border-top:1px solid rgba(31,38,42,.08); }
+    @media (max-width:700px) {
+      .maker-action-card { margin-left:16px; margin-right:16px; padding:15px; }
+      .maker-action-head { align-items:center; }
+      .maker-action-destination { grid-template-columns:1fr; }
+      .maker-action-controls { display:grid; grid-template-columns:1fr; }
+      .maker-action-controls select,.maker-action-button { width:100%; }
+      .maker-publish-dialog { width:100vw; max-width:none; max-height:88vh; margin:auto 0 0; border-radius:22px 22px 0 0; }
+      .maker-publish-dialog footer { display:grid; grid-template-columns:1fr 1fr; }
+    }
+  </style>
   <style id="reconsider-decision-v30">
     .reconsider-panel {
       display: grid;
@@ -17893,6 +17945,7 @@
     // /workflow read resolves that task inside the authenticated tenant and
     // opens its exact recommendation/draft; the URL never carries credentials.
     const requestedTaskId = String(appQuery.get("task") || "").trim();
+    const googleBusinessReturn = String(appQuery.get("google_business") || "").trim();
     let requestedTaskHandled = false;
 
     function loadOnboardingProfile() {
@@ -18728,6 +18781,8 @@
     const askApiConfigured = Boolean(ASK_ENDPOINT) && !onboardingMode;
     const PROFILE_ENDPOINT = String(btData.api?.profileEndpoint || (decisionApiBase ? `${decisionApiBase}/profile` : "")).trim();
     const profileApiConfigured = Boolean(PROFILE_ENDPOINT) && !onboardingMode;
+    const GOOGLE_BUSINESS_ENDPOINT = decisionApiBase ? `${decisionApiBase}/integrations/google-business` : "";
+    const googleBusinessApiConfigured = Boolean(GOOGLE_BUSINESS_ENDPOINT) && !onboardingMode;
 
     const PROFILE_CATEGORY_OPTIONS = [
       ["restaurant_cafe", "Restaurant or café"],
@@ -23803,6 +23858,232 @@ ledger_entry · artifact · agent_run`,
         </section>`;
     }
 
+    function safeExternalHref(value) {
+      try {
+        const parsed = new URL(String(value || ""));
+        return parsed.protocol === "https:" ? parsed.href : "";
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function latestGoogleBusinessTool(task) {
+      return (Array.isArray(task?.tools) ? task.tools : [])
+        .filter(tool => tool?.name === "google_business.publish_post")
+        .sort((a, b) => String(b.startedAt || "").localeCompare(String(a.startedAt || "")))[0] || null;
+    }
+
+    function makerGoogleBusinessActionHtml(task, artifact, archived, body, revision) {
+      const manifest = artifact?.metadata?.action_manifest;
+      if (archived || !body || manifest?.action_type !== "google_business.publish_post") return "";
+      const tool = latestGoogleBusinessTool(task);
+      const output = tool?.output || {};
+      const externalHref = safeExternalHref(output.externalUrl);
+      if (tool?.status === "succeeded") {
+        return `
+          <section class="maker-action-card" aria-label="Google Business publication receipt">
+            <div class="maker-action-head">
+              <div class="maker-action-title"><span class="maker-action-icon" aria-hidden="true">G</span><div><small>Real action</small><strong>Google Business Profile</strong></div></div>
+              <span class="maker-action-state ready">Published</span>
+            </div>
+            <div class="maker-action-success">
+              <strong>Post published successfully</strong>
+              <span>${escapeHtml(String(output.destination || tool.input?.destination || "Google Business Profile"))}${output.executedAt ? ` · ${escapeHtml(memoryDateTime(output.executedAt))}` : ""}</span>
+              ${externalHref ? `<a href="${escapeHtml(externalHref)}" target="_blank" rel="noopener noreferrer">View live post</a>` : ""}
+            </div>
+          </section>`;
+      }
+      const failed = tool?.status === "failed";
+      const uncertain = Boolean(output.uncertain);
+      return `
+        <section class="maker-action-card" data-google-business-card data-task-id="${escapeHtml(String(task.id || ""))}" data-artifact-id="${escapeHtml(String(artifact?.databaseId || artifact?.id || ""))}" data-revision="${revision}" aria-label="Publish this Maker draft">
+          <div class="maker-action-head">
+            <div class="maker-action-title"><span class="maker-action-icon" aria-hidden="true">G</span><div><small>Real action</small><strong>Publish to Google Business Profile</strong></div></div>
+            <span class="maker-action-state ${failed ? "failed" : ""}" data-google-business-state>${failed ? "Needs review" : "Checking"}</span>
+          </div>
+          <p class="maker-action-copy">Maker prepared the post. You choose the connected location and approve the exact revision before anything becomes public.</p>
+          ${failed ? `<p class="maker-action-alert">${escapeHtml(uncertain ? "Google did not confirm the result. Check the live profile before creating a new revision." : (tool.error || "This publication attempt failed. Create a new Maker revision before retrying."))}</p>` : ""}
+          <div class="maker-action-dynamic" data-google-business-dynamic>${failed ? "" : `<p class="maker-action-copy">Checking your connection…</p>`}</div>
+        </section>`;
+    }
+
+    let googleBusinessStatusCache = null;
+    let googleBusinessStatusPromise = null;
+
+    async function loadGoogleBusinessStatus(force = false) {
+      if (!googleBusinessApiConfigured) return { configured: false, connected: false, status: "not_configured", locations: [] };
+      if (googleBusinessStatusCache && !force) return googleBusinessStatusCache;
+      if (googleBusinessStatusPromise && !force) return googleBusinessStatusPromise;
+      googleBusinessStatusPromise = fetch(`${GOOGLE_BUSINESS_ENDPOINT}/status`, {
+        headers: authHeaders({ "Accept": "application/json" }),
+      }).then(async response => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "Could not check Google Business.");
+        googleBusinessStatusCache = payload;
+        return payload;
+      }).finally(() => { googleBusinessStatusPromise = null; });
+      return googleBusinessStatusPromise;
+    }
+
+    function googleLocationLabel(location) {
+      const address = String(location?.address || "").trim();
+      return `${String(location?.title || "Google Business Profile")}${address ? ` · ${address}` : ""}`;
+    }
+
+    function renderGoogleBusinessControls(card, connection) {
+      const dynamic = card.querySelector("[data-google-business-dynamic]");
+      const badge = card.querySelector("[data-google-business-state]");
+      if (!dynamic || !badge) return;
+      if (!connection?.configured) {
+        badge.textContent = "Setup required";
+        dynamic.innerHTML = `<p class="maker-action-alert">Google Business publishing is not configured in AWS yet. Add the Google API and OAuth settings, then redeploy.</p>`;
+        return;
+      }
+      if (connection.status === "pending_selection" && Array.isArray(connection.locations) && connection.locations.length) {
+        badge.textContent = "Choose location";
+        dynamic.innerHTML = `
+          <div class="maker-action-controls">
+            <select data-google-business-location aria-label="Google Business location">
+              ${connection.locations.map(location => `<option value="${escapeHtml(`${location.accountName}|${location.locationName}`)}" data-title="${escapeHtml(String(location.title || ""))}">${escapeHtml(googleLocationLabel(location))}</option>`).join("")}
+            </select>
+            <button class="maker-action-button primary" type="button" data-google-business-select>Use this location</button>
+          </div>`;
+        bindGoogleBusinessCard(card);
+        return;
+      }
+      if (!connection.connected) {
+        badge.textContent = "Not connected";
+        dynamic.innerHTML = `
+          <div class="maker-action-controls">
+            <button class="maker-action-button primary" type="button" data-google-business-connect>Connect Google Business</button>
+          </div>`;
+        bindGoogleBusinessCard(card);
+        return;
+      }
+      badge.textContent = "Ready";
+      badge.classList.add("ready");
+      const destination = connection.destination?.title || "Google Business Profile";
+      dynamic.innerHTML = `
+        <div class="maker-action-destination"><div><small>Public destination</small><strong>${escapeHtml(String(destination))}</strong></div><span>Connected</span></div>
+        <div class="maker-action-controls"><button class="maker-action-button" type="button" data-google-business-connect>Change account or location</button><button class="maker-action-button primary" type="button" data-google-business-publish>Review & publish</button></div>`;
+      card.dataset.destination = String(destination);
+      bindGoogleBusinessCard(card);
+    }
+
+    async function hydrateGoogleBusinessCard(card) {
+      if (!card || card.dataset.hydrated === "loading") return;
+      card.dataset.hydrated = "loading";
+      try {
+        renderGoogleBusinessControls(card, await loadGoogleBusinessStatus());
+        card.dataset.hydrated = "1";
+      } catch (error) {
+        const dynamic = card.querySelector("[data-google-business-dynamic]");
+        if (dynamic) dynamic.innerHTML = `<p class="maker-action-alert">${escapeHtml(error.message || "Could not check Google Business.")}</p>`;
+        card.dataset.hydrated = "error";
+      }
+    }
+
+    async function connectGoogleBusiness(card, button) {
+      button.disabled = true;
+      button.textContent = "Opening Google…";
+      try {
+        const response = await fetch(`${GOOGLE_BUSINESS_ENDPOINT}/connect`, {
+          method: "POST", headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ task_id: card.dataset.taskId }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.authorizationUrl) throw new Error(payload.error || "Could not connect Google Business.");
+        window.location.assign(payload.authorizationUrl);
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Connect Google Business";
+        showToast(error.message || "Could not connect Google Business.", "rejected");
+      }
+    }
+
+    async function selectGoogleBusinessLocation(card, button) {
+      const select = card.querySelector("[data-google-business-location]");
+      const option = select?.selectedOptions?.[0];
+      if (!option) return;
+      const [accountName, locationName] = String(option.value || "").split("|");
+      button.disabled = true;
+      try {
+        const response = await fetch(`${GOOGLE_BUSINESS_ENDPOINT}/select`, {
+          method: "POST", headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ accountName, locationName, title: option.dataset.title || option.textContent }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "Could not select that location.");
+        googleBusinessStatusCache = payload;
+        renderGoogleBusinessControls(card, payload);
+        showToast("Google Business destination connected.", "approved");
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message || "Could not select that location.", "rejected");
+      }
+    }
+
+    function openGooglePublishDialog(card) {
+      const draft = card.closest(".maker-review-panel")?.querySelector("[data-maker-draft-body]")?.textContent?.trim() || "";
+      if (!draft) return;
+      const dialog = document.createElement("dialog");
+      dialog.className = "maker-publish-dialog";
+      dialog.innerHTML = `
+        <form method="dialog">
+          <header><small>Owner confirmation</small><strong>Publish this exact post?</strong></header>
+          <div class="publish-dialog-body">
+            <div class="publish-dialog-destination"><small>Public destination</small><strong></strong></div>
+            <pre class="publish-dialog-preview"></pre>
+            <label class="publish-dialog-confirm"><input type="checkbox" data-publish-confirm><span>I reviewed this exact revision and want to publish it publicly to the destination above.</span></label>
+            <p class="maker-action-alert" data-publish-error hidden></p>
+          </div>
+          <footer><button class="maker-action-button" value="cancel">Cancel</button><button class="maker-action-button primary" type="button" data-publish-confirm-button disabled>Publish now</button></footer>
+        </form>`;
+      dialog.querySelector(".publish-dialog-destination strong").textContent = card.dataset.destination || "Google Business Profile";
+      dialog.querySelector(".publish-dialog-preview").textContent = draft;
+      const checkbox = dialog.querySelector("[data-publish-confirm]");
+      const publishButton = dialog.querySelector("[data-publish-confirm-button]");
+      checkbox.onchange = () => { publishButton.disabled = !checkbox.checked; };
+      publishButton.onclick = async () => {
+        publishButton.disabled = true;
+        publishButton.textContent = "Publishing…";
+        const errorBox = dialog.querySelector("[data-publish-error]");
+        try {
+          const response = await fetch(`${decisionApiBase}/tasks/${encodeURIComponent(card.dataset.taskId)}/actions/google-business/publish`, {
+            method: "POST", headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ confirm: true, artifact_id: card.dataset.artifactId, revision: Number(card.dataset.revision || 1) }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw Object.assign(new Error(payload.error || "Google did not publish the post."), { payload });
+          dialog.close();
+          dialog.remove();
+          const externalHref = safeExternalHref(payload.externalUrl);
+          card.outerHTML = `
+            <section class="maker-action-card" aria-label="Google Business publication receipt">
+              <div class="maker-action-head"><div class="maker-action-title"><span class="maker-action-icon" aria-hidden="true">G</span><div><small>Real action</small><strong>Google Business Profile</strong></div></div><span class="maker-action-state ready">Published</span></div>
+              <div class="maker-action-success"><strong>Post published successfully</strong><span>${escapeHtml(String(payload.destination || "Google Business Profile"))} · ${escapeHtml(memoryDateTime(payload.executedAt))}</span>${externalHref ? `<a href="${escapeHtml(externalHref)}" target="_blank" rel="noopener noreferrer">View live post</a>` : ""}</div>
+            </section>`;
+          showToast("Published to Google Business Profile. Meter is now measuring from this receipt.", "approved");
+          refreshWorkflowSnapshot({ force: true, silent: true });
+        } catch (error) {
+          errorBox.hidden = false;
+          errorBox.textContent = error.message || "Could not publish the post.";
+          publishButton.disabled = false;
+          publishButton.textContent = "Publish now";
+        }
+      };
+      dialog.addEventListener("close", () => dialog.remove(), { once: true });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+      checkbox.focus();
+    }
+
+    function bindGoogleBusinessCard(card) {
+      card.querySelector("[data-google-business-connect]")?.addEventListener("click", event => connectGoogleBusiness(card, event.currentTarget), { once: true });
+      card.querySelector("[data-google-business-select]")?.addEventListener("click", event => selectGoogleBusinessLocation(card, event.currentTarget), { once: true });
+      card.querySelector("[data-google-business-publish]")?.addEventListener("click", () => openGooglePublishDialog(card), { once: true });
+    }
+
     function makerReviewPanel(post) {
       const task = latestMakerTaskForPost(post);
       if (!task) return "";
@@ -23819,6 +24100,7 @@ ledger_entry · artifact · agent_run`,
       const stateClass = escapeHtml(archived ? "superseded" : (revising ? "running" : (task.status || "queued")));
       const revision = Number(artifact?.revision || task.input?.revision || 1);
       const reviewState = String(artifact?.reviewState || "ready_for_review");
+      const executionAction = makerGoogleBusinessActionHtml(task, artifact, archived, body, revision);
       const sectionHtml = sections.length ? `
         <div class="maker-section-grid">
           ${sections.map(section => `
@@ -23870,6 +24152,7 @@ ledger_entry · artifact · agent_run`,
             ${sectionHtml}
             ${fullDraft}
           </div>
+          ${executionAction}
           ${makerEmailReceiptHtml(email, archived)}
           ${revisionTools}
           ${copy}
@@ -24399,6 +24682,9 @@ ledger_entry · artifact · agent_run`,
           button.dataset.makerRevisionPrompt,
           button,
         );
+      });
+      document.querySelectorAll("[data-google-business-card]").forEach(card => {
+        hydrateGoogleBusinessCard(card);
       });
       document.querySelectorAll("[data-copy-maker-draft]").forEach(button => {
         button.onclick = async () => {
@@ -25513,6 +25799,19 @@ ledger_entry · artifact · agent_run`,
     }
     bindGrowthSwipe();
     renderApp();
+    if (googleBusinessReturn) {
+      const messages = {
+        connected: ["Google Business Profile connected.", "approved"],
+        choose_location: ["Choose the location you want Maker to publish to.", "approved"],
+        cancelled: ["Google Business connection was cancelled.", "rejected"],
+        error: ["Google Business could not be connected. Check the AWS and Google API setup.", "rejected"],
+      };
+      const notice = messages[googleBusinessReturn];
+      if (notice) window.setTimeout(() => showToast(notice[0], notice[1]), 120);
+      appQuery.delete("google_business");
+      const cleanQuery = appQuery.toString();
+      history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+    }
     if (!workflowApiConfigured) maybeOpenRequestedTask();
     // One read at startup synchronizes For You with decisions made on another
     // device. Continuous polling remains operator-only and begins only when

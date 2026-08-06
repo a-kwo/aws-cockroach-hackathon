@@ -102,7 +102,7 @@ def _meter_pass(
                 # miss against the number that was actually predicted.
                 predicted_daily_cents=find.predicted_daily_cents,
                 actual_daily_cents=measured,
-                period_start=find.created_at.date(),
+                period_start=find.measurement_start or find.created_at.date(),
                 period_end=find.verify_after,
                 method=outcome.method,
                 note=outcome.note,

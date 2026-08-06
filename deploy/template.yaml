@@ -759,6 +759,103 @@ Resources:
             Method: POST
 
   # --------------------------------------------------------------------
+  # Owner-confirmed Google Business Profile execution
+  # --------------------------------------------------------------------
+  GoogleBusinessTokenKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encrypts tenant Google Business OAuth refresh tokens.
+      EnableKeyRotation: true
+      DeletionWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnableAccountAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+
+  GoogleBusinessTokenKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${AWS::StackName}-google-business
+      TargetKeyId: !Ref GoogleBusinessTokenKey
+
+  GoogleBusinessFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: google-business
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.google_business.handler"]
+      Timeout: 30
+      Environment:
+        Variables:
+          GOOGLE_BUSINESS_TOKEN_KEY_ID: !GetAtt GoogleBusinessTokenKey.Arn
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSsmSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+            - Sid: ProtectGoogleBusinessTokens
+              Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+              Resource: !GetAtt GoogleBusinessTokenKey.Arn
+              Condition:
+                StringEquals:
+                  "kms:EncryptionContext:provider": google_business
+      Events:
+        Connect:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /integrations/google-business/connect
+            Method: POST
+        Callback:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /integrations/google-business/callback
+            Method: GET
+        Status:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /integrations/google-business/status
+            Method: GET
+        SelectLocation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /integrations/google-business/select
+            Method: POST
+        PublishPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /tasks/{task_id}/actions/google-business/publish
+            Method: POST
+
+  # --------------------------------------------------------------------
   # Signup step two: the business profile, for an account that already exists
   # --------------------------------------------------------------------
   OnboardingFunction:
@@ -1133,6 +1230,17 @@ Outputs:
       Sign in with Google, leg three. POST {"code"} — the one-time code the
       callback put in the redirect fragment — returns a session token.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/auth/google/complete
+
+  GoogleBusinessCallbackEndpoint:
+    Description: >
+      Add this exact URI to the Google OAuth client and store the same value at
+      /brasstacks/GOOGLE_BUSINESS_REDIRECT_URI. Business Profile API access must
+      be approved separately by Google.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/integrations/google-business/callback
+
+  GoogleBusinessTokenKeyArn:
+    Description: KMS key used only for tenant Google Business refresh tokens.
+    Value: !GetAtt GoogleBusinessTokenKey.Arn
 
   NightFunctionName:
     Description: Invoke manually to prove a night end to end before the scheduled sweep.

@@ -3272,3 +3272,46 @@ def test_find_to_post_carries_the_cost_estimate_untrusted():
     # `|| null` rather than `|| {}`: an absent estimate must be falsy at the
     # branch above, and an empty object is not.
     assert "costEstimate: find.costEstimate || null" in mapper
+
+
+def test_maker_google_business_action_is_revision_bound_and_owner_confirmed():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'manifest?.action_type !== "google_business.publish_post"' in html
+    assert 'data-artifact-id="${escapeHtml(String(artifact?.databaseId' in html
+    assert 'body: JSON.stringify({ confirm: true, artifact_id: card.dataset.artifactId, revision: Number(card.dataset.revision || 1) })' in html
+    assert "I reviewed this exact revision and want to publish it publicly" in html
+    assert "Publish this exact post?" in html
+
+
+def test_google_business_action_has_a_simple_mobile_bottom_sheet():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    mobile = html.split("@media (max-width:700px)", 1)[1].split("</style>", 1)[0]
+
+    assert ".maker-publish-dialog" in mobile
+    assert "margin:auto 0 0" in mobile
+    assert "border-radius:22px 22px 0 0" in mobile
+    assert "grid-template-columns:1fr 1fr" in mobile
+
+
+def test_google_business_tokens_never_enter_the_maker_browser_contract():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    action = html.split("function makerGoogleBusinessActionHtml", 1)[1].split(
+        "function loadGoogleBusinessStatus", 1
+    )[0]
+
+    assert "token_ciphertext" not in action
+    assert "refresh_token" not in action
+    assert "client_secret" not in action
+    assert "Connect Google Business" not in action  # rendered only after a safe status response
+
+
+def test_google_business_receipt_links_allow_https_only():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    helper = html.split("function safeExternalHref", 1)[1].split(
+        "function latestGoogleBusinessTool", 1
+    )[0]
+
+    assert 'parsed.protocol === "https:"' in helper
+    assert 'return ""' in helper
+    assert "noopener noreferrer" in html

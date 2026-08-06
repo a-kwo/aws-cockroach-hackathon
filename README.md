@@ -120,6 +120,29 @@ The consent screen needs only the default `openid email profile` scopes. This
 flow reads an identity and stores no Google access token, so it does not need
 verification review.
 
+### Publish Maker posts to Google Business Profile (optional)
+
+Maker can now turn a `google_business_post` artifact into one owner-confirmed
+public action. The owner connects a tenant-owned Business Profile, chooses the
+exact location, reviews the exact artifact revision, and clicks **Publish now**.
+The provider receipt is stored in `tool_execution`; the recommendation becomes
+`live`, and Meter starts its window from the execution timestamp rather than the
+draft timestamp. Copy remains available as a fallback.
+
+This is a separate authorization from Sign in with Google. Enable the Google
+Business Profile APIs for the same Cloud project, obtain Google approval for API
+access, and add the stack's `GoogleBusinessCallbackEndpoint` output to the OAuth
+client's Authorized redirect URIs. Store that exact URL as
+`/brasstacks/GOOGLE_BUSINESS_REDIRECT_URI`. The existing OAuth client ID, client
+secret, state secret and site URL are reused. The CloudFormation stack creates a
+dedicated KMS key and supplies its ARN to the execution Lambda. Refresh tokens
+are encrypted with a tenant-bound encryption context before CockroachDB storage;
+no token is returned to the browser or included in a Maker prompt.
+
+Run `python db/migrate.py --schema-only` in CI before `sam deploy`. The migration
+adds `external_connection`, `find.executed_at`, and the immutable link from the
+find to its successful `tool_execution` receipt.
+
 Three details that are deliberate rather than incidental:
 
 - **The invite code is still required.** It is a spend control, not a formality —

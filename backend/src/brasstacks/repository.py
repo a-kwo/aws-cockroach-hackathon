@@ -31,6 +31,11 @@ from brasstacks.decisions import (
     DecisionEvent,
     ReconsiderResult,
 )
+from brasstacks.connections import (
+    CONNECTION_CONNECTED,
+    CONNECTION_PENDING,
+    ExternalConnectionRecord,
+)
 from brasstacks.tasks import (
     MAKER_AGENT,
     MAKER_DRAFT_TASK,
@@ -161,6 +166,7 @@ class DueFind:
     predicted_daily_cents: int
     verify_after: date
     created_at: datetime
+    measurement_start: date | None = None
 
 
 @dataclass(frozen=True)
@@ -500,6 +506,30 @@ class Repository(Protocol):
         self, task_id: str, *, business_id: str | None = ...,
     ) -> TaskRecord | None: ...
 
+    def upsert_external_connection(
+        self, *, business_id: str, provider: str, account_id: str,
+        token_ciphertext: str, scopes: Sequence[str], status: str,
+        external_account_name: str | None = ...,
+        external_location_name: str | None = ...,
+        display_name: str | None = ...,
+        metadata: Mapping[str, Any] | None = ...,
+        last_error: str | None = ...,
+    ) -> ExternalConnectionRecord: ...
+
+    def get_external_connection(
+        self, business_id: str, *, provider: str,
+    ) -> ExternalConnectionRecord | None: ...
+
+    def select_external_connection(
+        self, business_id: str, *, provider: str, account_name: str,
+        location_name: str, display_name: str,
+    ) -> ExternalConnectionRecord: ...
+
+    def mark_find_executed(
+        self, find_id: str, *, business_id: str, tool_execution_id: str,
+        executed_at: datetime | None = ...,
+    ) -> None: ...
+
     def prepare_task_dispatch(self, task_id: str) -> TaskRecord | None: ...
 
     def record_task_workflow(
@@ -677,6 +707,8 @@ class _Find:
     #: What the move costs. Absent on legacy rows and on any night the costing
     #: pass could not run; never zero to mean "we did not price it".
     cost_estimate: dict[str, Any] | None = None
+    executed_at: datetime | None = None
+    execution_tool_id: str | None = None
     evidence: list[StoredEvidence] = field(default_factory=list)
 
 
@@ -746,6 +778,7 @@ class InMemoryRepository:
         self._tool_executions: dict[str, ToolExecutionRecord] = {}
         self._tool_by_idempotency: dict[str, str] = {}
         self._email_events: dict[str, EmailEventRecord] = {}
+        self._external_connections: dict[tuple[str, str], ExternalConnectionRecord] = {}
         self._ledger: list[_LedgerEntry] = []
         self._accounts: dict[str, dict[str, Any]] = {}
         self._sessions: dict[str, dict[str, Any]] = {}
@@ -1613,18 +1646,26 @@ class InMemoryRepository:
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]:
         judged = {entry.find_id for entry in self._ledger}
+
+        def effective_due(find: _Find) -> date:
+            if find.executed_at is None:
+                return find.verify_after
+            window = max(0, (find.verify_after - find.created_at.date()).days)
+            return find.executed_at.date() + timedelta(days=window)
+
         due = [
             f for f in self._finds.values()
             if f.business_id == business_id
             and f.status in JUDGEABLE_STATUSES
-            and f.verify_after <= today
+            and effective_due(f) <= today
             and f.find_id not in judged
         ]
-        due.sort(key=lambda f: (f.verify_after, f.created_at))
+        due.sort(key=lambda f: (effective_due(f), f.created_at))
         return [
             DueFind(find_id=f.find_id, title=f.title,
                     predicted_daily_cents=f.predicted_daily_cents,
-                    verify_after=f.verify_after, created_at=f.created_at)
+                    verify_after=effective_due(f), created_at=f.created_at,
+                    measurement_start=(f.executed_at.date() if f.executed_at else None))
             for f in due
         ]
 
@@ -1839,6 +1880,88 @@ class InMemoryRepository:
         if row is None or (business_id is not None and row["business_id"] != business_id):
             return None
         return self._task_record(row)
+
+    def upsert_external_connection(
+        self, *, business_id: str, provider: str, account_id: str,
+        token_ciphertext: str, scopes: Sequence[str], status: str,
+        external_account_name: str | None = None,
+        external_location_name: str | None = None,
+        display_name: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+        last_error: str | None = None,
+    ) -> ExternalConnectionRecord:
+        if business_id not in self._businesses:
+            raise RepositoryError("business is no longer available")
+        account = self.find_account_by_id(account_id)
+        if account is None or account.get("business_id") != business_id:
+            raise RepositoryError("account does not belong to this business")
+        key = (business_id, provider)
+        previous = self._external_connections.get(key)
+        now = self._now()
+        record = ExternalConnectionRecord(
+            connection_id=(previous.connection_id if previous else str(uuid.uuid4())),
+            business_id=business_id, provider=provider, account_id=account_id,
+            status=status, token_ciphertext=token_ciphertext,
+            scopes=tuple(str(scope) for scope in scopes if str(scope).strip()),
+            external_account_name=external_account_name,
+            external_location_name=external_location_name,
+            display_name=display_name, metadata=dict(metadata or {}),
+            connected_at=(
+                now if status == CONNECTION_CONNECTED
+                else (previous.connected_at if previous else None)
+            ),
+            created_at=(previous.created_at if previous else now), updated_at=now,
+            last_error=last_error,
+        )
+        self._external_connections[key] = record
+        return record
+
+    def get_external_connection(
+        self, business_id: str, *, provider: str,
+    ) -> ExternalConnectionRecord | None:
+        return self._external_connections.get((business_id, provider))
+
+    def select_external_connection(
+        self, business_id: str, *, provider: str, account_name: str,
+        location_name: str, display_name: str,
+    ) -> ExternalConnectionRecord:
+        key = (business_id, provider)
+        current = self._external_connections.get(key)
+        if current is None:
+            raise RepositoryError("connect Google Business before choosing a location")
+        available = current.metadata.get("locations")
+        match = next((row for row in (available or [])
+                      if isinstance(row, Mapping)
+                      and row.get("accountName") == account_name
+                      and row.get("locationName") == location_name), None)
+        if match is None:
+            raise RepositoryError("choose a location from the connected Google account")
+        now = self._now()
+        selected = replace(
+            current, status=CONNECTION_CONNECTED,
+            external_account_name=account_name,
+            external_location_name=location_name,
+            display_name=str(display_name or match.get("title") or "Google Business Profile")[:160],
+            connected_at=current.connected_at or now, updated_at=now, last_error=None,
+        )
+        self._external_connections[key] = selected
+        return selected
+
+    def mark_find_executed(
+        self, find_id: str, *, business_id: str, tool_execution_id: str,
+        executed_at: datetime | None = None,
+    ) -> None:
+        found = self._finds.get(find_id)
+        if found is None or found.business_id != business_id:
+            raise RepositoryError("recommendation is no longer available")
+        tool = self._tool_executions.get(tool_execution_id)
+        if tool is None or tool.business_id != business_id or tool.task_id not in self._tasks:
+            raise RepositoryError("publication receipt is no longer available")
+        if found.execution_tool_id and found.execution_tool_id != tool_execution_id:
+            raise RepositoryError("this recommendation already has an execution receipt")
+        found.execution_tool_id = tool_execution_id
+        found.executed_at = found.executed_at or executed_at or self._now()
+        found.status = "live"
 
     def prepare_task_dispatch(self, task_id: str) -> TaskRecord | None:
         row = self._tasks.get(task_id)

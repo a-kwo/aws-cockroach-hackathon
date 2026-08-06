@@ -10,6 +10,9 @@ dependencies = [
     # model) and for S3.
     "anthropic[bedrock]>=0.40",
     "boto3>=1.35",
+    # Google Business OAuth and publishing use direct HTTPS calls. Keep this
+    # explicit rather than relying on the Anthropic SDK to pull it transitively.
+    "httpx>=0.27",
     # Already present transitively (anthropic -> httpx -> certifi). Declared
     # because config.default_ca_bundle() relies on it to verify the CockroachDB
     # connection: psycopg's bundled OpenSSL cannot resolve `sslrootcert=system`

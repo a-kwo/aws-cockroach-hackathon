@@ -22,6 +22,11 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from brasstacks.decision_schema import ensure_decision_schema
+from brasstacks.connections import (
+    CONNECTION_CONNECTED,
+    ExternalConnectionRecord,
+)
+from brasstacks.execution_schema import ensure_execution_schema
 from brasstacks.decisions import (
     DECISION_ACCEPTED,
     DECISION_PASSED,
@@ -1487,31 +1492,35 @@ class PostgresRepository:
             ]
 
     def due_finds(self, business_id: str, *, today: date) -> list[DueFind]:
-        """The Meter's inbox: acted-on finds whose window has elapsed, unjudged.
-
-        The NOT EXISTS clause is what stops the Meter re-scoring the same find
-        every night and inflating the ledger without new work happening.
-        """
+        """The Meter's inbox, measured from execution when a receipt exists."""
+        ensure_execution_schema(self._conn)
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT f.id, f.title, f.predicted_daily_cents, f.verify_after,
-                       f.created_at
+                SELECT f.id, f.title, f.predicted_daily_cents,
+                       CASE
+                         WHEN f.executed_at IS NULL THEN f.verify_after
+                         ELSE f.executed_at::DATE + (f.verify_after - f.created_at::DATE)
+                       END AS effective_verify_after,
+                       f.created_at, f.executed_at::DATE
                 FROM find f
                 WHERE f.business_id = %s
-                  AND f.verify_after <= %s
+                  AND CASE
+                        WHEN f.executed_at IS NULL THEN f.verify_after
+                        ELSE f.executed_at::DATE + (f.verify_after - f.created_at::DATE)
+                      END <= %s
                   AND f.status = ANY(%s)
                   AND NOT EXISTS (
                       SELECT 1 FROM ledger_entry le WHERE le.find_id = f.id
                   )
-                ORDER BY f.verify_after, f.created_at
+                ORDER BY effective_verify_after, f.created_at
                 """,
                 (business_id, today, list(JUDGEABLE_STATUSES)),
             )
             return [
                 DueFind(find_id=str(r[0]), title=r[1],
                         predicted_daily_cents=int(r[2]), verify_after=r[3],
-                        created_at=r[4])
+                        created_at=r[4], measurement_start=r[5])
                 for r in cur.fetchall()
             ]
 
@@ -1777,6 +1786,180 @@ class PostgresRepository:
             )
             row = cur.fetchone()
         return _task_record(row) if row is not None else None
+
+    @staticmethod
+    def _external_connection(row: Sequence[Any]) -> ExternalConnectionRecord:
+        scopes_value = row[6]
+        if isinstance(scopes_value, str):
+            try:
+                scopes_value = json.loads(scopes_value)
+            except json.JSONDecodeError:
+                scopes_value = []
+        scopes = tuple(str(value) for value in (scopes_value or []) if str(value).strip())
+        return ExternalConnectionRecord(
+            connection_id=str(row[0]), business_id=str(row[1]), provider=str(row[2]),
+            account_id=str(row[3]), status=str(row[4]), token_ciphertext=str(row[5]),
+            scopes=scopes, external_account_name=row[7],
+            external_location_name=row[8], display_name=row[9],
+            metadata=_mapping(row[10]), last_error=row[11], connected_at=row[12],
+            created_at=row[13], updated_at=row[14],
+        )
+
+    def upsert_external_connection(
+        self, *, business_id: str, provider: str, account_id: str,
+        token_ciphertext: str, scopes: Sequence[str], status: str,
+        external_account_name: str | None = None,
+        external_location_name: str | None = None,
+        display_name: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+        last_error: str | None = None,
+    ) -> ExternalConnectionRecord:
+        ensure_task_schema(self._conn)
+        ensure_execution_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO external_connection
+                    (business_id, provider, account_id, status, token_ciphertext,
+                     scopes, external_account_name, external_location_name,
+                     display_name, metadata, last_error, connected_at)
+                SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                       CASE WHEN %s = 'connected' THEN clock_timestamp() ELSE NULL END
+                FROM owner_account a
+                WHERE a.id = %s AND a.business_id = %s
+                ON CONFLICT (business_id, provider) DO UPDATE SET
+                    account_id = excluded.account_id,
+                    status = excluded.status,
+                    token_ciphertext = excluded.token_ciphertext,
+                    scopes = excluded.scopes,
+                    external_account_name = excluded.external_account_name,
+                    external_location_name = excluded.external_location_name,
+                    display_name = excluded.display_name,
+                    metadata = excluded.metadata,
+                    last_error = excluded.last_error,
+                    connected_at = CASE
+                        WHEN excluded.status = 'connected'
+                        THEN COALESCE(external_connection.connected_at, clock_timestamp())
+                        ELSE external_connection.connected_at
+                    END,
+                    updated_at = clock_timestamp()
+                RETURNING id, business_id, provider, account_id, status,
+                          token_ciphertext, scopes, external_account_name,
+                          external_location_name, display_name, metadata, last_error,
+                          connected_at, created_at, updated_at
+                """,
+                (business_id, provider, account_id, status, token_ciphertext,
+                 Jsonb(list(scopes)), external_account_name, external_location_name,
+                 display_name, Jsonb(dict(metadata or {})), last_error, status,
+                 account_id, business_id),
+            )
+            row = cur.fetchone()
+        if row is None:
+            raise RepositoryError("account does not belong to this business")
+        return self._external_connection(row)
+
+    def get_external_connection(
+        self, business_id: str, *, provider: str,
+    ) -> ExternalConnectionRecord | None:
+        ensure_execution_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, business_id, provider, account_id, status,
+                       token_ciphertext, scopes, external_account_name,
+                       external_location_name, display_name, metadata, last_error,
+                       connected_at, created_at, updated_at
+                FROM external_connection
+                WHERE business_id = %s AND provider = %s
+                """,
+                (business_id, provider),
+            )
+            row = cur.fetchone()
+        return self._external_connection(row) if row is not None else None
+
+    def select_external_connection(
+        self, business_id: str, *, provider: str, account_name: str,
+        location_name: str, display_name: str,
+    ) -> ExternalConnectionRecord:
+        ensure_execution_schema(self._conn)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, business_id, provider, account_id, status,
+                           token_ciphertext, scopes, external_account_name,
+                           external_location_name, display_name, metadata, last_error,
+                           connected_at, created_at, updated_at
+                    FROM external_connection
+                    WHERE business_id = %s AND provider = %s
+                    FOR UPDATE
+                    """,
+                    (business_id, provider),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise RepositoryError("connect Google Business before choosing a location")
+                current = self._external_connection(row)
+                available = current.metadata.get("locations")
+                match = next((item for item in (available or [])
+                              if isinstance(item, Mapping)
+                              and item.get("accountName") == account_name
+                              and item.get("locationName") == location_name), None)
+                if match is None:
+                    raise RepositoryError("choose a location from the connected Google account")
+                cur.execute(
+                    """
+                    UPDATE external_connection
+                    SET status = 'connected', external_account_name = %s,
+                        external_location_name = %s, display_name = %s,
+                        connected_at = COALESCE(connected_at, clock_timestamp()),
+                        last_error = NULL, updated_at = clock_timestamp()
+                    WHERE id = %s
+                    RETURNING id, business_id, provider, account_id, status,
+                              token_ciphertext, scopes, external_account_name,
+                              external_location_name, display_name, metadata, last_error,
+                              connected_at, created_at, updated_at
+                    """,
+                    (account_name, location_name,
+                     str(display_name or match.get("title") or "Google Business Profile")[:160],
+                     current.connection_id),
+                )
+                return self._external_connection(cur.fetchone())
+
+    def mark_find_executed(
+        self, find_id: str, *, business_id: str, tool_execution_id: str,
+        executed_at: datetime | None = None,
+    ) -> None:
+        ensure_task_schema(self._conn)
+        ensure_execution_schema(self._conn)
+        moment = executed_at or datetime.now(timezone.utc)
+        with self._conn.transaction():
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT f.execution_tool_id, t.business_id
+                    FROM find f
+                    JOIN tool_execution t ON t.id = %s
+                    WHERE f.id = %s AND f.business_id = %s
+                    FOR UPDATE
+                    """,
+                    (tool_execution_id, find_id, business_id),
+                )
+                row = cur.fetchone()
+                if row is None or str(row[1]) != business_id:
+                    raise RepositoryError("publication receipt is no longer available")
+                if row[0] is not None and str(row[0]) != tool_execution_id:
+                    raise RepositoryError("this recommendation already has an execution receipt")
+                cur.execute(
+                    """
+                    UPDATE find
+                    SET status = 'live',
+                        executed_at = COALESCE(executed_at, %s),
+                        execution_tool_id = COALESCE(execution_tool_id, %s)
+                    WHERE id = %s AND business_id = %s
+                    """,
+                    (moment, tool_execution_id, find_id, business_id),
+                )
 
     def prepare_task_dispatch(self, task_id: str) -> TaskRecord | None:
         ensure_task_schema(self._conn)

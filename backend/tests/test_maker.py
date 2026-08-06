@@ -256,3 +256,54 @@ class TestRunMaker:
         # the prompt, not just the docs.
         assert "draft" in MAKER_SYSTEM_PROMPT.lower()
         assert "never send" in MAKER_SYSTEM_PROMPT.lower()
+
+
+def test_google_business_draft_gets_a_server_bounded_action_manifest():
+    repo = InMemoryRepository()
+    business_id = a_business(repo)
+    find_id = a_find(repo, business_id, title="Publish the lunch set")
+    payload = {
+        "title": "Lunch set post",
+        "body": "Try our weekday lunch set.",
+        "summary": "A Google Business post ready for review.",
+        "review_state": "ready_for_review",
+        "owner_action": "Review the exact post before publishing.",
+        "owner_questions": [],
+        "artifact_type": "google_business_post",
+        "sections": [{"title": "Post", "content": "Try our weekday lunch set."}],
+    }
+
+    run_maker(repo=repo, reasoner=FakeReasoner([payload]),
+              store=FakeArtifactStore(), business_id=business_id,
+              find=next_undrafted_find(repo, business_id))
+
+    artifact = repo.get_artifacts(find_id)[0]
+    assert artifact.metadata["action_manifest"] == {
+        "version": 1,
+        "action_type": "google_business.publish_post",
+        "state": "ready_for_approval",
+        "requires_owner_confirmation": True,
+        "content_source": "artifact.body",
+    }
+
+
+def test_drafts_needing_owner_input_are_never_executable():
+    repo = InMemoryRepository()
+    business_id = a_business(repo)
+    find_id = a_find(repo, business_id, title="Publish the lunch set")
+    payload = {
+        "title": "Lunch set post",
+        "body": "Draft waiting for the price.",
+        "summary": "Price required.",
+        "review_state": "needs_owner_input",
+        "owner_action": "Confirm the lunch set price.",
+        "owner_questions": ["What is the exact lunch set price?"],
+        "artifact_type": "google_business_post",
+        "sections": [{"title": "Draft", "content": "Waiting for price."}],
+    }
+
+    run_maker(repo=repo, reasoner=FakeReasoner([payload]),
+              store=FakeArtifactStore(), business_id=business_id,
+              find=next_undrafted_find(repo, business_id))
+
+    assert repo.get_artifacts(find_id)[0].metadata["action_manifest"] is None
