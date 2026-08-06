@@ -3065,3 +3065,84 @@ def test_feed_evidence_sheet_renders_source_metadata_and_mobile_bottom_sheet():
     assert 'title="Vector similarity"' in html
     assert '.evidence-sheet-panel { width:100%; max-height:88dvh;' in html
     assert 'border-radius:22px 22px 0 0' in html
+
+
+def test_the_detail_panel_shows_a_cost_only_when_one_was_estimated():
+    """An unpriced move renders no cost rows at all — never a row of zeroes.
+
+    Every find written before the Coster existed is unpriced, and so is every
+    find from a night whose costing call failed. "$0 setup" on those cards would
+    be the most persuasive thing the product could say about a move nobody had
+    priced, which is why the renderer branches on `hasEstimate` rather than on
+    the figures themselves.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
+        "function findToPost", 1
+    )[0]
+
+    assert "cost.hasEstimate" in panel
+    assert "costRows = cost && cost.hasEstimate" in panel
+    # The empty branch is a literal empty list, not a list of zeroed rows.
+    assert "] : [];" in panel
+
+
+def test_the_card_never_does_money_arithmetic_for_a_cost():
+    """CLAUDE.md: money is formatted once, in Python. The page prints strings.
+
+    The failure this prevents is the page dividing cents by 100 in JavaScript
+    and disagreeing with the ledger three decimal places down.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
+        "function findToPost", 1
+    )[0]
+
+    assert "cost.setupTxt" in panel
+    assert "cost.dailyTxt" in panel
+    assert "cost.paybackTxt" in panel
+    for arithmetic in ("setupCents /", "dailyCents /", "/ 100"):
+        assert arithmetic not in panel, arithmetic
+
+
+def test_a_cost_is_labelled_modelled_and_never_called_actual():
+    """The same rule the ledger keeps: an unmeasured figure says it is modelled.
+
+    Nothing measures a cost yet — the Meter judges revenue against observed
+    outcomes and has no path to a spend receipt — so the card has to say so
+    rather than letting a confident number imply otherwise.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
+        "function findToPost", 1
+    )[0]
+
+    assert "Costs are modelled, not measured." in panel
+    assert "Actual cost" not in panel
+
+
+def test_the_card_says_when_a_move_is_measured_before_it_breaks_even():
+    """verify_after_days defaults to 14; a $900 setup at +$23/day takes 40.
+
+    The Meter would stamp that VERIFIED 26 days before the owner was square, and
+    the owner is entitled to know the first verdict measures the lift rather
+    than the payback.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
+        "function findToPost", 1
+    )[0]
+
+    assert "cost.paysBackWithinWindow === false" in panel
+    assert "before it breaks even" in panel
+
+
+def test_find_to_post_carries_the_cost_estimate_untrusted():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    mapper = html.split("function findToPost", 1)[1].split(
+        "function postsFromMemory", 1
+    )[0]
+
+    # `|| null` rather than `|| {}`: an absent estimate must be falsy at the
+    # branch above, and an empty object is not.
+    assert "costEstimate: find.costEstimate || null" in mapper

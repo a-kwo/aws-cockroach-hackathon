@@ -263,6 +263,12 @@ class FindContext:
     #: JSON-shaped so the repository contract stays independent of the
     #: Analyst's dataclass. None on finds written before the field existed.
     feed_brief: Mapping[str, Any] | None = None
+    #: What the Coster priced this move at: setup and daily cents, the basis,
+    #: and the lines behind them. ``None`` means nobody priced it — an outage,
+    #: no coster wired, or a find older than the column. Never read as zero:
+    #: unpriced and free are different facts and only one of them is a claim
+    #: about the owner's money.
+    cost_estimate: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -429,6 +435,7 @@ class Repository(Protocol):
         summary: str | None = ...,
         alternative_explanation: str | None = ...,
         feed_brief: Mapping[str, Any] | None = ...,
+        cost_estimate: Mapping[str, Any] | None = ...,
         status: str = ..., withheld_reason: str | None = ...,
         claim_type: str | None = ...,
         run_id: str | None = ...,
@@ -667,6 +674,9 @@ class _Find:
     alternative_explanation: str | None = None
     #: Compact owner-facing metadata; absent on legacy rows.
     feed_brief: dict[str, Any] | None = None
+    #: What the move costs. Absent on legacy rows and on any night the costing
+    #: pass could not run; never zero to mean "we did not price it".
+    cost_estimate: dict[str, Any] | None = None
     evidence: list[StoredEvidence] = field(default_factory=list)
 
 
@@ -1183,6 +1193,8 @@ class InMemoryRepository:
             claim_type=found.claim_type,
             feed_brief=(dict(found.feed_brief)
                         if found.feed_brief is not None else None),
+            cost_estimate=(dict(found.cost_estimate)
+                           if found.cost_estimate is not None else None),
         )
 
     # -- finds -----------------------------------------------------------
@@ -1193,6 +1205,7 @@ class InMemoryRepository:
         summary: str | None = None,
         alternative_explanation: str | None = None,
         feed_brief: Mapping[str, Any] | None = None,
+        cost_estimate: Mapping[str, Any] | None = None,
         status: str = "proposed", withheld_reason: str | None = None,
         claim_type: str | None = None,
         run_id: str | None = None,
@@ -1224,6 +1237,8 @@ class InMemoryRepository:
             run_id=run_id,
             alternative_explanation=alternative_explanation,
             feed_brief=(dict(feed_brief) if feed_brief is not None else None),
+            cost_estimate=(dict(cost_estimate)
+                           if cost_estimate is not None else None),
             withheld_reason=withheld_reason,
             claim_type=claim_type,
             # rank is the row's position in what retrieval returned, not the

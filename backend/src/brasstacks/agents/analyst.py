@@ -65,6 +65,7 @@ from datetime import date, timedelta, timezone
 
 from brasstacks import repository as repository_module
 from brasstacks.agent_runs import closing_run
+from brasstacks.agents.coster import CostEstimate, CostingResult, cost_finds
 from brasstacks.agents.refuter import (
     DEMOTE, Refutation, RefutationResult, refute_finds,
 )
@@ -1130,6 +1131,7 @@ def run_analyst(
     model_id: str | None = None,
     competitors: Sequence = (),
     refuter: Reasoner | None = None,
+    coster: Reasoner | None = None,
 ) -> AnalystResult:
     """Retrieve, reason, and store one night's find.
 
@@ -1143,6 +1145,12 @@ def run_analyst(
     apart. It runs before anything is written, because "before the owner sees
     it" means before the row exists: a find stored as `proposed` is already on
     her board the next time the page loads.
+
+    `coster` is a third call, over the same survivors, that prices what each
+    move will cost. It is deliberately never shown what the move is predicted to
+    earn — see `agents/coster.py` — and it is optional for the same reason the
+    refuter is: a deployment without one behaves exactly as it did before, and a
+    find carries no cost rather than a cost of zero.
     """
     run_id = repo.start_run(business_id, agent="analyst", model_id=model_id)
     with closing_run(repo, run_id):
@@ -1150,7 +1158,7 @@ def run_analyst(
             run_id=run_id, repo=repo, embedder=embedder, reasoner=reasoner,
             business_id=business_id, today=today, queries=queries,
             per_query_limit=per_query_limit, competitors=competitors,
-            refuter=refuter,
+            refuter=refuter, coster=coster,
         )
 
 
@@ -1166,6 +1174,7 @@ def _analyst_night(
     per_query_limit: int,
     competitors: Sequence,
     refuter: Reasoner | None = None,
+    coster: Reasoner | None = None,
 ) -> AnalystResult:
     retrieval = _retrieve_with_receipt(
         repo, embedder, business_id, queries, per_query_limit
@@ -1295,19 +1304,40 @@ def _analyst_night(
             business_state=business_state,
         )
 
+    # The costing pass, over the same survivors. It runs beside the refutation
+    # rather than after its verdicts because the two answer independent
+    # questions — "is this true?" and "what does it cost?" — and a move the
+    # refuter demoted still costs the owner exactly what it costs. Withheld
+    # moves are skipped for the reason they are skipped above: nobody will see
+    # them, so pricing them is tokens spent on a card that does not exist.
+    costing = CostingResult()
+    if coster is not None and survivors:
+        costing = cost_finds(
+            reasoner=coster,
+            finds=survivors,
+            retrieved={hit.observation_id: hit for hit in retrieved},
+            business=business,
+            business_state=business_state,
+        )
+
     # One judgement per proposal, positionally, or None where there was nothing
     # to challenge. Built as a list rather than looked up by title, because two
     # moves of a night can and do share a title prefix.
     judgements: list[Refutation | None] = [None] * len(finds)
-    if refuter is not None:
+    estimates: list[CostEstimate | None] = [None] * len(finds)
+    if refuter is not None or coster is not None:
         position = 0
         for index, proposal in enumerate(finds):
             if proposal.claim.withheld:
                 continue
-            judgements[index] = refutation.for_index(position)
+            if refuter is not None:
+                judgements[index] = refutation.for_index(position)
+            if coster is not None:
+                estimates[index] = costing.for_index(position)
             position += 1
 
-    def store(proposal: ParsedFind, judgement: Refutation | None) -> str | None:
+    def store(proposal: ParsedFind, judgement: Refutation | None,
+              estimate: CostEstimate | None) -> str | None:
         """Write one move, on the board or held back, or not at all."""
         held = proposal.claim.withheld or (
             judgement is not None and judgement.withheld)
@@ -1339,6 +1369,11 @@ def _analyst_night(
             rationale=proposal.rationale,
             move=proposal.move,
             feed_brief=proposal.feed_brief.as_dict(),
+            # None when nobody priced it — no coster wired, the call failed, or
+            # every line came back unusable. `as_dict()` returns None for all
+            # three, so the column stays NULL rather than storing zeroes that a
+            # later reader could not tell apart from a genuinely free move.
+            cost_estimate=(estimate.as_dict() if estimate is not None else None),
             alternative_explanation=proposal.alternative_explanation,
             # The tier AFTER demotion, not the one the model asked for. It is
             # the difference between "worth a look" and "your storefront is
@@ -1360,7 +1395,7 @@ def _analyst_night(
     outcomes = tuple(
         FindOutcome(title=proposal.title, claim_type=proposal.claim_type,
                     verdict=proposal.claim,
-                    find_id=store(proposal, judgements[index]),
+                    find_id=store(proposal, judgements[index], estimates[index]),
                     refutation=judgements[index])
         for index, proposal in enumerate(finds)
     )

@@ -28,6 +28,12 @@ DECISION_SCHEMA_STATEMENTS = (
     # bootstrapping prevents a newer Lambda from losing the whole night merely
     # because the explicit migration has not reached the cluster yet.
     "ALTER TABLE find ADD COLUMN IF NOT EXISTS feed_brief JSONB",
+    # What the Coster priced the move at. Nullable and NULL by default, which
+    # is load-bearing rather than incidental: every find written before this
+    # column existed is unpriced, and a row of zeroes would be indistinguishable
+    # from a move that genuinely costs nothing to run. Absent and free are
+    # different facts and the column has to be able to tell them apart.
+    "ALTER TABLE find ADD COLUMN IF NOT EXISTS cost_estimate JSONB",
     # Same hazard again, at the other end of the loop. The Meter now writes NULL
     # into `actual_daily_cents` for a verdict with no measurement, because
     # storing the prediction there was the ledger reporting a forecast back as

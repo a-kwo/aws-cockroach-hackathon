@@ -35,6 +35,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "backend" / "src"))
+from brasstacks.agents.coster import cost_for_display  # noqa: E402
 from brasstacks.analyst_trace import parse_analyst_trace  # noqa: E402
 from brasstacks.ask_trace import parse_ask_trace  # noqa: E402
 from brasstacks.finds import (  # noqa: E402
@@ -490,6 +491,14 @@ def build_model(data: dict) -> dict:
             "summary": summary_text,
             "rationale": " ".join((f["rationale"] or "").split()),
             "feedBrief": feed_brief,
+            # Beside the revenue figure, never netted against it. See
+            # workflow_snapshot.build_workspace — both paths read the same
+            # helper so the first paint and the live refresh cannot disagree.
+            "costEstimate": cost_for_display(
+                f.get("cost_estimate"),
+                predicted_daily_cents=predicted,
+                verify_after_days=verification_days(f),
+            ),
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),
             "predictedMonthlyTxt": money(predicted * PER_MONTH),

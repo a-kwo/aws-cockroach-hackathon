@@ -23,6 +23,7 @@ from uuid import UUID
 
 from brasstacks.agents.analyst import ANALYST_QUERIES, DEFAULT_PER_QUERY_LIMIT
 from brasstacks.agents.ask import TRAIL_PREFIX
+from brasstacks.agents.coster import cost_for_display
 from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
 from brasstacks.decision_schema import ensure_decision_schema
@@ -594,6 +595,11 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             verify_after_days=_verification_days(raw_find),
             evidence_kinds=[str(item.get("kind") or "") for item in evidence],
         )
+        cost = cost_for_display(
+            raw_find.get("cost_estimate"),
+            predicted_daily_cents=predicted,
+            verify_after_days=_verification_days(raw_find),
+        )
         finds.append({
             "id": find_id[:8],
             "databaseId": find_id,
@@ -622,6 +628,10 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
                 "successSignal": brief.success_signal,
                 "tags": list(brief.tags),
             },
+            # Beside the revenue figure, never netted against it. One is
+            # measured by the Meter and one is not measured by anything yet, and
+            # a single combined number would launder the second into the first.
+            "costEstimate": cost,
             "predictedDaily": predicted,
             "predictedDailyTxt": money(predicted),
             "predictedMonthlyTxt": money(predicted * PER_MONTH),
@@ -888,7 +898,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
 
         finds = _rows(cursor, f"""
             SELECT business_id, id, run_id, emoji, title, summary,
-                   rationale, move, feed_brief,
+                   rationale, move, feed_brief, cost_estimate,
                    predicted_daily_cents, confidence, verify_after, status,
                    decided_at, decision_cycle, reopened_at,
                    reopen_reason_code, reopen_reason_note, withheld_reason,

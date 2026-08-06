@@ -75,6 +75,7 @@ def run_night(
     model_id: str | None = None,
     now: datetime | None = None,
     refuter: Reasoner | None = None,
+    coster: Reasoner | None = None,
 ) -> NightResult:
     """Run the agents in order: observe, reason, do, measure.
 
@@ -91,6 +92,11 @@ def run_night(
     is passed down rather than built here so it stays a `Reasoner` the caller
     chose — the same provider interface, so the whole check is swappable and
     fakeable, and so a test can hand it a reasoner that explodes.
+
+    `coster` prices what each surviving move will cost the owner, and it is
+    passed down for the same reasons. It never sees what the Analyst predicted
+    the move would earn: revenue and cost are estimated independently so the
+    second figure is not anchored on the first.
     """
     business = repo.get_business(business_id) if hasattr(repo, "get_business") else None
     # 02:00 UTC is the local harness stepping a simulated calendar, and it is
@@ -113,7 +119,7 @@ def run_night(
     analyst = run_analyst(
         repo=repo, embedder=embedder, reasoner=reasoner, business_id=business_id,
         today=today, model_id=model_id, competitors=radar.competitors,
-        refuter=refuter,
+        refuter=refuter, coster=coster,
     )
 
     # Standing in for the owner tapping "do it now". Only ever used by the local

@@ -824,7 +824,7 @@ class PostgresRepository:
                        decided_at, decision_cycle, reopened_at,
                        reopen_reason_code, reopen_reason_note,
                        alternative_explanation, withheld_reason, claim_type,
-                       feed_brief
+                       feed_brief, cost_estimate
                 FROM find
                 WHERE id = %s AND business_id = %s
                 """,
@@ -842,6 +842,7 @@ class PostgresRepository:
             reopen_reason_code=row[12], reopen_reason_note=row[13],
             alternative_explanation=row[14], withheld_reason=row[15],
             claim_type=row[16], feed_brief=_mapping(row[17]) or None,
+            cost_estimate=_mapping(row[18]) or None,
         )
 
     # -- finds -----------------------------------------------------------
@@ -852,6 +853,7 @@ class PostgresRepository:
         summary: str | None = None,
         alternative_explanation: str | None = None,
         feed_brief: Mapping[str, Any] | None = None,
+        cost_estimate: Mapping[str, Any] | None = None,
         status: str = "proposed", withheld_reason: str | None = None,
         claim_type: str | None = None,
         run_id: str | None = None,
@@ -887,18 +889,24 @@ class PostgresRepository:
                         """
                         INSERT INTO find (
                             business_id, run_id, emoji, title, summary,
-                            rationale, move, feed_brief, alternative_explanation,
+                            rationale, move, feed_brief, cost_estimate,
+                            alternative_explanation,
                             predicted_daily_cents, confidence, verify_after,
                             status, withheld_reason, claim_type,
                             created_at, decided_at
                         )
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                %s, %s, %s, coalesce(%s, clock_timestamp()), %s)
+                                %s, %s, %s, %s, coalesce(%s, clock_timestamp()), %s)
                         RETURNING id
                         """,
                         (business_id, run_id, emoji, title, summary,
                          rationale, move,
                          Jsonb(dict(feed_brief)) if feed_brief is not None else None,
+                         # NULL, not an empty object, when nobody priced it. A
+                         # stored `{}` would read back as an estimate that found
+                         # no costs, which is the "free move" claim this whole
+                         # design refuses to make by accident.
+                         Jsonb(dict(cost_estimate)) if cost_estimate is not None else None,
                          alternative_explanation, predicted_daily_cents,
                          confidence, verify_after, status, withheld_reason,
                          claim_type, created_at, decided_at),

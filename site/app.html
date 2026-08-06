@@ -16888,6 +16888,36 @@
       font-weight: 810;
     }
 
+    /* Deliberately quieter than .is-impact above. The projected figure is the
+       headline and stays the loudest thing in the list; the bill sits beside it
+       in the same column, legible but not competing. Warm rather than red —
+       these are ordinary costs of doing the thing, not a warning. */
+    body.autopilot-mode .feed-detail-row.is-cost dd {
+      color: #e8c69a;
+      font-weight: 720;
+    }
+
+    body.autopilot-mode .feed-detail-row.is-cost dt i {
+      color: #d3ab7e;
+    }
+
+    body.autopilot-mode .feed-cost-note {
+      margin: 11px 0 0;
+      padding: 9px 11px;
+      border: 1px solid rgba(211,171,126,.16);
+      border-radius: 10px;
+      background: rgba(211,171,126,.06);
+      color: #a9b2c9;
+      font-size: 10.5px;
+      line-height: 1.5;
+      font-weight: 560;
+    }
+
+    body.autopilot-mode .feed-cost-note b {
+      color: #e8c69a;
+      font-weight: 760;
+    }
+
     body.autopilot-mode .feed-effort-pill {
       min-height: 27px;
       display: inline-flex;
@@ -18356,8 +18386,20 @@
 
     function renderFeedDetailPanel(post) {
       const brief = post.feedBrief;
+      // Priced by a second agent that was never shown what this move is
+      // predicted to earn, so the two figures are independent. Absent whenever
+      // nobody costed it — an older find, or a night the costing call failed —
+      // and absent means these rows do not render at all. A cost of $0 would
+      // read as "this is free", which is the one thing an outage must not say.
+      const cost = post.costEstimate;
+      const costRows = cost && cost.hasEstimate ? [
+        { icon: "price", label: "Setup cost", value: `${cost.setupTxt} once`, tone: "cost" },
+        { icon: "clock", label: "Running cost", value: `${cost.dailyTxt} / day`, tone: "cost" },
+        { icon: "calendar", label: "Pays back in", value: cost.paybackTxt, tone: "cost" }
+      ] : [];
       const detailRows = [
         { icon: "impact", label: "Projected impact", value: `${formatMoney(post.amount)} / month`, tone: "impact" },
+        ...costRows,
         { icon: "effort", label: "Effort", value: titleCaseLabel(brief.effort), tone: `effort-${brief.effort}` },
         { icon: "category", label: "Category", value: brief.category },
         { icon: "type", label: "Type", value: brief.moveType },
@@ -18386,6 +18428,14 @@
                   : escapeHtml(row.value || "Not specified")}</dd>
               </div>`).join("")}
           </dl>
+          ${cost && cost.hasEstimate ? `
+            <p class="feed-cost-note">
+              <b>Costs are modelled, not measured.</b>
+              ${escapeHtml(cost.basis || "")}
+              ${cost.paysBackWithinWindow === false
+                ? "This is checked before it breaks even, so the first verdict measures the lift rather than the payback."
+                : ""}
+            </p>` : ""}
           <div class="feed-glance-heading"><span>At a glance</span></div>
           <div class="feed-glance-grid">
             ${glance.map(item => `
@@ -18425,6 +18475,10 @@
         signal: conciseFindSummary(find),
         fullSignal: cleanOwnerCopy(find.rationale || find.summary || ""),
         feedBrief: normaliseFeedBrief(find),
+        // Straight through from build_web / the workflow snapshot, both of
+        // which run the same Python helper. Null on any payload written before
+        // the Coster existed, and the detail panel renders no cost rows then.
+        costEstimate: find.costEstimate || null,
         recommendation: find.move,
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],

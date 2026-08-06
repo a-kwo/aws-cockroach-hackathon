@@ -217,6 +217,14 @@ CREATE TABLE IF NOT EXISTS find (
   -- tags. Nullable for every find written before v40. The full argument and
   -- executable plan remain in rationale/move; this object never replaces them.
   feed_brief            JSONB,
+  -- What the Coster says this move will cost: setup_cost_cents (once),
+  -- recurring_daily_cost_cents (every day it runs), the basis sentence, and the
+  -- priced lines behind both totals. Integer cents like every other money
+  -- column here. NULL means nobody priced it — never that it is free, which is
+  -- why an outage writes nothing rather than zeroes. `measured` is false until
+  -- an owner confirms real spend: revenue is judged by the Meter, cost is not
+  -- judged by anything yet, and the card must not imply otherwise.
+  cost_estimate         JSONB,
   -- The strongest rival reading of the same evidence, and why the Analyst
   -- rejected it. Find 7c4a9124 called a Grubhub storefront broken on three
   -- fragments of one page fetched at 08:07, an hour before the restaurant
@@ -568,6 +576,7 @@ CREATE INDEX IF NOT EXISTS find_reopened_idx
 
 ALTER TABLE find ADD COLUMN IF NOT EXISTS summary STRING;
 ALTER TABLE find ADD COLUMN IF NOT EXISTS feed_brief JSONB;
+ALTER TABLE find ADD COLUMN IF NOT EXISTS cost_estimate JSONB;
 
 -- An account is created before its business (see owner_account above). Clusters
 -- provisioned when this was NOT NULL need the constraint dropped.
