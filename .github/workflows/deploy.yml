@@ -106,16 +106,16 @@ jobs:
 
 
 
-     - name: Show CloudFormation failure details
-       if: failure()
-       shell: bash
-       run: |
-         echo "Latest CloudFormation events:"
-         aws cloudformation describe-stack-events \
-           --stack-name brasstacks \
-           --region us-east-1 \
-           --query "StackEvents[0:40].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
-           --output table
+      - name: Show CloudFormation failure details
+        if: failure()
+        shell: bash
+        run: |
+          echo "Latest CloudFormation events:"
+          aws cloudformation describe-stack-events \
+            --stack-name brasstacks \
+            --region us-east-1 \
+            --query "StackEvents[0:40].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+            --output table
 
 
       - name: Read deployed stack outputs
