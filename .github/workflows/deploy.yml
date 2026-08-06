@@ -30,10 +30,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      
-
-
-
 
       - name: Confirm AWS account
         run: aws sts get-caller-identity
@@ -66,7 +62,6 @@ jobs:
           COCKROACH_DATABASE_URL: ${{ secrets.COCKROACH_DATABASE_URL }}
         run: python db/migrate.py --schema-only
 
-
       - name: Build Lambda container images
         run: sam build --template deploy/template.yaml
 
@@ -74,11 +69,7 @@ jobs:
         id: existing
         shell: bash
         run: |
-          ARTIFACT_BUCKET=$(aws cloudformation describe-stacks \
-            --stack-name brasstacks \
-            --region us-east-1 \
-            --query "Stacks[0].Parameters[?ParameterKey=='ArtifactBucket'].ParameterValue | [0]" \
-            --output text)
+          ARTIFACT_BUCKET=$(aws cloudformation describe-stacks             --stack-name brasstacks             --region us-east-1             --query "Stacks[0].Parameters[?ParameterKey=='ArtifactBucket'].ParameterValue | [0]"             --output text)
 
           if [ -z "$ARTIFACT_BUCKET" ] || [ "$ARTIFACT_BUCKET" = "None" ]; then
             echo "ArtifactBucket was not found in the existing stack."
@@ -89,36 +80,19 @@ jobs:
           echo "Existing artifact bucket found."
 
       - name: Deploy existing stack
+        id: deploy_stack
         run: |
-          sam deploy \
-            --template-file .aws-sam/build/template.yaml \
-            --stack-name brasstacks \
-            --region us-east-1 \
-            --capabilities CAPABILITY_IAM \
-            --resolve-image-repos \
-            --resolve-s3 \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              ArtifactBucket="${{ steps.existing.outputs.artifact_bucket }}"
-
-
-
-
+          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides               ArtifactBucket="${{ steps.existing.outputs.artifact_bucket }}"
 
       - name: Show CloudFormation failure details
-        if: failure()
+        if: always() && steps.deploy_stack.outcome == 'failure'
         shell: bash
         run: |
           echo "Latest CloudFormation events:"
-          aws cloudformation describe-stack-events \
-            --stack-name brasstacks \
-            --region us-east-1 \
-            --query "StackEvents[0:40].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
-            --output table
-
+          aws cloudformation describe-stack-events             --stack-name brasstacks             --region us-east-1             --query "StackEvents[0:50].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]"             --output table
 
       - name: Read deployed stack outputs
+        if: success()
         id: outputs
         shell: bash
         run: |
@@ -126,11 +100,7 @@ jobs:
           REGION=us-east-1
 
           value() {
-            aws cloudformation describe-stacks \
-              --stack-name "$STACK" \
-              --region "$REGION" \
-              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue | [0]" \
-              --output text
+            aws cloudformation describe-stacks               --stack-name "$STACK"               --region "$REGION"               --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue | [0]"               --output text
           }
 
           echo "decision_endpoint=$(value DecisionEndpoint)" >> "$GITHUB_OUTPUT"
@@ -139,39 +109,38 @@ jobs:
           echo "site_url=$(value SiteUrl)" >> "$GITHUB_OUTPUT"
 
       - name: Validate stack outputs
+        if: success()
         shell: bash
         run: |
-          if [ -z "${{ steps.outputs.outputs.decision_endpoint }}" ] || \
-             [ "${{ steps.outputs.outputs.decision_endpoint }}" = "None" ]; then
+          if [ -z "${{ steps.outputs.outputs.decision_endpoint }}" ] ||              [ "${{ steps.outputs.outputs.decision_endpoint }}" = "None" ]; then
             echo "DecisionEndpoint was not found."
             exit 1
           fi
 
-          if [ -z "${{ steps.outputs.outputs.workflow_endpoint }}" ] || \
-             [ "${{ steps.outputs.outputs.workflow_endpoint }}" = "None" ]; then
+          if [ -z "${{ steps.outputs.outputs.workflow_endpoint }}" ] ||              [ "${{ steps.outputs.outputs.workflow_endpoint }}" = "None" ]; then
             echo "WorkflowEndpoint was not found."
             exit 1
           fi
 
-          if [ -z "${{ steps.outputs.outputs.site_bucket }}" ] || \
-             [ "${{ steps.outputs.outputs.site_bucket }}" = "None" ]; then
+          if [ -z "${{ steps.outputs.outputs.site_bucket }}" ] ||              [ "${{ steps.outputs.outputs.site_bucket }}" = "None" ]; then
             echo "SiteBucketName was not found."
             exit 1
           fi
 
       - name: Build connected frontend
+        if: success()
         env:
           DECISION_API_ENDPOINT: ${{ steps.outputs.outputs.decision_endpoint }}
           WORKFLOW_API_ENDPOINT: ${{ steps.outputs.outputs.workflow_endpoint }}
         run: python scripts/build_web.py
 
       - name: Publish frontend to S3
+        if: success()
         run: |
-          aws s3 sync web/ \
-            "s3://${{ steps.outputs.outputs.site_bucket }}/" \
-            --delete
+          aws s3 sync web/             "s3://${{ steps.outputs.outputs.site_bucket }}/"             --delete
 
       - name: Deployment summary
+        if: success()
         run: |
           echo "Deployment completed."
           echo "Site: ${{ steps.outputs.outputs.site_url }}"
