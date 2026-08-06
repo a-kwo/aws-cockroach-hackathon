@@ -1494,6 +1494,93 @@ def test_the_login_page_stores_only_the_session():
     assert "password" not in stored
 
 
+# ---------------------------------------------------------------------------
+# Sign in with Google
+# ---------------------------------------------------------------------------
+
+def test_the_google_button_is_not_drawn_unless_it_was_switched_on():
+    """A build with no OAuth client must produce no button.
+
+    Nothing at build time can tell whether a client actually exists in the
+    Google console, so `GOOGLE_OAUTH_ENABLED` is the single switch. Without it
+    the endpoint is null and `.alt-auth` never gets `.available` — a button that
+    404s is worse than no button.
+    """
+    built = (build_web.OUT_DIR / "register" / "index.html").read_text(
+        encoding="utf-8")
+    data = json.loads(
+        built.split('id="bt-data" type="application/json">', 1)[1]
+             .split("</script>", 1)[0])
+
+    assert data["api"]["googleStartEndpoint"] is None
+    assert data["api"]["googleCompleteEndpoint"] is None
+    # The markup ships either way; only the class that reveals it is withheld.
+    assert 'class="alt-auth"' in built
+    assert 'getElementById("altAuth").classList.add("available")' in built
+
+
+def test_the_google_button_still_demands_the_invite_code():
+    """The gate is a spend control, not a formality — a workspace created
+    through Google runs the same nightly models as one created with a password.
+    An OAuth path around it would be a hole in the budget."""
+    html = (build_web.SITE / "register.html").read_text(encoding="utf-8")
+    handler = html.split('googleButton.addEventListener', 1)[1]
+
+    assert "if (!inviteCode)" in handler
+    assert "invite=${encodeURIComponent(inviteCode)}" in handler
+    # The check has to come before the navigation, not alongside it.
+    assert handler.index("if (!inviteCode)") < handler.index("window.location.href")
+
+
+def test_the_landing_page_never_reads_a_token_from_the_url():
+    """The callback hands over a one-time code, never a session token.
+
+    A token in a redirect is a token in browser history and in the next
+    request's Referer, which is the capability-URL pattern CLAUDE.md rejected.
+    The page must trade the code over POST and store only what comes back.
+    """
+    html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
+
+    assert 'window.location.hash' in html
+    assert '.get("code")' in html
+    # Nothing reads a token out of the URL, in either half of it.
+    assert "get(\"token\")" not in html
+    assert "hash).get(\"token\")" not in html
+    assert 'method: "POST"' in html
+
+
+def test_the_landing_page_strips_the_code_before_it_awaits_anything():
+    """Single-use or not, the code should not sit in the address bar or in
+    history while the exchange is in flight."""
+    html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
+    body = html.split("async function finish()", 1)[1]
+    stripped = body.index("history.replaceState")
+
+    assert stripped < body.index("await fetch")
+
+
+def test_the_landing_page_stores_only_the_session():
+    html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
+    stored = html.split("localStorage.setItem(SESSION_KEY", 1)[1][:220]
+
+    assert "token:" in stored
+    assert "businessId:" in stored
+    assert "password" not in stored
+
+
+def test_the_landing_page_sends_owners_without_a_business_to_onboarding():
+    """Same fork as /register: an account exists, a business may not."""
+    html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
+
+    assert 'payload.business_id ? "../../app/" : "../../signup/"' in html
+
+
+def test_the_landing_page_is_built_even_when_the_button_is_off():
+    """Google matches the redirect URI exactly. A live OAuth client whose
+    callback lands on a 404 is a worse failure than an unlinked page."""
+    assert (build_web.OUT_DIR / "auth" / "complete" / "index.html").exists()
+
+
 def test_the_board_sends_the_session_token():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 

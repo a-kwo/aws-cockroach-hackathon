@@ -694,6 +694,71 @@ Resources:
             Method: POST
 
   # --------------------------------------------------------------------
+  # Sign in with Google. Three routes, one function:
+  #
+  #   /auth/google/start     invite checked, then redirect to Google
+  #   /auth/google/callback  Google returns; account found or created
+  #   /auth/google/complete  the page trades a one-time code for a session
+  #
+  # The callback never returns a session token — it is a redirect, and a token
+  # in a redirect is a token in browser history and in the next request's
+  # Referer. It hands over a two-minute one-time code instead, which /complete
+  # exchanges over POST.
+  #
+  # Dormant until /brasstacks/GOOGLE_OAUTH_CLIENT_ID and friends exist: without
+  # them every route here answers 404 and the site draws no button.
+  # --------------------------------------------------------------------
+  OAuthGoogleFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: oauth-google
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.oauth_google.handler"]
+      # Two network hops on the callback leg: Google's token endpoint, then
+      # CockroachDB.
+      Timeout: 20
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Start:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /auth/google/start
+            Method: GET
+        Callback:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /auth/google/callback
+            Method: GET
+        Complete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /auth/google/complete
+            Method: POST
+
+  # --------------------------------------------------------------------
   # Signup step two: the business profile, for an account that already exists
   # --------------------------------------------------------------------
   OnboardingFunction:
@@ -1028,6 +1093,25 @@ Outputs:
   ProfileEndpoint:
     Description: Authenticated owner profile read and update endpoint.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/profile
+
+  GoogleStartEndpoint:
+    Description: >
+      Sign in with Google, leg one. GET ?invite=<code>; redirects to Google.
+      Answers 404 until the five /brasstacks/GOOGLE_OAUTH_* parameters exist.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/auth/google/start
+
+  GoogleCallbackEndpoint:
+    Description: >
+      Paste this exact URL into "Authorized redirect URIs" on the OAuth client
+      in the Google Cloud console, and store it at
+      /brasstacks/GOOGLE_OAUTH_REDIRECT_URI. Google requires an exact match.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/auth/google/callback
+
+  GoogleCompleteEndpoint:
+    Description: >
+      Sign in with Google, leg three. POST {"code"} — the one-time code the
+      callback put in the redirect fragment — returns a session token.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/auth/google/complete
 
   NightFunctionName:
     Description: Invoke manually to prove a night end to end before the scheduled sweep.

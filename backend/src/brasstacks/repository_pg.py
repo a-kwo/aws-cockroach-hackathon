@@ -297,7 +297,18 @@ class PostgresRepository:
 
     # -- owners ----------------------------------------------------------
     def create_account(self, business_id: str | None, *, username: str,
-                       password_hash: str) -> str:
+                       password_hash: str | None,
+                       auth_provider: str = "password",
+                       provider_subject: str | None = None,
+                       email: str | None = None,
+                       display_name: str | None = None) -> str:
+        """Create an owner account.
+
+        `password_hash` is None exactly when the account signs in through an
+        identity provider — there is no password to hash and none to leak. It
+        stays a required argument rather than defaulting to None so a caller
+        cannot create a passwordless password-account by forgetting it.
+        """
         with self._conn.cursor() as cur:
             cur.execute(
                 "SELECT 1 FROM owner_account WHERE username = %s", (username,))
@@ -307,13 +318,59 @@ class PostgresRepository:
                 raise RepositoryError(f"username {username!r} is already taken")
             cur.execute(
                 """
-                INSERT INTO owner_account (business_id, username, password_hash)
-                VALUES (%s, %s, %s)
+                INSERT INTO owner_account
+                    (business_id, username, password_hash,
+                     auth_provider, provider_subject, email, display_name)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (business_id, username, password_hash),
+                (business_id, username, password_hash, auth_provider,
+                 provider_subject, email, display_name),
             )
             return str(cur.fetchone()[0])
+
+    def find_account_by_provider(self, provider: str,
+                                 subject: str) -> dict[str, Any] | None:
+        """The account for an external identity, keyed on the provider's stable
+        subject rather than the email — people change their address."""
+        if not subject:
+            return None
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, business_id, username, password_hash, is_admin,
+                       email, display_name, auth_provider, provider_subject
+                FROM owner_account
+                WHERE auth_provider = %s AND provider_subject = %s
+                """,
+                (provider, subject),
+            )
+            return self._account_row(cur.fetchone())
+
+    def find_account_by_id(self, account_id: str) -> dict[str, Any] | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, business_id, username, password_hash, is_admin,
+                       email, display_name, auth_provider, provider_subject
+                FROM owner_account WHERE id = %s
+                """,
+                (account_id,),
+            )
+            return self._account_row(cur.fetchone())
+
+    @staticmethod
+    def _account_row(row: Any) -> dict[str, Any] | None:
+        if row is None:
+            return None
+        # str(None) is "None", which would sail through every truthiness check
+        # downstream and land in a URL as a business id.
+        return {"id": str(row[0]),
+                "business_id": str(row[1]) if row[1] else None,
+                "username": row[2], "password_hash": row[3],
+                "is_admin": bool(row[4]), "email": row[5],
+                "display_name": row[6], "auth_provider": row[7],
+                "provider_subject": row[8]}
 
     def attach_business(self, account_id: str, *, business_id: str) -> None:
         """Point an account at the business it just created, and its sessions
@@ -356,20 +413,13 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, business_id, username, password_hash, is_admin
+                SELECT id, business_id, username, password_hash, is_admin,
+                       email, display_name, auth_provider, provider_subject
                 FROM owner_account WHERE username = %s
                 """,
                 (username,),
             )
-            row = cur.fetchone()
-        if row is None:
-            return None
-        # str(None) is "None", which would sail through every truthiness check
-        # downstream and land in a URL as a business id.
-        return {"id": str(row[0]),
-                "business_id": str(row[1]) if row[1] else None,
-                "username": row[2], "password_hash": row[3],
-                "is_admin": bool(row[4])}
+            return self._account_row(cur.fetchone())
 
     def create_session(self, token_hash: str, *, business_id: str,
                        account_id: str, expires_at: datetime) -> None:
@@ -409,6 +459,52 @@ class PostgresRepository:
         with self._conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM owner_session WHERE token_hash = %s", (token_hash,))
+
+    def create_handoff(self, code_hash: str, *, account_id: str,
+                       expires_at: datetime) -> None:
+        """Park an account against a one-time code for the OAuth redirect.
+
+        This exists so the callback never has to put a session token in a URL.
+        Only the code's fingerprint is stored, like a session token.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO oauth_handoff (code_hash, account_id, expires_at)
+                VALUES (%s, %s, %s)
+                """,
+                (code_hash, account_id, expires_at),
+            )
+
+    def consume_handoff(self, code_hash: str, *,
+                        now: datetime) -> str | None:
+        """Redeem a one-time code, or None.
+
+        DELETE ... RETURNING, in one statement: a SELECT followed by a DELETE
+        would let two requests arriving together both redeem the same code.
+        The expiry is checked in Python rather than in the WHERE clause so an
+        expired code is still deleted rather than left to linger.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM oauth_handoff WHERE code_hash = %s
+                RETURNING account_id, expires_at
+                """,
+                (code_hash,),
+            )
+            row = cur.fetchone()
+        if row is None or row[1] <= now:
+            return None
+        return str(row[0])
+
+    def purge_expired_handoffs(self, *, now: datetime) -> int:
+        """Housekeeping for codes nobody redeemed. Called on the nightly run —
+        the table is tiny, but an unbounded one is a slow leak."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM oauth_handoff WHERE expires_at <= %s", (now,))
+            return cur.rowcount or 0
 
     def set_business_status(self, business_id: str, *, status: str) -> None:
         with self._conn.cursor() as cur:

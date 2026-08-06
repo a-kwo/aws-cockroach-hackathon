@@ -613,6 +613,20 @@ def build_model(data: dict) -> dict:
         ask_endpoint = f"{decision_endpoint}/ask"
     if not profile_endpoint and decision_endpoint:
         profile_endpoint = f"{decision_endpoint}/profile"
+
+    google_start = (os.environ.get("GOOGLE_START_API_ENDPOINT") or "").rstrip("/")
+    google_complete = (os.environ.get("GOOGLE_COMPLETE_API_ENDPOINT") or "").rstrip("/")
+    if decision_endpoint:
+        google_start = google_start or f"{decision_endpoint}/auth/google/start"
+        google_complete = google_complete or f"{decision_endpoint}/auth/google/complete"
+    # One switch for the whole feature. Nothing at build time can tell whether
+    # an OAuth client actually exists in the Google console, and a Sign in with
+    # Google button that 404s is worse than no button at all — so the button is
+    # drawn only when someone has said, explicitly, that the client is there.
+    if str(os.environ.get("GOOGLE_OAUTH_ENABLED") or "").strip().lower() not in {
+            "1", "true", "yes", "on"}:
+        google_start = google_complete = ""
+
     return {
         "api": {
             "decisionEndpoint": decision_endpoint or None,
@@ -624,6 +638,8 @@ def build_model(data: dict) -> dict:
             "registerEndpoint": register_endpoint or None,
             "runEndpoint": run_endpoint or None,
             "adminEndpoint": admin_endpoint or None,
+            "googleStartEndpoint": google_start or None,
+            "googleCompleteEndpoint": google_complete or None,
         },
         "owner": {
             "id": owner.get("id"),
@@ -896,6 +912,7 @@ def build() -> None:
     (OUT_DIR / "signup").mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "login").mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "register").mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / "auth" / "complete").mkdir(parents=True, exist_ok=True)
     assets = copy_assets()
     (OUT_DIR / "index.html").write_text(
         render(SITE / "landing.html", model), encoding="utf-8")
@@ -907,9 +924,15 @@ def build() -> None:
         render(SITE / "login.html", model), encoding="utf-8")
     (OUT_DIR / "register" / "index.html").write_text(
         render(SITE / "register.html", model), encoding="utf-8")
+    # Where Google's redirect lands. Built unconditionally even when the button
+    # is off: a live OAuth client whose callback URL 404s is a worse failure
+    # than an unreachable page nobody links to.
+    (OUT_DIR / "auth" / "complete" / "index.html").write_text(
+        render(SITE / "auth-complete.html", model), encoding="utf-8")
 
     s = model["summary"]
-    print("built web/{index,register/index,login/index,signup/index,app/index}.html")
+    print("built web/{index,register/index,login/index,signup/index,"
+          "auth/complete/index,app/index}.html")
     print(f"  {len(model['proposed'])} waiting · {len(model['saved'])} saved · "
           f"{len(model['measuring'])} measuring · {len(model['judged'])} judged")
     print(f"  {s['verified']}V / {s['miss']}M of {s['judged']} judged "

@@ -606,6 +606,55 @@ ALTER TABLE find ADD COLUMN IF NOT EXISTS alternative_explanation STRING;
 ALTER TABLE find ADD COLUMN IF NOT EXISTS withheld_reason STRING;
 ALTER TABLE find ADD COLUMN IF NOT EXISTS claim_type STRING;
 
+-- ---------------------------------------------------------------------------
+-- Sign in with Google
+-- ---------------------------------------------------------------------------
+
+-- How this account proves who it is. 'password' for everyone who typed one,
+-- 'google' for everyone who did not. Defaulting to 'password' is what makes
+-- this additive: every account that already exists got here with a password.
+ALTER TABLE owner_account ADD COLUMN IF NOT EXISTS auth_provider STRING NOT NULL DEFAULT 'password';
+
+-- The provider's stable identifier for the person — Google's `sub`. This and
+-- not the email is the account key: people change their address and keep being
+-- themselves, and `owner_account.email` is not unique anyway (the seed UPDATEs
+-- above give several tenants the same inbox), so it identifies nobody.
+ALTER TABLE owner_account ADD COLUMN IF NOT EXISTS provider_subject STRING;
+
+-- An account that signs in through Google has no password to store. NULL, not
+-- an empty string or an unguessable placeholder: a placeholder is a value that
+-- could in principle be hashed to, and NULL is the honest statement that there
+-- is nothing here. `verify_password` refuses it, and login.py pays the decoy
+-- hash anyway so the refusal is not faster than a real one.
+ALTER TABLE owner_account ALTER COLUMN password_hash DROP NOT NULL;
+
+-- One account per external identity. Partial, so the many rows with a NULL
+-- subject — every password account — do not collide with each other.
+CREATE UNIQUE INDEX IF NOT EXISTS owner_account_provider_idx
+  ON owner_account (auth_provider, provider_subject)
+  WHERE provider_subject IS NOT NULL;
+
+-- The one-time code that stands in for a session across the OAuth redirect.
+--
+-- Why this table exists at all: the OAuth callback is a browser redirect, so
+-- anything it returns ends up in a URL, and a URL reaches browser history, the
+-- next request's Referer header, and access logs. CLAUDE.md rejected capability
+-- URLs for exactly that reason. So the callback stores a code here and the
+-- landing page POSTs it back for the real token.
+--
+-- Only the code's SHA-256 is stored, on the same rule as owner_session: a read
+-- of this table must not yield anything redeemable.
+CREATE TABLE IF NOT EXISTS oauth_handoff (
+  code_hash  STRING PRIMARY KEY,
+  account_id UUID NOT NULL REFERENCES owner_account(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  -- Minutes, not days. The page redeems this on load; the window only has to
+  -- cover a redirect.
+  expires_at TIMESTAMPTZ NOT NULL,
+
+  INDEX (expires_at)
+);
+
 COMMIT;
 
 -- ---------------------------------------------------------------------------
