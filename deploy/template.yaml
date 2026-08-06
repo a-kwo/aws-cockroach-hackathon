@@ -771,8 +771,20 @@ Resources:
       PackageType: Image
       ImageConfig:
         Command: ["brasstacks.handlers.onboarding.handler"]
-      # Geocoding plus one embedding call per profile fact.
-      Timeout: 60
+      # Geocoding plus one embedding call per profile fact, and the menu scan's
+      # vision call on top.
+      #
+      # Held just under the HTTP API's 30s integration timeout, which is the
+      # hard ceiling for this API type and cannot be raised. A longer function
+      # timeout buys a slow request nothing: API Gateway has already handed the
+      # browser a 504, and the only thing the extra seconds do is let the Claude
+      # call run to completion, be billed, and have its result discarded — while
+      # the owner, looking at an error, retries and pays for it again.
+      #
+      # Nothing is lost by dying at the ceiling. The scan stores nothing, and
+      # signup's write is a single transaction that rolls back, so a killed
+      # invocation leaves no half-made tenant behind.
+      Timeout: 29
       Policies:
         - Statement:
             # Signup embeds the profile so the Analyst can retrieve it later.
@@ -801,6 +813,15 @@ Resources:
           Properties:
             ApiId: !Ref AskApi
             Path: /onboarding
+            Method: POST
+        # Reads menu photographs during signup. Claude runs on the Anthropic
+        # API, not Bedrock, so this needs no extra IAM — the key comes from the
+        # SSM parameters this function can already read.
+        ScanMenu:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /onboarding/menu-scan
             Method: POST
         ReadProfile:
           Type: HttpApi

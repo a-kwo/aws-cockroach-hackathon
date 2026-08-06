@@ -22,6 +22,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
+from .menu import (
+    MENU_OBSERVATION_KIND,
+    MENU_SOURCE_NAME,
+    MENU_STATEMENT_TYPE,
+    menu_facts,
+    menu_from_payload,
+    menu_observations,
+)
+
 #: Places Text Search, **not** the Geocoding API. Two reasons, one practical and
 #: one on the merits: Geocoding is a separate Google product that needs enabling
 #: on the Cloud project independently of Places (discovered the hard way — it
@@ -183,7 +192,57 @@ def build_profile_facts(profile: dict) -> list[str]:
     if objective:
         facts.append(f"The owner's stated goal right now is to {objective}.")
 
+    # The scanned menu, as shape rather than contents: how many items, which
+    # sections, what the prices span. The items themselves become observations
+    # instead, because those are what the Analyst vector-searches.
+    #
+    # Built here rather than at the call site so a profile edit regenerates
+    # them from the stored menu along with every other fact — otherwise the
+    # first unrelated profile save would supersede the menu facts and leave
+    # nothing in their place.
+    menu = menu_from_payload(profile.get("menu"))
+    if menu:
+        facts.extend(menu_facts(menu))
+
     return facts
+
+
+def store_menu_observations(repo: Any, business_id: str, *, profile: dict,
+                            embedder: Any, observed_at: Any) -> int:
+    """Write each menu item into the retrieval corpus. Returns the row count.
+
+    Observations rather than facts because `search_observations` is what the
+    Analyst actually vector-searches; facts are loaded wholesale. A menu that
+    stopped at `business_fact` would be invisible to every hypothesis query
+    about pricing the Analyst asks at night, which is the entire reason for
+    scanning it.
+
+    Embedding happens in one batch call: Titan is one request per text and a
+    50-item menu inside a 30-second signup cannot afford them serially.
+    """
+    menu = menu_from_payload(profile.get("menu"))
+    if not menu:
+        return 0
+
+    statements = menu_observations(menu)
+    vectors = embedder.embed(statements)
+
+    stored = 0
+    for statement, vector in zip(statements, vectors):
+        # `insert_observation` dedups on (business_id, content_hash) and returns
+        # None when it collides, so re-running this is safe and a menu with the
+        # same item twice stores it once.
+        if repo.insert_observation(
+            business_id,
+            content=statement,
+            kind=MENU_OBSERVATION_KIND,
+            embedding=vector,
+            observed_at=observed_at,
+            source_name=MENU_SOURCE_NAME,
+            statement_type=MENU_STATEMENT_TYPE,
+        ):
+            stored += 1
+    return stored
 
 
 def validate(profile: dict) -> str | None:
