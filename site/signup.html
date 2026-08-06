@@ -259,6 +259,22 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+/* Menu scan ------------------------------------------------------------- */
+.scan-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 4px; }
+.scan-status { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.scan-status.error { color: var(--danger); }
+.menu-list { margin: 14px 0 0; border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; }
+.menu-list:empty { display: none; }
+.menu-row { display: grid; grid-template-columns: minmax(0,1fr) 104px 32px; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line-soft); }
+.menu-row:first-child { border-top: 0; }
+.menu-row input { width: 100%; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: 8px; font: inherit; font-size: 12px; background: transparent; color: inherit; }
+.menu-row .menu-section { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.menu-row .menu-drop { padding: 0; border: 0; background: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; }
+.menu-row .menu-drop:hover { color: var(--danger); }
+.menu-note { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+@media (max-width: 640px) {
+  .menu-row { grid-template-columns: minmax(0,1fr) 84px 28px; }
+}
 </style>
 </head>
 <body>
@@ -371,6 +387,23 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <span class="field-error">Add at least one product or service.</span>
               <p class="field-help">Separate products or services with commas.</p>
             </div>
+          </div>
+
+          <div class="question" data-question="menu">
+            <div class="question-head">
+              <h3>Scan your menu or price list <small>Optional</small></h3>
+              <p>Photograph it and Brass&nbsp;Tacks reads the items and prices. Analyst uses your real prices when it compares you to nearby competitors, so this is the difference between "raise prices" and "your margherita is $3 under the two places on your street".</p>
+            </div>
+            <div class="scan-row">
+              <!-- `capture="environment"` opens the rear camera on a phone
+                   instead of the file browser. The owner is standing in front
+                   of the menu; making them find a saved photo loses most of them. -->
+              <input id="menuPhotos" name="menuPhotos" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" multiple hidden>
+              <button class="button secondary" type="button" id="menuScanButton">Take or choose photos</button>
+              <span class="scan-status" id="menuStatus">Up to 4 photos. Nothing is stored until you create the workspace.</span>
+            </div>
+            <div class="menu-list" id="menuList"></div>
+            <p class="menu-note" id="menuNote" hidden>Check the prices before continuing — a blurry photo can be misread, and these become the numbers the agents reason about.</p>
           </div>
 
           <div class="question" data-question="channels">
@@ -518,6 +551,151 @@ const categoryLabels = {
 function clean(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
 function fieldValue(id) { return clean(document.getElementById(id)?.value); }
 function splitOffers(value) { return clean(value).split(",").map(clean).filter(Boolean).slice(0, 3); }
+
+/* Menu scan ---------------------------------------------------------------
+   Photos go to the scan endpoint, which parses and returns items WITHOUT
+   storing anything — the business row does not exist yet. The owner corrects
+   the list here and it rides along on the signup POST, where the server
+   re-validates every price before writing it. Nothing typed below is trusted
+   by the backend; this is a convenience layer, not a validation layer. */
+const MENU_SCAN_ENDPOINT = String(DATA.api?.menuScanEndpoint || "").trim();
+const MENU_MAX_PHOTOS = 4;
+//  Long edge, in pixels. Menu text stays legible to the model well below a
+//  phone's native resolution, and a 4032px camera JPEG is ~5MB — past API
+//  Gateway's 10MB body limit once base64 inflates it by a third, and slow to
+//  upload on the café wifi the owner is standing in.
+const MENU_MAX_EDGE = 1600;
+let menuItems = [];
+
+function centsToInput(cents) {
+  //  Integer arithmetic. `cents / 100` renders 1650 as 16.5 and some values
+  //  as 16.499999999999998, which is not something to show next to a price.
+  if (cents == null) return "";
+  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+}
+
+function inputToCents(value) {
+  const text = clean(value).replace(/[^0-9.]/g, "");
+  if (!text) return null;
+  const amount = Number.parseFloat(text);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  //  Math.round, not truncation: 14.10 * 100 is 1409.9999999999998 in IEEE
+  //  754, and `| 0` would quietly bill the owner's menu a cent short.
+  return Math.round(amount * 100);
+}
+
+function downscalePhoto(file) {
+  //  Drawing through a canvas also strips EXIF, so the owner is not uploading
+  //  the GPS coordinates of their kitchen along with the menu.
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("could not read that file"));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("that file is not an image"));
+      image.onload = () => {
+        const scale = Math.min(1, MENU_MAX_EDGE / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        //  0.82 keeps small menu type readable; 0.7 starts blurring decimal
+        //  points, and a misread price is the one failure that matters here.
+        const url = canvas.toDataURL("image/jpeg", 0.82);
+        resolve({ media_type: "image/jpeg", data: url.slice(url.indexOf(",") + 1) });
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setScanStatus(text, isError) {
+  const status = document.getElementById("menuStatus");
+  if (!status) return;
+  status.textContent = text;
+  status.classList.toggle("error", Boolean(isError));
+}
+
+function renderMenu() {
+  const list = document.getElementById("menuList");
+  const note = document.getElementById("menuNote");
+  if (!list) return;
+  list.innerHTML = menuItems.map((item, index) => `
+    <div class="menu-row" data-index="${index}">
+      <div>
+        ${item.section ? `<span class="menu-section">${escapeHtml(item.section)}</span>` : ""}
+        <input type="text" data-menu-name="${index}" value="${escapeHtml(item.name)}" aria-label="Item name">
+      </div>
+      <input type="text" inputmode="decimal" data-menu-price="${index}"
+             value="${escapeHtml(centsToInput(item.price_cents))}"
+             placeholder="${escapeHtml(item.price_note || "—")}" aria-label="Price for ${escapeHtml(item.name)}">
+      <button class="menu-drop" type="button" data-menu-drop="${index}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
+    </div>`).join("");
+  if (note) note.hidden = menuItems.length === 0;
+  saveDraft();
+}
+
+async function runMenuScan(files) {
+  const chosen = Array.from(files || []).slice(0, MENU_MAX_PHOTOS);
+  if (!chosen.length) return;
+  if (!MENU_SCAN_ENDPOINT) {
+    setScanStatus("Menu scanning is not configured on this deployment.", true);
+    return;
+  }
+
+  const button = document.getElementById("menuScanButton");
+  if (button) button.disabled = true;
+  setScanStatus(`Reading ${chosen.length} photo${chosen.length > 1 ? "s" : ""}…`);
+
+  try {
+    const images = [];
+    for (const file of chosen) images.push(await downscalePhoto(file));
+
+    const session = currentSession();
+    const response = await fetch(MENU_SCAN_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
+      },
+      body: JSON.stringify({ images }),
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch (_) {}
+    if (!response.ok) throw new Error(payload.error || `Scan failed (${response.status})`);
+
+    const items = Array.isArray(payload.menu?.items) ? payload.menu.items : [];
+    //  Appended, not replaced: a trifold is several photos and the owner may
+    //  well come back and add the drinks page after the food page.
+    menuItems = menuItems.concat(items).slice(0, 200);
+    renderMenu();
+    const unpriced = Number(payload.unpriced_count || 0);
+    setScanStatus(
+      `Found ${items.length} item${items.length === 1 ? "" : "s"}` +
+      (unpriced ? ` · ${unpriced} without a printed price` : "") +
+      " · check them below."
+    );
+  } catch (error) {
+    setScanStatus(error.message || "Could not read that menu.", true);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function menuPayload() {
+  const items = menuItems
+    .map(item => ({
+      name: clean(item.name),
+      description: item.description ? clean(item.description) : null,
+      price_cents: item.price_cents == null ? null : item.price_cents,
+      price_note: item.price_note ? clean(item.price_note) : null,
+      section: item.section ? clean(item.section) : null,
+    }))
+    .filter(item => item.name);
+  return items.length ? { currency: "USD", items } : null;
+}
 function normalizeWebsite(value) {
   const raw = clean(value);
   if (!raw) return null;
@@ -535,6 +713,9 @@ function saveDraft() {
     businessName: fieldValue("businessName"), category: fieldValue("category"),
     location: fieldValue("location"), website: fieldValue("website"), offers: fieldValue("offers"),
     segments: selections.segments, channels: selections.channels, goal: selections.goal,
+    //  Kept so a reload mid-signup does not cost the owner another scan — and
+    //  another vision call the account paid for.
+    menu: menuItems,
   };
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (_) {}
 }
@@ -549,6 +730,8 @@ function restoreDraft() {
   selections.segments = Array.isArray(draft.segments) ? draft.segments.slice(0,3) : [];
   selections.channels = Array.isArray(draft.channels) ? draft.channels : [];
   selections.goal = clean(draft.goal);
+  menuItems = Array.isArray(draft.menu) ? draft.menu.slice(0, 200) : [];
+  renderMenu();
   syncChoices();
 }
 
@@ -630,6 +813,9 @@ function buildProfile() {
       channels: [...selections.channels],
     },
     objective: selections.goal,
+    //  Null when the owner skipped the scan, which is the common case for a
+    //  business with no menu. The server treats that as "no menu", not an error.
+    menu: menuPayload(),
     ownerRules: ["Require owner approval before executing any recommendation."],
     source: endpoint ? "onboarding_api" : "browser_demo",
   };
@@ -696,6 +882,51 @@ async function persistProfile(profile) {
   if (!response.ok) throw new Error(payload.error || `Onboarding API returned ${response.status}`);
   return { ...payload, demoOnly: false };
 }
+
+document.getElementById("menuScanButton")?.addEventListener("click", () => {
+  document.getElementById("menuPhotos")?.click();
+});
+
+document.getElementById("menuPhotos")?.addEventListener("change", event => {
+  const input = event.target;
+  runMenuScan(input.files);
+  //  Cleared so choosing the same photo twice still fires `change` — otherwise
+  //  a retry after a failed scan looks like the button is dead.
+  input.value = "";
+});
+
+document.getElementById("menuList")?.addEventListener("input", event => {
+  const nameIndex = event.target.dataset.menuName;
+  const priceIndex = event.target.dataset.menuPrice;
+  if (nameIndex != null && menuItems[nameIndex]) {
+    menuItems[nameIndex].name = event.target.value;
+  } else if (priceIndex != null && menuItems[priceIndex]) {
+    const cents = inputToCents(event.target.value);
+    menuItems[priceIndex].price_cents = cents;
+    //  An owner typing a real price over "Market price" means the note is now
+    //  wrong. Leaving it would send both, and the note would win in the prose.
+    if (cents != null) menuItems[priceIndex].price_note = null;
+  } else {
+    return;
+  }
+  saveDraft();
+});
+
+document.getElementById("menuList")?.addEventListener("keydown", event => {
+  //  Enter in a bare text input submits the surrounding form. Here that would
+  //  create the workspace while the owner is still fixing a price.
+  if (event.key === "Enter") event.preventDefault();
+});
+
+document.getElementById("menuList")?.addEventListener("click", event => {
+  const index = event.target.dataset?.menuDrop;
+  if (index == null) return;
+  menuItems.splice(Number(index), 1);
+  renderMenu();
+  setScanStatus(menuItems.length
+    ? `${menuItems.length} item${menuItems.length === 1 ? "" : "s"} ready.`
+    : "Up to 4 photos. Nothing is stored until you create the workspace.");
+});
 
 form.addEventListener("input", event => {
   if (event.target.matches("input, select")) {

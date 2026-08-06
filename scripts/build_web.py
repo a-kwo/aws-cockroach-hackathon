@@ -636,8 +636,18 @@ def build_model(data: dict) -> dict:
             "1", "true", "yes", "on"}:
         google_start = google_complete = ""
 
+    # The scan shares the onboarding Lambda, so its URL is always the
+    # onboarding URL plus a segment. Derived rather than configured so there is
+    # one fewer env var to forget in the deploy workflow.
+    menu_scan_endpoint = (os.environ.get("MENU_SCAN_API_ENDPOINT") or "").rstrip("/")
+    if not menu_scan_endpoint and onboarding_endpoint:
+        menu_scan_endpoint = f"{onboarding_endpoint}/menu-scan"
+    if not menu_scan_endpoint and decision_endpoint:
+        menu_scan_endpoint = f"{decision_endpoint}/onboarding/menu-scan"
+
     return {
         "api": {
+            "menuScanEndpoint": menu_scan_endpoint or None,
             "decisionEndpoint": decision_endpoint or None,
             "workflowEndpoint": workflow_endpoint or None,
             "askEndpoint": ask_endpoint or None,

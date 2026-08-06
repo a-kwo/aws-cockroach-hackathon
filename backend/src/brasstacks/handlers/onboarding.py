@@ -28,6 +28,7 @@ from brasstacks.onboarding import (
     PlacesGeocoder,
     build_profile_facts,
     geocode_or_none,
+    store_menu_observations,
     validate,
 )
 from brasstacks.profile import ProfileError, business_profile_data, normalise_profile
@@ -138,6 +139,14 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
         business_id, facts=facts, embeddings=vectors, source=FACT_SOURCE,
     )
 
+    # Inside the same transaction as everything else: a menu that failed to
+    # store would otherwise leave a business whose facts claim a 24-item menu
+    # the Analyst can never retrieve.
+    menu_items = store_menu_observations(
+        business_id=business_id, repo=repo, profile=profile, embedder=embedder,
+        observed_at=now or datetime.now(timezone.utc),
+    )
+
     rules = [str(r).strip() for r in (profile.get("ownerRules") or []) if str(r).strip()]
     for rule in (rules or list(DEFAULT_OWNER_RULES)):
         repo.insert_owner_rule(business_id, rule=rule)
@@ -151,6 +160,7 @@ def onboard(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None,
     return respond(201, {
         "business_id": business_id,
         "facts_stored": len(facts),
+        "menu_items_stored": menu_items,
         # Echoed so the form can show the owner what the agents will actually
         # search around, rather than what they typed. Text Search is fuzzy, so
         # this is how a wrong match becomes visible instead of silent.
@@ -176,6 +186,20 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
 
     geocoder = (PlacesGeocoder(api_key=settings.google_maps_api_key)
                 if settings.google_maps_api_key else None)
+
+    # The menu scan shares this Lambda too, for the same reason as /profile.
+    # It is read-only and can run for tens of seconds, so it gets autocommit
+    # and its own connection rather than sitting inside signup's transaction.
+    if raw_path.rstrip("/").endswith("/menu-scan"):
+        from brasstacks.handlers.menu_scan import MENU_SCAN_EFFORT, scan_menu
+        from brasstacks.providers import build_reasoner
+
+        with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
+            return scan_menu(
+                event,
+                repo=PostgresRepository(conn),
+                reasoner=build_reasoner(settings, effort=MENU_SCAN_EFFORT),
+            )
 
     # /profile shares the onboarding Lambda: it uses the same profile schema,
     # geocoder, embedder and transaction boundary without creating another

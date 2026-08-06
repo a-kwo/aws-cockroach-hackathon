@@ -93,6 +93,20 @@ class Embedder(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class ImageInput:
+    """One image, already base64-encoded, on its way to the model.
+
+    Carried as base64 rather than raw bytes because that is the wire format at
+    both ends: the browser produces it from a canvas, and the Anthropic content
+    block wants it verbatim. Decoding in between would only be so we could
+    re-encode it.
+    """
+
+    media_type: str
+    data: str
+
+
 @runtime_checkable
 class Reasoner(Protocol):
     def complete_json(
@@ -102,8 +116,15 @@ class Reasoner(Protocol):
         user: str,
         schema: Mapping[str, Any],
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        images: Sequence[ImageInput] = (),
     ) -> dict[str, Any]:
-        """Return a JSON object conforming to `schema`."""
+        """Return a JSON object conforming to `schema`.
+
+        `images` is optional and empty for every text-only caller, which is all
+        of them except the menu scan. Keeping it on the existing method rather
+        than adding a second one means the agents stay indifferent to whether a
+        given call happens to carry a photo.
+        """
         ...
 
 
@@ -299,6 +320,7 @@ class AnthropicReasoner:
         user: str,
         schema: Mapping[str, Any],
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        images: Sequence[ImageInput] = (),
     ) -> dict[str, Any]:
         output_config: dict[str, Any] = {
             "format": {"type": "json_schema", "schema": dict(schema)}
@@ -306,13 +328,33 @@ class AnthropicReasoner:
         if self._effort is not None:
             output_config["effort"] = self._effort
 
+        # Text-only callers keep sending a bare string. Wrapping every request
+        # in a single-element block list would be equivalent to the API but
+        # would change the cached prefix for every existing agent at once.
+        content: Any = user
+        if images:
+            # Images lead, instruction follows: the model reads the prompt
+            # against pictures it has already seen rather than the reverse.
+            content = [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": image.media_type,
+                        "data": image.data,
+                    },
+                }
+                for image in images
+            ]
+            content.append({"type": "text", "text": user})
+
         try:
             message = self._client.messages.create(
                 model=self._model_id,
                 max_tokens=max_tokens,
                 system=system,
                 output_config=output_config,
-                messages=[{"role": "user", "content": user}],
+                messages=[{"role": "user", "content": content}],
             )
         except ProviderError:
             raise
@@ -391,12 +433,17 @@ class FakeReasoner:
         user: str,
         schema: Mapping[str, Any],
         max_tokens: int = DEFAULT_MAX_TOKENS,
+        images: Sequence[ImageInput] = (),
     ) -> dict[str, Any]:
         self.calls.append({
             "system": system,
             "user": user,
             "schema": schema,
             "max_tokens": max_tokens,
+            # Recorded because a menu scan that silently drops its photos still
+            # returns a plausible menu — the model invents one from the prompt.
+            # Asserting on the result would not catch that; asserting here does.
+            "images": tuple(images),
         })
         assert self._responses, (
             f"FakeReasoner exhausted after {len(self.calls)} call(s) — the code "

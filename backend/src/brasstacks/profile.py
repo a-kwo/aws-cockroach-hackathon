@@ -13,6 +13,8 @@ from copy import deepcopy
 from typing import Any
 from urllib.parse import urlparse
 
+from .menu import MenuError, menu_from_payload, menu_to_payload
+
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 MAX_TEXT = 240
 MAX_LIST_ITEMS = 8
@@ -99,8 +101,20 @@ def normalise_profile(payload: Any) -> dict[str, Any]:
         category_label = CATEGORY_LABELS.get(category, category.replace("_", " ").title())
 
     owner_rules = clean_list(payload.get("ownerRules"))
+
+    # The menu arrives already parsed — the browser scanned it a step earlier
+    # and the owner corrected the result. That makes it client-controlled data
+    # by the time it reaches us, so it is re-validated from scratch here rather
+    # than trusted. `None` means the owner skipped the scan, which is normal:
+    # plenty of businesses have no menu at all.
+    try:
+        menu = menu_from_payload(payload.get("menu"))
+    except MenuError as e:
+        raise ProfileError(str(e)) from None
+
     profile = {
         "version": 2,
+        "menu": menu_to_payload(menu) if menu else None,
         "owner": {"name": owner_name, "email": email},
         "business": {
             "name": business_name,
@@ -123,7 +137,7 @@ def normalise_profile(payload: Any) -> dict[str, Any]:
 def business_profile_data(profile: dict[str, Any]) -> dict[str, Any]:
     """The structured, non-contact part stored on ``business``."""
     canonical = normalise_profile(profile)
-    return {
+    data = {
         "version": canonical["version"],
         "business": {
             "categoryLabel": canonical["business"]["categoryLabel"],
@@ -132,6 +146,12 @@ def business_profile_data(profile: dict[str, Any]) -> dict[str, Any]:
         "buyers": deepcopy(canonical["buyers"]),
         "objective": canonical["objective"],
     }
+    # The canonical copy of every menu price, as integer cents. The observation
+    # and fact rows built from it are prose for retrieval; if the two ever
+    # disagree, this is the one that is right.
+    if canonical.get("menu"):
+        data["menu"] = deepcopy(canonical["menu"])
+    return data
 
 
 def profile_from_record(record: dict[str, Any], *, owner_rules: list[str] | None = None) -> dict[str, Any]:
@@ -164,6 +184,10 @@ def profile_from_record(record: dict[str, Any], *, owner_rules: list[str] | None
         },
         "objective": clean_text(stored.get("objective"), limit=240),
         "ownerRules": clean_list(owner_rules or []),
+        # Read back so a profile edit re-saves the menu instead of dropping it.
+        # `profile_from_record` feeds the PUT path, and a missing key there
+        # would silently wipe the menu on the owner's next unrelated edit.
+        "menu": deepcopy(stored["menu"]) if isinstance(stored.get("menu"), dict) else None,
         "updatedAt": record.get("profile_updated_at"),
     }
 

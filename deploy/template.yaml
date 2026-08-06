@@ -771,7 +771,9 @@ Resources:
       PackageType: Image
       ImageConfig:
         Command: ["brasstacks.handlers.onboarding.handler"]
-      # Geocoding plus one embedding call per profile fact.
+      # Geocoding plus one embedding call per profile fact. The menu scan
+      # shares this function and adds a vision call — but API Gateway cuts the
+      # integration at 29s regardless, so this ceiling only bounds signup.
       Timeout: 60
       Policies:
         - Statement:
@@ -801,6 +803,15 @@ Resources:
           Properties:
             ApiId: !Ref AskApi
             Path: /onboarding
+            Method: POST
+        # Reads menu photographs during signup. Claude runs on the Anthropic
+        # API, not Bedrock, so this needs no extra IAM — the key comes from the
+        # SSM parameters this function can already read.
+        ScanMenu:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /onboarding/menu-scan
             Method: POST
         ReadProfile:
           Type: HttpApi

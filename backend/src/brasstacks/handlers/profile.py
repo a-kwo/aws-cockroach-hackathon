@@ -78,6 +78,18 @@ def update_profile(event: Any, *, repo: Any, embedder: Any, geocoder: Any = None
     raw = (event or {}).get("body")
     try:
         payload = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+        # The profile editor does not know about menus and sends no `menu`
+        # key. Rebuilding profile_data from that body verbatim would wipe a
+        # scanned menu — and its facts — the first time the owner changed
+        # something unrelated, while the menu observations stayed in the
+        # corpus. Absent means "not editing that"; an explicit null clears it.
+        if isinstance(payload, dict) and "menu" not in payload:
+            existing = repo.get_owner_profile(
+                account["account_id"], business_id=business_id
+            )
+            stored = (existing or {}).get("profile_data")
+            if isinstance(stored, dict) and stored.get("menu"):
+                payload = {**payload, "menu": stored["menu"]}
         profile = normalise_profile(payload)
     except (TypeError, json.JSONDecodeError, UnicodeDecodeError, ProfileError) as exc:
         message = str(exc) if str(exc) else "send a valid profile"

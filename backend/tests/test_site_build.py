@@ -344,6 +344,45 @@ def test_onboarding_endpoint_reaches_the_built_view_model(monkeypatch, data):
     assert model["api"]["onboardingEndpoint"] == "https://api.example/v1/onboarding"
 
 
+def test_menu_scan_endpoint_is_derived_from_onboarding(monkeypatch, data):
+    """One env var fewer to set. The scan lives on the onboarding Lambda, so
+    its URL is always the onboarding URL plus a segment."""
+    monkeypatch.delenv("MENU_SCAN_API_ENDPOINT", raising=False)
+    monkeypatch.setenv("ONBOARDING_API_ENDPOINT", "https://api.example/v1/onboarding/")
+    model = build_web.build_model(data)
+    assert model["api"]["menuScanEndpoint"] == "https://api.example/v1/onboarding/menu-scan"
+
+
+def test_menu_scan_endpoint_can_be_set_explicitly(monkeypatch, data):
+    monkeypatch.setenv("MENU_SCAN_API_ENDPOINT", "https://api.example/v1/scan/")
+    model = build_web.build_model(data)
+    assert model["api"]["menuScanEndpoint"] == "https://api.example/v1/scan"
+
+
+def test_the_signup_page_offers_to_scan_a_menu(monkeypatch, data):
+    """The feature has to be reachable from the page a real owner lands on."""
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    assert 'id="menuPhotos"' in html
+    assert "menuScanEndpoint" in html
+    # `capture` is what makes the file picker open the camera on a phone,
+    # which is the whole interaction: the owner is stood in front of the menu.
+    assert "capture" in html
+
+
+def test_menu_prices_are_edited_in_dollars_and_sent_as_cents(monkeypatch, data):
+    """The review step is where a misread price gets corrected.
+
+    Showing raw cents in the input would make the owner do the conversion, and
+    posting a float back would put a rounding error into the money column.
+    """
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    assert "centsToInput" in html
+    assert "inputToCents" in html
+    # Math.round, not parseInt or a bare multiply: 14.10 * 100 is
+    # 1409.9999999999998 in IEEE 754 and truncating that loses a cent.
+    assert "Math.round" in html
+
+
 def test_new_owner_workspace_is_honest_until_radar_runs():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     # Formatting-independent: an onboarding workspace shows no posts. The
