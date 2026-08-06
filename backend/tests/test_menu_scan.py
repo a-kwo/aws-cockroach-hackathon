@@ -170,11 +170,16 @@ class TestParseMenu:
         from brasstacks.menu import normalise_images, parse_menu
         from brasstacks.providers import FakeReasoner
 
-        reasoner = FakeReasoner([MODEL_MENU])
+        # One call per photo since the scan was split to fit the 30s ceiling,
+        # so two photos are two calls carrying one image each — not one call
+        # carrying two. The point of the test is unchanged: a regression that
+        # dropped `images` would still return a plausible menu invented from the
+        # prompt, so this asserts on the call rather than the result.
+        reasoner = FakeReasoner([MODEL_MENU, MODEL_MENU])
         parse_menu(normalise_images([an_image(), an_image()]), reasoner=reasoner)
 
-        assert len(reasoner.calls) == 1
-        assert len(reasoner.calls[0]["images"]) == 2
+        assert len(reasoner.calls) == 2
+        assert all(len(call["images"]) == 1 for call in reasoner.calls)
         assert reasoner.calls[0]["images"][0].data == PNG_B64
 
     def test_items_carry_their_section_and_price(self):
@@ -744,3 +749,303 @@ def test_the_scan_function_dies_with_the_request_not_after_it():
     back.
     """
     assert _function_timeout("OnboardingFunction") <= API_GATEWAY_CEILING_SECONDS
+
+
+# ---------------------------------------------------------------------------
+# One call per photograph, run concurrently
+# ---------------------------------------------------------------------------
+#
+# Measured 2026-08-06 against the real API with rendered menus, claude-opus-5 at
+# low effort: 46 items over 3 pages took 25.5s, and 92 items over 4 pages took
+# 38.7s. Both transcribed perfectly — every name, every price — so quality was
+# never the problem. The problem is that API Gateway cuts the integration at
+# 30s, and one call carrying every photo spends the sum of all of them. Fitting
+# those two points gives roughly 12s of fixed overhead plus 0.29s per item,
+# crossing the ceiling at about 60 items: a cafe menu passes, a real dinner menu
+# does not.
+#
+# Splitting the work per photo makes the wall clock the slowest single page
+# rather than the total, and it changes the failure mode from "lose the menu"
+# to "lose a page" — which the owner can see and re-shoot.
+
+import threading as _threading  # noqa: E402
+import time as _time  # noqa: E402
+
+
+def _page(name: str, cents: int, section: str = "Pizzas") -> dict:
+    """A one-item model response, in MENU_SCHEMA's shape."""
+    return {"currency": "USD", "sections": [
+        {"name": section, "items": [
+            {"name": name, "price_cents": cents,
+             "description": None, "price_note": None}]}]}
+
+
+class PagedReasoner:
+    """A fake that answers per image, and records concurrency honestly.
+
+    Keyed on the image rather than on call order, because concurrent calls
+    arrive in no fixed order and a queue-based fake would make these tests
+    depend on thread scheduling.
+    """
+
+    def __init__(self, by_data: dict, *, delay: float = 0.0):
+        self._by_data = by_data
+        self._delay = delay
+        self._lock = _threading.Lock()
+        self.calls: list = []
+        self.peak_in_flight = 0
+        self._in_flight = 0
+
+    def complete_json(self, *, system, user, schema, max_tokens, images=()):
+        with self._lock:
+            self._in_flight += 1
+            self.peak_in_flight = max(self.peak_in_flight, self._in_flight)
+            self.calls.append({"system": system, "user": user,
+                               "schema": schema, "max_tokens": max_tokens,
+                               "images": list(images)})
+        try:
+            if self._delay:
+                _time.sleep(self._delay)
+            assert len(images) == 1, "each call should carry exactly one photo"
+            answer = self._by_data[images[0].data]
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+        finally:
+            with self._lock:
+                self._in_flight -= 1
+
+
+class TestEachPhotoIsScannedSeparately:
+    def test_every_photo_gets_its_own_call(self):
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Margherita", 1400),
+            "BBBB": _page("Tiramisu", 900, "Dolci"),
+        })
+
+        parse_menu(normalise_images([an_image(data="AAAA"),
+                                     an_image(data="BBBB")]),
+                   reasoner=reasoner)
+
+        assert len(reasoner.calls) == 2
+        assert all(len(c["images"]) == 1 for c in reasoner.calls)
+
+    def test_the_pages_are_scanned_at_the_same_time(self):
+        """The whole point: wall clock is the slowest page, not the sum.
+
+        Sequentially, four 0.25s pages take a second. The generous ceiling here
+        is deliberate — this asserts the calls overlap, not how fast the box is.
+        """
+        from brasstacks.menu import normalise_images, parse_menu
+
+        pages = {d: _page(f"Item {d}", 1000) for d in ("AAAA", "BBBB", "CCCC", "DDDD")}
+        reasoner = PagedReasoner(pages, delay=0.25)
+
+        started = _time.monotonic()
+        parse_menu(normalise_images([an_image(data=d) for d in pages]),
+                   reasoner=reasoner)
+        elapsed = _time.monotonic() - started
+
+        assert reasoner.peak_in_flight >= 2, "calls did not overlap"
+        assert elapsed < 0.75, f"looks sequential: {elapsed:.2f}s for 4x0.25s"
+
+    def test_items_come_back_in_page_order(self):
+        """Photo order is menu order. A merge that reorders scrambles it."""
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Antipasto", 900, "Starters"),
+            "BBBB": _page("Primo", 1800, "Pasta"),
+            "CCCC": _page("Dolce", 700, "Desserts"),
+        }, delay=0.05)
+
+        menu = parse_menu(
+            normalise_images([an_image(data=d) for d in ("AAAA", "BBBB", "CCCC")]),
+            reasoner=reasoner)
+
+        assert [i.name for i in menu.items] == ["Antipasto", "Primo", "Dolce"]
+
+    def test_a_single_photo_still_makes_a_single_call(self):
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({"AAAA": _page("Margherita", 1400)})
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA")]),
+                          reasoner=reasoner)
+
+        assert len(reasoner.calls) == 1
+        assert [i.name for i in menu.items] == ["Margherita"]
+
+
+class TestOneBadPhotoDoesNotCostTheWholeMenu:
+    def test_the_readable_pages_still_come_back(self):
+        from brasstacks.menu import normalise_images, parse_menu
+        from brasstacks.providers import ReasoningError
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Margherita", 1400),
+            "BBBB": ReasoningError("the model refused"),
+            "CCCC": _page("Tiramisu", 900, "Dolci"),
+        })
+
+        menu = parse_menu(
+            normalise_images([an_image(data=d) for d in ("AAAA", "BBBB", "CCCC")]),
+            reasoner=reasoner)
+
+        assert [i.name for i in menu.items] == ["Margherita", "Tiramisu"]
+
+    def test_a_lost_page_is_counted_rather_than_hidden(self):
+        """Silent truncation is the failure this module already refuses.
+
+        The owner is about to approve this list as their menu. A page that was
+        dropped has to be something they can see and re-shoot, not a gap they
+        discover weeks later when the Analyst prices a dish that is not there.
+        """
+        from brasstacks.menu import normalise_images, parse_menu
+        from brasstacks.providers import ReasoningError
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Margherita", 1400),
+            "BBBB": ReasoningError("the model refused"),
+        })
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA"),
+                                            an_image(data="BBBB")]),
+                          reasoner=reasoner)
+
+        assert menu.pages_failed == 1
+        assert menu.pages_scanned == 2
+
+    def test_a_clean_scan_reports_no_failures(self):
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({"AAAA": _page("Margherita", 1400)})
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA")]),
+                          reasoner=reasoner)
+
+        assert menu.pages_failed == 0
+
+    def test_every_page_failing_on_the_provider_reraises_the_provider_error(self):
+        """A model outage is a 502, not a 400 blaming the owner's photograph.
+
+        The handler maps MenuError to 400 ("your photo") and ProviderError to
+        502 ("not your fault"), so which exception escapes decides what the
+        owner is told to do about it. Every page failing upstream must not
+        arrive as advice to take a straighter picture.
+        """
+        from brasstacks.menu import normalise_images, parse_menu
+        from brasstacks.providers import ReasoningError
+
+        reasoner = PagedReasoner({
+            "AAAA": ReasoningError("the model refused"),
+            "BBBB": ReasoningError("the model refused"),
+        })
+
+        with pytest.raises(ReasoningError):
+            parse_menu(normalise_images([an_image(data="AAAA"),
+                                         an_image(data="BBBB")]),
+                       reasoner=reasoner)
+
+    def test_every_page_parsing_to_nothing_is_a_menu_error(self):
+        """Photos of a wall. That one *is* the owner's to fix, and says so."""
+        from brasstacks.menu import MenuError, normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": {"currency": "USD", "sections": []},
+            "BBBB": {"currency": "USD", "sections": []},
+        })
+
+        with pytest.raises(MenuError, match="straight-on"):
+            parse_menu(normalise_images([an_image(data="AAAA"),
+                                         an_image(data="BBBB")]),
+                       reasoner=reasoner)
+
+    def test_a_price_the_module_refuses_fails_the_whole_scan(self):
+        """A bad price is never demoted to a lost page.
+
+        This is the regression the per-page split invited: a blanket `except`
+        around each page would have turned "the model wrote a phone number into
+        price_cents" into "page 2 did not read", and handed back a menu that
+        looked complete with a price silently missing. Menu prices are what
+        every later revenue forecast is built on.
+        """
+        from brasstacks.menu import MenuError, normalise_images, parse_menu
+
+        bad = {"currency": "USD", "sections": [
+            {"name": "Pizzas", "items": [
+                {"name": "Margherita", "price_cents": "fourteen dollars",
+                 "description": None, "price_note": None}]}]}
+        reasoner = PagedReasoner({
+            "AAAA": _page("Tiramisu", 900, "Dolci"),
+            "BBBB": bad,
+        })
+
+        with pytest.raises(MenuError, match="integer cents"):
+            parse_menu(normalise_images([an_image(data="AAAA"),
+                                         an_image(data="BBBB")]),
+                       reasoner=reasoner)
+
+    def test_a_page_that_parses_to_nothing_is_a_failed_page_not_a_dead_scan(self):
+        """One photo of the wall between two of the menu keeps the menu."""
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Margherita", 1400),
+            "BBBB": {"currency": "USD", "sections": []},
+        })
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA"),
+                                            an_image(data="BBBB")]),
+                          reasoner=reasoner)
+
+        assert [i.name for i in menu.items] == ["Margherita"]
+        assert menu.pages_failed == 1
+
+
+class TestOverlappingPhotosDoNotDuplicateTheMenu:
+    def test_the_same_row_photographed_twice_appears_once(self):
+        """Owners photograph with overlap so nothing falls between shots."""
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Margherita", 1400),
+            "BBBB": _page("Margherita", 1400),
+        })
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA"),
+                                            an_image(data="BBBB")]),
+                          reasoner=reasoner)
+
+        assert [i.name for i in menu.items] == ["Margherita"]
+
+    def test_the_same_name_at_a_different_price_is_kept(self):
+        """A half portion and a full one share a name and are not one row."""
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Margherita", 1400),
+            "BBBB": _page("Margherita", 900),
+        })
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA"),
+                                            an_image(data="BBBB")]),
+                          reasoner=reasoner)
+
+        assert len(menu.items) == 2
+
+    def test_the_same_name_in_a_different_section_is_kept(self):
+        from brasstacks.menu import normalise_images, parse_menu
+
+        reasoner = PagedReasoner({
+            "AAAA": _page("Espresso", 350, "Bevande"),
+            "BBBB": _page("Espresso", 350, "Dolci"),
+        })
+
+        menu = parse_menu(normalise_images([an_image(data="AAAA"),
+                                            an_image(data="BBBB")]),
+                          reasoner=reasoner)
+
+        assert len(menu.items) == 2

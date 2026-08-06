@@ -78,6 +78,13 @@ def scan_menu(event: Any, *, repo: Any, reasoner: Any,
         # price" instead of making the owner count rows to find the gaps.
         "item_count": len(menu.items),
         "unpriced_count": len(menu.items) - len(menu.priced),
+        # Each photo is read by its own call now, so one of them can come back
+        # empty while the rest succeed. Reported rather than absorbed: the owner
+        # is about to approve this list as their menu, and a page that silently
+        # did not make it is a gap they would meet weeks later as an Analyst
+        # find about a dish that is not on the board.
+        "pages_scanned": menu.pages_scanned,
+        "pages_failed": menu.pages_failed,
     })
 
 

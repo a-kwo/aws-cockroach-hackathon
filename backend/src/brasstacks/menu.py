@@ -25,6 +25,7 @@ import base64
 import binascii
 import re
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 
@@ -82,6 +83,12 @@ class MenuItem:
 class Menu:
     items: tuple[MenuItem, ...]
     currency: str = "USD"
+    #: How many photographs the scan was given, and how many of them produced no
+    #: rows — because the model failed on them, or because they were pictures of
+    #: something that is not a menu. Both default to zero so a menu rebuilt from
+    #: stored JSON, which has no scan behind it, is not describing one.
+    pages_scanned: int = 0
+    pages_failed: int = 0
 
     @property
     def priced(self) -> tuple[MenuItem, ...]:
@@ -281,28 +288,29 @@ MENU_USER = (
 )
 
 
-def parse_menu(
-    images: Sequence[ImageInput],
+def _parse_page(
+    image: ImageInput,
     *,
     reasoner: Any,
-    max_tokens: int = DEFAULT_MENU_MAX_TOKENS,
-) -> Menu:
-    """Read a menu out of photographs."""
-    if not images:
-        raise MenuError("send at least one photo of the menu")
-
+    max_tokens: int,
+) -> tuple[str, list[MenuItem]]:
+    """Read one photograph. Returns its currency and its items."""
     payload = reasoner.complete_json(
         system=MENU_SYSTEM,
         user=MENU_USER,
         schema=MENU_SCHEMA,
         max_tokens=max_tokens,
-        images=list(images),
+        images=[image],
     )
 
     currency = _clean(payload.get("currency"), limit=8) or "USD"
     sections = payload.get("sections")
     if not isinstance(sections, Sequence) or isinstance(sections, (str, bytes)):
-        raise MenuError("the model returned no sections")
+        # No rows rather than an exception: a photo that yielded nothing is a
+        # lost page, and `parse_menu` counts those. Raising here would make one
+        # blank shot indistinguishable from a price this module cannot trust,
+        # and only one of those two may be swallowed.
+        return currency, []
 
     items: list[MenuItem] = []
     for section in sections:
@@ -327,13 +335,112 @@ def parse_menu(
                 section=section_name,
             ))
 
-    if not items:
-        raise MenuError(
-            "found no menu items in that photo. A clearer, straight-on shot of "
-            "the menu text usually fixes it."
-        )
+    return currency, items
 
-    return Menu(items=tuple(items[:MAX_ITEMS]), currency=currency)
+
+def parse_menu(
+    images: Sequence[ImageInput],
+    *,
+    reasoner: Any,
+    max_tokens: int = DEFAULT_MENU_MAX_TOKENS,
+) -> Menu:
+    """Read a menu out of photographs — one model call per photo, in parallel.
+
+    Measured against the real API on 2026-08-06 with rendered menus, opus-5 at
+    low effort: 46 items over three pages took 25.5s, 92 items over four pages
+    took 38.7s. Transcription was exact both times, so accuracy was never what
+    threatened this feature — the clock was. API Gateway cuts the integration at
+    30s, and one call carrying every photo pays the sum of all of them, which
+    those two points put over the ceiling at around sixty items. A cafe menu
+    fits. The dinner menu this exists to read does not.
+
+    Per photo, concurrently, the wall clock becomes the slowest single page
+    instead of the total. Threads rather than asyncio because the client is
+    synchronous and this is entirely network wait; the pool is bounded by
+    MAX_IMAGES, which is four.
+
+    The second gain is the failure mode. One unreadable photo used to cost the
+    whole menu; now it costs its own page, the rest come back, and `pages_failed`
+    says so out loud — an owner about to approve this list as their menu must be
+    able to see the gap and re-shoot it, not discover it weeks later when the
+    Analyst prices a dish that is not there.
+    """
+    if not images:
+        raise MenuError("send at least one photo of the menu")
+
+    images = list(images)
+    # Indexed so the merge below is in photo order however the threads finish.
+    # Photo order is menu order, and a scan that returned the dessert page first
+    # would be a menu the owner has to re-sort by hand.
+    results: dict[int, tuple[str, list[MenuItem]]] = {}
+    failures: dict[int, Exception] = {}
+
+    def scan(index: int) -> None:
+        try:
+            currency, items = _parse_page(
+                images[index], reasoner=reasoner, max_tokens=max_tokens)
+        except MenuError:
+            # Deliberately NOT tolerated. The only MenuError `_parse_page` can
+            # raise is a price it refused — a string, a fraction, a phone number
+            # off the footer — and that is the one failure this whole module
+            # exists to make loud. Demoting it to a lost page would let a menu
+            # come back looking complete while a price the owner never saw was
+            # dropped, and a menu price is what every later revenue forecast is
+            # built on. A blank photo returns no rows instead of raising.
+            raise
+        except Exception as e:  # noqa: BLE001 — one page must not end the scan
+            failures[index] = e
+            return
+        if not items:
+            # A photo of the wall, or the back of the menu. Not an error for the
+            # scan, but not a page either: counted as lost so the total the owner
+            # is shown matches the number of photos that actually produced rows.
+            failures[index] = MenuError("no menu items in that photo")
+            return
+        results[index] = (currency, items)
+
+    if len(images) == 1:
+        scan(0)
+    else:
+        with ThreadPoolExecutor(max_workers=len(images)) as pool:
+            list(pool.map(scan, range(len(images))))
+
+    if not results:
+        # Every photo failed. Re-raise the first real provider error rather than
+        # inventing a summary, because "the model refused" and "that is a picture
+        # of a wall" need different things from the owner.
+        first = failures[min(failures)]
+        if isinstance(first, MenuError):
+            raise MenuError(
+                "found no menu items in those photos. A clearer, straight-on "
+                "shot of the menu text usually fixes it."
+            )
+        raise first
+
+    currency = results[min(results)][0]
+
+    # Owners photograph with overlap so nothing falls between shots, so the same
+    # row genuinely arrives twice. Deduped on the whole triple, not the name: a
+    # half portion and a full one share a name at different prices, and one drink
+    # can appear under two sections.
+    merged: list[MenuItem] = []
+    seen: set[tuple[str, str, int | None]] = set()
+    for index in sorted(results):
+        for item in results[index][1]:
+            key = (item.name.casefold(),
+                   (item.section or "").casefold(),
+                   item.price_cents)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+
+    return Menu(
+        items=tuple(merged[:MAX_ITEMS]),
+        currency=currency,
+        pages_scanned=len(images),
+        pages_failed=len(failures),
+    )
 
 
 # ---------------------------------------------------------------------------
