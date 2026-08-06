@@ -766,7 +766,7 @@ Resources:
     Properties:
       Description: Encrypts tenant Google Business OAuth refresh tokens.
       EnableKeyRotation: true
-      DeletionWindowInDays: 7
+      PendingWindowInDays: 7
       KeyPolicy:
         Version: "2012-10-17"
         Statement:
