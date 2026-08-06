@@ -16,10 +16,13 @@ Two constraints shape the implementation:
   four photos is the most expensive thing an unauthenticated stranger could
   make this system do, so the session check happens before the model call, not
   after.
-* **API Gateway cuts the integration off at 30 seconds** — the Lambda's own
-  60-second timeout is irrelevant. Transcription is not deep reasoning, so this
-  runs at low effort for the same reason `DEFAULT_ASK_EFFORT` does: the
-  thinking tokens buy nothing here and the seconds are the whole budget.
+* **API Gateway cuts the integration off at 30 seconds**, and that is the hard
+  ceiling for an HTTP API. The function's own timeout is held just under it at
+  29s so a slow scan dies when the browser is told it failed — left higher, the
+  invocation ran on unwatched, finished its Claude call, and billed for a result
+  nobody was waiting for. Transcription is not deep reasoning, so this runs at
+  low effort for the same reason `DEFAULT_ASK_EFFORT` does: the thinking tokens
+  buy nothing here and the seconds are the whole budget.
 """
 
 from __future__ import annotations
