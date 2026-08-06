@@ -705,3 +705,42 @@ class TestProfileEditKeepsTheMenu:
         assert response["statusCode"] == 200
         assert "menu" not in repo._businesses[business_id]["profile_data"]
         assert "menu has" not in " ".join(repo.get_business_facts(business_id))
+
+
+# ---------------------------------------------------------------------------
+# The timeout chain — a function must not outlive the request that called it
+# ---------------------------------------------------------------------------
+
+import re as _re  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+
+#: HTTP API integrations cap at 30s and cannot be raised; the live API's
+#: integrations are all configured at 30000ms. Verified against api n71m8mb1y8
+#: on 2026-08-06.
+API_GATEWAY_CEILING_SECONDS = 30
+
+_TEMPLATE = _Path(__file__).resolve().parents[2] / "deploy" / "template.yaml"
+
+
+def _function_timeout(name: str) -> int:
+    """The `Timeout:` declared for one Serverless::Function in the template."""
+    template = _TEMPLATE.read_text(encoding="utf-8")
+    block = template.split(f"  {name}:", 1)[1].split("\n  Function", 1)[0]
+    return int(_re.search(r"\n      Timeout: (\d+)", block).group(1))
+
+
+def test_the_scan_function_dies_with_the_request_not_after_it():
+    """A Lambda outliving its API Gateway integration bills for discarded work.
+
+    The menu scan runs behind an HTTP API whose integration timeout is 30s and
+    cannot be raised. A 60s function timeout does not buy a slow scan more time
+    — the browser has already been given a 504 — it just lets the Claude call
+    run to completion, be billed, and have its result thrown away. Worse, the
+    owner sees a failure and retries, so a menu that is too dense to scan in
+    time costs double every attempt.
+
+    Nothing is lost by dying at the ceiling: the scan stores nothing, and the
+    signup write it shares a function with is a single transaction that rolls
+    back.
+    """
+    assert _function_timeout("OnboardingFunction") <= API_GATEWAY_CEILING_SECONDS
