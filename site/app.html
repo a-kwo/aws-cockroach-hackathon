@@ -1063,6 +1063,124 @@
       white-space: nowrap;
     }
 
+    /* Reporting what a move earned.
+       Deliberately quiet: it sits under an approved row and must not compete
+       with the figure above it, because the figure above it is a forecast and
+       this is the thing that will eventually replace it with a fact. */
+    /* The list is a grid with its own gap, so the wrapper adds no spacing of
+       its own — it exists to hold the row and its strip together as one item. */
+    .decision-row-group { min-width: 0; }
+
+    .outcome-strip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 2px 0 0;
+      padding: 7px 10px 8px;
+      border-radius: 0 0 12px 12px;
+      background: var(--surface-soft);
+    }
+
+    .outcome-strip.is-open { display: block; }
+
+    .outcome-strip .outcome-reported,
+    .outcome-strip .outcome-empty { flex: 1 1 auto; min-width: 0; }
+
+    .outcome-strip b {
+      display: block;
+      color: var(--ink-soft);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .outcome-strip small,
+    .outcome-strip .outcome-note {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .outcome-button {
+      flex: 0 0 auto;
+      padding: 5px 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--ink-soft);
+      font: inherit;
+      font-size: 9px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color .18s var(--ease), background .18s var(--ease);
+    }
+
+    .outcome-button:hover { border-color: var(--brand); color: var(--brand); }
+    .outcome-button.is-primary {
+      border-color: transparent;
+      background: var(--brand);
+      color: #ffffff;
+    }
+    .outcome-button.is-primary:hover { background: var(--brand-dark); color: #ffffff; }
+    .outcome-button.is-quiet { background: transparent; }
+    .outcome-button[disabled] { opacity: .6; cursor: default; }
+
+    .outcome-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .outcome-field { display: block; min-width: 0; }
+    .outcome-field.is-wide { grid-column: 1 / -1; }
+
+    .outcome-field > span {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .outcome-field > span small { display: inline; margin: 0; font-weight: 500; }
+
+    .outcome-field input,
+    .outcome-field select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 10px;
+    }
+
+    .outcome-field input:focus,
+    .outcome-field select:focus {
+      outline: 2px solid var(--brand-soft);
+      border-color: var(--brand);
+    }
+
+    .outcome-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .outcome-caveat {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: var(--muted-2);
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
     .decision-row-copy span {
       display: block;
       overflow: hidden;
@@ -3782,6 +3900,29 @@
       background:#fbfaf7;
     }
     body.growth-mode .decision-row:last-child { border-bottom:0; }
+    /* Growth mode stacks the rows into a flat table — no gap, one hairline
+       between neighbours. The result strip has to join that stack rather than
+       float above it, so it drops its own radius and carries the hairline. */
+    body.growth-mode .decision-row-group:not(:last-child) .outcome-strip {
+      border-bottom:1px solid #ecece7;
+    }
+    body.growth-mode .decision-row-group:has(.outcome-strip) .decision-row {
+      border-bottom:0;
+    }
+    body.growth-mode .outcome-strip {
+      margin:0;
+      padding:0 20px 14px;
+      border-radius:0;
+      background:#fbfaf7;
+    }
+    body.growth-mode .outcome-strip b { font-size:11px; }
+    body.growth-mode .outcome-strip small,
+    body.growth-mode .outcome-strip .outcome-note { font-size:10px; }
+    body.growth-mode .outcome-button { font-size:10px; padding:6px 12px; }
+    body.growth-mode .outcome-field > span { font-size:10px; }
+    body.growth-mode .outcome-field input,
+    body.growth-mode .outcome-field select { font-size:11px; padding:7px 9px; }
+    body.growth-mode .outcome-caveat { font-size:10px; }
     body.growth-mode .decision-row:hover {
       background:#f4f5f1;
       transform:none;
@@ -19767,6 +19908,14 @@
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],
         amount: Math.max(0, Math.round((Number(find.predictedDaily) || 0) * 30 / 100)),
+        // What the owner has already told us this earned, straight out of
+        // CockroachDB. Null until they do — which is not the same as zero, and
+        // a reported zero is a measured miss.
+        reportedOutcome: find.reportedOutcome || null,
+        // The end of the measurement window, so the Growth tab can say when a
+        // reported figure will actually be scored rather than leaving it as
+        // "waiting" forever.
+        verifyAfter: find.verifyAfter || null,
         sourceTime: relativeTime(find.createdAt),
         highlightLabel: "Evidence used",
         highlightValue: `${find.evidenceCount || 0} memories`,
@@ -24985,6 +25134,192 @@ ledger_entry · artifact · agent_run`,
     function clampText(text, max) {
       return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
     }
+    /**
+     * Reporting what a move actually earned.
+     *
+     * This is the other half of the product's central claim. The Meter reads a
+     * prediction it made on an earlier night and asks whether it was right —
+     * but with no measurement connected, `NoOutcomeSource` is the only outcome
+     * source that exists, every verdict it can reach is ESTIMATED, and the
+     * published hit rate is permanently undefined. A small business has no
+     * payments API. What it has is an owner who can count.
+     *
+     * Three rules this strip must not break, all of them about somebody's money:
+     *
+     *   1. A figure the owner typed is *reported*, never *verified*. It becomes
+     *      a verdict when the Meter judges it at the end of the measurement
+     *      window, and the copy says so rather than leaving it implied.
+     *   2. Reporting moves nothing on this screen. The headline is a sum of
+     *      predictions and the chart is drawn from the ledger; neither may be
+     *      touched by the owner typing a number into a box.
+     *   3. A verdict that was already measured is final here. Correcting a
+     *      published miss into a win from the browser is exactly what the
+     *      append-only ledger exists to prevent, and the repository refuses it
+     *      too — the interface should not imply otherwise.
+     */
+    const OUTCOME_BASES = [
+      ["day", "a day"],
+      ["week", "a week"],
+      ["month", "a month"],
+    ];
+
+    //  Which row has its form open. One at a time: the lists re-render whole,
+    //  and two open forms would be two half-typed figures fighting over which
+    //  survives the next render.
+    let outcomeFormFindId = null;
+
+    function outcomeStripHtml(post, status) {
+      //  Only a move the owner accepted can have earned anything. A find that
+      //  was passed over has no outcome to report and never will.
+      if (status !== "approved") return "";
+
+      const reported = post.reportedOutcome;
+
+      if (post.verdict === "verified" || post.verdict === "miss") {
+        //  Judged, and against a real measurement. Nothing to offer.
+        return `
+          <div class="outcome-strip is-scored">
+            <span class="outcome-note">The Meter has scored this move.</span>
+          </div>`;
+      }
+
+      const scoredOn = post.verifyAfter
+        ? ` · scored on ${escapeHtml(shortDate(post.verifyAfter))}`
+        : "";
+      const summary = reported
+        ? `<span class="outcome-reported"><b>You reported ${escapeHtml(reported.amountTxt)} ${escapeHtml(reported.basisLabel)}</b><small>Waiting for the Meter${scoredOn}</small></span>`
+        : `<span class="outcome-empty"><b>No result reported yet</b><small>Tell the Meter what this earned and it can score it${scoredOn ? scoredOn.replace(" · ", " on ") : ""}</small></span>`;
+
+      if (outcomeFormFindId !== post.id) {
+        return `
+          <div class="outcome-strip">
+            ${summary}
+            <button class="outcome-button" type="button" data-report-outcome="${escapeHtml(post.id)}">
+              ${reported ? "Update result" : "Add result"}
+            </button>
+          </div>`;
+      }
+
+      return `
+        <div class="outcome-strip is-open">
+          ${summary}
+          <div class="outcome-form">
+            <label class="outcome-field">
+              <span>What it earned</span>
+              <input data-outcome-amount type="text" inputmode="decimal"
+                     placeholder="0.00" autocomplete="off"
+                     aria-label="What this move earned"
+                     value="${reported ? escapeHtml(reported.amountTxt.replace("$", "")) : ""}">
+            </label>
+            <label class="outcome-field">
+              <span>Over</span>
+              <select data-outcome-basis aria-label="The period that figure covers">
+                ${OUTCOME_BASES.map(([value, label]) => `
+                  <option value="${escapeHtml(value)}"${reported && reported.basis === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="outcome-field is-wide">
+              <span>How you know <small>optional</small></span>
+              <input data-outcome-note maxlength="280" autocomplete="off"
+                     aria-label="How you measured it"
+                     placeholder="Counted the lunch covers"
+                     value="${reported && reported.note ? escapeHtml(reported.note) : ""}">
+            </label>
+            <div class="outcome-actions">
+              <button class="outcome-button is-quiet" type="button" data-cancel-outcome>Cancel</button>
+              <button class="outcome-button is-primary" type="button" data-save-outcome="${escapeHtml(post.id)}">Save result</button>
+            </div>
+            <p class="outcome-caveat">Nothing here changes your record. The Meter
+              judges this figure against what it predicted, and publishes the
+              verdict either way.</p>
+          </div>
+        </div>`;
+    }
+
+    async function persistOutcome(post, { amount, basis, note }) {
+      const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
+      if (!base) return { demoOnly: true };
+      const response = await fetch(`${base}/finds/${encodeURIComponent(post.databaseId || post.id)}/outcome`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        //  The string the owner typed, untouched. The server parses it with
+        //  Decimal; doing it here would go through binary floating point,
+        //  where 12.34 in cents is 1233.9999999999998.
+        body: JSON.stringify({ amount: amount, basis: basis, note: note || null })
+      });
+      let payload = {};
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const error = new Error(payload.error || `Outcome API returned ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return payload;
+    }
+
+    async function saveOutcome(postId, button) {
+      const post = posts.find(item => item.id === postId);
+      if (!post) return;
+      const row = button.closest(".outcome-strip");
+      const amount = String(row?.querySelector("[data-outcome-amount]")?.value || "").trim();
+      const basis = String(row?.querySelector("[data-outcome-basis]")?.value || "week");
+      const note = String(row?.querySelector("[data-outcome-note]")?.value || "").trim();
+
+      if (!amount) {
+        showToast("Enter what this move earned.", "rejected");
+        return;
+      }
+
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      const original = button.textContent;
+      button.textContent = "Saving…";
+      try {
+        const receipt = await persistOutcome(post, { amount, basis, note });
+        //  Held on the post so the row reads back correctly straight away. The
+        //  durable copy is the CockroachDB row the build and the live snapshot
+        //  both read, which is what survives a reload.
+        post.reportedOutcome = receipt.demoOnly ? post.reportedOutcome : {
+          amountCents: receipt.amountCents,
+          amountTxt: outcomeMoney(receipt.amountCents),
+          basis: receipt.basis,
+          basisLabel: (OUTCOME_BASES.find(([value]) => value === receipt.basis) || [])[1] || receipt.basis,
+          dailyCents: receipt.dailyCents,
+          dailyTxt: outcomeMoney(receipt.dailyCents),
+          note: receipt.note || null,
+          reportedAt: receipt.reportedAt || null,
+        };
+        outcomeFormFindId = null;
+        showToast(receipt.demoOnly
+          ? "This is the demo build — nothing was saved."
+          : "Result recorded. The Meter scores it when the window closes.",
+          "approved");
+      } catch (error) {
+        showToast(error.message || "That figure could not be saved.", "rejected");
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        button.textContent = original;
+        return;
+      }
+      renderGrowth();
+    }
+
+    /**
+     * The one place this page turns cents into a string.
+     *
+     * Every other figure on the board is formatted in scripts/build_web.py and
+     * arrives as text, and that rule stands. This is the exception it has to
+     * make: the receipt for a figure the owner typed one second ago has not
+     * been through a build, and echoing back the raw input instead would show
+     * "210" where the row beside it says "$210".
+     */
+    function outcomeMoney(cents) {
+      const value = Number(cents || 0) / 100;
+      return value % 1 === 0
+        ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+        : `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
     function renderDecisionRow(post, status) {
       // The row's figure is the find's prediction, so it says so twice: in the
       // dashed forecast treatment a sighted owner sees, and in the label a
@@ -24995,13 +25330,16 @@ ledger_entry · artifact · agent_run`,
         ? `${value}, projected, not earned`
         : value;
       return `
-        <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}. ${spoken}.">
+        <div class="decision-row-group">
+        <button class="decision-row" type="button" data-feature="${escapeHtml(post.featureKey)}" data-open-post="${escapeHtml(post.id)}" aria-label="${escapeHtml(post.title)}. ${status}. ${spoken}.">
           <span class="decision-row-icon" aria-hidden="true">${icons[post.featureKey]}</span>
           <span class="decision-row-copy">
-            <strong>${post.title}</strong>
+            <strong>${escapeHtml(post.title)}</strong>
           </span>
           <span class="decision-row-value ${projected ? "forecast" : status === "rejected" ? "rejected" : ""}" aria-hidden="true">${value}</span>
         </button>
+        ${outcomeStripHtml(post, status)}
+        </div>
       `;
     }
 
@@ -26803,6 +27141,24 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-undo-pass]").forEach(button => {
         button.onclick = () => undoPass(button.dataset.postId, button);
+      });
+      document.querySelectorAll("[data-report-outcome]").forEach(button => {
+        button.onclick = () => {
+          outcomeFormFindId = button.dataset.reportOutcome;
+          renderGrowth();
+          //  Straight into the field. The owner pressed a button that says
+          //  "Add result"; making them click once more to type is noise.
+          document.querySelector("[data-outcome-amount]")?.focus();
+        };
+      });
+      document.querySelectorAll("[data-cancel-outcome]").forEach(button => {
+        button.onclick = () => {
+          outcomeFormFindId = null;
+          renderGrowth();
+        };
+      });
+      document.querySelectorAll("[data-save-outcome]").forEach(button => {
+        button.onclick = () => saveOutcome(button.dataset.saveOutcome, button);
       });
       document.querySelectorAll("[data-reconsider]").forEach(button => {
         button.onclick = () => reconsider(button.dataset.postId, button);

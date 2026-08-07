@@ -30,7 +30,11 @@ from brasstacks.agents.radar import RadarResult, run_radar
 from brasstacks.artifacts import ArtifactStore, build_artifact_store
 from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
-from brasstacks.outcomes import NoOutcomeSource, OutcomeSource
+from brasstacks.outcomes import (
+    NoOutcomeSource,
+    OutcomeSource,
+    build_outcome_source,
+)
 from brasstacks.providers import Embedder, Reasoner, build_embedder, build_reasoner
 from brasstacks.repository import Repository
 from brasstacks.signals import (
@@ -243,13 +247,16 @@ def main(argv: list[str] | None = None) -> int:
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
     store = build_artifact_store(settings)
-    outcomes = NoOutcomeSource()
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
         repo = PostgresRepository(conn)
         # After the connection, not before: the scout searches around the
         # coordinates on the business row.
         scout = build_competitor_scout(settings, repo.get_business(settings.business_id))
+        # Whatever the owner has reported through /finds/{id}/outcome. The
+        # local harness judges against the same measurements the deployed
+        # nightly run does, or there is no point rehearsing with it.
+        outcomes = build_outcome_source(repo, settings.business_id)
 
         for index in range(args.nights):
             tonight = start + timedelta(days=index * args.step)

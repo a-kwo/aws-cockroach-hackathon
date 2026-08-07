@@ -1227,3 +1227,211 @@ def test_find_context_round_trips_the_owner_feed_brief(repo, business):
 
     context = repo.get_find_context(business, find_id)
     assert context.feed_brief == brief
+
+
+# ---------------------------------------------------------------------------
+# Outcomes the owner measured
+# ---------------------------------------------------------------------------
+
+class TestOwnerReportedOutcomes:
+    """The only path by which a verdict can ever be anything but an estimate.
+
+    NoOutcomeSource is the honest default and it can never produce a verified
+    win. These rows are what an owner counted — item sales, covers, a POS
+    export — and they are what the Meter judges against when the window closes.
+    """
+
+    def _find(self, repo, business, *, status="accepted", cents=2300,
+              verify_after=None):
+        repo.insert_observation(business, content=f"obs {uuid.uuid4().hex[:6]}",
+                                kind="review", embedding=DESSERT,
+                                observed_at=_dt(TODAY))
+        obs = repo.search_observations(business, DESSERT, limit=1)[0]
+        return repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=cents, confidence=0.8,
+            verify_after=verify_after or TODAY, status=status,
+            evidence=[EvidenceRef(obs.observation_id, 0.9)],
+        )
+
+    def test_a_reported_week_is_stored_with_its_daily_figure(self, repo, business):
+        find_id = self._find(repo, business)
+        report = repo.record_find_outcome(
+            business, find_id=find_id, amount_cents=7000, basis="week",
+            note="Counted from the till.",
+        )
+
+        assert report.amount_cents == 7000
+        assert report.basis == "week"
+        # Derived once, in the repository, so both stores agree on the number
+        # the Meter will judge.
+        assert report.daily_cents == 1000
+        assert report.note == "Counted from the till."
+
+    def test_the_latest_report_per_find_is_what_comes_back(self, repo, business):
+        find_id = self._find(repo, business)
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=7000, basis="week")
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=14000, basis="week")
+
+        [latest] = repo.find_outcome_reports(business)
+        assert latest.amount_cents == 14000
+
+    def test_a_correction_never_deletes_what_was_reported_before(
+            self, repo, business):
+        # Same rule the decision log keeps: an owner correcting a figure is a
+        # new fact, not a licence to erase the old one.
+        find_id = self._find(repo, business)
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=7000, basis="week")
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=14000, basis="week")
+
+        history = repo.find_outcome_history(business, find_id=find_id)
+        assert [r.amount_cents for r in history] == [14000, 7000]
+
+    def test_a_measured_zero_is_kept(self, repo, business):
+        # The published miss. Zero must survive as a number, not become absence.
+        find_id = self._find(repo, business)
+        report = repo.record_find_outcome(business, find_id=find_id,
+                                          amount_cents=0, basis="week")
+        assert report.amount_cents == 0
+        assert report.daily_cents == 0
+        assert [r.daily_cents for r in repo.find_outcome_reports(business)] == [0]
+
+    def test_another_tenants_find_cannot_be_reported_on(self, repo, business):
+        other = repo.create_business(name=f"Rival {uuid.uuid4().hex[:6]}",
+                                     category="restaurant")
+        find_id = self._find(repo, other)
+        with pytest.raises(RepositoryError):
+            repo.record_find_outcome(business, find_id=find_id,
+                                     amount_cents=7000, basis="week")
+        assert repo.find_outcome_reports(other) == []
+
+    def test_a_find_the_owner_never_acted_on_has_no_outcome(self, repo, business):
+        # Same rule as the Meter's inbox: nothing was done, so there is nothing
+        # that could have earned anything.
+        find_id = self._find(repo, business, status="proposed")
+        with pytest.raises(RepositoryError):
+            repo.record_find_outcome(business, find_id=find_id,
+                                     amount_cents=7000, basis="week")
+
+    def test_reporting_before_the_window_closes_is_allowed_and_waits(
+            self, repo, business):
+        # The owner may have the number early. It is stored, and it changes
+        # nothing until the measurement window it belongs to has elapsed.
+        find_id = self._find(repo, business,
+                             verify_after=TODAY + timedelta(days=30))
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=7000, basis="week")
+
+        assert len(repo.find_outcome_reports(business)) == 1
+        assert repo.due_finds(business, today=TODAY) == []
+
+    def test_an_unknown_period_is_refused(self, repo, business):
+        find_id = self._find(repo, business)
+        with pytest.raises(ValueError):
+            repo.record_find_outcome(business, find_id=find_id,
+                                     amount_cents=7000, basis="fortnight")
+
+
+class TestRemeasuringAnEstimate:
+    """An estimate is a placeholder. A measurement replaces it; a verdict that
+    was itself measured is never rewritten."""
+
+    def _estimated(self, repo, business, *, predicted=2300):
+        repo.insert_observation(business, content=f"o {uuid.uuid4().hex[:6]}",
+                                kind="review", embedding=DESSERT,
+                                observed_at=_dt(TODAY))
+        obs = repo.search_observations(business, DESSERT, limit=1)[0]
+        find_id = repo.insert_find_with_evidence(
+            business, title="t", rationale="r", move="m", emoji="x",
+            predicted_daily_cents=predicted, confidence=0.8,
+            verify_after=TODAY, status="accepted",
+            evidence=[EvidenceRef(obs.observation_id, 0.9)],
+        )
+        repo.insert_ledger_entry(
+            business, find_id=find_id, verdict="estimated",
+            predicted_daily_cents=predicted, actual_daily_cents=None,
+            period_start=TODAY - timedelta(days=14), period_end=TODAY,
+            method="modelled from the prediction; no sales data connected",
+            measured_at=_dt(TODAY),
+        )
+        return find_id
+
+    def test_nothing_is_remeasurable_until_someone_reports_a_number(
+            self, repo, business):
+        self._estimated(repo, business)
+        assert repo.remeasurable_finds(business) == []
+
+    def test_an_estimate_with_a_newer_report_comes_back_for_judging(
+            self, repo, business):
+        find_id = self._estimated(repo, business)
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=7000, basis="week",
+                                 reported_at=_dt(TODAY + timedelta(days=1)))
+
+        [again] = repo.remeasurable_finds(business)
+        assert again.find_id == find_id
+        # The window has to be the one already on the ledger row, or the update
+        # would miss it and a second verdict would be written for the same find.
+        assert again.measurement_start == TODAY - timedelta(days=14)
+        assert again.verify_after == TODAY
+
+    def test_a_report_older_than_the_verdict_is_already_accounted_for(
+            self, repo, business):
+        # Otherwise every night re-judges every estimate that ever had a report,
+        # forever.
+        find_id = self._estimated(repo, business)
+        repo.record_find_outcome(business, find_id=find_id,
+                                 amount_cents=7000, basis="week",
+                                 reported_at=_dt(TODAY - timedelta(days=1)))
+        assert repo.remeasurable_finds(business) == []
+
+    def test_an_estimate_becomes_the_measured_verdict(self, repo, business):
+        find_id = self._estimated(repo, business)
+        repo.update_ledger_entry(
+            business, find_id=find_id,
+            period_start=TODAY - timedelta(days=14), period_end=TODAY,
+            verdict="verified", actual_daily_cents=1000,
+            method="owner-reported sales, entered per week",
+            measured_at=_dt(TODAY + timedelta(days=1)),
+        )
+
+        summary = repo.ledger_summary(business)
+        assert summary.verified_count == 1
+        assert summary.estimated_count == 0
+        assert summary.verified_daily_cents == 1000
+
+    def test_a_measured_verdict_is_never_rewritten(self, repo, business):
+        # The append-only rule that matters: a published miss cannot be quietly
+        # turned into a win by reporting a better number afterwards.
+        find_id = self._estimated(repo, business)
+        repo.update_ledger_entry(
+            business, find_id=find_id,
+            period_start=TODAY - timedelta(days=14), period_end=TODAY,
+            verdict="miss", actual_daily_cents=0,
+            method="owner-reported sales, entered per week",
+        )
+        with pytest.raises(RepositoryError):
+            repo.update_ledger_entry(
+                business, find_id=find_id,
+                period_start=TODAY - timedelta(days=14), period_end=TODAY,
+                verdict="verified", actual_daily_cents=9000,
+                method="owner-reported sales, entered per week",
+            )
+        assert repo.ledger_summary(business).miss_count == 1
+
+    def test_another_tenant_cannot_rewrite_this_ledger(self, repo, business):
+        find_id = self._estimated(repo, business)
+        other = repo.create_business(name=f"Rival {uuid.uuid4().hex[:6]}",
+                                     category="restaurant")
+        with pytest.raises(RepositoryError):
+            repo.update_ledger_entry(
+                other, find_id=find_id,
+                period_start=TODAY - timedelta(days=14), period_end=TODAY,
+                verdict="verified", actual_daily_cents=9000,
+                method="owner-reported sales, entered per week",
+            )
+        assert repo.ledger_summary(business).estimated_count == 1

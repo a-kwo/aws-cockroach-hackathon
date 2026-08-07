@@ -12,11 +12,11 @@ module ever guesses at an outcome.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
-from brasstacks.repository import DueFind
+from brasstacks.repository import DueFind, OutcomeReport
 
 
 @dataclass(frozen=True)
@@ -65,6 +65,29 @@ class NoOutcomeSource:
         )
 
 
+def outcomes_from_reports(
+    reports: Iterable[OutcomeReport],
+) -> dict[str, Outcome]:
+    """Turn what the owner counted into what the Meter judges.
+
+    This is the only place a `has_outcome_data=True` outcome is produced from
+    stored data, and it is why a verdict here can be anything other than an
+    estimate. Nothing is inferred: the daily figure was derived from the
+    owner's own amount and period when the report was written, and the method
+    says so on the ledger row rather than leaving "measured" to mean whatever
+    the reader assumes.
+    """
+    return {
+        report.find_id: Outcome(
+            actual_daily_cents=report.daily_cents,
+            has_outcome_data=True,
+            method=f"owner-reported sales, entered per {report.basis}",
+            note=report.note,
+        )
+        for report in reports
+    }
+
+
 class RecordedOutcomeSource:
     """Outcomes the owner reported, keyed by find id.
 
@@ -82,3 +105,19 @@ class RecordedOutcomeSource:
         if recorded is None:
             return self._fallback.measure(find, business_id=business_id)
         return recorded
+
+
+def build_outcome_source(repo: Any, business_id: str) -> OutcomeSource:
+    """The Meter's outcome source for one tenant, read out of the memory layer.
+
+    Built per business, inside the nightly loop, rather than once for the run:
+    one shared source would let a figure one owner reported be measured against
+    another owner's find, which is the worst possible direction for this
+    particular bug to go.
+
+    A tenant who has reported nothing gets `NoOutcomeSource` behaviour through
+    the fallback, so the honest default is still the default.
+    """
+    return RecordedOutcomeSource(
+        outcomes_from_reports(repo.find_outcome_reports(business_id))
+    )
