@@ -11,34 +11,45 @@ sales.
 
 ## 1. Why this belongs here, and not in a different project
 
-The honest test for any addition is whether it serves the core claim: *an agent that
-remembers what it predicted and checks whether it was right.* Most candidate features
-fail that test. This one passes it for a specific and slightly surprising reason.
+Brass Tacks promises agents that **find** revenue opportunities, **do the work**, and
+**prove** whether it paid. The middle promise is the weakest one the product currently
+keeps. The Maker writes an artifact and the owner applies it by hand; the agent advises,
+and then a human does the actual thing.
 
-`db/schema.sql` says it out loud, in the comment above `find_outcome`:
+Ordering is the first case where the agent acts in the world and something really
+happens. Supplies arrive. That is the whole justification, and it is enough.
 
-> Without this table `NoOutcomeSource` is the only outcome source that exists, every
-> verdict the Meter can ever reach is ESTIMATED, and the published hit rate is
-> permanently undefined.
+**The value here is the owner's time, not their margin.** An owner who no longer thinks
+about restocking has got back several hours a week. That is a good product on its own
+terms, and it does not need to be dressed up as a money-making move to earn its place.
 
-Today a **verified** verdict requires the owner to type in what a move earned. That is
-the correct design — a move is measured when the person who runs the business says what
-it earned — but it means the Meter's strongest output depends on manual data entry that
-most owners will never do. The ledger degrades to a wall of *Modelled*.
+### The memory layer still matters — just not through the Meter
 
-Procurement breaks that deadlock, because **a supply order produces its own receipt**.
-Line items, quantities, integer cents, a timestamp, a provider reference. No owner data
-entry, no estimation, no model in the loop. If the night predicts *"consolidating your
-three emergency runs into one Tuesday order saves $23/day"*, the next fortnight of
-receipts either shows that or it doesn't.
+Ordering is not stateless, which is why it belongs in *this* product rather than beside
+it. "The usual" means nothing without a durable record of what the usual is. Reordering
+before something runs out requires knowing when it was last bought and how fast it goes.
+Standing authority is a promise the owner made once that must still hold months later.
+Supplier prices are only interesting compared against what they were.
 
-That is the first outcome source in this system that the machine can produce by itself.
-It is worth building for that reason alone, and the ordering convenience is a bonus.
+Every one of those is the memory layer doing work no stateless assistant could do. None
+of them involves a prediction, a verdict, or the ledger.
 
-**The corollary is a constraint, not a bonus:** spend that Brass Tacks itself initiated
-is the only spend it may count. An outcome derived from an order the agent placed is
-clean. An outcome derived from guessing at orders the owner placed elsewhere is
-estimation wearing a receipt's clothing, and §10 forbids it.
+### What this is *not*
+
+It is not a revenue play, and the design should stop implying otherwise.
+
+Procurement is **cost**, not income. It must never reach the verified daily figure, never
+appear as found money, and never inflate the headline. A saving is also not a sale, and
+the UI honesty rules exist precisely to stop that elision.
+
+> **Superseded, and kept because it was the original argument.** An earlier version of
+> this section justified the whole agent through the Meter: a supply order produces its
+> own receipt, receipts are hard actuals in integer cents, and today a VERIFIED verdict
+> otherwise depends on the owner typing a number in. All of that is true. It was still
+> the wrong foundation, because three of the four triggers in §5.1 involve no prediction
+> at all — an owner asking for tomatoes is not running an experiment. Building the
+> rationale on the minority case made a utility look like a revenue feature. The narrow
+> version of the idea survives in §7a as an option, not as the reason this exists.
 
 ---
 
@@ -96,12 +107,14 @@ risk profiles and only the third one can lose money.
 
                     ┌──────────────────────────────────────────┐
    WRITE (gated)    │ work_task(agent='quartermaster')          │
-                    │   approval_state='pending' → owner → ok   │
+                    │   authorized (per-cart or standing)       │
                     │   → tool_execution('doordash.place_order')│
-                    │   → receipt → ProcurementOutcomeSource    │
-                    │   → Meter → VERIFIED                      │
+                    │   → receipt stored, order history grows   │
                     └──────────────────────────────────────────┘
 ```
+
+The write path ends at the receipt. The receipt is what makes "the usual" and "reorder
+before it runs out" possible on later runs; it is not routed to the ledger.
 
 **Almost none of this is new infrastructure.** The control plane already has everything
 the write path needs, and that is the strongest argument for the design being right:
@@ -117,8 +130,8 @@ the write path needs, and that is the strongest argument for the design being ri
   and a status lifecycle. DoorDash is a new `provider` value, not a new table.
 - `decision_event` already gives the append-only record of who approved what.
 
-The genuinely new pieces are: one `SignalSource`, one agent module, one tool adapter, one
-`OutcomeSource`, and the local worker in §8.
+The genuinely new pieces are: one `SignalSource`, one agent module, one tool adapter, and
+the local worker in §8.
 
 ---
 
@@ -184,9 +197,11 @@ narrow: it meant the owner could not simply ask for tomatoes.
 | `find` | The Analyst | *"Consolidate your emergency runs — $23/day"* |
 
 **All four converge on the same pipeline**: `draft_order` → authorization → `place_order`
-→ receipt → Meter. The trigger changes *who asked* and *what authorizes it*; it never
-changes the machinery, the receipt, or the safety rules. One code path to test, one
-receipt format, one outcome source.
+→ receipt. The trigger changes *who asked* and *what authorizes it*; it never changes the
+machinery, the receipt, or the safety rules. One code path to test, one receipt format.
+
+Only the `find` trigger carries a prediction, and even there the ledger connection is
+optional and deferred (§7a). The other three are plain utility and end at the receipt.
 
 This fits the existing table without a migration: `work_task.find_id` is already nullable,
 so an order that no find produced is representable today. The trigger goes in
@@ -266,6 +281,29 @@ typically go through this in 7"* — so the owner can correct a wrong model inst
 discovering it in a delivery. Promoting an item to `auto` on inferred stock should require
 the inference to have been right about that item several times, checked against real
 receipts. Same discipline as the Meter, applied to a different prediction.
+
+---
+
+## 7a. The one place the Meter still fits — optional, and not the point
+
+Only the `find` trigger involves a prediction. When the Analyst says *"consolidating your
+emergency restocks saves $23/day"* and the owner accepts it, that specific find is a
+claim about money that the existing ledger already knows how to judge — and the receipts
+happen to be the natural evidence for it.
+
+So the connection is worth keeping, but it is worth keeping **small**:
+
+- It applies to find-triggered orders only. The other three triggers never touch the
+  ledger, because there is no prediction to judge.
+- It is not a reason to build any of this, and nothing in Phases 0–2 depends on it.
+- A verified *saving* stays on the cost side. It does not increase the verified daily
+  figure, and no owner action may make it look like revenue (§10).
+
+Concretely: only spend that Brass Tacks itself initiated could ever be used this way.
+Guessing at orders the owner placed elsewhere would be estimation wearing a receipt's
+clothing.
+
+Treat this as a later option — after ordering works and has a history worth reading.
 
 ---
 
@@ -356,8 +394,8 @@ fails loudly.
 6. **Spend is not revenue.** A procurement receipt is a *cost* fact. It may verify a
    savings prediction; it may never increment the verified daily figure directly, and the
    existing UI honesty rules apply unchanged.
-7. **Only Brass-Tacks-initiated orders count as outcomes** (§1). Orders the owner placed
-   by other means are not receipts we are entitled to reason from.
+7. **Only Brass-Tacks-initiated orders are ours to reason from.** Orders the owner placed
+   by other means are not receipts this system may treat as evidence of anything (§7a).
 
 ---
 
@@ -375,8 +413,7 @@ green.* The DoorDash boundary gets the same treatment.
   `CorpusSignalSource` — honest about being a fixture, in the same way and for the same
   reason.
 - The full Quartermaster task flow against a `FakeDoorDashTool`: draft → `waiting_user`
-  → owner approves → `tool_execution` receipt → `ProcurementOutcomeSource` → Meter reads
-  it on a later run → **VERIFIED**.
+  → owner approves → order placed → `tool_execution` receipt stored.
 - **All four triggers from §5.1**, since they are the same pipeline with different
   entry points and building one is most of the work of building all four. Specifically:
   `owner_instruction` (a handler that turns words into a draft cart), `standing_order`
@@ -388,10 +425,13 @@ green.* The DoorDash boundary gets the same treatment.
   real — the ceiling is easiest to test against a tool that cannot actually charge anyone.
 - The local worker, running against the fake adapter.
 
-The demo beat this buys is the one CLAUDE.md calls the money shot, and it is better than
-the current version of it: *a prediction made on Monday night, an action taken Tuesday, a
-receipt written Tuesday, and Wednesday's night reading that receipt back out of
-CockroachDB and marking the prediction verified — with no human typing in a number.*
+The demo beat this buys is an agent that **acts**: the owner asks for something in plain
+words, the agent builds the order, the owner approves it, and it is placed — then next
+week the same agent reorders the usual without being asked, because CockroachDB
+remembers what the usual was and when it was last bought.
+
+That is a memory-layer story with no prediction in it, and it should be pitched as a
+capability rather than as revenue.
 
 Flipping to real is a config change and a waitlist approval, not a rewrite. That is the
 whole reason for faking at the boundary rather than mocking inside the agent.
@@ -419,9 +459,11 @@ Whenever DoorDash opens the gate. §9.
 Per the working agreement: test first, fail first, and the money math gets the unhappy
 paths.
 
-- `ProcurementOutcomeSource`: receipt with no matching find; duplicate receipt for one
-  task; partial period; a receipt that arrives *before* `verify_after`; a saving that
-  lands under the miss threshold and must read MISS, not VERIFIED.
+- Receipts: duplicate receipt for one task; a receipt whose totals do not match the
+  approved cart; missing or malformed line items. A receipt is the durable record of what
+  was actually bought, so a wrong one is worse than none.
+- Ledger isolation: a procurement receipt must **not** move the verified daily figure. If
+  §7a is ever built, its tests belong with it — not here.
 - Cents parsing: decimal strings, currency symbols, thousands separators, a provider
   returning a float. No test may construct a money value from a float.
 - Idempotency: the same approved cart dispatched twice produces one `tool_execution`.
