@@ -112,7 +112,11 @@ h1 { margin: 20px 0 0; font-size: 26px; line-height: 1.1; letter-spacing: -.03em
     <div class="spinner" id="spinner" role="status" aria-live="polite"></div>
     <h1 id="heading">Signing you in</h1>
     <p class="lede" id="detail">One moment — finishing up with Google.</p>
-    <a class="retry" id="retry" href="../../register/">Back to sign-up</a>
+    <!-- Sign-in, not sign-up: the callback already found or created the
+         account before it sent anyone here, so a failure on this page is a
+         spent or expired handoff code. Offering to create a second workspace
+         for someone who has one would be the wrong repair. -->
+    <a class="retry" id="retry" href="../../login/">Back to sign-in</a>
   </section>
 </main>
 

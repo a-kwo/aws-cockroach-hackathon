@@ -1680,6 +1680,19 @@ def test_the_landing_page_sends_owners_without_a_business_to_onboarding():
     assert 'payload.business_id ? "../../app/" : "../../signup/"' in html
 
 
+def test_the_landing_page_offers_a_way_back_that_signs_you_in():
+    """By the time anyone reaches this page the callback has already found or
+    created their account — so a failure here is a spent or expired handoff
+    code, not a missing workspace. Sending them to sign-up would offer to make
+    a second account for someone who already has one, and since the button now
+    also sits on /login/, the page they left from is as likely to be that."""
+    html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
+    link = html.split('class="retry"', 1)[1].split("</a>", 1)[0]
+
+    assert 'href="../../login/"' in link
+    assert "sign-up" not in link
+
+
 def test_the_landing_page_is_built_even_when_the_button_is_off():
     """Google matches the redirect URI exactly. A live OAuth client whose
     callback lands on a 404 is a worse failure than an unlinked page."""
