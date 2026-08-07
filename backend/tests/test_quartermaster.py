@@ -12,6 +12,8 @@ matter most:
   human, whatever standing permission exists.
 """
 
+from datetime import date
+
 import pytest
 
 from brasstacks.agents.quartermaster import (
@@ -19,9 +21,16 @@ from brasstacks.agents.quartermaster import (
     Status,
     place_approved_order,
     plan_order,
+    requests_from_standing_orders,
+    requests_from_stock,
 )
 from brasstacks.ordering import FakeOrderingTool, ItemUnavailable
 from brasstacks.purchase_authority import Level, PurchaseAuthority
+from brasstacks.standing_orders import StandingOrder
+from brasstacks.stock import StockItem
+
+TUESDAY = date(2026, 8, 4)
+WEDNESDAY = date(2026, 8, 5)
 
 CATALOGUE = {"tomatoes": 4_50, "olive oil": 12_00, "flour": 3_25}
 
@@ -268,3 +277,82 @@ class TestIdempotency:
             plan_order(request=ask_for(("tomatoes", 2)), tool=t,
                        authorities=[standing()], idempotency_key="night-1")
         assert len(t.placed) == 1
+
+
+def schedule(**kwargs) -> StandingOrder:
+    base = dict(name="usual produce", items=(("tomatoes", 4),), weekday=1)
+    base.update(kwargs)
+    return StandingOrder(**base)
+
+
+def stocked(**kwargs) -> StockItem:
+    base = dict(name="tomatoes", reorder_at=7, usage_per_week=7,
+                reorder_quantity=12, last_purchased_on=date(2026, 8, 1),
+                last_purchased_quantity=14)
+    base.update(kwargs)
+    return StockItem(**base)
+
+
+class TestRequestsFromStandingOrders:
+    """The nightly run turns due schedules into requests. It does not place
+    them here — they go through the same pricing and limits as anything else,
+    which is what stops a Tuesday basket being bought at any price merely
+    because it is Tuesday."""
+
+    def test_a_due_schedule_becomes_a_request(self):
+        requests = requests_from_standing_orders([schedule()], today=TUESDAY)
+        assert [r.items for r in requests] == [(("tomatoes", 4),)]
+
+    def test_it_is_tagged_as_a_standing_order(self):
+        requests = requests_from_standing_orders([schedule()], today=TUESDAY)
+        assert requests[0].trigger == "standing_order"
+
+    def test_a_schedule_that_is_not_due_produces_nothing(self):
+        assert requests_from_standing_orders([schedule()], today=WEDNESDAY) == []
+
+    def test_the_schedule_name_reaches_the_owner(self):
+        requests = requests_from_standing_orders([schedule()], today=TUESDAY)
+        assert "usual produce" in requests[0].note
+
+    def test_the_category_is_carried_through(self):
+        requests = requests_from_standing_orders(
+            [schedule(category="produce")], today=TUESDAY)
+        assert requests[0].category == "produce"
+
+
+class TestRequestsFromStock:
+    """A low-stock estimate becomes a draft request, never a purchase."""
+
+    def test_a_low_item_becomes_a_request(self):
+        requests = requests_from_stock([stocked()], today=date(2026, 8, 8))
+        assert [r.items for r in requests] == [(("tomatoes", 12),)]
+
+    def test_it_is_tagged_as_inferred(self):
+        requests = requests_from_stock([stocked()], today=date(2026, 8, 8))
+        assert requests[0].trigger == "stock_threshold"
+
+    def test_the_reasoning_travels_with_the_request(self):
+        # The owner must be able to correct a wrong depletion model, which
+        # means seeing what it assumed rather than only what it concluded.
+        requests = requests_from_stock([stocked()], today=date(2026, 8, 8))
+        assert "days ago" in requests[0].note
+
+    def test_a_well_stocked_item_produces_nothing(self):
+        assert requests_from_stock([stocked(reorder_at=1)],
+                                   today=date(2026, 8, 2)) == []
+
+    def test_an_item_with_no_history_produces_nothing(self):
+        quiet = stocked(last_purchased_on=None, last_purchased_quantity=None)
+        assert requests_from_stock([quiet], today=date(2026, 8, 8)) == []
+
+    def test_a_stock_request_still_cannot_place_itself(self):
+        # The trigger rule is tested in isolation above; this walks the path a
+        # real night would take, with generous standing authority in place, and
+        # proves the order still stops for a human.
+        request = requests_from_stock([stocked(reorder_quantity=2)],
+                                      today=date(2026, 8, 8))[0]
+        t = tool()
+        plan = plan_order(request=request, tool=t,
+                          authorities=[standing(level=Level.AUTO)])
+        assert plan.status is Status.AWAITING_APPROVAL
+        assert t.placed == []

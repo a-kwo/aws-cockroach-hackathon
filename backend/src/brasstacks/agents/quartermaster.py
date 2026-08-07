@@ -204,6 +204,52 @@ def place_approved_order(
     return _place(tool=tool, cart=cart, idempotency_key=idempotency_key)
 
 
+def requests_from_standing_orders(orders, *, today) -> list[OrderRequest]:
+    """Turn today's due schedules into order requests.
+
+    Nothing is placed here. A standing order says *what* and *when*; it says
+    nothing about *how much*, so the resulting cart is priced and checked
+    against the owner's spend limits like any other. A Tuesday basket whose
+    price has doubled stops and asks rather than being bought because it is
+    Tuesday.
+    """
+    from brasstacks.standing_orders import due_orders
+
+    return [
+        OrderRequest(
+            items=tuple(order.items),
+            trigger=TRIGGER_STANDING_ORDER,
+            category=order.category,
+            note=f"Standing order: {order.name}.",
+        )
+        for order in due_orders(orders, today=today)
+    ]
+
+
+def requests_from_stock(items, *, today) -> list[OrderRequest]:
+    """Turn low-stock estimates into draft requests.
+
+    Every one of these is a guess, and ``plan_order`` refuses to place a
+    stock-triggered order however much standing authority exists. The estimate's
+    reasoning travels along in ``note`` so the owner can correct a wrong model
+    instead of discovering it in a delivery.
+    """
+    from brasstacks.stock import low_items
+
+    requests: list[OrderRequest] = []
+    for estimate in low_items(items, today=today):
+        source = next((entry for entry in items
+                       if entry.name == estimate.name), None)
+        quantity = int(getattr(source, "reorder_quantity", 1) or 1)
+        requests.append(OrderRequest(
+            items=((estimate.name, quantity),),
+            trigger=TRIGGER_STOCK_THRESHOLD,
+            category=estimate.category,
+            note=estimate.basis,
+        ))
+    return requests
+
+
 def _place(*, tool: OrderingTool, cart: Cart, idempotency_key: str,
            authorization: Authorization | None = None) -> OrderPlan:
     try:
@@ -234,4 +280,6 @@ __all__ = [
     "authorize_cart",
     "place_approved_order",
     "plan_order",
+    "requests_from_standing_orders",
+    "requests_from_stock",
 ]
