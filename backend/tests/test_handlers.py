@@ -174,6 +174,36 @@ class TestNightSources:
 
         assert build_night_sources(NoKey(), ANCHOR) == []
 
+    def test_the_offering_reaches_the_web_source(self):
+        """Without it the plan cannot ask about rivals.
+
+        "best Korean BBQ restaurants in Gardena, CA menu prices per person"
+        returns named competitors with review counts; there is no useful
+        substitute built from the category, because "best restaurant or café in
+        Gardena" is a query about nothing.
+        """
+        from brasstacks.night import build_night_sources
+
+        sources = build_night_sources(
+            self.Cfg(), ANCHOR,
+            facts=["What we sell is Korean BBQ.",
+                   "The owner's stated goal right now is to More demand."])
+
+        plan = sources[0]._plan("Yellow Cow Korean BBQ",
+                                "1835 W Redondo Beach Blvd, Gardena, CA 90247")
+        rivals = [q for q in plan if q.label == "web:rivals"]
+        assert rivals and "Korean BBQ" in rivals[0].text
+
+    def test_no_facts_still_builds_a_source(self):
+        """Called without facts by the local harness and by every caller that
+        predates them. Fewer queries, not a crash."""
+        from brasstacks.night import build_night_sources
+
+        sources = build_night_sources(self.Cfg(), ANCHOR)
+
+        plan = sources[0]._plan("Asaka", "Rancho Palos Verdes, CA")
+        assert plan and all(q.label != "web:rivals" for q in plan)
+
 
 # --------------------------------------------------------------------------
 # Secrets

@@ -71,14 +71,16 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     # fails, `refute_finds` publishes the deck without its dollar figures rather
     # than blanking the board.
     refuter = build_reasoner(settings)
-    sources = build_night_sources(
-        settings, anchor,
-        # Live web signal for a real tenant; the committed corpus only if
-        # BRASSTACKS_USE_CORPUS is set. Tenants sign themselves up now, and
-        # db/seed/observations.json is fiction — importing it as a real
-        # business's memory would have every find citing invented evidence.
-        use_corpus=bool(os.environ.get("BRASSTACKS_USE_CORPUS")),
-    )
+    # Live web signal for a real tenant; the committed corpus only if
+    # BRASSTACKS_USE_CORPUS is set. Tenants sign themselves up now, and
+    # db/seed/observations.json is fiction — importing it as a real business's
+    # memory would have every find citing invented evidence.
+    #
+    # Built per tenant inside the loop below rather than once here: the web
+    # source's query plan now depends on what this business sells, and one
+    # shared source would ask every tenant's questions about the first one's
+    # menu. Same reason the competitor scout is already built per tenant.
+    use_corpus = bool(os.environ.get("BRASSTACKS_USE_CORPUS"))
 
     nights: list[dict[str, Any]] = []
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
@@ -102,6 +104,15 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
 
         for business_id in tenants:
             business = repo.get_business(business_id)
+            # Best-effort: a tenant with no facts yet still gets the reviews,
+            # experience and listing queries — it loses only the rival one.
+            try:
+                facts = repo.get_business_facts(business_id)
+            except Exception:
+                facts = []
+            sources = build_night_sources(
+                settings, anchor, use_corpus=use_corpus, facts=facts,
+            )
             try:
                 result = run_night(
                     repo=repo,
