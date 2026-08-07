@@ -86,12 +86,17 @@ def test_completed_draft_is_sent_to_the_fixed_owner_review_inbox():
     text = sent["Message"]["Body"]["Text"]["Data"]
     assert "Your Maker draft is ready" in text
     assert "YOUR NEXT STEP" in text
+    assert "WHERE THIS DRAFT WILL BE USED" in text
+    assert "Customer review platform" in text
+    assert "Not posted" in text
     assert "# Group package" not in text
     assert "Nothing has been published or sent to customers" in text
     assert f"https://app.example.com/app/?task={task_id}" in text
     [receipt] = repo.tool_executions(task_id)
     assert receipt.status == "succeeded"
     assert receipt.external_reference == "ses-message-123"
+    assert receipt.input_data["artifact_type"] == "review_reply"
+    assert receipt.input_data["use_context"]["surface"] == "Customer review platform"
 
 
 def test_duplicate_workflow_notification_does_not_send_a_second_email():

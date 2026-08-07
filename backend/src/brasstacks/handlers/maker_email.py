@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from brasstacks.artifact_usage import artifact_use_context
 from brasstacks.config import Settings
 from brasstacks.profile_schema import ensure_profile_schema
 from brasstacks.secrets import hydrate_environment
@@ -79,7 +80,11 @@ def notify(
             "owner_action": artifact.owner_action,
             "review_state": artifact.review_state,
             "owner_questions": list(artifact.metadata.get("owner_questions") or []),
-            "artifact_type": artifact.metadata.get("artifact_type"),
+            "artifact_type": artifact.metadata.get("artifact_type") or artifact.kind,
+            "use_context": artifact_use_context(
+                artifact.metadata.get("artifact_type") or artifact.kind,
+                stored=artifact.metadata.get("use_context"),
+            ),
             "revision": artifact.revision,
             "find_id": task.find_id,
             "artifact_id": artifact.artifact_id,

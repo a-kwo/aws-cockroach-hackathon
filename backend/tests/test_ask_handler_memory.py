@@ -123,6 +123,18 @@ def test_context_prompt_is_bounded_and_labels_owner_memory_as_context():
             "m1", "user", "Keep Sunday simple", NOW)],
         relevant_messages=[ChatMessage(
             "m2", "user", "Margin matters more than volume", NOW, similarity=.91)],
+        artifact_context={
+            "title": "Weekday lunch post",
+            "revision": 2,
+            "review_state": "needs_owner_input",
+            "use_context": {
+                "surface": "Google Business Profile",
+                "placement": "A public post on the selected business location",
+                "audience": "People viewing that business profile",
+                "draft_state": "Not published",
+                "owner_gate": "Review and confirm before publishing.",
+            },
+        },
     )
 
     assert "DURABLE BUSINESS PROFILE" in prompt
@@ -130,6 +142,10 @@ def test_context_prompt_is_bounded_and_labels_owner_memory_as_context():
     assert "SEMANTICALLY RELEVANT PRIOR OWNER MEMORY" in prompt
     assert "RECENT CONVERSATION" in prompt
     assert "intent, not independent proof" in prompt
+    assert "CURRENT MAKER DRAFT" in prompt
+    assert "intended surface: Google Business Profile" in prompt
+    assert "current delivery state: Not published" in prompt
+    assert "owner gate: Review and confirm before publishing." in prompt
 
 
 def test_one_turn_retrieves_memory_records_tokens_and_persists_both_messages():
@@ -272,6 +288,51 @@ def test_recommendation_context_is_tenant_scoped_and_enters_the_compact_prompt()
         event(other_token, find_id=find_id), repo=repo,
         asker=FakeAsker([]), embedder=Embedder(), settings=Settings(), now=NOW)
     assert denied["statusCode"] == 404
+
+
+def test_current_maker_draft_context_names_where_the_draft_will_be_used():
+    repo, business_id, token = owner_repo()
+    observation_id = repo.insert_observation(
+        business_id, content="Guests ask about the weekday lunch set", kind="review",
+        embedding=VECTOR, observed_at=NOW)
+    find_id = repo.insert_find_with_evidence(
+        business_id, title="Publish the weekday lunch set",
+        summary="Tell local customers about the offer.",
+        rationale="The offer is hard to discover.",
+        move="Prepare a Google Business Profile post.", emoji="↗",
+        predicted_daily_cents=1800, confidence=.74,
+        verify_after=date(2026, 8, 20), status="accepted",
+        evidence=[EvidenceRef(observation_id, .9)])
+    repo.insert_artifact(
+        find_id=find_id,
+        kind="google_business_post",
+        title="Weekday lunch set post",
+        body="Try our weekday lunch set.",
+        review_state="needs_owner_input",
+        metadata={
+            "artifact_type": "google_business_post",
+            "owner_questions": ["What exact price should the post show?"],
+        },
+        revision=2,
+    )
+    asker = FakeAsker([Answer(
+        text="Answer:\nThis is for your Google Business Profile and has not been published.",
+        tool_calls=(),
+    )])
+
+    response = answer_question(
+        event(token, "Where will this draft be used?", find_id=find_id),
+        repo=repo, asker=asker, embedder=Embedder(),
+        settings=Settings(), now=NOW,
+    )
+
+    assert response["statusCode"] == 200
+    sent = asker.calls[0]["question"]
+    assert "CURRENT MAKER DRAFT" in sent
+    assert "intended surface: Google Business Profile" in sent
+    assert "placement: A public update on the selected business location" in sent
+    assert "current delivery state: Not published" in sent
+    assert "Nothing becomes public until you review and confirm publishing" in sent
 
 
 def test_compact_context_keeps_memory_rules_even_when_profile_is_large():

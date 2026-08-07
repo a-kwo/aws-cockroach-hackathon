@@ -478,6 +478,10 @@ class TestAskSystemPrompt:
         assert '"Next step:"' in prompt
         assert "Never make the owner infer what to type" in prompt
         assert "Use no tables" in prompt
+        assert "CURRENT MAKER DRAFT" in prompt
+        assert "intended destination" in prompt
+        assert "internal use explicit" in prompt
+        assert "without an execution receipt" in prompt
 
     def test_keeps_the_honesty_rules(self):
         # The cluster hint must not displace the constraints that make the

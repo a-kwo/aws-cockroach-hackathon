@@ -9611,7 +9611,7 @@
       display: block;
       overflow: hidden;
       color: var(--engine-text);
-      font-size: 10.5px;
+      font-size: 13px;
       font-weight: 760;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -9643,8 +9643,8 @@
     .memory-engine .analyst-output-help {
       margin: 0 0 7px;
       color: var(--engine-muted);
-      font-size: 8.5px;
-      line-height: 1.4;
+      font-size: 11px;
+      line-height: 1.45;
     }
 
     .memory-engine .analyst-output-item {
@@ -12725,7 +12725,7 @@
       max-width: 92%;
       justify-self: start;
       color: #69757a;
-      font-size: 9.5px;
+      font-size: 12px;
       line-height: 1.45;
     }
     #detailDrawer .chat-receipt summary {
@@ -17637,7 +17637,7 @@
 
     #detailDrawer .maker-chat-context small {
       color: #8a611f;
-      font-size: 8px;
+      font-size: 10px;
       font-weight: 850;
       letter-spacing: .08em;
       text-transform: uppercase;
@@ -17792,7 +17792,7 @@
 
     #detailDrawer .drawer-composer-context small {
       color: #8a611f;
-      font-size: 7.5px;
+      font-size: 10px;
       font-weight: 850;
       letter-spacing: .08em;
       text-transform: uppercase;
@@ -18106,6 +18106,519 @@
 
     @media (prefers-reduced-motion: reduce) {
       #detailDrawer .reconsider-summary-chevron,
+      .visual-flow-particle {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+
+
+  <style id="maker-guided-reply-v44">
+    /* v44: every Maker surface names the intended destination, and required
+       owner input becomes a one-question-at-a-time flow with optional voice
+       entry. Voice never submits automatically. */
+    #detailDrawer .maker-placement-card {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin: 0 14px 14px;
+      padding: 13px 14px;
+      border: 1px solid rgba(47, 116, 104, .16);
+      border-radius: 15px;
+      background: rgba(47, 116, 104, .055);
+    }
+
+    #detailDrawer .maker-placement-icon {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #2f7468;
+      color: #fff;
+      font: 850 16px/1 var(--sans);
+      box-shadow: 0 8px 20px rgba(47, 116, 104, .15);
+    }
+
+    #detailDrawer .maker-placement-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    #detailDrawer .maker-placement-copy small,
+    #detailDrawer .maker-chat-destination small {
+      color: #2f7468;
+      font-size: 10px;
+      font-weight: 880;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .maker-placement-copy strong,
+    #detailDrawer .maker-chat-destination strong {
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    #detailDrawer .maker-placement-copy > span,
+    #detailDrawer .maker-chat-destination > div > span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    #detailDrawer .maker-placement-state {
+      align-self: start;
+      padding: 6px 8px;
+      border: 1px solid rgba(47, 116, 104, .17);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .62);
+      color: #2f7468;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .035em;
+      white-space: nowrap;
+    }
+
+    #detailDrawer .maker-placement-meta {
+      grid-column: 2 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(47, 116, 104, .11);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    #detailDrawer .maker-placement-meta b {
+      color: var(--ink);
+      font-weight: 760;
+    }
+
+    #detailDrawer .maker-chat-destination {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 12px;
+      padding: 11px 12px;
+      border: 1px solid rgba(47, 116, 104, .15);
+      border-radius: 13px;
+      background: rgba(47, 116, 104, .05);
+    }
+
+    #detailDrawer .maker-chat-destination-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: rgba(47, 116, 104, .12);
+      color: #2f7468;
+      font: 850 13px/1 var(--sans);
+    }
+
+    #detailDrawer .maker-chat-destination > div {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    #detailDrawer .maker-chat-destination > em {
+      color: #2f7468;
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 820;
+      white-space: nowrap;
+    }
+
+    #detailDrawer .drawer-composer-destination[hidden] {
+      display: none !important;
+    }
+
+    #detailDrawer .drawer-composer-destination {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+      min-height: 30px;
+      padding: 6px 9px;
+      border: 1px solid rgba(47, 116, 104, .14);
+      border-radius: 10px;
+      background: rgba(47, 116, 104, .045);
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    #detailDrawer .drawer-composer-destination > span {
+      color: #2f7468;
+      font-weight: 840;
+      letter-spacing: .055em;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .drawer-composer-destination > strong {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--ink);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #detailDrawer .drawer-composer-destination > em {
+      color: #2f7468;
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    #detailDrawer .chat-message.owner.is-maker-answers {
+      width: min(100%, 440px);
+      max-width: 100%;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      white-space: normal;
+    }
+
+    #detailDrawer .chat-owner-answers {
+      display: grid;
+      gap: 7px;
+      padding: 12px;
+      border-radius: 15px 15px 5px 15px;
+      background: var(--drawer-accent);
+      color: #fff;
+      box-shadow: 0 8px 22px rgba(31, 38, 42, .08);
+    }
+
+    #detailDrawer .chat-owner-answers > small {
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      opacity: .76;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .chat-owner-answers > strong {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    #detailDrawer .chat-owner-answers ol {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #detailDrawer .chat-owner-answers li {
+      display: grid;
+      gap: 2px;
+      padding: 8px 9px;
+      border: 1px solid rgba(255, 255, 255, .17);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .1);
+    }
+
+    #detailDrawer .chat-owner-answers li > span {
+      font-size: 11px;
+      line-height: 1.4;
+      opacity: .8;
+    }
+
+    #detailDrawer .chat-owner-answers li > b {
+      font-size: 13px;
+      font-weight: 760;
+      line-height: 1.42;
+    }
+
+    #detailDrawer .drawer-composer-context {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+    }
+
+    #detailDrawer .drawer-composer-context-copy {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    #detailDrawer .drawer-composer-context-copy > span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    #detailDrawer .drawer-composer-context-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    #detailDrawer .drawer-composer-context-actions button {
+      min-width: 56px;
+      min-height: 40px;
+    }
+
+    #detailDrawer .drawer-composer-context-actions button[hidden] {
+      display: none !important;
+    }
+
+    #detailDrawer .drawer-composer-row {
+      grid-template-columns: 44px minmax(0, 1fr) 48px;
+    }
+
+    #detailDrawer .voice-reply-button[hidden] {
+      display: none !important;
+    }
+
+    #detailDrawer .drawer-composer.voice-unavailable .drawer-composer-row {
+      grid-template-columns: minmax(0, 1fr) 48px;
+    }
+
+    #detailDrawer .voice-reply-button {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      align-self: end;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+      color: #2f7468;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(24, 34, 48, .03);
+    }
+
+    #detailDrawer .voice-reply-button svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    #detailDrawer .voice-reply-button.is-listening {
+      border-color: rgba(190, 62, 94, .34);
+      background: rgba(190, 62, 94, .08);
+      color: #a63450;
+      animation: makerVoicePulse 1.1s ease-in-out infinite;
+    }
+
+    #detailDrawer .drawer-composer.is-guided .drawer-composer-row {
+      padding: 7px;
+      border: 1px solid rgba(180, 124, 30, .17);
+      border-radius: 15px;
+      background: rgba(180, 124, 30, .045);
+    }
+
+    #detailDrawer .drawer-composer.is-guided textarea {
+      min-height: 54px;
+      font-size: 14px;
+    }
+
+    #detailDrawer .drawer-composer-safety {
+      margin: 0 2px;
+      color: var(--muted-2);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    #detailDrawer .drawer-composer-safety strong {
+      color: var(--muted);
+      font-weight: 780;
+    }
+
+    #detailDrawer .send-button {
+      width: 48px;
+      height: 48px;
+      align-self: end;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer-destination,
+    body.growth-mode #detailDrawer .drawer-composer-destination,
+    body.autopilot-mode #detailDrawer .maker-placement-card,
+    body.growth-mode #detailDrawer .maker-placement-card,
+    body.autopilot-mode #detailDrawer .maker-chat-destination,
+    body.growth-mode #detailDrawer .maker-chat-destination {
+      border-color: rgba(82, 217, 175, .18) !important;
+      background: rgba(45, 181, 142, .065) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-placement-icon,
+    body.growth-mode #detailDrawer .maker-placement-icon {
+      background: linear-gradient(135deg, #287a68, #35a384) !important;
+      box-shadow: 0 9px 24px rgba(15, 82, 67, .26) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer-destination > span,
+    body.growth-mode #detailDrawer .drawer-composer-destination > span,
+    body.autopilot-mode #detailDrawer .drawer-composer-destination > em,
+    body.growth-mode #detailDrawer .drawer-composer-destination > em,
+    body.autopilot-mode #detailDrawer .maker-placement-copy small,
+    body.growth-mode #detailDrawer .maker-placement-copy small,
+    body.autopilot-mode #detailDrawer .maker-chat-destination small,
+    body.growth-mode #detailDrawer .maker-chat-destination small,
+    body.autopilot-mode #detailDrawer .maker-chat-destination > em,
+    body.growth-mode #detailDrawer .maker-chat-destination > em {
+      color: #78d9bc !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer-destination > strong,
+    body.growth-mode #detailDrawer .drawer-composer-destination > strong,
+    body.autopilot-mode #detailDrawer .maker-placement-copy strong,
+    body.growth-mode #detailDrawer .maker-placement-copy strong,
+    body.autopilot-mode #detailDrawer .maker-chat-destination strong,
+    body.growth-mode #detailDrawer .maker-chat-destination strong,
+    body.autopilot-mode #detailDrawer .maker-placement-meta b,
+    body.growth-mode #detailDrawer .maker-placement-meta b {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-placement-copy > span,
+    body.growth-mode #detailDrawer .maker-placement-copy > span,
+    body.autopilot-mode #detailDrawer .maker-chat-destination > div > span,
+    body.growth-mode #detailDrawer .maker-chat-destination > div > span,
+    body.autopilot-mode #detailDrawer .maker-placement-meta,
+    body.growth-mode #detailDrawer .maker-placement-meta,
+    body.autopilot-mode #detailDrawer .drawer-composer-context-copy > span,
+    body.growth-mode #detailDrawer .drawer-composer-context-copy > span,
+    body.autopilot-mode #detailDrawer .drawer-composer-safety,
+    body.growth-mode #detailDrawer .drawer-composer-safety {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-placement-state,
+    body.growth-mode #detailDrawer .maker-placement-state,
+    body.autopilot-mode #detailDrawer .maker-chat-destination-icon,
+    body.growth-mode #detailDrawer .maker-chat-destination-icon {
+      border-color: rgba(82, 217, 175, .19) !important;
+      background: rgba(45, 181, 142, .11) !important;
+      color: #78d9bc !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-placement-meta,
+    body.growth-mode #detailDrawer .maker-placement-meta {
+      border-top-color: rgba(82, 217, 175, .13) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .voice-reply-button,
+    body.growth-mode #detailDrawer .voice-reply-button {
+      border-color: var(--owner-border) !important;
+      background: var(--owner-surface-input) !important;
+      color: #c99bff !important;
+      box-shadow: none !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer.is-guided .drawer-composer-row,
+    body.growth-mode #detailDrawer .drawer-composer.is-guided .drawer-composer-row {
+      border-color: rgba(244, 204, 145, .19) !important;
+      background: rgba(217, 151, 49, .055) !important;
+    }
+
+    @keyframes makerVoicePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+
+    @media (max-width: 640px) {
+      #detailDrawer .maker-placement-card {
+        grid-template-columns: 38px minmax(0, 1fr);
+        margin: 0 11px 12px;
+        padding: 12px;
+      }
+
+      #detailDrawer .maker-placement-icon {
+        width: 38px;
+        height: 38px;
+      }
+
+      #detailDrawer .maker-placement-state {
+        grid-column: 2;
+        justify-self: start;
+      }
+
+      #detailDrawer .maker-placement-meta {
+        grid-column: 1 / -1;
+      }
+
+      #detailDrawer .maker-chat-destination {
+        grid-template-columns: 32px minmax(0, 1fr);
+      }
+
+      #detailDrawer .maker-chat-destination > em {
+        grid-column: 2;
+        justify-self: start;
+      }
+
+      #detailDrawer .drawer-composer-context {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 9px;
+      }
+
+      #detailDrawer .drawer-composer-context-actions {
+        width: 100%;
+      }
+
+      #detailDrawer .drawer-composer-context-actions button {
+        min-height: 42px;
+        flex: 1 1 0;
+      }
+
+      #detailDrawer .drawer-composer-row,
+      #detailDrawer .drawer-composer.is-guided .drawer-composer-row {
+        grid-template-columns: 48px minmax(0, 1fr) 52px;
+        gap: 7px;
+      }
+
+      #detailDrawer .drawer-composer.voice-unavailable .drawer-composer-row,
+      #detailDrawer .drawer-composer.voice-unavailable.is-guided .drawer-composer-row {
+        grid-template-columns: minmax(0, 1fr) 52px;
+      }
+
+      #detailDrawer .drawer-composer-destination {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      #detailDrawer .drawer-composer-destination > em {
+        grid-column: 2;
+        justify-self: start;
+      }
+
+      #detailDrawer .voice-reply-button {
+        width: 48px;
+        height: 48px;
+      }
+
+      #detailDrawer .send-button {
+        width: 52px;
+        height: 52px;
+      }
+
+      #detailDrawer .drawer-composer textarea {
+        min-height: 48px;
+        max-height: 156px;
+        font-size: 16px !important; /* prevents iOS input zoom */
+      }
+
+      #detailDrawer .drawer-composer-hint,
+      #detailDrawer .drawer-composer-safety {
+        font-size: 10px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #detailDrawer .voice-reply-button.is-listening,
       .visual-flow-particle {
         animation: none !important;
         transition: none !important;
@@ -18489,19 +19002,37 @@
         </header>
         <div class="drawer-body" id="drawerBody"></div>
         <form class="drawer-composer" id="drawerForm">
+          <div class="drawer-composer-destination" id="drawerComposerDestination" hidden aria-label="Current draft destination">
+            <span>Draft for</span>
+            <strong id="drawerComposerDestinationLabel" data-maker-destination-label></strong>
+            <em id="drawerComposerDestinationState" data-maker-destination-state></em>
+          </div>
           <div class="drawer-composer-context" id="drawerComposerContext" hidden>
-            <div><small>Answering Maker</small><strong id="drawerComposerContextText">Your reply will create a new revision.</strong></div>
-            <button type="button" id="drawerComposerCancel" aria-label="Cancel Maker answer mode">Cancel</button>
+            <div class="drawer-composer-context-copy">
+              <small id="drawerComposerProgress">Answering Maker</small>
+              <strong id="drawerComposerContextText">Your reply will create a new revision.</strong>
+              <span id="drawerComposerUse"></span>
+            </div>
+            <div class="drawer-composer-context-actions">
+              <button type="button" id="drawerComposerBack" aria-label="Go to previous Maker question" hidden>Back</button>
+              <button type="button" id="drawerComposerCancel" aria-label="Cancel Maker answer mode">Cancel</button>
+            </div>
           </div>
           <div class="drawer-composer-row">
-            <textarea id="drawerInput" rows="1" autocomplete="off" maxlength="500" placeholder="Ask one question or request one change…" aria-label="Message Brass Tacks"></textarea>
-            <button class="send-button" type="submit" aria-label="Send message">
+            <button class="voice-reply-button" type="button" id="drawerVoiceButton" aria-label="Dictate reply" title="Dictate reply; review before sending">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6.5 10.5a5.5 5.5 0 0 0 11 0M12 16v4M9 20h6"/>
+              </svg>
+            </button>
+            <textarea id="drawerInput" rows="1" autocomplete="off" maxlength="500" enterkeyhint="send" placeholder="Ask one question or request one change…" aria-label="Message Brass Tacks"></textarea>
+            <button class="send-button" type="submit" aria-label="Send message" id="drawerSendButton">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
                 <path d="M4 12l15-7-5 14-3-6-7-1z" />
               </svg>
             </button>
           </div>
-          <p class="drawer-composer-hint" id="drawerComposerHint">Enter to send · Shift+Enter for a new line</p>
+          <p class="drawer-composer-hint" id="drawerComposerHint" aria-live="polite">Enter to send · Shift+Enter for a new line</p>
+          <p class="drawer-composer-safety"><strong>Safety:</strong> do not interact while driving. Park first. Voice fills the field but never sends automatically.</p>
         </form>
       </aside>
 
@@ -19786,6 +20317,12 @@
     let isAnimating = false;
     let openPostId = null;
     let drawerHistoryRequest = 0;
+    let makerGuidedReply = null;
+    let drawerChatFollowPostId = null;
+    let drawerChatFollowUntil = 0;
+    let drawerChatFollowTimer = null;
+    let drawerVoiceRecognition = null;
+    let drawerVoiceBaseText = "";
     let swipeTimer;
     let decisionTimer;
     let toastTimer;
@@ -24657,6 +25194,7 @@ ledger_entry · artifact · agent_run`,
       if (!connection?.configured) {
         badge.textContent = "Setup required";
         dynamic.innerHTML = `<p class="maker-action-alert">Google Business publishing is not configured in AWS yet. Add the Google API and OAuth settings, then redeploy.</p>`;
+        updateMakerDestinationContext(card.dataset.taskId, "Google Business Profile", "Setup required");
         return;
       }
       if (connection.status === "pending_selection" && Array.isArray(connection.locations) && connection.locations.length) {
@@ -24668,6 +25206,7 @@ ledger_entry · artifact · agent_run`,
             </select>
             <button class="maker-action-button primary" type="button" data-google-business-select>Use this location</button>
           </div>`;
+        updateMakerDestinationContext(card.dataset.taskId, "Google Business Profile", "Choose location");
         bindGoogleBusinessCard(card);
         return;
       }
@@ -24677,6 +25216,7 @@ ledger_entry · artifact · agent_run`,
           <div class="maker-action-controls">
             <button class="maker-action-button primary" type="button" data-google-business-connect>Connect Google Business</button>
           </div>`;
+        updateMakerDestinationContext(card.dataset.taskId, "Google Business Profile", "Not connected");
         bindGoogleBusinessCard(card);
         return;
       }
@@ -24687,6 +25227,7 @@ ledger_entry · artifact · agent_run`,
         <div class="maker-action-destination"><div><small>Public destination</small><strong>${escapeHtml(String(destination))}</strong></div><span>Connected</span></div>
         <div class="maker-action-controls"><button class="maker-action-button" type="button" data-google-business-connect>Change account or location</button><button class="maker-action-button primary" type="button" data-google-business-publish>Review & publish</button></div>`;
       card.dataset.destination = String(destination);
+      updateMakerDestinationContext(card.dataset.taskId, destination, "Connected · approval required");
       bindGoogleBusinessCard(card);
     }
 
@@ -24778,6 +25319,7 @@ ledger_entry · artifact · agent_run`,
           dialog.close();
           dialog.remove();
           const externalHref = safeExternalHref(payload.externalUrl);
+          updateMakerDestinationContext(card.dataset.taskId, payload.destination || "Google Business Profile", "Published");
           card.outerHTML = `
             <section class="maker-action-card" aria-label="Google Business publication receipt">
               <div class="maker-action-head"><div class="maker-action-title"><span class="maker-action-icon" aria-hidden="true">G</span><div><small>Real action</small><strong>Google Business Profile</strong></div></div><span class="maker-action-state ready">Published</span></div>
@@ -24804,6 +25346,168 @@ ledger_entry · artifact · agent_run`,
       card.querySelector("[data-google-business-publish]")?.addEventListener("click", () => openGooglePublishDialog(card), { once: true });
     }
 
+    const MAKER_USE_FALLBACKS = Object.freeze({
+      customer_email: {
+        surface: "Customer email",
+        placement: "An email message or campaign in the approved email platform",
+        audience: "The customer segment you choose",
+        draftState: "Not sent",
+        ownerGate: "Choose the recipients and approve the final message before sending.",
+        icon: "@",
+      },
+      google_business_post: {
+        surface: "Google Business Profile",
+        placement: "A public update on the selected business location",
+        audience: "People viewing that business profile on Google",
+        draftState: "Not published",
+        ownerGate: "Nothing becomes public until you review and confirm publishing.",
+        icon: "G",
+      },
+      review_reply: {
+        surface: "Customer review platform",
+        placement: "A reply beneath the matching customer review",
+        audience: "The reviewer and future customers reading the review",
+        draftState: "Not posted",
+        ownerGate: "Match the draft to the correct review and approve it before posting.",
+        icon: "R",
+      },
+      menu_update: {
+        surface: "Menu or ordering system",
+        placement: "The matching menu item, section, or ordering screen",
+        audience: "Customers deciding what to order",
+        draftState: "Not applied",
+        ownerGate: "Confirm the item, price, and availability before applying the change.",
+        icon: "M",
+      },
+      offer_package: {
+        surface: "Promotion package",
+        placement: "The owner-selected mix of posts, email, website, or in-store materials",
+        audience: "The customer segment targeted by the offer",
+        draftState: "Not launched",
+        ownerGate: "Choose the channels, dates, and audience before launching the offer.",
+        icon: "P",
+      },
+      staff_checklist: {
+        surface: "Staff workflow",
+        placement: "A shift checklist, team task board, or printed operating sheet",
+        audience: "The staff responsible for the work",
+        draftState: "Not assigned",
+        ownerGate: "Assign an owner and due time before the relevant shift.",
+        icon: "✓",
+      },
+      operating_plan: {
+        surface: "Internal operations plan",
+        placement: "The owner calendar, task system, or operating playbook",
+        audience: "The owner and assigned staff",
+        draftState: "Not scheduled",
+        ownerGate: "Choose owners and dates before putting the plan into operation.",
+        icon: "O",
+      },
+      general_draft: {
+        surface: "Owner-selected destination",
+        placement: "The business tool or channel named in the approved recommendation",
+        audience: "The intended customer, staff member, or owner",
+        draftState: "Draft only",
+        ownerGate: "Confirm the destination and audience before using the draft.",
+        icon: "D",
+      },
+    });
+
+    function makerPlacementInfo(post, task = null, artifact = null) {
+      const activeTask = task || latestMakerTaskForPost(post);
+      const activeArtifact = artifact || makerArtifactForTask(post, activeTask);
+      const artifactType = String(
+        activeArtifact?.artifactType
+        || activeArtifact?.metadata?.artifact_type
+        || activeArtifact?.kind
+        || "general_draft"
+      );
+      const fallback = MAKER_USE_FALLBACKS[artifactType]
+        || MAKER_USE_FALLBACKS.general_draft;
+      const stored = activeArtifact?.useContext
+        || activeArtifact?.metadata?.use_context
+        || activeArtifact?.placement
+        || activeArtifact?.metadata?.placement
+        || {};
+      const placement = {
+        label: String(stored.surface || stored.label || fallback.surface),
+        use: String(stored.placement || stored.use || fallback.placement),
+        audience: String(stored.audience || fallback.audience),
+        draftState: String(stored.draft_state || stored.draftState || fallback.draftState || "Draft only"),
+        ownerGate: String(stored.owner_gate || stored.ownerGate || stored.visibility || fallback.ownerGate),
+        icon: fallback.icon,
+      };
+      const tool = latestGoogleBusinessTool(activeTask);
+      const output = tool?.output || {};
+      if (tool?.status === "succeeded" && output.destination) {
+        placement.label = String(output.destination);
+      }
+      const reviewState = String(activeArtifact?.reviewState || "ready_for_review");
+      const state = tool?.status === "succeeded"
+        ? "Published"
+        : tool?.status === "running"
+          ? "Publishing"
+          : tool?.status === "failed"
+            ? "Action needs review"
+            : reviewState === "needs_owner_input"
+              ? "Waiting for you"
+              : activeArtifact
+                ? placement.draftState
+                : "Planned use";
+      return {
+        ...placement,
+        state,
+        taskId: String(activeTask?.id || ""),
+        artifactType,
+      };
+    }
+
+    function makerPlacementPanelHtml(post, task, artifact) {
+      const placement = makerPlacementInfo(post, task, artifact);
+      return `
+        <section class="maker-placement-card" data-maker-destination-task="${escapeHtml(placement.taskId)}" aria-label="Where this Maker draft will be used">
+          <span class="maker-placement-icon" aria-hidden="true">${escapeHtml(placement.icon)}</span>
+          <div class="maker-placement-copy">
+            <small>Where this draft goes</small>
+            <strong data-maker-destination-label>${escapeHtml(placement.label)}</strong>
+            <span>${escapeHtml(placement.use)}</span>
+          </div>
+          <span class="maker-placement-state" data-maker-destination-state>${escapeHtml(placement.state)}</span>
+          <div class="maker-placement-meta">
+            <span><b>Who sees it:</b> ${escapeHtml(placement.audience)}</span>
+            <span><b>Before it is used:</b> ${escapeHtml(placement.ownerGate)}</span>
+          </div>
+        </section>`;
+    }
+
+    function makerChatDestinationHtml(post) {
+      const placement = makerPlacementInfo(post);
+      if (!placement.taskId) return "";
+      return `
+        <section class="maker-chat-destination" data-maker-destination-task="${escapeHtml(placement.taskId)}" aria-label="Draft destination for this conversation">
+          <span class="maker-chat-destination-icon" aria-hidden="true">${escapeHtml(placement.icon)}</span>
+          <div>
+            <small>Draft destination</small>
+            <strong data-maker-destination-label>${escapeHtml(placement.label)}</strong>
+            <span>${escapeHtml(placement.use)}</span>
+          </div>
+          <em data-maker-destination-state>${escapeHtml(placement.state)}</em>
+        </section>`;
+    }
+
+    function updateMakerDestinationContext(taskId, destination, state) {
+      if (!taskId) return;
+      const escaped = window.CSS?.escape
+        ? CSS.escape(String(taskId))
+        : String(taskId).replace(/["\\]/g, "\\$&");
+      document.querySelectorAll(`[data-maker-destination-task="${escaped}"]`).forEach(node => {
+        const label = node.querySelector("[data-maker-destination-label]");
+        const status = node.querySelector("[data-maker-destination-state]");
+        if (label && destination) label.textContent = String(destination);
+        if (status && state) status.textContent = String(state);
+      });
+    }
+
     function currentMakerInputState(post, task = null, artifact = null) {
       const activeTask = task || latestMakerTaskForPost(post);
       if (!activeTask) return null;
@@ -24821,20 +25525,43 @@ ledger_entry · artifact · agent_run`,
       };
     }
 
-    function makerAnswerTemplate(state) {
-      if (!state?.questions?.length) return "";
-      const lines = ["Answers for Maker:"];
-      state.questions.forEach((question, index) => {
-        lines.push(`${index + 1}. ${clampText(question, 76)}\nAnswer: `);
+    function makerAnswerPayload(state) {
+      if (!state?.answers?.length) return "";
+      const destination = clampText(String(state.placement?.label || "this draft"), 46);
+      const lines = [`Answers for Maker — ${destination}:`];
+      state.answers.forEach((answer, index) => {
+        const question = clampText(String(state.questions?.[index] || `Required item ${index + 1}`).replace(/\s+/g, " "), 62);
+        const response = clampText(String(answer || "").trim().replace(/\s+/g, " "), 92);
+        lines.push(`${index + 1}. ${question} → ${response}`);
       });
-      return lines.join("\n\n");
+      return lines.join("\n").slice(0, 500);
     }
 
-    function makerAnswersComplete(value, expectedCount) {
-      const answers = Array.from(String(value || "").matchAll(/(?:^|\n)Answer:\s*([^\n]*)/gi))
-        .map(match => String(match[1] || "").trim());
-      return answers.length >= expectedCount
-        && answers.slice(0, expectedCount).every(answer => answer.length > 0);
+
+    function parseMakerAnswerMessage(value) {
+      const text = String(value || "").replace(/\r\n?/g, "\n").trim();
+      const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+      const heading = lines[0]?.match(/^Answers for Maker(?:\s+[—-]\s+(.+?))?:$/i);
+      if (!heading) return null;
+      const answers = [];
+      lines.slice(1).forEach(line => {
+        const match = line.match(/^\d+\.\s+(.+?)(?:\s+[→-]\s+)(.+)$/);
+        if (match) answers.push({ question: match[1].trim(), answer: match[2].trim() });
+      });
+      if (!answers.length) return null;
+      return { destination: String(heading[1] || "Maker draft").trim(), answers };
+    }
+
+    function renderOwnerChatHtml(value) {
+      const parsed = parseMakerAnswerMessage(value);
+      if (!parsed) return "";
+      return `
+        <div class="chat-owner-answers">
+          <small>Answers sent to Maker</small>
+          <strong>${escapeHtml(parsed.destination)}</strong>
+          <ol>${parsed.answers.map(item => `
+            <li><span>${escapeHtml(item.question)}</span><b>${escapeHtml(item.answer)}</b></li>`).join("")}</ol>
+        </div>`;
     }
 
     function makerChatContextHtml(post) {
@@ -24846,9 +25573,9 @@ ledger_entry · artifact · agent_run`,
           <div>
             <small>Maker is waiting</small>
             <strong>${count} required ${count === 1 ? "answer" : "answers"}</strong>
-            <span>Send them together and Brass Tacks will queue revision ${state.revision + 1}.</span>
+            <span>Answer one at a time. Review the final set, then Brass Tacks queues revision ${state.revision + 1}.</span>
           </div>
-          <button type="button" data-use-maker-answer-template data-post-id="${escapeHtml(post.id)}">Answer Maker</button>
+          <button type="button" data-use-maker-answer-template data-post-id="${escapeHtml(post.id)}">Answer one at a time</button>
         </section>`;
     }
 
@@ -24909,8 +25636,8 @@ ledger_entry · artifact · agent_run`,
           <ol>${questions.map((question, index) => `
             <li><span>${index + 1}</span><p>${escapeHtml(question)}</p></li>`).join("")}</ol>
           <div class="maker-owner-question-action">
-            <p>Send every answer together. Brass Tacks will queue revision ${revision + 1}; this version stays in history.</p>
-            <button type="button" data-use-maker-answer-template data-post-id="${escapeHtml(post.id)}">Answer these questions</button>
+            <p>Answer one item at a time by typing or voice. Review before sending; this version stays in history.</p>
+            <button type="button" data-use-maker-answer-template data-post-id="${escapeHtml(post.id)}">Answer one at a time</button>
           </div>
         </section>` : "";
       const fullDraft = body ? `
@@ -24943,6 +25670,7 @@ ledger_entry · artifact · agent_run`,
             </div>
             <span class="maker-review-state ${stateClass}">${escapeHtml(statusLabel)}</span>
           </header>
+          ${makerPlacementPanelHtml(post, task, artifact)}
           <div class="maker-review-body">
             ${summary ? `<section class="maker-review-summary"><small>What Maker prepared</small><p>${escapeHtml(summary)}</p></section>` : ""}
             <section class="maker-next-action ${needsOwnerInput ? "needs-input" : ""}"><small>Your next step</small><strong>${escapeHtml(nextAction)}</strong></section>
@@ -24955,6 +25683,58 @@ ledger_entry · artifact · agent_run`,
           ${revisionTools}
           ${copy}
         </section>`;
+    }
+
+    function requestDrawerChatFollow(postId = openPostId, durationMs = 30000) {
+      if (!postId) return;
+      const id = String(postId);
+      const until = Date.now() + Math.max(2000, Number(durationMs) || 0);
+      if (drawerChatFollowPostId !== id) drawerChatFollowUntil = 0;
+      drawerChatFollowPostId = id;
+      drawerChatFollowUntil = Math.max(drawerChatFollowUntil, until);
+    }
+
+    function cancelDrawerChatFollow() {
+      drawerChatFollowPostId = null;
+      drawerChatFollowUntil = 0;
+      if (drawerChatFollowTimer) window.clearTimeout(drawerChatFollowTimer);
+      drawerChatFollowTimer = null;
+    }
+
+    function drawerShouldFollowChat(postId = openPostId) {
+      return Boolean(
+        postId
+        && drawerChatFollowPostId === String(postId)
+        && Date.now() <= drawerChatFollowUntil
+      );
+    }
+
+    function scrollDrawerChatToLatest({ behavior = "smooth" } = {}) {
+      if (!drawerBody || !detailDrawer.classList.contains("open") || !drawerShouldFollowChat()) return;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const firstMode = reducedMotion ? "auto" : behavior;
+      const postId = String(openPostId || "");
+      const move = mode => {
+        if (!drawerShouldFollowChat(postId) || !detailDrawer.classList.contains("open")) return;
+        drawerBody.scrollTo({ top: drawerBody.scrollHeight, behavior: mode });
+      };
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => move(firstMode)));
+      if (drawerChatFollowTimer) window.clearTimeout(drawerChatFollowTimer);
+      // Images, live workflow rendering, and fetched history can change height
+      // after the first frame. Re-anchor a few times while the owner remains in
+      // follow mode; a manual wheel/touch immediately cancels these retries.
+      const retries = [90, 260, 650];
+      const runRetry = index => {
+        if (index >= retries.length) {
+          drawerChatFollowTimer = null;
+          return;
+        }
+        drawerChatFollowTimer = window.setTimeout(() => {
+          move("auto");
+          runRetry(index + 1);
+        }, retries[index]);
+      };
+      runRetry(0);
     }
 
     function scrollDrawerSectionIntoView(element, { behavior = "smooth", offset = 12 } = {}) {
@@ -25011,6 +25791,10 @@ ledger_entry · artifact · agent_run`,
     }
 
     function openDrawer(postId) {
+      if (openPostId !== postId) {
+        makerGuidedReply = null;
+        cancelDrawerChatFollow();
+      }
       openPostId = postId;
       renderDrawer(postId);
       detailDrawer.classList.add("open");
@@ -25094,6 +25878,7 @@ ledger_entry · artifact · agent_run`,
             <div><strong>Ask Brass Tacks</strong><span>Ask one question or request one change at a time. Replies are concise and saved with this business.</span></div>
             <span class="memory-chip">Memory on</span>
           </header>
+          ${makerChatDestinationHtml(post)}
           ${makerChatContextHtml(post)}
           <div class="drawer-chat-thread" id="drawerChatThread" aria-live="polite">
             <p class="chat-empty">Loading conversation memory…</p>
@@ -25120,6 +25905,9 @@ ledger_entry · artifact · agent_run`,
       `;
       configureDrawerComposer(post);
       bindDynamicActions();
+      if (drawerShouldFollowChat(post.id)) {
+        scrollDrawerChatToLatest({ behavior: "auto" });
+      }
       loadDrawerChat(post);
     }
 
@@ -25127,6 +25915,9 @@ ledger_entry · artifact · agent_run`,
       // Invalidate any in-flight conversation-history request so a slow
       // response cannot repopulate a drawer after the owner has closed it.
       drawerHistoryRequest += 1;
+      makerGuidedReply = null;
+      cancelDrawerChatFollow();
+      stopDrawerVoiceInput();
       detailDrawer.classList.remove("open");
       drawerScrim.classList.remove("open");
       detailDrawer.setAttribute("aria-hidden", "true");
@@ -25134,6 +25925,8 @@ ledger_entry · artifact · agent_run`,
 
     document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
     drawerScrim.addEventListener("click", closeDrawer);
+    drawerBody.addEventListener("wheel", cancelDrawerChatFollow, { passive: true });
+    drawerBody.addEventListener("touchstart", cancelDrawerChatFollow, { passive: true });
 
     function drawerThread() {
       return document.getElementById("drawerChatThread");
@@ -25276,55 +26069,165 @@ ledger_entry · artifact · agent_run`,
       input.style.height = `${Math.min(Math.max(input.scrollHeight, 44), 132)}px`;
     }
 
+    function saveCurrentGuidedAnswer() {
+      const input = document.getElementById("drawerInput");
+      if (!makerGuidedReply || !input) return "";
+      const answer = String(input.value || "").trim();
+      makerGuidedReply.answers[makerGuidedReply.index] = answer;
+      return answer;
+    }
+
+    function renderMakerGuidedComposer({ focus = true } = {}) {
+      const form = document.getElementById("drawerForm");
+      const input = document.getElementById("drawerInput");
+      const context = document.getElementById("drawerComposerContext");
+      const progress = document.getElementById("drawerComposerProgress");
+      const contextText = document.getElementById("drawerComposerContextText");
+      const use = document.getElementById("drawerComposerUse");
+      const back = document.getElementById("drawerComposerBack");
+      const hint = document.getElementById("drawerComposerHint");
+      const send = document.getElementById("drawerSendButton");
+      if (!makerGuidedReply || !form || !input || !context) return;
+
+      const total = makerGuidedReply.questions.length;
+      const index = Math.min(Math.max(0, makerGuidedReply.index), Math.max(0, total - 1));
+      makerGuidedReply.index = index;
+      const finalQuestion = index === total - 1;
+      const placement = makerGuidedReply.placement || { label: "this draft" };
+
+      form.classList.add("is-guided");
+      form.dataset.chatAction = "maker_guided";
+      form.dataset.makerPostId = makerGuidedReply.postId;
+      context.hidden = false;
+      if (progress) progress.textContent = `Required answer ${index + 1} of ${total}`;
+      if (contextText) contextText.textContent = makerGuidedReply.questions[index];
+      if (use) use.textContent = `Destination: ${placement.label}. ${finalQuestion ? `Sending queues revision ${makerGuidedReply.revision + 1}.` : "Nothing is sent until the final step."}`;
+      if (back) back.hidden = index === 0;
+      input.maxLength = 200;
+      input.enterKeyHint = finalQuestion ? "send" : "next";
+      input.value = makerGuidedReply.answers[index] || "";
+      input.placeholder = "Type or dictate one short answer…";
+      input.setAttribute("aria-label", `Answer ${index + 1} of ${total}: ${makerGuidedReply.questions[index]}`);
+      if (send) {
+        send.setAttribute("aria-label", finalQuestion ? "Review and send all answers to Maker" : "Save answer and continue");
+        send.title = finalQuestion ? "Send all answers" : "Next question";
+      }
+      if (hint) hint.textContent = finalQuestion
+        ? "Final answer · review it, then send all answers to Maker"
+        : "Enter or tap the arrow to save this answer and show the next question";
+      resizeDrawerComposerInput();
+      if (focus) {
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }
+
     function clearMakerAnswerMode({ keepText = false } = {}) {
       const form = document.getElementById("drawerForm");
       const input = document.getElementById("drawerInput");
       const context = document.getElementById("drawerComposerContext");
+      const progress = document.getElementById("drawerComposerProgress");
+      const contextText = document.getElementById("drawerComposerContextText");
+      const use = document.getElementById("drawerComposerUse");
+      const back = document.getElementById("drawerComposerBack");
       const hint = document.getElementById("drawerComposerHint");
+      const send = document.getElementById("drawerSendButton");
       if (!form || !input) return;
+      stopDrawerVoiceInput();
+      makerGuidedReply = null;
+      form.classList.remove("is-guided");
       delete form.dataset.chatAction;
       delete form.dataset.makerPostId;
       if (!keepText) input.value = "";
+      input.maxLength = 500;
+      input.enterKeyHint = "send";
       input.placeholder = "Ask one question or request one change…";
       input.setAttribute("aria-label", "Message Brass Tacks");
       if (context) context.hidden = true;
+      if (progress) progress.textContent = "Answering Maker";
+      if (contextText) contextText.textContent = "Your reply will create a new revision.";
+      if (use) use.textContent = "";
+      if (back) back.hidden = true;
+      if (send) {
+        send.setAttribute("aria-label", "Send message");
+        send.title = "";
+      }
       if (hint) hint.textContent = "Enter to send · Shift+Enter for a new line";
       resizeDrawerComposerInput();
     }
 
+    function configureDrawerDestination(post) {
+      const node = document.getElementById("drawerComposerDestination");
+      const label = document.getElementById("drawerComposerDestinationLabel");
+      const state = document.getElementById("drawerComposerDestinationState");
+      if (!node) return;
+      const placement = makerPlacementInfo(post);
+      if (!placement.taskId) {
+        node.hidden = true;
+        delete node.dataset.makerDestinationTask;
+        if (label) label.textContent = "";
+        if (state) state.textContent = "";
+        return;
+      }
+      node.hidden = false;
+      node.dataset.makerDestinationTask = placement.taskId;
+      if (label) label.textContent = placement.label;
+      if (state) state.textContent = placement.state;
+    }
+
     function configureDrawerComposer(post) {
+      configureDrawerDestination(post);
+      const activeState = currentMakerInputState(post);
+      if (
+        makerGuidedReply
+        && activeState
+        && makerGuidedReply.postId === post?.id
+        && String(makerGuidedReply.taskId || "") === String(activeState.task?.id || "")
+      ) {
+        makerGuidedReply.questions = activeState.questions;
+        makerGuidedReply.revision = activeState.revision;
+        makerGuidedReply.placement = makerPlacementInfo(post, activeState.task, activeState.artifact);
+        renderMakerGuidedComposer({ focus: false });
+        return;
+      }
+
       clearMakerAnswerMode();
       const input = document.getElementById("drawerInput");
       if (!input) return;
-      const state = currentMakerInputState(post);
-      if (state) {
-        input.placeholder = `Maker is waiting for ${state.questions.length} ${state.questions.length === 1 ? "answer" : "answers"} — use Answer Maker above`;
+      const placement = makerPlacementInfo(post);
+      if (activeState) {
+        input.placeholder = `Maker needs ${activeState.questions.length} ${activeState.questions.length === 1 ? "answer" : "answers"} — start the guided reply above`;
+      } else if (placement.taskId) {
+        input.placeholder = `Ask about this ${placement.label} draft…`;
       }
     }
 
     function activateMakerAnswerMode(postId) {
       const post = posts.find(item => item.id === postId);
       const state = currentMakerInputState(post);
-      const form = document.getElementById("drawerForm");
-      const input = document.getElementById("drawerInput");
-      const context = document.getElementById("drawerComposerContext");
-      const contextText = document.getElementById("drawerComposerContextText");
-      const hint = document.getElementById("drawerComposerHint");
-      if (!post || !state || !form || !input) {
+      if (!post || !state) {
         showToast("Maker no longer needs owner input for this revision.", "approved");
         return;
       }
-      form.dataset.chatAction = "revise_draft";
-      form.dataset.makerPostId = post.id;
-      input.value = makerAnswerTemplate(state);
-      input.placeholder = "Answer each numbered item…";
-      input.setAttribute("aria-label", "Answers for Maker");
-      if (context) context.hidden = false;
-      if (contextText) contextText.textContent = `Complete all ${state.questions.length} answers. Sending queues revision ${state.revision + 1}.`;
-      if (hint) hint.textContent = "Complete every Answer line · Enter sends · Shift+Enter adds a line";
-      resizeDrawerComposerInput();
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
+      makerGuidedReply = {
+        postId: post.id,
+        taskId: String(state.task?.id || ""),
+        revision: state.revision,
+        questions: [...state.questions],
+        answers: state.questions.map(() => ""),
+        index: 0,
+        placement: makerPlacementInfo(post, state.task, state.artifact),
+      };
+      renderMakerGuidedComposer();
+      requestDrawerChatFollow(post.id, 12000);
+      scrollDrawerChatToLatest({ behavior: "smooth" });
+    }
+
+    function moveMakerGuidedReplyBack() {
+      if (!makerGuidedReply || makerGuidedReply.index <= 0) return;
+      saveCurrentGuidedAnswer();
+      makerGuidedReply.index -= 1;
+      renderMakerGuidedComposer();
     }
 
     function appendDrawerMessage(role, text, options = {}) {
@@ -25332,13 +26235,21 @@ ledger_entry · artifact · agent_run`,
       if (!thread) return null;
       thread.querySelector(".chat-empty")?.remove();
       const message = document.createElement("div");
-      const isAgentAnswer = role !== "user" && !options.loading && !options.error;
-      message.className = `chat-message ${role === "user" ? "owner" : "agent"}${options.loading ? " is-loading" : ""}${options.error ? " is-error" : ""}${isAgentAnswer ? " is-structured" : ""}${isAgentAnswer && String(text || "").length > 900 ? " is-long" : ""}`;
+      const isOwner = role === "user";
+      const ownerAnswerHtml = isOwner ? renderOwnerChatHtml(text) : "";
+      const isAgentAnswer = !isOwner && !options.loading && !options.error;
+      message.className = `chat-message ${isOwner ? "owner" : "agent"}${options.loading ? " is-loading" : ""}${options.error ? " is-error" : ""}${isAgentAnswer ? " is-structured" : ""}${ownerAnswerHtml ? " is-maker-answers" : ""}${isAgentAnswer && String(text || "").length > 900 ? " is-long" : ""}`;
       if (isAgentAnswer) message.innerHTML = renderAssistantChatHtml(text);
+      else if (ownerAnswerHtml) message.innerHTML = ownerAnswerHtml;
       else message.textContent = text;
       if (options.id) message.id = options.id;
       thread.appendChild(message);
-      if (options.scroll !== false) drawerBody.scrollTop = drawerBody.scrollHeight;
+      if (options.scroll !== false) {
+        if (isOwner || options.forceFollow) requestDrawerChatFollow(openPostId, 30000);
+        if (drawerShouldFollowChat(openPostId)) {
+          scrollDrawerChatToLatest({ behavior: options.behavior || "smooth" });
+        }
+      }
       return message;
     }
 
@@ -25366,6 +26277,9 @@ ledger_entry · artifact · agent_run`,
           ${tokens.input != null ? `<br>Input ${Number(tokens.input).toLocaleString("en-US")} · output ${Number(tokens.output || 0).toLocaleString("en-US")}.` : ""}
         </div>`;
       thread.appendChild(receipt);
+      if (drawerShouldFollowChat(openPostId)) {
+        scrollDrawerChatToLatest({ behavior: "smooth" });
+      }
     }
 
     async function loadDrawerChat(post) {
@@ -25395,8 +26309,9 @@ ledger_entry · artifact · agent_run`,
         if (!messages.length) {
           const makerInput = currentMakerInputState(post);
           thread.innerHTML = makerInput
-            ? `<p class="chat-empty">Maker is waiting for the answers shown above. Select <strong>Answer Maker</strong> to insert a numbered reply and create revision ${makerInput.revision + 1}.</p>`
+            ? `<p class="chat-empty">Maker is waiting for the answers shown above. Select <strong>Answer one at a time</strong> to create revision ${makerInput.revision + 1}.</p>`
             : `<p class="chat-empty">Ask one question or request one change. Brass Tacks will answer directly and show one clear next step when action is needed.</p>`;
+          if (drawerShouldFollowChat(post.id)) scrollDrawerChatToLatest({ behavior: "auto" });
           return;
         }
         messages.forEach(message => appendDrawerMessage(
@@ -25404,9 +26319,13 @@ ledger_entry · artifact · agent_run`,
           message.content || "",
           { scroll: false },
         ));
+        if (drawerShouldFollowChat(post.id)) {
+          scrollDrawerChatToLatest({ behavior: "auto" });
+        }
       } catch (error) {
         if (requestId !== drawerHistoryRequest) return;
         thread.innerHTML = `<p class="chat-empty">${escapeHtml(error.message || "Conversation memory is temporarily unavailable.")}</p>`;
+        if (drawerShouldFollowChat(post.id)) scrollDrawerChatToLatest({ behavior: "auto" });
       }
     }
 
@@ -25544,41 +26463,74 @@ ledger_entry · artifact · agent_run`,
       event.preventDefault();
       const form = event.currentTarget;
       const input = document.getElementById("drawerInput");
-      const text = input.value.trim();
       const post = posts.find(item => item.id === openPostId);
-      if (!text || !post || form.classList.contains("is-busy")) return;
+      if (!post || form.classList.contains("is-busy")) return;
+
+      const explicitAction = form.dataset.chatAction || "";
+      const guided = explicitAction === "maker_guided"
+        && makerGuidedReply
+        && makerGuidedReply.postId === post.id;
+      let submittedText = "";
+      let guidedSnapshot = null;
+
+      if (guided) {
+        const answer = saveCurrentGuidedAnswer();
+        if (!answer) {
+          showToast("Add a short answer before continuing.", "rejected");
+          input.focus();
+          return;
+        }
+        if (makerGuidedReply.index < makerGuidedReply.questions.length - 1) {
+          makerGuidedReply.index += 1;
+          renderMakerGuidedComposer();
+          return;
+        }
+        const missing = makerGuidedReply.answers.findIndex(value => !String(value || "").trim());
+        if (missing >= 0) {
+          makerGuidedReply.index = missing;
+          renderMakerGuidedComposer();
+          showToast(`Answer item ${missing + 1} before sending.`, "rejected");
+          return;
+        }
+        submittedText = makerAnswerPayload(makerGuidedReply);
+        guidedSnapshot = {
+          ...makerGuidedReply,
+          questions: [...makerGuidedReply.questions],
+          answers: [...makerGuidedReply.answers],
+          placement: { ...makerGuidedReply.placement },
+        };
+      } else {
+        submittedText = String(input.value || "").trim();
+      }
+
+      if (!submittedText) return;
       if (!askApiConfigured) {
         appendDrawerMessage("assistant", "Chat is not connected in this build.", { error: true });
         return;
       }
 
-      const explicitAction = form.dataset.chatAction || "";
-      const submittedText = text;
       const submitButton = form.querySelector('button[type="submit"]');
-      const makerInput = explicitAction === "revise_draft" ? currentMakerInputState(post) : null;
-      if (makerInput && !makerAnswersComplete(submittedText, makerInput.questions.length)) {
-        showToast(`Complete all ${makerInput.questions.length} Answer lines before sending.`, "rejected");
-        input.focus();
-        return;
-      }
-      appendDrawerMessage("user", submittedText);
+      requestDrawerChatFollow(post.id, 45000);
+      appendDrawerMessage("user", submittedText, { behavior: "auto" });
       input.value = "";
       resizeDrawerComposerInput();
       form.classList.add("is-busy");
+      form.setAttribute("aria-busy", "true");
+      [...form.querySelectorAll("button")].forEach(button => { button.disabled = true; });
       input.disabled = true;
-      submitButton?.setAttribute("disabled", "");
       const loadingId = `chat-loading-${Date.now()}`;
-      const loadingCopy = explicitAction === "revise_draft"
-        ? "Sending your answers to Maker and queuing the next revision…"
+      const loadingCopy = guided
+        ? "Answers received. Maker is queuing the next revision…"
         : "Checking this business memory…";
-      appendDrawerMessage("assistant", loadingCopy, { loading: true, id: loadingId });
+      appendDrawerMessage("assistant", loadingCopy, { loading: true, id: loadingId, behavior: "auto" });
 
       try {
         const requestPayload = {
-          question: text,
+          question: submittedText,
           find_id: post.databaseId || post.id,
         };
-        if (explicitAction) requestPayload.action = explicitAction;
+        if (guided) requestPayload.action = "revise_draft";
+        else if (explicitAction) requestPayload.action = explicitAction;
         const response = await fetch(ASK_ENDPOINT, {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
@@ -25587,6 +26539,11 @@ ledger_entry · artifact · agent_run`,
         const payload = await response.json().catch(() => ({}));
         document.getElementById(loadingId)?.remove();
         if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
+        // A successful guided submission is complete even if an older Ask
+        // deployment omits the action receipt. Clear the guided fields now so
+        // the owner cannot accidentally submit the same answers twice. The
+        // catch block restores the snapshot when the request itself fails.
+        if (guided) clearMakerAnswerMode();
         if (payload?.action?.type === "undo_pass") {
           applyUndoPassReceipt(post, payload);
         } else if (payload?.action?.type === "reconsider") {
@@ -25595,40 +26552,167 @@ ledger_entry · artifact · agent_run`,
           appendDrawerMessage("assistant", payload.answer || "Maker revision queued.");
           appendChatReceipt(payload);
           showToast(`Maker revision ${payload?.action?.revision || ""} queued.`, "approved");
-          clearMakerAnswerMode();
-          if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
+          if (workflowApiConfigured) {
+            refreshWorkflowSnapshot({ force: true, silent: true })
+              .finally(() => {
+                if (drawerShouldFollowChat(post.id)) {
+                  scrollDrawerChatToLatest({ behavior: "auto" });
+                }
+              });
+          }
         } else {
           appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
           appendChatReceipt(payload);
-          if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
+          if (workflowApiConfigured) {
+            refreshWorkflowSnapshot({ force: true, silent: true })
+              .finally(() => {
+                if (drawerShouldFollowChat(post.id)) {
+                  scrollDrawerChatToLatest({ behavior: "auto" });
+                }
+              });
+          }
         }
       } catch (error) {
         document.getElementById(loadingId)?.remove();
         appendDrawerMessage("assistant", error.message || "Ask is temporarily unavailable.", { error: true });
-        input.value = submittedText;
-        resizeDrawerComposerInput();
+        if (guidedSnapshot) {
+          makerGuidedReply = guidedSnapshot;
+          makerGuidedReply.index = makerGuidedReply.questions.length - 1;
+          renderMakerGuidedComposer({ focus: false });
+        } else {
+          input.value = submittedText;
+          resizeDrawerComposerInput();
+        }
       } finally {
         form.classList.remove("is-busy");
+        form.removeAttribute("aria-busy");
         input.disabled = false;
-        submitButton?.removeAttribute("disabled");
-        input.focus();
-        drawerBody.scrollTop = drawerBody.scrollHeight;
+        [...form.querySelectorAll("button")].forEach(button => { button.disabled = false; });
+        const back = document.getElementById("drawerComposerBack");
+        if (back && makerGuidedReply) back.hidden = makerGuidedReply.index === 0;
+        if (submitButton) submitButton.disabled = false;
+        if (detailDrawer.classList.contains("open")) input.focus();
+        if (drawerShouldFollowChat(post.id)) {
+          scrollDrawerChatToLatest({ behavior: "smooth" });
+        }
       }
     });
 
+    function restoreDrawerComposerHint() {
+      if (makerGuidedReply) {
+        renderMakerGuidedComposer({ focus: false });
+        return;
+      }
+      const hint = document.getElementById("drawerComposerHint");
+      if (hint) hint.textContent = "Enter to send · Shift+Enter for a new line";
+    }
+
+    function initializeDrawerVoiceInput() {
+      const form = document.getElementById("drawerForm");
+      const button = document.getElementById("drawerVoiceButton");
+      const supported = typeof (window.SpeechRecognition || window.webkitSpeechRecognition) === "function";
+      if (form) form.classList.toggle("voice-unavailable", !supported);
+      if (button) {
+        button.hidden = !supported;
+        button.setAttribute("aria-pressed", "false");
+      }
+    }
+
+    function stopDrawerVoiceInput() {
+      const button = document.getElementById("drawerVoiceButton");
+      if (drawerVoiceRecognition) {
+        const recognition = drawerVoiceRecognition;
+        drawerVoiceRecognition = null;
+        try { recognition.stop(); } catch (_) {}
+      }
+      if (button) {
+        button.classList.remove("is-listening");
+        button.setAttribute("aria-pressed", "false");
+        button.setAttribute("aria-label", "Dictate reply");
+      }
+    }
+
+    function startDrawerVoiceInput() {
+      const input = document.getElementById("drawerInput");
+      const button = document.getElementById("drawerVoiceButton");
+      if (!input || !button || input.disabled) return;
+      if (drawerVoiceRecognition) {
+        stopDrawerVoiceInput();
+        return;
+      }
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (typeof Recognition !== "function") {
+        input.focus();
+        showToast("Voice capture is not available here. Use the microphone on your phone keyboard.", "approved");
+        return;
+      }
+
+      const recognition = new Recognition();
+      drawerVoiceRecognition = recognition;
+      drawerVoiceBaseText = String(input.value || "").trim();
+      recognition.lang = navigator.language || "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      button.classList.add("is-listening");
+      button.setAttribute("aria-pressed", "true");
+      button.setAttribute("aria-label", "Stop dictation");
+      const hint = document.getElementById("drawerComposerHint");
+      if (hint) hint.textContent = "Listening… tap the microphone to stop, then review before sending";
+
+      recognition.onresult = event => {
+        let transcript = "";
+        for (let index = 0; index < event.results.length; index += 1) {
+          transcript += String(event.results[index]?.[0]?.transcript || "");
+        }
+        const next = [drawerVoiceBaseText, transcript.trim()].filter(Boolean).join(" ").slice(0, input.maxLength || 500);
+        input.value = next;
+        if (makerGuidedReply) makerGuidedReply.answers[makerGuidedReply.index] = next;
+        resizeDrawerComposerInput();
+      };
+      recognition.onerror = event => {
+        if (!['aborted', 'no-speech'].includes(String(event.error || ""))) {
+          showToast("Voice input stopped. You can continue typing.", "rejected");
+        }
+      };
+      recognition.onend = () => {
+        if (drawerVoiceRecognition === recognition) drawerVoiceRecognition = null;
+        button.classList.remove("is-listening");
+        button.setAttribute("aria-pressed", "false");
+        button.setAttribute("aria-label", "Dictate reply");
+        restoreDrawerComposerHint();
+        input.focus();
+      };
+      try {
+        recognition.start();
+      } catch (_) {
+        stopDrawerVoiceInput();
+        showToast("Voice input could not start. Use the keyboard microphone instead.", "rejected");
+      }
+    }
+
     const drawerComposerInput = document.getElementById("drawerInput");
-    drawerComposerInput.addEventListener("input", resizeDrawerComposerInput);
+    drawerComposerInput.addEventListener("input", () => {
+      resizeDrawerComposerInput();
+      if (makerGuidedReply) {
+        makerGuidedReply.answers[makerGuidedReply.index] = drawerComposerInput.value;
+      }
+    });
     drawerComposerInput.addEventListener("keydown", event => {
       if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
         document.getElementById("drawerForm").requestSubmit();
       }
     });
+    document.getElementById("drawerComposerBack").addEventListener("click", moveMakerGuidedReplyBack);
     document.getElementById("drawerComposerCancel").addEventListener("click", () => {
       const post = posts.find(item => item.id === openPostId);
+      clearMakerAnswerMode();
       configureDrawerComposer(post);
       drawerComposerInput.focus();
     });
+    document.getElementById("drawerVoiceButton").addEventListener("click", startDrawerVoiceInput);
+    initializeDrawerVoiceInput();
 
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>'"]/g, character => ({

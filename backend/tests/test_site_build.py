@@ -2192,7 +2192,7 @@ def test_drawer_chat_calls_authenticated_ask_and_has_no_fake_answer():
     assert "fetch(`${ASK_ENDPOINT}?find_id=" in chat
     assert "fetch(ASK_ENDPOINT" in chat
     assert "authHeaders" in chat
-    assert "question: text" in chat
+    assert "question: submittedText" in chat
     assert "find_id: post.databaseId || post.id" in chat
     assert "CockroachDB memory receipt" in html
     assert "The production app would answer" not in html
@@ -3337,18 +3337,28 @@ def test_reconsider_control_is_at_the_top_of_the_maker_workspace_not_chat_bottom
     assert 'scrollDrawerSectionIntoView(review, { behavior: "smooth", offset: 12 })' in html
 
 
-def test_maker_questions_fill_a_deterministic_revision_reply():
+def test_maker_questions_use_a_guided_revision_reply_instead_of_a_long_template():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    assert "function makerAnswerTemplate" in html
-    assert "function makerAnswersComplete" in html
-    assert 'form.dataset.chatAction = "revise_draft"' in html
+    assert "function makerAnswerPayload" in html
+    assert "function renderMakerGuidedComposer" in html
+    assert "function activateMakerAnswerMode" in html
+    assert 'form.dataset.chatAction = "maker_guided"' in html
     assert "data-use-maker-answer-template" in html
-    assert 'requestPayload.action = explicitAction' in html
-    assert "Complete all ${makerInput.questions.length} Answer lines before sending." in html
-    assert "Sending your answers to Maker and queuing the next revision" in html
+    assert 'requestPayload.action = "revise_draft"' in html
+    assert "Required answer ${index + 1} of ${total}" in html
+    assert "Answer one at a time" in html
+    assert "Add a short answer before continuing." in html
+    assert "Answers received. Maker is queuing the next revision" in html
+    assert "makerAnswerPayload(makerGuidedReply)" in html
+    assert "input.maxLength = 200" in html
     assert '"Waiting for you"' in html
     assert "Maker is paused until you answer the required items." in html
+    assert "Complete all ${makerInput.questions.length} Answer lines before sending." not in html
+    assert "function parseMakerAnswerMessage" in html
+    assert "function renderOwnerChatHtml" in html
+    assert "Answers sent to Maker" in html
+    assert "→ ${response}" in html
 
 
 def test_claude_chat_is_structured_and_legacy_long_answers_are_collapsible():
@@ -3364,15 +3374,67 @@ def test_claude_chat_is_structured_and_legacy_long_answers_are_collapsible():
     assert "hasExplicitStructure" in html
 
 
-def test_chat_composer_supports_clear_multiline_maker_answers_on_mobile():
+def test_chat_composer_is_large_guided_and_voice_optional_on_mobile():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    styles = html.split('id="maker-chat-clarity-v43"', 1)[1].split("</style>", 1)[0]
+    styles = html.split('id="maker-guided-reply-v44"', 1)[1].split("</style>", 1)[0]
 
     assert '<textarea id="drawerInput"' in html
     assert 'id="drawerComposerContext"' in html
+    assert 'id="drawerComposerBack"' in html
     assert 'id="drawerComposerCancel"' in html
+    assert 'id="drawerVoiceButton"' in html
     assert 'event.key === "Enter" && !event.shiftKey' in html
+    assert "window.SpeechRecognition || window.webkitSpeechRecognition" in html
+    assert "Voice fills the field but never sends automatically." in html
+    assert "do not interact while driving. Park first." in html
     assert ".drawer-composer-row" in styles
-    assert ".drawer-composer textarea" in styles
+    assert "grid-template-columns: 44px minmax(0, 1fr) 48px" in styles
     assert "@media (max-width: 640px)" in styles
-    assert ".maker-chat-context" in styles
+    assert "height: 52px" in styles
+    assert "min-height: 48px" in styles
+    voice = html.split("function startDrawerVoiceInput", 1)[1].split(
+        "const drawerComposerInput", 1
+    )[0]
+    assert "recognition.onresult" in voice
+    assert "requestSubmit" not in voice
+
+
+def test_owner_reply_follows_the_latest_chat_after_submit_and_live_refresh():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    chat = html.split("function requestDrawerChatFollow", 1)[1].split(
+        "function escapeHtml", 1
+    )[0]
+
+    assert "function scrollDrawerChatToLatest" in chat
+    assert "drawerBody.scrollTo({ top: drawerBody.scrollHeight" in chat
+    assert "requestDrawerChatFollow(post.id, 45000)" in chat
+    assert "if (guided) clearMakerAnswerMode();" in chat
+    assert 'appendDrawerMessage("user", submittedText, { behavior: "auto" })' in chat
+    assert "refreshWorkflowSnapshot({ force: true, silent: true })" in chat
+    assert "if (drawerShouldFollowChat(post.id))" in chat
+    assert 'scrollDrawerChatToLatest({ behavior: "auto" })' in chat
+    assert 'messages.forEach(message => appendDrawerMessage(' in chat
+    assert '{ scroll: false }' in chat
+    assert 'drawerBody.addEventListener("wheel", cancelDrawerChatFollow' in html
+    assert 'drawerBody.addEventListener("touchstart", cancelDrawerChatFollow' in html
+
+
+def test_maker_workspace_and_chat_name_the_draft_destination_and_owner_gate():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    placement = html.split("function makerPlacementInfo", 1)[1].split(
+        "function currentMakerInputState", 1
+    )[0]
+    drawer = html.split("function renderDrawer", 1)[1].split(
+        "function closeDrawer", 1
+    )[0]
+
+    assert "activeArtifact?.useContext" in placement
+    assert "stored.owner_gate" in placement
+    assert "Where this draft goes" in placement
+    assert "Who sees it:" in placement
+    assert "Before it is used:" in placement
+    assert "Draft destination" in placement
+    assert "Not published" in html
+    assert 'id="drawerComposerDestination"' in html
+    assert "function configureDrawerDestination" in html
+    assert drawer.index("${makerChatDestinationHtml(post)}") < drawer.index('id="drawerChatThread"')

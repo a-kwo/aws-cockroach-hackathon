@@ -38,6 +38,7 @@ sys.path.insert(0, str(REPO / "backend" / "src"))
 from brasstacks.agents.coster import cost_for_display  # noqa: E402
 from brasstacks.analyst_trace import parse_analyst_trace  # noqa: E402
 from brasstacks.ask_trace import parse_ask_trace  # noqa: E402
+from brasstacks.artifact_usage import artifact_use_context  # noqa: E402
 from brasstacks.finds import (  # noqa: E402
     SUMMARY_MAX_CHARS,
     clean_owner_copy,
@@ -256,20 +257,21 @@ def when(value: str | None) -> str:
 
 
 def artifacts(row: dict) -> list[dict]:
-    """The Maker's drafts for one find.
+    """Return Maker artifacts using the same contract as the live workflow API.
 
-    `stored` is not the same question as "did the Maker succeed". A failed S3
-    upload leaves the draft in the database with no bucket or key, and the Maker
-    deliberately keeps it rather than losing the work — so an unstored draft is
-    still a draft, and the admin view must not report the find as undrafted.
-
-    The key is absent rather than empty on the committed fixture, which was
-    exported before `export_fixture.py` learned to attach artifacts.
+    ``stored`` describes only the optional S3 copy. The durable CockroachDB row
+    remains the artifact even when an upload fails. Presentation metadata is
+    carried into the resilient first paint so the owner sees the same intended
+    destination before and after the live workflow overlay arrives.
     """
     out = []
     for a in row.get("artifacts") or []:
         bucket, key = a.get("s3_bucket"), a.get("s3_key")
         artifact_id = str(a.get("id") or "")
+        metadata = a.get("metadata") if isinstance(a.get("metadata"), dict) else {}
+        artifact_type = str(
+            metadata.get("artifact_type") or a.get("kind") or "general_draft"
+        )
         out.append({
             "id": artifact_id[:8],
             "databaseId": artifact_id or None,
@@ -277,6 +279,20 @@ def artifacts(row: dict) -> list[dict]:
             "title": " ".join((a.get("title") or "").split()),
             "preview": " ".join((a.get("preview") or "").split()),
             "body": a.get("body") or None,
+            "summary": a.get("summary") or None,
+            "ownerAction": a.get("owner_action") or None,
+            "reviewState": a.get("review_state") or "ready_for_review",
+            "metadata": metadata,
+            "artifactType": artifact_type,
+            "useContext": artifact_use_context(
+                artifact_type, stored=metadata.get("use_context")
+            ),
+            "ownerQuestions": list(metadata.get("owner_questions") or []),
+            "sections": list(metadata.get("sections") or []),
+            "revision": int(a.get("revision") or 1),
+            "parentArtifactId": a.get("parent_artifact_id"),
+            "decisionCycle": int(a.get("decision_cycle") or 1),
+            "supersededAt": a.get("superseded_at"),
             "createdAt": a.get("created_at"),
             "stored": bool(bucket and key),
             "location": f"s3://{bucket}/{key}" if bucket and key else None,

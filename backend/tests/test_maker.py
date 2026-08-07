@@ -24,6 +24,7 @@ import pytest
 
 from brasstacks.agents.maker import (
     MAKER_SYSTEM_PROMPT,
+    build_prompt,
     next_undrafted_find,
     run_maker,
 )
@@ -34,7 +35,7 @@ from brasstacks.artifacts import (
     StoredLocation,
 )
 from brasstacks.providers import FakeReasoner, ModelRefusedError
-from brasstacks.repository import EvidenceRef, InMemoryRepository
+from brasstacks.repository import EvidenceRef, InMemoryRepository, StoredArtifact
 
 TODAY = date(2026, 7, 28)
 
@@ -294,6 +295,18 @@ def test_google_business_draft_gets_a_server_bounded_action_manifest():
         "requires_owner_confirmation": True,
         "content_source": "artifact.body",
     }
+    use_context = artifact.metadata["use_context"]
+    assert use_context["artifact_type"] == "google_business_post"
+    assert use_context["surface"] == "Google Business Profile"
+    assert use_context["placement"] == "A public update on the selected business location"
+    assert use_context["audience"] == "People viewing that business profile on Google"
+    assert use_context["draft_state"] == "Not published"
+    assert use_context["owner_gate"] == (
+        "Nothing becomes public until you review and confirm publishing."
+    )
+    assert artifact.metadata["use_context"]["surface"] == "Google Business Profile"
+    assert artifact.metadata["use_context"]["draft_state"] == "Not published"
+    assert "confirm publishing" in artifact.metadata["use_context"]["owner_gate"]
 
 
 def test_drafts_needing_owner_input_are_never_executable():
@@ -322,3 +335,91 @@ def test_drafts_needing_owner_input_are_never_executable():
         "Maker will use your reply to create the next revision."
     )
     assert artifact.metadata["sections"] == []
+
+
+def test_revision_prompt_pairs_compact_owner_answers_with_the_current_questions():
+    find = type("Find", (), {
+        "title": "Publish the lunch set",
+        "move": "Prepare a Google Business update for the weekday lunch set.",
+    })()
+    previous = StoredArtifact(
+        artifact_id="artifact-1",
+        find_id="find-1",
+        kind="google_business_post",
+        title="Lunch set draft",
+        created_at=datetime(2026, 8, 6, tzinfo=timezone.utc),
+        body="Weekday lunch set draft awaiting details.",
+        metadata={
+            "artifact_type": "google_business_post",
+            "owner_questions": [
+                "What exact price should the lunch set show? Example: $18.",
+                "Which days and hours is it available? Example: Mon–Fri, 11:30 AM–2 PM.",
+            ],
+        },
+    )
+
+    prompt = build_prompt(
+        find,
+        revision_instruction=(
+            "Answers for Maker — Google Business Profile:\n"
+            "1. What exact price should the lunch set show? → $18\n"
+            "2. Which days and hours is it available? → Mon–Fri, 11:30 AM–2 PM"
+        ),
+        previous_artifact=previous,
+    )
+
+    assert "REQUIRED QUESTIONS FROM THE CURRENT REVISION" in prompt
+    assert "1. What exact price should the lunch set show?" in prompt
+    assert "2. Which days and hours is it available?" in prompt
+    assert "Answers for Maker — Google Business Profile" in prompt
+    assert "CURRENT DRAFT TO REVISE" in prompt
+
+
+def test_revision_prompt_pairs_guided_answers_with_the_original_required_questions():
+    repo = InMemoryRepository()
+    business_id = a_business(repo)
+    a_find(repo, business_id, title="Publish the weekday lunch post")
+    find = next_undrafted_find(repo, business_id)
+    blocked = {
+        "title": "Weekday lunch post",
+        "body": "Waiting for the confirmed price.",
+        "summary": "The price and hours are still required.",
+        "review_state": "needs_owner_input",
+        "owner_questions": [
+            "What exact price should the post show? (example: $18)",
+            "Which days and hours apply? (example: Mon–Fri, 11:30 AM–2 PM)",
+        ],
+        "artifact_type": "google_business_post",
+        "sections": [],
+    }
+    run_maker(
+        repo=repo, reasoner=FakeReasoner([blocked]), store=FakeArtifactStore(),
+        business_id=business_id, find=find,
+    )
+    previous = repo.get_artifacts(find.find_id)[0]
+    reasoner = FakeReasoner([{
+        "title": "Weekday lunch post",
+        "body": "Weekday lunch is $18, Monday through Friday from 11:30 AM to 2 PM.",
+        "summary": "A complete Google Business Profile post.",
+        "review_state": "ready_for_review",
+        "owner_questions": [],
+        "artifact_type": "google_business_post",
+        "sections": [{"title": "Post", "content": "Weekday lunch is $18."}],
+    }])
+
+    run_maker(
+        repo=repo, reasoner=reasoner, store=FakeArtifactStore(),
+        business_id=business_id, find=find, revision=2,
+        revision_instruction=(
+            "Answers for Maker — Google Business Profile:\n"
+            "1. What exact price should the post show? → $18\n"
+            "2. Which days and hours apply? → Mon–Fri, 11:30 AM–2 PM"
+        ),
+        previous_artifact=previous,
+    )
+
+    prompt = reasoner.calls[0]["user"]
+    assert "REQUIRED QUESTIONS FROM THE CURRENT REVISION" in prompt
+    assert "What exact price should the post show?" in prompt
+    assert "Which days and hours apply?" in prompt
+    assert "Answers for Maker — Google Business Profile" in prompt

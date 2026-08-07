@@ -187,6 +187,15 @@ def test_workspace_exposes_bounded_task_receipts_and_full_draft_for_owner_review
         "title": "Lunch offer email",
         "preview": "A short preview",
         "body": "The complete owner-ready draft.\n\nPost this after review.",
+        "metadata": {
+            "artifact_type": "google_business_post",
+            "owner_questions": [],
+            "use_context": {
+                "surface": "Google Business Profile",
+                "placement": "A public update on the selected business location",
+            },
+        },
+        "review_state": "ready_for_review",
         "s3_bucket": "drafts",
         "s3_key": f"tasks/{task_id}/review_reply.md",
         "created_at": "2026-08-02T20:02:00+00:00",
@@ -246,6 +255,10 @@ def test_workspace_exposes_bounded_task_receipts_and_full_draft_for_owner_review
     assert artifact["taskId"] == task_id
     assert artifact["databaseId"] == artifact_id
     assert artifact["body"].startswith("The complete owner-ready draft")
+    assert artifact["artifactType"] == "google_business_post"
+    assert artifact["useContext"]["surface"] == "Google Business Profile"
+    assert artifact["useContext"]["draft_state"] == "Not published"
+    assert "confirm publishing" in artifact["useContext"]["owner_gate"]
 
 
 def test_live_task_receipt_queries_are_bounded_per_task():

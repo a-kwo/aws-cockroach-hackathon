@@ -11,11 +11,13 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
 from brasstacks.agents.ask import ask_system_prompt, run_ask, trail_lines
 from brasstacks.ask_trace import encode_ask_trace
+from brasstacks.artifact_usage import artifact_use_context
 from brasstacks.auth import token_fingerprint
 from brasstacks.config import Settings
 from brasstacks.handlers.login import bearer_token
@@ -257,6 +259,37 @@ def _unique_messages(recent: list[Any], relevant: list[Any]) -> list[Any]:
     return output
 
 
+def _latest_artifact_context(repo: Any, find_id: str | None) -> dict[str, Any] | None:
+    """Return safe placement metadata for the current Maker revision."""
+    if not find_id or not hasattr(repo, "get_artifacts"):
+        return None
+    try:
+        artifacts = list(repo.get_artifacts(find_id))
+    except Exception:
+        return None
+    current = [artifact for artifact in artifacts if getattr(artifact, "superseded_at", None) is None]
+    if not current:
+        return None
+    artifact = max(
+        current,
+        key=lambda item: (
+            int(getattr(item, "revision", 1) or 1),
+            str(getattr(item, "created_at", "") or ""),
+        ),
+    )
+    metadata = getattr(artifact, "metadata", {})
+    if not isinstance(metadata, Mapping):
+        metadata = {}
+    artifact_type = str(metadata.get("artifact_type") or getattr(artifact, "kind", "general_draft"))
+    return {
+        "title": getattr(artifact, "title", "Maker draft"),
+        "revision": int(getattr(artifact, "revision", 1) or 1),
+        "review_state": getattr(artifact, "review_state", "ready_for_review"),
+        "use_context": artifact_use_context(
+            artifact_type, stored=metadata.get("use_context") if isinstance(metadata, Mapping) else None
+        ),
+    }
+
 def build_context_question(
     *,
     question: str,
@@ -266,6 +299,7 @@ def build_context_question(
     recent_messages: list[Any],
     relevant_messages: list[Any],
     business: dict[str, Any] | None = None,
+    artifact_context: Mapping[str, Any] | None = None,
 ) -> str:
     """Create a bounded retrieval packet instead of sending all chat history.
 
@@ -300,6 +334,19 @@ def build_context_question(
             f"- modelled impact: {find_context.predicted_daily_cents} cents per day",
             f"- confidence: {find_context.confidence:.2f}",
             f"- verify after: {find_context.verify_after.isoformat()}",
+        ])
+    if artifact_context:
+        use_context = artifact_context.get("use_context") or {}
+        lines.extend([
+            "CURRENT MAKER DRAFT",
+            f"- title: {_compact(artifact_context.get('title'), 180)}",
+            f"- revision: {artifact_context.get('revision') or 1}",
+            f"- review state: {artifact_context.get('review_state') or 'ready_for_review'}",
+            f"- intended surface: {_compact(use_context.get('surface'), 160)}",
+            f"- placement: {_compact(use_context.get('placement'), 240)}",
+            f"- audience: {_compact(use_context.get('audience'), 200)}",
+            f"- current delivery state: {_compact(use_context.get('draft_state'), 100)}",
+            f"- owner gate: {_compact(use_context.get('owner_gate'), 240)}",
         ])
     if rules:
         lines.append("OWNER GUARDRAILS")
@@ -957,10 +1004,12 @@ def answer_question(
     business_id = account["business_id"]
 
     find_context = None
+    artifact_context = None
     if find_id:
         find_context = repo.get_find_context(business_id, find_id)
         if find_context is None:
             return respond(404, {"error": "recommendation is no longer available"})
+        artifact_context = _latest_artifact_context(repo, find_id)
 
     # Chat can carry an explicit changed-mind instruction. The deterministic
     # action is handled before embedding or reasoning, so it cannot hallucinate
@@ -1055,6 +1104,7 @@ def answer_question(
         find_context=find_context,
         recent_messages=recent_only,
         relevant_messages=relevant,
+        artifact_context=artifact_context,
     )
 
     run_id = repo.start_run(

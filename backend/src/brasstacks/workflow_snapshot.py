@@ -26,6 +26,7 @@ from brasstacks.agents.ask import TRAIL_PREFIX
 from brasstacks.agents.coster import cost_for_display
 from brasstacks.analyst_trace import parse_analyst_trace
 from brasstacks.ask_trace import parse_ask_trace
+from brasstacks.artifact_usage import artifact_use_context
 from brasstacks.decision_schema import ensure_decision_schema
 from brasstacks.finds import (
     SUMMARY_MAX_CHARS, clean_owner_copy, normalise_feed_brief, owner_card_summary,
@@ -199,6 +200,10 @@ def _artifacts(row: dict[str, Any]) -> list[dict[str, Any]]:
             "reviewState": artifact.get("review_state") or "ready_for_review",
             "metadata": artifact.get("metadata") or {},
             "artifactType": (artifact.get("metadata") or {}).get("artifact_type") or artifact.get("kind") or "draft",
+            "useContext": artifact_use_context(
+                (artifact.get("metadata") or {}).get("artifact_type") or artifact.get("kind"),
+                stored=(artifact.get("metadata") or {}).get("use_context"),
+            ),
             "ownerQuestions": list((artifact.get("metadata") or {}).get("owner_questions") or []),
             "sections": list((artifact.get("metadata") or {}).get("sections") or []),
             "revision": _int(artifact.get("revision"), 1),

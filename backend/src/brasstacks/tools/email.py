@@ -12,6 +12,7 @@ import html
 from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
+from brasstacks.artifact_usage import artifact_use_context
 from brasstacks.tools.base import ToolContext, ToolResult
 
 TOOL_NAME = "ses.send_review_email"
@@ -59,6 +60,10 @@ def render_review_email(payload: Mapping[str, Any], *, task_url: str, task_id: s
         260,
     )
     revision = max(1, int(payload.get("revision") or 1))
+    use_context = artifact_use_context(
+        str(payload.get("artifact_type") or "general_draft"),
+        stored=(payload.get("use_context") if isinstance(payload.get("use_context"), Mapping) else None),
+    )
     action_needed = review_state == "needs_owner_input"
     subject = (
         f"Action needed: {title}"
@@ -75,6 +80,12 @@ def render_review_email(payload: Mapping[str, Any], *, task_url: str, task_id: s
         "",
         title,
         summary,
+        "",
+        "WHERE THIS DRAFT WILL BE USED",
+        use_context["surface"],
+        use_context["placement"],
+        f"Audience: {use_context['audience']}",
+        f"Status: {use_context['draft_state']}",
         "",
         "YOUR NEXT STEP",
         owner_action,
@@ -110,7 +121,13 @@ def render_review_email(payload: Mapping[str, Any], *, task_url: str, task_id: s
       <div style="font-size:12px;font-weight:700;letter-spacing:.12em;color:#2d7e72">BRASS TACKS · MAKER</div>
       <h1 style="font-size:26px;line-height:1.2;margin:16px 0 8px">{html.escape(heading)}</h1>
       <h2 style="font-size:19px;line-height:1.35;margin:0 0 12px">{html.escape(title)}</h2>
-      <p style="font-size:16px;line-height:1.6;color:#56636a;margin:0 0 24px">{html.escape(summary)}</p>
+      <p style="font-size:16px;line-height:1.6;color:#56636a;margin:0 0 20px">{html.escape(summary)}</p>
+      <div style="margin:0 0 22px;padding:16px 18px;border:1px solid #d8ebe6;border-radius:14px;background:#f3faf8">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#2d7e72">WHERE THIS DRAFT WILL BE USED</div>
+        <div style="font-size:17px;font-weight:700;line-height:1.35;margin:8px 0 4px">{html.escape(use_context["surface"])}</div>
+        <div style="font-size:14px;line-height:1.5;color:#56636a">{html.escape(use_context["placement"])}</div>
+        <div style="font-size:12px;line-height:1.45;color:#778188;margin-top:8px">Audience: {html.escape(use_context["audience"])} · {html.escape(use_context["draft_state"])}</div>
+      </div>
       <div style="border-left:4px solid #2d7e72;padding:2px 0 2px 16px;margin:0 0 22px">
         <div style="font-size:12px;font-weight:700;letter-spacing:.08em;color:#68747a">YOUR NEXT STEP</div>
         <p style="font-size:16px;line-height:1.55;margin:8px 0 0">{html.escape(owner_action)}</p>
@@ -142,6 +159,14 @@ class SendReviewEmailTool:
     def execute(self, context: ToolContext, payload: Mapping[str, Any]) -> ToolResult:
         find_id = str(payload.get("find_id") or "").strip()
         revision = max(1, int(payload.get("revision") or 1))
+        use_context = artifact_use_context(
+            str(payload.get("artifact_type") or "general_draft"),
+            stored=(
+                payload.get("use_context")
+                if isinstance(payload.get("use_context"), Mapping)
+                else None
+            ),
+        )
         task_url = f"{self._site_url}/app/?task={context.task_id}" if self._site_url else ""
         rendered = render_review_email(
             payload, task_url=task_url, task_id=context.task_id
@@ -165,6 +190,8 @@ class SendReviewEmailTool:
                 "owner_action": payload.get("owner_action"),
                 "owner_questions": list(_questions(payload.get("owner_questions"))),
                 "review_state": payload.get("review_state"),
+                "artifact_type": use_context["artifact_type"],
+                "use_context": use_context,
                 "revision": revision,
                 "find_id": find_id,
                 "artifact_id": payload.get("artifact_id"),

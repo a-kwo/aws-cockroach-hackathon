@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
 from brasstacks.agent_runs import closing_run
+from brasstacks.artifact_usage import artifact_use_context
 from brasstacks.artifacts import ArtifactStore, ArtifactStoreError
 from brasstacks.providers import ProviderError, Reasoner
 from brasstacks.repository import FindSummary, Repository, RepositoryError, StoredArtifact
@@ -104,7 +105,8 @@ Hard requirements:
   next.
 - body: the complete working draft in readable Markdown. It may be detailed,
   but do not repeat the same instruction in multiple sections.
-- artifact_type: choose the closest allowed type.
+- artifact_type: choose the closest allowed type based on where the finished draft will actually be used.
+- If the destination is unclear and it changes the content, ask one required destination question instead of guessing.
 - Never invent products, prices, hours, staff names, claims, or channels. Ask for
   a missing decision rather than guessing.
 - When revising an existing draft, preserve correct facts and change only what
@@ -210,10 +212,27 @@ def build_prompt(
         lines.extend(["", "RECENT OWNER INPUT FOR THIS RECOMMENDATION"])
         lines.extend(f"- {_compact(message, 360)}" for message in owner_messages[:4])
     if revision_instruction and previous_artifact is not None:
+        previous_questions = []
+        if isinstance(previous_artifact.metadata, Mapping):
+            raw_questions = previous_artifact.metadata.get("owner_questions")
+            if isinstance(raw_questions, Sequence) and not isinstance(raw_questions, (str, bytes)):
+                previous_questions = [
+                    _compact(question, 220)
+                    for question in raw_questions
+                    if str(question or "").strip()
+                ][:MAX_OWNER_QUESTIONS]
         lines.extend([
             "",
             "REVISION REQUEST",
             _compact(revision_instruction, 900),
+        ])
+        if previous_questions:
+            lines.extend(["", "REQUIRED QUESTIONS FROM THE CURRENT REVISION"])
+            lines.extend(
+                f"{index}. {question}"
+                for index, question in enumerate(previous_questions, start=1)
+            )
+        lines.extend([
             "",
             "CURRENT DRAFT TO REVISE",
             previous_artifact.body or previous_artifact.preview or "",
@@ -474,6 +493,7 @@ def _maker_draft(
 
     metadata = {
         "artifact_type": payload["artifact_type"],
+        "use_context": artifact_use_context(payload["artifact_type"]),
         "owner_questions": payload["owner_questions"],
         "sections": payload["sections"],
         "revision_instruction": _compact(revision_instruction, 900) if revision_instruction else None,
