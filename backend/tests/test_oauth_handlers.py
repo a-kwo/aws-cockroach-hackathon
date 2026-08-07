@@ -49,15 +49,23 @@ def repo():
     return InMemoryRepository()
 
 
-def start(*, invite=INVITE, config=CONFIG):
+def start(*, invite=INVITE, config=CONFIG, intent=None):
     query = {"invite": invite} if invite is not None else {}
+    if intent is not None:
+        query["intent"] = intent
     return oauth_google.start({"queryStringParameters": query}, config=config,
                               invite_code=INVITE, now=NOW)
 
 
-def good_state():
-    return oauth.sign_state({"invited": True}, secret=CONFIG.state_secret,
-                            now=NOW)
+def good_state(*, invited=True, intent="register"):
+    return oauth.sign_state({"invited": invited, "intent": intent},
+                            secret=CONFIG.state_secret, now=NOW)
+
+
+def login_state():
+    """What `start?intent=login` signs: no invite was checked, so the callback
+    must not create anything."""
+    return good_state(invited=False, intent="login")
 
 
 def callback(repo, *, state=None, code="the-code", now=NOW, query=None,
@@ -119,6 +127,45 @@ class TestStart:
 
     def test_the_redirect_is_not_cached(self):
         assert "no-store" in start()["headers"]["Cache-Control"]
+
+
+class TestStartFromTheSignInPage:
+    """`?intent=login` is someone coming back, not someone signing up.
+
+    They have no invite code — they were given one once, used it, and are not
+    expected to have kept it. So the gate cannot be on `start` for this
+    direction. It moves to the callback instead, which refuses to *create* an
+    account for a login-intent state. Skipping the check here is only safe
+    because of that; `TestCallbackFromTheSignInPage` is what keeps it true.
+    """
+
+    def test_it_reaches_google_without_an_invite_code(self):
+        response = start(invite=None, intent="login")
+
+        assert response["statusCode"] == 302
+        assert response["headers"]["Location"].startswith(
+            oauth.AUTHORIZE_ENDPOINT)
+
+    def test_the_state_it_signs_says_no_invite_was_checked(self):
+        state = parse_qs(urlsplit(
+            start(invite=None, intent="login")["headers"]["Location"]
+        ).query)["state"][0]
+
+        claims = oauth.verify_state(state, secret=CONFIG.state_secret, now=NOW)
+
+        assert claims["invited"] is False
+        assert claims["intent"] == "login"
+
+    def test_an_unknown_intent_is_treated_as_signing_up(self):
+        # Anything that is not the exact word keeps the gate. A typo, or a
+        # hand-edited URL, must not be a way past it.
+        response = start(invite=None, intent="login-ish")
+
+        assert response["statusCode"] == 403
+
+    def test_the_sign_up_direction_still_demands_the_invite(self):
+        assert start(invite=None, intent="register")["statusCode"] == 403
+        assert start(invite=None)["statusCode"] == 403
 
 
 class TestCallback:
@@ -191,6 +238,56 @@ class TestCallback:
 
         assert response["statusCode"] == 302
         assert "/register/" in response["headers"]["Location"]
+        assert repo._accounts == {}
+
+
+class TestCallbackFromTheSignInPage:
+    """The gate `start` skipped for `intent=login` lives here instead.
+
+    A login-intent state means nobody checked an invite code, so this leg may
+    sign in an account that already exists and may not bring one into being.
+    Otherwise the sign-in page would be a way to create a workspace without an
+    invite — and every workspace costs a Tavily search, ~50 embeddings and a
+    Claude call every night, for as long as it stays active.
+    """
+
+    def test_an_unknown_google_account_creates_nothing(self, repo):
+        response = callback(repo, state=login_state())
+
+        assert repo._accounts == {}
+        assert repo._sessions == {}
+        assert response["statusCode"] == 302
+        assert "/login/" in response["headers"]["Location"]
+        assert "error=no-account" in response["headers"]["Location"]
+
+    def test_an_unknown_google_account_gets_no_handoff_code(self, repo):
+        # Belt and braces on the redirect assertion above: a code in the
+        # fragment would be a session one POST away.
+        response = callback(repo, state=login_state())
+
+        assert "code=" not in urlsplit(response["headers"]["Location"]).fragment
+        assert repo._handoffs == {}
+
+    def test_an_account_that_already_exists_signs_in(self, repo):
+        # Made the only way it can be made: through the invited direction.
+        callback(repo)
+        before = len(repo._accounts)
+
+        response = callback(repo, state=login_state())
+
+        assert len(repo._accounts) == before
+        assert json.loads(complete(repo, handoff_code(response))["body"])["token"]
+
+    def test_a_cancelled_sign_in_goes_back_to_the_sign_in_page(self, repo):
+        response = callback(repo, query={"error": "access_denied",
+                                         "state": login_state()})
+
+        assert response["statusCode"] == 302
+        assert "/login/" in response["headers"]["Location"]
+        assert repo._accounts == {}
+
+    def test_a_forged_login_state_creates_nothing(self, repo):
+        assert callback(repo, state="forged.state")["statusCode"] == 400
         assert repo._accounts == {}
 
 
