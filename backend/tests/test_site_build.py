@@ -3315,3 +3315,64 @@ def test_google_business_receipt_links_allow_https_only():
     assert 'parsed.protocol === "https:"' in helper
     assert 'return ""' in helper
     assert "noopener noreferrer" in html
+
+
+def test_reconsider_control_is_at_the_top_of_the_maker_workspace_not_chat_bottom():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    maker = html.split("function makerReviewPanel", 1)[1].split(
+        "function maybeOpenRequestedTask", 1
+    )[0]
+    drawer = html.split("function renderDrawer", 1)[1].split(
+        "function closeDrawer", 1
+    )[0]
+
+    assert "maker-review-decision-control" in maker
+    assert "reconsiderPanelHtml(post, { compact: true })" in maker
+    assert maker.index("maker-review-decision-control") < maker.index("maker-review-head")
+    assert drawer.index("${makerReviewPanel(post)}") < drawer.index('class="drawer-chat-panel"')
+    chat = drawer.split('class="drawer-chat-panel"', 1)[1]
+    assert "reconsiderPanelHtml(post" not in chat
+    assert '{ scroll: false }' in html
+    assert "function scrollDrawerSectionIntoView" in html
+    assert 'scrollDrawerSectionIntoView(review, { behavior: "smooth", offset: 12 })' in html
+
+
+def test_maker_questions_fill_a_deterministic_revision_reply():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "function makerAnswerTemplate" in html
+    assert "function makerAnswersComplete" in html
+    assert 'form.dataset.chatAction = "revise_draft"' in html
+    assert "data-use-maker-answer-template" in html
+    assert 'requestPayload.action = explicitAction' in html
+    assert "Complete all ${makerInput.questions.length} Answer lines before sending." in html
+    assert "Sending your answers to Maker and queuing the next revision" in html
+    assert '"Waiting for you"' in html
+    assert "Maker is paused until you answer the required items." in html
+
+
+def test_claude_chat_is_structured_and_legacy_long_answers_are_collapsible():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "function renderAssistantChatHtml" in html
+    assert "function parseAssistantAnswer" in html
+    assert "What I need from you" in html
+    assert "Reply with" in html
+    assert "Next step" in html
+    assert 'message.innerHTML = renderAssistantChatHtml(text)' in html
+    assert "Read the full response" in html
+    assert "hasExplicitStructure" in html
+
+
+def test_chat_composer_supports_clear_multiline_maker_answers_on_mobile():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    styles = html.split('id="maker-chat-clarity-v43"', 1)[1].split("</style>", 1)[0]
+
+    assert '<textarea id="drawerInput"' in html
+    assert 'id="drawerComposerContext"' in html
+    assert 'id="drawerComposerCancel"' in html
+    assert 'event.key === "Enter" && !event.shiftKey' in html
+    assert ".drawer-composer-row" in styles
+    assert ".drawer-composer textarea" in styles
+    assert "@media (max-width: 640px)" in styles
+    assert ".maker-chat-context" in styles

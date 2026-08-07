@@ -257,6 +257,15 @@ class TestRunMaker:
         assert "draft" in MAKER_SYSTEM_PROMPT.lower()
         assert "never send" in MAKER_SYSTEM_PROMPT.lower()
 
+    def test_missing_inputs_are_one_line_questions_with_an_answer_format(self):
+        prompt = MAKER_SYSTEM_PROMPT
+
+        assert "at most three required questions" in prompt
+        assert "expected answer format" in prompt
+        assert "answerable in one line" in prompt
+        assert "answer the numbered questions in one reply" in prompt.lower()
+        assert "Do not generate a usable-looking draft" in prompt
+
 
 def test_google_business_draft_gets_a_server_bounded_action_manifest():
     repo = InMemoryRepository()
@@ -306,4 +315,10 @@ def test_drafts_needing_owner_input_are_never_executable():
               store=FakeArtifactStore(), business_id=business_id,
               find=next_undrafted_find(repo, business_id))
 
-    assert repo.get_artifacts(find_id)[0].metadata["action_manifest"] is None
+    artifact = repo.get_artifacts(find_id)[0]
+    assert artifact.metadata["action_manifest"] is None
+    assert artifact.owner_action == (
+        "Answer the 1 required item below in one reply. "
+        "Maker will use your reply to create the next revision."
+    )
+    assert artifact.metadata["sections"] == []

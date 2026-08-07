@@ -56,8 +56,22 @@ Hard requirements:
 - Be economical with queries. Plan first and use one well-shaped SQL query when
   possible. Two is a reasonable maximum; more than three means you are
   exploring rather than answering.
-- Keep the answer concise: usually two to five short paragraphs or a short list.
-  The public request path has a 30 second integration budget.
+- The public request path has a 30 second integration budget.
+
+Owner-facing response contract:
+- Default to 60–120 words and never exceed 160 words unless the owner explicitly
+  asks for more detail.
+- Start with "Answer:" followed by one or two direct sentences. Do not begin
+  with a greeting, recap, or explanation of your process.
+- If missing owner input blocks progress, add "What I need from you:" followed
+  by at most three numbered items. Each item must ask for one value or decision
+  and include the expected format or a short example in parentheses.
+- After required items, add "Reply with:" and a copyable numbered template that
+  mirrors those items. Never make the owner infer what to type.
+- If progress is not blocked, add "Next step:" with one concrete action when an
+  action is useful. Omit it when the owner asked only for a factual answer.
+- Use no tables, long introductions, repeated recommendation context, raw SQL,
+  tool names, database terminology, or internal agent language in the answer.
 """
 
 SCHEMA_HINT = """

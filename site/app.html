@@ -17420,6 +17420,699 @@
     }
   </style>
 
+  <style id="maker-chat-clarity-v43">
+    /* The email deep link lands on Maker. Put the reversible decision control at
+       the top of that workspace, then make required owner input impossible to
+       mistake for optional chat. */
+    #detailDrawer .drawer-top-decision-control {
+      margin: 0 0 14px;
+    }
+
+    #detailDrawer .maker-review-decision-control {
+      padding: 12px 14px 0;
+    }
+
+    #detailDrawer .maker-review-panel {
+      scroll-margin-top: 12px;
+    }
+
+    #detailDrawer .reconsider-panel.is-compact {
+      display: block;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
+      border-radius: 14px;
+      background: rgba(47, 116, 104, .045);
+    }
+
+    #detailDrawer .reconsider-panel.is-compact > summary {
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) 18px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+
+    #detailDrawer .reconsider-panel.is-compact > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    #detailDrawer .reconsider-summary-icon {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(47, 116, 104, .16);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, .68);
+      color: #2f7468;
+      font: 800 14px/1 var(--sans);
+    }
+
+    #detailDrawer .reconsider-summary-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    #detailDrawer .reconsider-summary-copy strong {
+      font-size: 11.5px;
+      line-height: 1.3;
+    }
+
+    #detailDrawer .reconsider-summary-copy small {
+      color: var(--muted);
+      font-size: 9.5px;
+      line-height: 1.4;
+    }
+
+    #detailDrawer .reconsider-summary-chevron {
+      color: var(--muted);
+      font-size: 15px;
+      transition: transform .18s ease;
+    }
+
+    #detailDrawer .reconsider-panel.is-compact[open] .reconsider-summary-chevron {
+      transform: rotate(180deg);
+    }
+
+    #detailDrawer .reconsider-panel-body {
+      display: grid;
+      gap: 11px;
+      padding: 12px;
+      border-top: 1px solid rgba(47, 116, 104, .12);
+    }
+
+    #detailDrawer .reconsider-panel-body > p {
+      font-size: 10px;
+    }
+
+    #detailDrawer .reconsider-panel.is-compact .reconsider-fields {
+      grid-template-columns: 1fr;
+    }
+
+    #detailDrawer .maker-owner-questions {
+      display: grid;
+      gap: 13px;
+      margin: 0;
+      padding: 15px;
+      border: 1px solid rgba(180, 124, 30, .22);
+      border-radius: 15px;
+      background: rgba(180, 124, 30, .07);
+    }
+
+    #detailDrawer .maker-owner-question-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #detailDrawer .maker-owner-question-head > div {
+      display: grid;
+      gap: 4px;
+    }
+
+    #detailDrawer .maker-owner-question-head strong {
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    #detailDrawer .maker-owner-question-head > span {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border: 1px solid rgba(180, 124, 30, .2);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .58);
+      color: #8a611f;
+      font-size: 8.5px;
+      font-weight: 850;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .maker-owner-questions ol {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #detailDrawer .maker-owner-questions li {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 9px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid rgba(180, 124, 30, .14);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .64);
+    }
+
+    #detailDrawer .maker-owner-questions li > span {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #8a611f;
+      color: #fff;
+      font: 850 10px/1 var(--sans);
+    }
+
+    #detailDrawer .maker-owner-questions li p {
+      align-self: center;
+      color: var(--ink) !important;
+      font-size: 11.5px !important;
+      line-height: 1.5 !important;
+    }
+
+    #detailDrawer .maker-owner-question-action {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    #detailDrawer .maker-owner-question-action p {
+      font-size: 9.5px !important;
+      line-height: 1.5 !important;
+    }
+
+    #detailDrawer .maker-owner-question-action button,
+    #detailDrawer .maker-chat-context button {
+      min-height: 38px;
+      padding: 0 13px;
+      border: 1px solid rgba(138, 97, 31, .28);
+      border-radius: 11px;
+      background: #8a611f;
+      color: #fff;
+      font: 800 10px/1 var(--sans);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #detailDrawer .maker-chat-context {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid rgba(180, 124, 30, .2);
+      border-radius: 13px;
+      background: rgba(180, 124, 30, .065);
+    }
+
+    #detailDrawer .maker-chat-context > div {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    #detailDrawer .maker-chat-context small {
+      color: #8a611f;
+      font-size: 8px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .maker-chat-context strong {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    #detailDrawer .maker-chat-context span {
+      color: var(--muted);
+      font-size: 9.5px;
+      line-height: 1.45;
+    }
+
+    /* Claude returns a small response contract. Render those semantic sections
+       as scan-friendly cards and collapse only legacy unstructured walls. */
+    #detailDrawer .chat-message.agent.is-structured {
+      width: 100%;
+      max-width: 100%;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      white-space: normal;
+    }
+
+    #detailDrawer .chat-answer {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+    }
+
+    #detailDrawer .chat-answer-section {
+      display: grid;
+      gap: 6px;
+      padding: 11px 12px;
+      border: 1px solid rgba(31, 38, 42, .08);
+      border-radius: 13px;
+      background: #fff;
+      color: var(--theme-ink);
+      box-shadow: 0 7px 20px rgba(31, 38, 42, .045);
+    }
+
+    #detailDrawer .chat-answer-section h4 {
+      margin: 0;
+      color: #2f7468;
+      font-size: 8.5px;
+      font-weight: 880;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .chat-answer-section p,
+    #detailDrawer .chat-answer-section ul,
+    #detailDrawer .chat-answer-section ol {
+      margin: 0;
+      color: var(--theme-ink);
+      font-size: 11.5px;
+      line-height: 1.58;
+    }
+
+    #detailDrawer .chat-answer-section ul,
+    #detailDrawer .chat-answer-section ol {
+      display: grid;
+      gap: 5px;
+      padding-left: 19px;
+    }
+
+    #detailDrawer .maker-review-state.needs-input {
+      border: 1px solid rgba(180, 124, 30, .22);
+      background: rgba(180, 124, 30, .08);
+      color: #8a611f;
+    }
+
+    #detailDrawer .chat-answer-section.is-needs-input {
+      border-color: rgba(180, 124, 30, .22);
+      background: rgba(180, 124, 30, .065);
+    }
+
+    #detailDrawer .chat-answer-section.is-needs-input h4 {
+      color: #8a611f;
+    }
+
+    #detailDrawer .chat-answer-section.is-reply-template {
+      border-style: dashed;
+      background: rgba(85, 103, 232, .045);
+    }
+
+    #detailDrawer .chat-answer-section.is-reply-template p,
+    #detailDrawer .chat-answer-section.is-reply-template li {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10.5px;
+    }
+
+    #detailDrawer .chat-answer-section.is-next {
+      border-color: rgba(47, 116, 104, .18);
+      background: rgba(47, 116, 104, .055);
+    }
+
+    #detailDrawer .chat-answer-more {
+      overflow: hidden;
+      border: 1px solid rgba(31, 38, 42, .08);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .58);
+    }
+
+    #detailDrawer .chat-answer-more > summary {
+      padding: 10px 12px;
+      cursor: pointer;
+      color: #2f7468;
+      font-size: 9.5px;
+      font-weight: 800;
+    }
+
+    #detailDrawer .chat-answer-full {
+      display: grid;
+      gap: 8px;
+      padding: 0 8px 8px;
+    }
+
+    /* One multiline composer supports a normal question and a deterministic
+       Maker-answer mode without sending credentials or model-owned actions. */
+    #detailDrawer .drawer-composer {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 7px !important;
+    }
+
+    #detailDrawer .drawer-composer-context[hidden] {
+      display: none !important;
+    }
+
+    #detailDrawer .drawer-composer-context {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid rgba(180, 124, 30, .2);
+      border-radius: 11px;
+      background: rgba(180, 124, 30, .07);
+    }
+
+    #detailDrawer .drawer-composer-context > div {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    #detailDrawer .drawer-composer-context small {
+      color: #8a611f;
+      font-size: 7.5px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    #detailDrawer .drawer-composer-context strong {
+      color: var(--ink);
+      font-size: 9.5px;
+      line-height: 1.35;
+    }
+
+    #detailDrawer .drawer-composer-context button {
+      min-height: 30px;
+      padding: 0 9px;
+      border: 1px solid rgba(31, 38, 42, .12);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, .68);
+      color: var(--muted);
+      font: 750 9px/1 var(--sans);
+      cursor: pointer;
+    }
+
+    #detailDrawer .drawer-composer-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px;
+      gap: 8px;
+      align-items: end;
+    }
+
+    #detailDrawer .drawer-composer textarea {
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      max-height: 132px;
+      padding: 12px 13px;
+      resize: none;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      outline: 0;
+      background: #fff;
+      color: var(--ink);
+      font: 11px/1.5 var(--sans);
+      box-shadow: 0 2px 6px rgba(24, 34, 48, .03);
+    }
+
+    #detailDrawer .drawer-composer textarea::placeholder {
+      color: var(--muted-2);
+    }
+
+    #detailDrawer .drawer-composer textarea:focus {
+      border-color: rgba(85, 103, 232, .45);
+      box-shadow: 0 0 0 3px rgba(85, 103, 232, .08);
+    }
+
+    #detailDrawer .drawer-composer-hint {
+      margin: 0 2px;
+      color: var(--muted);
+      font-size: 8px;
+      line-height: 1.3;
+    }
+
+    #detailDrawer .maker-owner-question-action button:focus-visible,
+    #detailDrawer .maker-chat-context button:focus-visible,
+    #detailDrawer .reconsider-panel.is-compact > summary:focus-visible,
+    #detailDrawer .drawer-composer-context button:focus-visible,
+    #detailDrawer .drawer-composer textarea:focus-visible {
+      outline: 2px solid rgba(85, 103, 232, .55);
+      outline-offset: 2px;
+    }
+
+    /* Owner dark theme. */
+    body.autopilot-mode #detailDrawer .reconsider-panel.is-compact,
+    body.growth-mode #detailDrawer .reconsider-panel.is-compact {
+      border-color: rgba(196, 160, 255, .17) !important;
+      background: rgba(139, 92, 246, .065) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-panel.is-compact > summary,
+    body.growth-mode #detailDrawer .reconsider-panel.is-compact > summary {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-summary-icon,
+    body.growth-mode #detailDrawer .reconsider-summary-icon {
+      border-color: rgba(196, 160, 255, .19) !important;
+      background: rgba(196, 160, 255, .09) !important;
+      color: #d7b5ff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-summary-copy strong,
+    body.growth-mode #detailDrawer .reconsider-summary-copy strong {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-summary-copy small,
+    body.growth-mode #detailDrawer .reconsider-summary-copy small,
+    body.autopilot-mode #detailDrawer .reconsider-summary-chevron,
+    body.growth-mode #detailDrawer .reconsider-summary-chevron {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .reconsider-panel-body,
+    body.growth-mode #detailDrawer .reconsider-panel-body {
+      border-top-color: var(--owner-border) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-owner-questions,
+    body.growth-mode #detailDrawer .maker-owner-questions,
+    body.autopilot-mode #detailDrawer .maker-chat-context,
+    body.growth-mode #detailDrawer .maker-chat-context,
+    body.autopilot-mode #detailDrawer .drawer-composer-context,
+    body.growth-mode #detailDrawer .drawer-composer-context {
+      border-color: rgba(244, 204, 145, .22) !important;
+      background: rgba(217, 151, 49, .075) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-owner-question-head strong,
+    body.growth-mode #detailDrawer .maker-owner-question-head strong,
+    body.autopilot-mode #detailDrawer .maker-chat-context strong,
+    body.growth-mode #detailDrawer .maker-chat-context strong,
+    body.autopilot-mode #detailDrawer .drawer-composer-context strong,
+    body.growth-mode #detailDrawer .drawer-composer-context strong {
+      color: var(--owner-text) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-review-state.needs-input,
+    body.growth-mode #detailDrawer .maker-review-state.needs-input {
+      border: 1px solid rgba(244, 204, 145, .24) !important;
+      background: rgba(217, 151, 49, .11) !important;
+      color: #f4cc91 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-owner-question-head > span,
+    body.growth-mode #detailDrawer .maker-owner-question-head > span {
+      border-color: rgba(244, 204, 145, .22) !important;
+      background: rgba(217, 151, 49, .1) !important;
+      color: #f4cc91 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-owner-questions li,
+    body.growth-mode #detailDrawer .maker-owner-questions li {
+      border-color: rgba(244, 204, 145, .13) !important;
+      background: rgba(255, 255, 255, .025) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-owner-questions li > span,
+    body.growth-mode #detailDrawer .maker-owner-questions li > span,
+    body.autopilot-mode #detailDrawer .maker-owner-question-action button,
+    body.growth-mode #detailDrawer .maker-owner-question-action button,
+    body.autopilot-mode #detailDrawer .maker-chat-context button,
+    body.growth-mode #detailDrawer .maker-chat-context button {
+      border-color: rgba(244, 204, 145, .2) !important;
+      background: linear-gradient(135deg, #9a5a1f, #c37b31) !important;
+      color: #fff !important;
+      box-shadow: 0 8px 20px rgba(112, 65, 22, .22) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-owner-questions li p,
+    body.growth-mode #detailDrawer .maker-owner-questions li p {
+      color: #e6e9f4 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-chat-context small,
+    body.growth-mode #detailDrawer .maker-chat-context small,
+    body.autopilot-mode #detailDrawer .drawer-composer-context small,
+    body.growth-mode #detailDrawer .drawer-composer-context small {
+      color: #f4cc91 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .maker-chat-context span,
+    body.growth-mode #detailDrawer .maker-chat-context span,
+    body.autopilot-mode #detailDrawer .drawer-composer-hint,
+    body.growth-mode #detailDrawer .drawer-composer-hint {
+      color: var(--owner-text-muted) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section,
+    body.growth-mode #detailDrawer .chat-answer-section {
+      border-color: rgba(197, 205, 255, .12) !important;
+      background: #141a30 !important;
+      color: #dde1ef !important;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .03) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section h4,
+    body.growth-mode #detailDrawer .chat-answer-section h4 {
+      color: #c99bff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section p,
+    body.growth-mode #detailDrawer .chat-answer-section p,
+    body.autopilot-mode #detailDrawer .chat-answer-section li,
+    body.growth-mode #detailDrawer .chat-answer-section li {
+      color: #dde1ef !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section.is-needs-input,
+    body.growth-mode #detailDrawer .chat-answer-section.is-needs-input {
+      border-color: rgba(244, 204, 145, .22) !important;
+      background: rgba(217, 151, 49, .075) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section.is-needs-input h4,
+    body.growth-mode #detailDrawer .chat-answer-section.is-needs-input h4 {
+      color: #f4cc91 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section.is-reply-template,
+    body.growth-mode #detailDrawer .chat-answer-section.is-reply-template {
+      border-color: rgba(181, 109, 255, .26) !important;
+      background: rgba(181, 109, 255, .075) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-section.is-next,
+    body.growth-mode #detailDrawer .chat-answer-section.is-next {
+      border-color: rgba(82, 217, 175, .2) !important;
+      background: rgba(45, 181, 142, .07) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-more,
+    body.growth-mode #detailDrawer .chat-answer-more {
+      border-color: var(--owner-border) !important;
+      background: rgba(255, 255, 255, .022) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .chat-answer-more > summary,
+    body.growth-mode #detailDrawer .chat-answer-more > summary {
+      color: #c99bff !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer textarea,
+    body.growth-mode #detailDrawer .drawer-composer textarea {
+      border-color: var(--owner-border) !important;
+      background: var(--owner-surface-input) !important;
+      color: var(--owner-text) !important;
+      caret-color: var(--owner-accent) !important;
+      box-shadow: none !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer textarea::placeholder,
+    body.growth-mode #detailDrawer .drawer-composer textarea::placeholder {
+      color: #77829d !important;
+      opacity: 1 !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer textarea:focus,
+    body.growth-mode #detailDrawer .drawer-composer textarea:focus {
+      border-color: rgba(190, 124, 255, .58) !important;
+      box-shadow: 0 0 0 3px rgba(181, 109, 255, .14) !important;
+    }
+
+    body.autopilot-mode #detailDrawer .drawer-composer-context button,
+    body.growth-mode #detailDrawer .drawer-composer-context button {
+      border-color: var(--owner-border) !important;
+      background: rgba(255, 255, 255, .045) !important;
+      color: var(--owner-text-secondary) !important;
+    }
+
+    @media (max-width: 640px) {
+      #detailDrawer .maker-review-decision-control {
+        padding: 10px 11px 0;
+      }
+
+      #detailDrawer .reconsider-panel.is-compact > summary {
+        grid-template-columns: 28px minmax(0, 1fr) 16px;
+        min-height: 54px;
+        padding: 9px 10px;
+      }
+
+      #detailDrawer .reconsider-summary-icon {
+        width: 28px;
+        height: 28px;
+      }
+
+      #detailDrawer .maker-owner-question-head,
+      #detailDrawer .maker-owner-question-action,
+      #detailDrawer .maker-chat-context {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      #detailDrawer .maker-owner-question-head {
+        display: grid;
+      }
+
+      #detailDrawer .maker-owner-question-head > span {
+        width: fit-content;
+      }
+
+      #detailDrawer .maker-owner-question-action button,
+      #detailDrawer .maker-chat-context button {
+        width: 100%;
+      }
+
+      #detailDrawer .chat-answer-section {
+        padding: 11px;
+      }
+
+      #detailDrawer .drawer-composer {
+        padding: 10px max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+      }
+
+      #detailDrawer .drawer-composer-context {
+        align-items: flex-start;
+      }
+
+      #detailDrawer .drawer-composer-row {
+        grid-template-columns: minmax(0, 1fr) 44px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #detailDrawer .reconsider-summary-chevron,
+      .visual-flow-particle {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -17796,12 +18489,19 @@
         </header>
         <div class="drawer-body" id="drawerBody"></div>
         <form class="drawer-composer" id="drawerForm">
-          <input id="drawerInput" type="text" autocomplete="off" maxlength="500" placeholder="Ask about this recommendation…" />
-          <button class="send-button" type="submit" aria-label="Send message">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
-              <path d="M4 12l15-7-5 14-3-6-7-1z" />
-            </svg>
-          </button>
+          <div class="drawer-composer-context" id="drawerComposerContext" hidden>
+            <div><small>Answering Maker</small><strong id="drawerComposerContextText">Your reply will create a new revision.</strong></div>
+            <button type="button" id="drawerComposerCancel" aria-label="Cancel Maker answer mode">Cancel</button>
+          </div>
+          <div class="drawer-composer-row">
+            <textarea id="drawerInput" rows="1" autocomplete="off" maxlength="500" placeholder="Ask one question or request one change…" aria-label="Message Brass Tacks"></textarea>
+            <button class="send-button" type="submit" aria-label="Send message">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                <path d="M4 12l15-7-5 14-3-6-7-1z" />
+              </svg>
+            </button>
+          </div>
+          <p class="drawer-composer-hint" id="drawerComposerHint">Enter to send · Shift+Enter for a new line</p>
         </form>
       </aside>
 
@@ -20739,24 +21439,44 @@
     ];
 
     function reconsiderPanelHtml(post, { compact = false } = {}) {
+      const fields = `
+        <div class="reconsider-fields">
+          <label class="reconsider-field">
+            <span>Reason</span>
+            <select data-reconsider-reason aria-label="Reason for reconsidering">
+              ${RECONSIDER_REASONS.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}
+            </select>
+          </label>
+          <label class="reconsider-field">
+            <span>Note <small>optional</small></span>
+            <input data-reconsider-note maxlength="280" placeholder="Add context for future recommendations" aria-label="Optional reconsideration note">
+          </label>
+        </div>`;
+      if (compact) {
+        return `
+          <details class="reconsider-panel is-compact" data-reconsider-panel data-post-id="${escapeHtml(post.id)}">
+            <summary>
+              <span class="reconsider-summary-icon" aria-hidden="true">↩</span>
+              <span class="reconsider-summary-copy">
+                <strong>Return this move to For You</strong>
+                <small>Reopen it without deleting the decision, drafts, or receipts.</small>
+              </span>
+              <span class="reconsider-summary-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="reconsider-panel-body">
+              <p>Choose a reason so future recommendations keep the right context.</p>
+              ${fields}
+              <button class="reconsider-button" type="button" data-reconsider data-post-id="${escapeHtml(post.id)}">Return to For You</button>
+            </div>
+          </details>`;
+      }
       return `
-        <div class="reconsider-panel${compact ? " is-compact" : ""}" data-reconsider-panel data-post-id="${escapeHtml(post.id)}">
+        <div class="reconsider-panel" data-reconsider-panel data-post-id="${escapeHtml(post.id)}">
           <div>
             <strong>Return this move to For You</strong>
             <p>Keeps the original decision, draft, and email receipt in history, then opens a new decision cycle.</p>
           </div>
-          <div class="reconsider-fields">
-            <label class="reconsider-field">
-              <span>Reason</span>
-              <select data-reconsider-reason aria-label="Reason for reconsidering">
-                ${RECONSIDER_REASONS.map(([value, label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}
-              </select>
-            </label>
-            <label class="reconsider-field">
-              <span>Note <small>optional</small></span>
-              <input data-reconsider-note maxlength="280" placeholder="Add context for future recommendations" aria-label="Optional reconsideration note">
-            </label>
-          </div>
+          ${fields}
           <button class="reconsider-button" type="button" data-reconsider data-post-id="${escapeHtml(post.id)}">Return to For You</button>
         </div>`;
     }
@@ -24084,6 +24804,54 @@ ledger_entry · artifact · agent_run`,
       card.querySelector("[data-google-business-publish]")?.addEventListener("click", () => openGooglePublishDialog(card), { once: true });
     }
 
+    function currentMakerInputState(post, task = null, artifact = null) {
+      const activeTask = task || latestMakerTaskForPost(post);
+      if (!activeTask) return null;
+      const activeArtifact = artifact || makerArtifactForTask(post, activeTask);
+      if (!activeArtifact || activeTask.supersededAt || activeArtifact.supersededAt) return null;
+      const questions = Array.isArray(activeArtifact.ownerQuestions)
+        ? activeArtifact.ownerQuestions.map(value => String(value || "").trim()).filter(Boolean).slice(0, 3)
+        : [];
+      if (String(activeArtifact.reviewState || "") !== "needs_owner_input" || !questions.length) return null;
+      return {
+        task: activeTask,
+        artifact: activeArtifact,
+        questions,
+        revision: Number(activeArtifact.revision || activeTask.input?.revision || 1),
+      };
+    }
+
+    function makerAnswerTemplate(state) {
+      if (!state?.questions?.length) return "";
+      const lines = ["Answers for Maker:"];
+      state.questions.forEach((question, index) => {
+        lines.push(`${index + 1}. ${clampText(question, 76)}\nAnswer: `);
+      });
+      return lines.join("\n\n");
+    }
+
+    function makerAnswersComplete(value, expectedCount) {
+      const answers = Array.from(String(value || "").matchAll(/(?:^|\n)Answer:\s*([^\n]*)/gi))
+        .map(match => String(match[1] || "").trim());
+      return answers.length >= expectedCount
+        && answers.slice(0, expectedCount).every(answer => answer.length > 0);
+    }
+
+    function makerChatContextHtml(post) {
+      const state = currentMakerInputState(post);
+      if (!state) return "";
+      const count = state.questions.length;
+      return `
+        <section class="maker-chat-context" aria-label="Maker input required">
+          <div>
+            <small>Maker is waiting</small>
+            <strong>${count} required ${count === 1 ? "answer" : "answers"}</strong>
+            <span>Send them together and Brass Tacks will queue revision ${state.revision + 1}.</span>
+          </div>
+          <button type="button" data-use-maker-answer-template data-post-id="${escapeHtml(post.id)}">Answer Maker</button>
+        </section>`;
+    }
+
     function makerReviewPanel(post) {
       const task = latestMakerTaskForPost(post);
       if (!task) return "";
@@ -24091,17 +24859,36 @@ ledger_entry · artifact · agent_run`,
       const body = String(artifact?.body || artifact?.preview || "").trim();
       const summary = String(artifact?.summary || artifact?.preview || "").trim();
       const ownerAction = String(artifact?.ownerAction || "Review the draft and tell Maker what should change.").trim();
-      const questions = Array.isArray(artifact?.ownerQuestions) ? artifact.ownerQuestions.filter(Boolean).slice(0, 3) : [];
+      const questions = Array.isArray(artifact?.ownerQuestions)
+        ? artifact.ownerQuestions.map(value => String(value || "").trim()).filter(Boolean).slice(0, 3)
+        : [];
       const sections = Array.isArray(artifact?.sections) ? artifact.sections.filter(section => section?.title && section?.content) : [];
       const email = latestMakerEmailTool(task);
       const archived = Boolean(task.supersededAt || artifact?.supersededAt);
       const revising = ["queued", "retry", "running"].includes(String(task.status || "")) && Number(task.input?.revision || 1) > Number(artifact?.revision || 1);
-      const statusLabel = archived ? "Archived" : revising ? "Revising" : makerTaskLabel(task.status);
-      const stateClass = escapeHtml(archived ? "superseded" : (revising ? "running" : (task.status || "queued")));
       const revision = Number(artifact?.revision || task.input?.revision || 1);
       const reviewState = String(artifact?.reviewState || "ready_for_review");
+      const needsOwnerInput = reviewState === "needs_owner_input" && questions.length > 0;
+      const statusLabel = archived
+        ? "Archived"
+        : revising
+          ? "Revising"
+          : needsOwnerInput
+            ? "Waiting for you"
+            : makerTaskLabel(task.status);
+      const stateClass = escapeHtml(
+        archived ? "superseded" : (revising ? "running" : (needsOwnerInput ? "needs-input" : (task.status || "queued")))
+      );
+      const currentDecision = getDecision(post.id) || getDecision(post.databaseId);
+      const canReconsider = !archived && (
+        currentDecision?.status === "approved"
+        || ["accepted", "live"].includes(String(post.workflowStatus || ""))
+      );
+      const nextAction = needsOwnerInput
+        ? `Answer the ${questions.length} required ${questions.length === 1 ? "item" : "items"} below in one reply. Maker will create revision ${revision + 1}.`
+        : ownerAction;
       const executionAction = makerGoogleBusinessActionHtml(task, artifact, archived, body, revision);
-      const sectionHtml = sections.length ? `
+      const sectionHtml = !needsOwnerInput && sections.length ? `
         <div class="maker-section-grid">
           ${sections.map(section => `
             <article class="maker-section-card">
@@ -24110,18 +24897,28 @@ ledger_entry · artifact · agent_run`,
               <div>${escapeHtml(String(section.content))}</div>
             </article>`).join("")}
         </div>` : "";
-      const questionsHtml = questions.length ? `
-        <section class="maker-owner-questions">
-          <small>Maker needs your input</small>
-          <ol>${questions.map(question => `<li>${escapeHtml(String(question))}</li>`).join("")}</ol>
-          <p>Reply in chat with the answers. Maker will use them in the next revision.</p>
+      const questionsHtml = needsOwnerInput ? `
+        <section class="maker-owner-questions" data-maker-owner-questions>
+          <div class="maker-owner-question-head">
+            <div>
+              <small>Required before Maker can continue</small>
+              <strong>${questions.length} ${questions.length === 1 ? "answer" : "answers"} needed</strong>
+            </div>
+            <span>${questions.length} required</span>
+          </div>
+          <ol>${questions.map((question, index) => `
+            <li><span>${index + 1}</span><p>${escapeHtml(question)}</p></li>`).join("")}</ol>
+          <div class="maker-owner-question-action">
+            <p>Send every answer together. Brass Tacks will queue revision ${revision + 1}; this version stays in history.</p>
+            <button type="button" data-use-maker-answer-template data-post-id="${escapeHtml(post.id)}">Answer these questions</button>
+          </div>
         </section>` : "";
       const fullDraft = body ? `
-        <details class="maker-full-draft">
-          <summary>Open complete working draft</summary>
+        <details class="maker-full-draft${needsOwnerInput ? " is-partial" : ""}">
+          <summary>${needsOwnerInput ? "View partial draft (optional)" : "Open complete working draft"}</summary>
           <pre data-maker-draft-body>${escapeHtml(body)}</pre>
         </details>` : `<p class="maker-review-empty">${escapeHtml(task.status === "running" ? "Maker is preparing the revised draft now. The current version remains available until the replacement is complete." : task.status === "queued" || task.status === "retry" ? "This approved task is waiting for a Maker worker." : task.lastError || "No draft body is available yet.")}</p>`;
-      const revisionTools = !archived && body ? `
+      const revisionTools = !archived && body && !needsOwnerInput ? `
         <section class="maker-revision-tools" aria-label="Revise this draft">
           <div><strong>Refine with Maker</strong><span>Each change creates a new version. Previous versions remain in CockroachDB history.</span></div>
           <div class="maker-revision-chips">
@@ -24130,24 +24927,25 @@ ledger_entry · artifact · agent_run`,
             <button type="button" data-maker-revision-prompt="Make the next decision and action steps clearer." data-post-id="${escapeHtml(post.id)}">Clearer next steps</button>
           </div>
         </section>` : "";
-      const copy = body ? `
+      const copy = body && !needsOwnerInput ? `
         <div class="maker-review-actions${archived ? " is-archived" : ""}">
           <p>${archived ? `This is revision ${revision} from an earlier decision cycle. It remains reference history.` : "Use the prepared content manually, or ask Maker in chat to revise it before you act."}</p>
           <button class="maker-copy-button" type="button" data-copy-maker-draft>${archived ? "Copy archived draft" : "Copy full draft"}</button>
         </div>` : "";
       return `
         <section class="maker-review-panel${archived ? " is-archived" : ""}" data-maker-task-review="${escapeHtml(task.id || "")}" aria-label="${archived ? "Archived Maker task review" : "Maker task review"}">
+          ${canReconsider ? `<div class="maker-review-decision-control">${reconsiderPanelHtml(post, { compact: true })}</div>` : ""}
           <header class="maker-review-head">
             <div>
               <small>${archived ? "Previous Maker cycle" : "Maker review workspace"} · revision ${revision}</small>
               <strong>${escapeHtml(artifact?.title || task.title || "Owner-ready draft")}</strong>
-              <span>${escapeHtml(revising ? "Maker is creating a replacement version now." : makerTaskCurrentStep(task))}</span>
+              <span>${escapeHtml(revising ? "Maker is creating a replacement version now." : needsOwnerInput ? "Maker is paused until you answer the required items." : makerTaskCurrentStep(task))}</span>
             </div>
             <span class="maker-review-state ${stateClass}">${escapeHtml(statusLabel)}</span>
           </header>
           <div class="maker-review-body">
             ${summary ? `<section class="maker-review-summary"><small>What Maker prepared</small><p>${escapeHtml(summary)}</p></section>` : ""}
-            <section class="maker-next-action ${reviewState === "needs_owner_input" ? "needs-input" : ""}"><small>Your next step</small><strong>${escapeHtml(ownerAction)}</strong></section>
+            <section class="maker-next-action ${needsOwnerInput ? "needs-input" : ""}"><small>Your next step</small><strong>${escapeHtml(nextAction)}</strong></section>
             ${questionsHtml}
             ${sectionHtml}
             ${fullDraft}
@@ -24157,6 +24955,18 @@ ledger_entry · artifact · agent_run`,
           ${revisionTools}
           ${copy}
         </section>`;
+    }
+
+    function scrollDrawerSectionIntoView(element, { behavior = "smooth", offset = 12 } = {}) {
+      const body = document.getElementById("drawerBody");
+      if (!body || !element) return false;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const top = element.getBoundingClientRect().top
+        - body.getBoundingClientRect().top
+        + body.scrollTop
+        - Math.max(0, Number(offset) || 0);
+      body.scrollTo({ top: Math.max(0, top), behavior: reducedMotion ? "auto" : behavior });
+      return true;
     }
 
     function maybeOpenRequestedTask() {
@@ -24180,8 +24990,8 @@ ledger_entry · artifact · agent_run`,
         switchView("growth");
         openDrawer(post.id);
         window.setTimeout(() => {
-          document.querySelector(`[data-maker-task-review="${CSS.escape(requestedTaskId)}"]`)
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          const review = document.querySelector(`[data-maker-task-review="${CSS.escape(requestedTaskId)}"]`);
+          scrollDrawerSectionIntoView(review, { behavior: "smooth", offset: 12 });
         }, 80);
         return true;
       }
@@ -24213,6 +25023,10 @@ ledger_entry · artifact · agent_run`,
       if (!post) return;
       const decision = getDecision(postId);
       const status = decision?.status || "pending";
+      const makerTask = latestMakerTaskForPost(post);
+      const topReconsider = status === "approved" && !makerTask
+        ? `<div class="drawer-top-decision-control">${reconsiderPanelHtml(post, { compact: true })}</div>`
+        : "";
 
       const statusContent = status === "approved"
         ? {
@@ -24249,6 +25063,8 @@ ledger_entry · artifact · agent_run`,
           </div>
         </section>
 
+        ${topReconsider}
+
         <div class="detail-stack">
           <section class="detail-section">
             <div class="detail-section-label">Signal</div>
@@ -24275,9 +25091,10 @@ ledger_entry · artifact · agent_run`,
 
         <section class="drawer-chat-panel" aria-label="Conversation with Brass Tacks">
           <header class="drawer-chat-head">
-            <div><strong>Ask Brass Tacks</strong><span>Answers from this owner's CockroachDB memory. Relevant chat is retrieved; the complete history stays stored.</span></div>
+            <div><strong>Ask Brass Tacks</strong><span>Ask one question or request one change at a time. Replies are concise and saved with this business.</span></div>
             <span class="memory-chip">Memory on</span>
           </header>
+          ${makerChatContextHtml(post)}
           <div class="drawer-chat-thread" id="drawerChatThread" aria-live="polite">
             <p class="chat-empty">Loading conversation memory…</p>
           </div>
@@ -24291,7 +25108,7 @@ ledger_entry · artifact · agent_run`,
                 ${icons.approved}<span>Undo Pass</span>
               </button>
             </div>
-          ` : status === "approved" ? reconsiderPanelHtml(post) : ""}
+          ` : ""}
         </section>
 
         ${status === "pending" ? `
@@ -24301,6 +25118,7 @@ ledger_entry · artifact · agent_run`,
           </div>
         ` : ""}
       `;
+      configureDrawerComposer(post);
       bindDynamicActions();
       loadDrawerChat(post);
     }
@@ -24321,16 +25139,206 @@ ledger_entry · artifact · agent_run`,
       return document.getElementById("drawerChatThread");
     }
 
+    function chatSectionMeta(line) {
+      const cleaned = String(line || "")
+        .replace(/^#{1,4}\s+/, "")
+        .replace(/\*\*/g, "")
+        .trim();
+      const match = cleaned.match(/^(Answer|Bottom line|What I need from you|I need from you|To proceed|Next step|Reply with)\s*:?\s*(.*)$/i);
+      if (!match) return null;
+      const key = match[1].toLowerCase();
+      if (key === "answer" || key === "bottom line") {
+        return { label: "Answer", className: "answer", remainder: match[2] };
+      }
+      if (key === "next step") {
+        return { label: "Next step", className: "next", remainder: match[2] };
+      }
+      if (key === "reply with") {
+        return { label: "Reply with", className: "reply-template", remainder: match[2] };
+      }
+      return { label: "What I need from you", className: "needs-input", remainder: match[2] };
+    }
+
+    function chatInlineHtml(value) {
+      return escapeHtml(String(value || ""))
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    }
+
+    function parseAssistantAnswer(value) {
+      const text = String(value || "").replace(/\r\n?/g, "\n").trim();
+      const sections = [];
+      let current = { label: null, className: "general", blocks: [] };
+      let paragraph = [];
+      let list = null;
+
+      const flushParagraph = () => {
+        if (!paragraph.length) return;
+        current.blocks.push({ type: "paragraph", text: paragraph.join(" ") });
+        paragraph = [];
+      };
+      const flushList = () => {
+        if (!list) return;
+        current.blocks.push(list);
+        list = null;
+      };
+      const flushSection = () => {
+        flushParagraph();
+        flushList();
+        if (current.label || current.blocks.length) sections.push(current);
+      };
+      const startSection = meta => {
+        flushSection();
+        current = { label: meta.label, className: meta.className, blocks: [] };
+        if (meta.remainder) paragraph.push(meta.remainder);
+      };
+
+      text.split("\n").forEach(rawLine => {
+        const line = rawLine.trim();
+        if (!line) {
+          flushParagraph();
+          flushList();
+          return;
+        }
+        const meta = chatSectionMeta(line);
+        if (meta) {
+          startSection(meta);
+          return;
+        }
+        const markdownHeading = line.match(/^#{1,4}\s+(.+)$/);
+        if (markdownHeading) {
+          startSection({ label: markdownHeading[1].replace(/\*\*/g, "").trim(), className: "general", remainder: "" });
+          return;
+        }
+        const ordered = line.match(/^\d+[.)]\s+(.+)$/);
+        const bullet = line.match(/^[-*•]\s+(.+)$/);
+        if (ordered || bullet) {
+          flushParagraph();
+          const orderedList = Boolean(ordered);
+          if (!list || list.ordered !== orderedList) {
+            flushList();
+            list = { type: "list", ordered: orderedList, items: [] };
+          }
+          list.items.push((ordered || bullet)[1]);
+          return;
+        }
+        flushList();
+        paragraph.push(line);
+      });
+      flushSection();
+      if (!sections.length) return [{ label: "Answer", className: "answer", blocks: [] }];
+      if (!sections.some(section => section.label)) {
+        sections[0].label = "Answer";
+        sections[0].className = "answer";
+      }
+      return sections;
+    }
+
+    function renderAssistantChatHtml(value) {
+      const text = String(value || "").trim();
+      const sections = parseAssistantAnswer(text);
+      const sectionHtml = sections.map(section => {
+        const blocks = section.blocks.map(block => {
+          if (block.type === "list") {
+            const tag = block.ordered ? "ol" : "ul";
+            return `<${tag}>${block.items.map(item => `<li>${chatInlineHtml(item)}</li>`).join("")}</${tag}>`;
+          }
+          return `<p>${chatInlineHtml(block.text)}</p>`;
+        }).join("");
+        return `
+          <section class="chat-answer-section is-${escapeHtml(section.className)}">
+            ${section.label ? `<h4>${escapeHtml(section.label)}</h4>` : ""}
+            ${blocks}
+          </section>`;
+      }).join("");
+      const hasExplicitStructure = text.split("\n").some(line => chatSectionMeta(line) || /^#{1,4}\s+/.test(line.trim()));
+      if (text.length > 900 && !hasExplicitStructure) {
+        const preview = clampText(text.replace(/\s+/g, " "), 420);
+        return `
+          <div class="chat-answer is-long">
+            <section class="chat-answer-section is-answer">
+              <h4>Answer</h4>
+              <p>${chatInlineHtml(preview)}</p>
+            </section>
+            <details class="chat-answer-more">
+              <summary>Read the full response</summary>
+              <div class="chat-answer-full">${sectionHtml}</div>
+            </details>
+          </div>`;
+      }
+      return `<div class="chat-answer${text.length > 900 ? " is-long" : ""}">${sectionHtml}</div>`;
+    }
+
+    function resizeDrawerComposerInput() {
+      const input = document.getElementById("drawerInput");
+      if (!input) return;
+      input.style.height = "auto";
+      input.style.height = `${Math.min(Math.max(input.scrollHeight, 44), 132)}px`;
+    }
+
+    function clearMakerAnswerMode({ keepText = false } = {}) {
+      const form = document.getElementById("drawerForm");
+      const input = document.getElementById("drawerInput");
+      const context = document.getElementById("drawerComposerContext");
+      const hint = document.getElementById("drawerComposerHint");
+      if (!form || !input) return;
+      delete form.dataset.chatAction;
+      delete form.dataset.makerPostId;
+      if (!keepText) input.value = "";
+      input.placeholder = "Ask one question or request one change…";
+      input.setAttribute("aria-label", "Message Brass Tacks");
+      if (context) context.hidden = true;
+      if (hint) hint.textContent = "Enter to send · Shift+Enter for a new line";
+      resizeDrawerComposerInput();
+    }
+
+    function configureDrawerComposer(post) {
+      clearMakerAnswerMode();
+      const input = document.getElementById("drawerInput");
+      if (!input) return;
+      const state = currentMakerInputState(post);
+      if (state) {
+        input.placeholder = `Maker is waiting for ${state.questions.length} ${state.questions.length === 1 ? "answer" : "answers"} — use Answer Maker above`;
+      }
+    }
+
+    function activateMakerAnswerMode(postId) {
+      const post = posts.find(item => item.id === postId);
+      const state = currentMakerInputState(post);
+      const form = document.getElementById("drawerForm");
+      const input = document.getElementById("drawerInput");
+      const context = document.getElementById("drawerComposerContext");
+      const contextText = document.getElementById("drawerComposerContextText");
+      const hint = document.getElementById("drawerComposerHint");
+      if (!post || !state || !form || !input) {
+        showToast("Maker no longer needs owner input for this revision.", "approved");
+        return;
+      }
+      form.dataset.chatAction = "revise_draft";
+      form.dataset.makerPostId = post.id;
+      input.value = makerAnswerTemplate(state);
+      input.placeholder = "Answer each numbered item…";
+      input.setAttribute("aria-label", "Answers for Maker");
+      if (context) context.hidden = false;
+      if (contextText) contextText.textContent = `Complete all ${state.questions.length} answers. Sending queues revision ${state.revision + 1}.`;
+      if (hint) hint.textContent = "Complete every Answer line · Enter sends · Shift+Enter adds a line";
+      resizeDrawerComposerInput();
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+
     function appendDrawerMessage(role, text, options = {}) {
       const thread = drawerThread();
       if (!thread) return null;
       thread.querySelector(".chat-empty")?.remove();
       const message = document.createElement("div");
-      message.className = `chat-message ${role === "user" ? "owner" : "agent"}${options.loading ? " is-loading" : ""}${options.error ? " is-error" : ""}`;
-      message.textContent = text;
+      const isAgentAnswer = role !== "user" && !options.loading && !options.error;
+      message.className = `chat-message ${role === "user" ? "owner" : "agent"}${options.loading ? " is-loading" : ""}${options.error ? " is-error" : ""}${isAgentAnswer ? " is-structured" : ""}${isAgentAnswer && String(text || "").length > 900 ? " is-long" : ""}`;
+      if (isAgentAnswer) message.innerHTML = renderAssistantChatHtml(text);
+      else message.textContent = text;
       if (options.id) message.id = options.id;
       thread.appendChild(message);
-      drawerBody.scrollTop = drawerBody.scrollHeight;
+      if (options.scroll !== false) drawerBody.scrollTop = drawerBody.scrollHeight;
       return message;
     }
 
@@ -24385,10 +25393,17 @@ ledger_entry · artifact · agent_run`,
         const messages = Array.isArray(payload.messages) ? payload.messages : [];
         thread.innerHTML = "";
         if (!messages.length) {
-          thread.innerHTML = `<p class="chat-empty">Ask about the recommendation, a business constraint, or what to do next. Your question and the answer will become owner-scoped memory.</p>`;
+          const makerInput = currentMakerInputState(post);
+          thread.innerHTML = makerInput
+            ? `<p class="chat-empty">Maker is waiting for the answers shown above. Select <strong>Answer Maker</strong> to insert a numbered reply and create revision ${makerInput.revision + 1}.</p>`
+            : `<p class="chat-empty">Ask one question or request one change. Brass Tacks will answer directly and show one clear next step when action is needed.</p>`;
           return;
         }
-        messages.forEach(message => appendDrawerMessage(message.role === "user" ? "user" : "assistant", message.content || ""));
+        messages.forEach(message => appendDrawerMessage(
+          message.role === "user" ? "user" : "assistant",
+          message.content || "",
+          { scroll: false },
+        ));
       } catch (error) {
         if (requestId !== drawerHistoryRequest) return;
         thread.innerHTML = `<p class="chat-empty">${escapeHtml(error.message || "Conversation memory is temporarily unavailable.")}</p>`;
@@ -24537,22 +25552,37 @@ ledger_entry · artifact · agent_run`,
         return;
       }
 
-      appendDrawerMessage("user", text);
+      const explicitAction = form.dataset.chatAction || "";
+      const submittedText = text;
+      const submitButton = form.querySelector('button[type="submit"]');
+      const makerInput = explicitAction === "revise_draft" ? currentMakerInputState(post) : null;
+      if (makerInput && !makerAnswersComplete(submittedText, makerInput.questions.length)) {
+        showToast(`Complete all ${makerInput.questions.length} Answer lines before sending.`, "rejected");
+        input.focus();
+        return;
+      }
+      appendDrawerMessage("user", submittedText);
       input.value = "";
+      resizeDrawerComposerInput();
       form.classList.add("is-busy");
       input.disabled = true;
-      form.querySelector("button")?.setAttribute("disabled", "");
+      submitButton?.setAttribute("disabled", "");
       const loadingId = `chat-loading-${Date.now()}`;
-      appendDrawerMessage("assistant", "Searching this owner's CockroachDB memory…", { loading: true, id: loadingId });
+      const loadingCopy = explicitAction === "revise_draft"
+        ? "Sending your answers to Maker and queuing the next revision…"
+        : "Checking this business memory…";
+      appendDrawerMessage("assistant", loadingCopy, { loading: true, id: loadingId });
 
       try {
+        const requestPayload = {
+          question: text,
+          find_id: post.databaseId || post.id,
+        };
+        if (explicitAction) requestPayload.action = explicitAction;
         const response = await fetch(ASK_ENDPOINT, {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
-          body: JSON.stringify({
-            question: text,
-            find_id: post.databaseId || post.id,
-          }),
+          body: JSON.stringify(requestPayload),
         });
         const payload = await response.json().catch(() => ({}));
         document.getElementById(loadingId)?.remove();
@@ -24565,6 +25595,7 @@ ledger_entry · artifact · agent_run`,
           appendDrawerMessage("assistant", payload.answer || "Maker revision queued.");
           appendChatReceipt(payload);
           showToast(`Maker revision ${payload?.action?.revision || ""} queued.`, "approved");
+          clearMakerAnswerMode();
           if (workflowApiConfigured) refreshWorkflowSnapshot({ force: true, silent: true });
         } else {
           appendDrawerMessage("assistant", payload.answer || "No answer was returned.");
@@ -24574,13 +25605,29 @@ ledger_entry · artifact · agent_run`,
       } catch (error) {
         document.getElementById(loadingId)?.remove();
         appendDrawerMessage("assistant", error.message || "Ask is temporarily unavailable.", { error: true });
+        input.value = submittedText;
+        resizeDrawerComposerInput();
       } finally {
         form.classList.remove("is-busy");
         input.disabled = false;
-        form.querySelector("button")?.removeAttribute("disabled");
+        submitButton?.removeAttribute("disabled");
         input.focus();
         drawerBody.scrollTop = drawerBody.scrollHeight;
       }
+    });
+
+    const drawerComposerInput = document.getElementById("drawerInput");
+    drawerComposerInput.addEventListener("input", resizeDrawerComposerInput);
+    drawerComposerInput.addEventListener("keydown", event => {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        document.getElementById("drawerForm").requestSubmit();
+      }
+    });
+    document.getElementById("drawerComposerCancel").addEventListener("click", () => {
+      const post = posts.find(item => item.id === openPostId);
+      configureDrawerComposer(post);
+      drawerComposerInput.focus();
     });
 
     function escapeHtml(value) {
@@ -24675,6 +25722,9 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-reconsider]").forEach(button => {
         button.onclick = () => reconsider(button.dataset.postId, button);
+      });
+      document.querySelectorAll("[data-use-maker-answer-template]").forEach(button => {
+        button.onclick = () => activateMakerAnswerMode(button.dataset.postId);
       });
       document.querySelectorAll("[data-maker-revision-prompt]").forEach(button => {
         button.onclick = () => reviseMakerDraft(

@@ -467,6 +467,18 @@ class TestAskSystemPrompt:
         # model is told the number rather than just "be quick".
         assert "30 second" in ASK_SYSTEM_PROMPT
 
+    def test_owner_answers_have_a_short_explicit_response_contract(self):
+        prompt = ASK_SYSTEM_PROMPT
+
+        assert "Default to 60–120 words" in prompt
+        assert "never exceed 160 words" in prompt
+        assert 'Start with "Answer:"' in prompt
+        assert '"What I need from you:"' in prompt
+        assert '"Reply with:"' in prompt
+        assert '"Next step:"' in prompt
+        assert "Never make the owner infer what to type" in prompt
+        assert "Use no tables" in prompt
+
     def test_keeps_the_honesty_rules(self):
         # The cluster hint must not displace the constraints that make the
         # answers trustworthy.

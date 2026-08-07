@@ -91,8 +91,12 @@ Hard requirements:
   database ids, retrieval scores, or internal agent language.
 - Do not bury the next decision in a long document.
 - If essential owner facts are missing, set review_state to needs_owner_input,
-  ask at most three short questions, and stop. Do not generate a giant template
-  full of placeholders.
+  ask at most three required questions, and stop. Each question must ask for one
+  decision or value, name the expected answer format in parentheses, and be
+  answerable in one line. Do not generate a usable-looking draft or placeholder
+  sections until those answers arrive.
+- For needs_owner_input, owner_action must say: "Answer the numbered questions in one reply."
+  Never hide a required input in summary, body, or a section.
 - If enough facts exist, set review_state to ready_for_review and create no more
   than five useful sections. Each section must have one clear purpose.
 - summary: one complete sentence, usually under 180 characters.
@@ -292,22 +296,34 @@ def _normalize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     if review_state not in {"ready_for_review", "needs_owner_input"}:
         review_state = "needs_owner_input" if questions else "ready_for_review"
     if review_state == "needs_owner_input" and not questions:
-        questions = ["What essential detail should Maker use to finish this draft?"]
+        questions = [
+            "What exact missing detail should Maker use? "
+            "(reply with the value or decision)"
+        ]
     summary = _compact(payload.get("summary") or _preview(body), MAX_SUMMARY_CHARS)
-    owner_action = _compact(
-        payload.get("owner_action")
-        or (
-            "Answer the questions below so Maker can finish the draft."
-            if review_state == "needs_owner_input"
-            else "Review the draft and tell Maker what to change, or copy it when ready."
-        ),
-        240,
-    )
+    if review_state == "needs_owner_input":
+        count = len(questions)
+        owner_action = (
+            f"Answer the {count} required {'item' if count == 1 else 'items'} "
+            "below in one reply. Maker will use your reply to create the next revision."
+        )
+    else:
+        owner_action = _compact(
+            payload.get("owner_action")
+            or "Review the draft and tell Maker what to change, or copy it when ready.",
+            240,
+        )
     artifact_type = str(payload.get("artifact_type") or "general_draft").strip()
     if artifact_type not in ARTIFACT_TYPES:
         artifact_type = "general_draft"
     sections = _sections(payload.get("sections"))
-    if not sections:
+    if review_state == "needs_owner_input":
+        # A blocked artifact must look blocked. Keeping model-generated sections
+        # here made a partial draft appear ready even while Maker was asking for
+        # essential facts. The body remains durable for revision context, but the
+        # owner-facing package exposes only the exact questions required next.
+        sections = []
+    elif not sections:
         sections = [{"title": "Complete draft", "purpose": "Ready for owner review", "content": body}]
     return {
         "title": title,
