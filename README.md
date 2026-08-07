@@ -380,6 +380,36 @@ operator can compare efficiency without mixing one business's memory with anothe
 
 Deployed with AWS SAM — see `deploy/` for the template and the runbook.
 
+### Deploying
+
+One command, from a machine with Docker, the SAM CLI and AWS credentials:
+
+```bash
+python scripts/deploy.py                 # the board, plus the Lambdas if they changed
+python scripts/deploy.py site            # the board only
+python scripts/deploy.py backend --force # the Lambdas, whether or not they changed
+```
+
+It runs the test suite first, fingerprints everything that goes into the Lambda
+image, and **skips the image build entirely when nothing in it changed** — which
+is the difference between fifteen seconds for a CSS edit and five minutes. Then
+it publishes the board (build with live endpoints, sync, invalidate CloudFront)
+and verifies what it left behind: stack status, the nightly schedule, and an
+HTTP check on the deployed page.
+
+Three sharp edges it exists to blunt, each of which has drawn blood:
+
+- **`sam deploy --parameter-overrides` re-splits its argument on whitespace.**
+  A shell's quotes are stripped before SAM sees them, so `cron(0 18 * * ? *)`
+  arrives as `cron(0`, EventBridge rejects it, and the stack update rolls back
+  taking every Lambda with it.
+- **SAM lives behind a space** (`C:\Program Files\...\sam.cmd`), which Git Bash
+  cannot launch. Nothing here goes through a shell.
+- **`sam deploy` does not touch the site.** The board is static files behind a
+  24-hour cache; deploying the Lambdas alone changes nothing a visitor sees.
+
+The GitHub workflows still exist as a fallback and are `workflow_dispatch` only.
+
 ### Turning the autopilot on
 
 The nightly schedule is what makes this a loop rather than a button, and it

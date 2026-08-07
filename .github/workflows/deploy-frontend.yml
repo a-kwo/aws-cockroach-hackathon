@@ -1,16 +1,15 @@
 name: Deploy Frontend
 
 on:
+  # Dispatch only. Deploys run from a developer machine now — `python
+  # scripts/deploy.py` publishes the board in about fifteen seconds, against
+  # five minutes of runner time for the same result.
+  #
+  # The push trigger is gone rather than merely unused: it fired on every merge
+  # touching site/**, which meant a deploy nobody asked for, racing whatever was
+  # published locally. Kept as workflow_dispatch so there is still a way in when
+  # nobody has a laptop.
   workflow_dispatch:
-
-  push:
-    branches:
-      - main
-    paths:
-      - "site/**"
-      - "scripts/build_web.py"
-      - "scripts/export_fixture.py"
-      - ".github/workflows/deploy-frontend.yml"
 
 permissions:
   contents: read
