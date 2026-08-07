@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
 
 import pytest
@@ -1536,8 +1537,36 @@ def test_the_login_page_stores_only_the_session():
 # ---------------------------------------------------------------------------
 # Sign in with Google
 # ---------------------------------------------------------------------------
+#: Every variable that can put a Google endpoint into the model. Cleared
+#: together, because `build_web` derives the two Google URLs from the decision
+#: endpoint when they are not given explicitly — so unsetting only the obvious
+#: two proves nothing.
+_GOOGLE_BUILD_VARS = (
+    "GOOGLE_START_API_ENDPOINT",
+    "GOOGLE_COMPLETE_API_ENDPOINT",
+    "GOOGLE_OAUTH_ENABLED",
+    "DECISION_API_ENDPOINT",
+)
 
-def test_the_google_button_is_not_drawn_unless_it_was_switched_on():
+
+def _model_without_google(payload):
+    """The model a build with no OAuth client produces.
+
+    Built in-process from a cleaned environment. Reading `web/` instead makes
+    the assertion depend on how that directory last happened to be built, which
+    is a different thing from what the code does.
+    """
+    saved = {name: os.environ.pop(name, None) for name in _GOOGLE_BUILD_VARS}
+    try:
+        return build_web.build_model(copy.deepcopy(payload))
+    finally:
+        for name, value in saved.items():
+            if value is not None:
+                os.environ[name] = value
+
+
+
+def test_the_google_button_is_not_drawn_unless_it_was_switched_on(data):
     """A build with no OAuth client must produce no button.
 
     Nothing at build time can tell whether a client actually exists in the
@@ -1545,17 +1574,19 @@ def test_the_google_button_is_not_drawn_unless_it_was_switched_on():
     the endpoint is null and `.alt-auth` never gets `.available` — a button that
     404s is worse than no button.
     """
-    built = (build_web.OUT_DIR / "register" / "index.html").read_text(
-        encoding="utf-8")
-    data = json.loads(
-        built.split('id="bt-data" type="application/json">', 1)[1]
-             .split("</script>", 1)[0])
+    # Built here with the switch explicitly off, rather than read out of web/.
+    # That directory is whatever the last build left behind — and since deploys
+    # now run from this machine, the last build is usually a real one with live
+    # endpoints spliced in, which made this assertion fail for a reason that had
+    # nothing to do with the code under test.
+    model = _model_without_google(data)
+    assert model["api"]["googleStartEndpoint"] is None
+    assert model["api"]["googleCompleteEndpoint"] is None
 
-    assert data["api"]["googleStartEndpoint"] is None
-    assert data["api"]["googleCompleteEndpoint"] is None
     # The markup ships either way; only the class that reveals it is withheld.
-    assert 'class="alt-auth"' in built
-    assert 'getElementById("altAuth").classList.add("available")' in built
+    source = (build_web.SITE / "register.html").read_text(encoding="utf-8")
+    assert 'class="alt-auth"' in source
+    assert 'getElementById("altAuth").classList.add("available")' in source
 
 
 def test_the_google_button_still_demands_the_invite_code():
@@ -1597,7 +1628,7 @@ def test_every_workflow_that_publishes_the_site_passes_the_google_switch():
         assert "GOOGLE_OAUTH_CLIENT_ID" in workflow
 
 
-def test_the_sign_in_page_offers_google_under_the_same_switch():
+def test_the_sign_in_page_offers_google_under_the_same_switch(data):
     """The button belongs on /login/ too — an owner who created a workspace
     with Google has no password to come back with.
 
@@ -1605,14 +1636,13 @@ def test_the_sign_in_page_offers_google_under_the_same_switch():
     class that reveals it depends on the build having been told a client
     exists.
     """
-    built = (build_web.OUT_DIR / "login" / "index.html").read_text(
-        encoding="utf-8")
+    source = (build_web.SITE / "login.html").read_text(encoding="utf-8")
 
-    assert 'class="alt-auth"' in built
-    assert 'getElementById("altAuth").classList.add("available")' in built
-    assert json.loads(
-        built.split('id="bt-data" type="application/json">', 1)[1]
-             .split("</script>", 1)[0])["api"]["googleStartEndpoint"] is None
+    assert 'class="alt-auth"' in source
+    assert 'getElementById("altAuth").classList.add("available")' in source
+    # Same reason as the register test above: built from a controlled
+    # environment rather than read out of whatever web/ currently holds.
+    assert _model_without_google(data)["api"]["googleStartEndpoint"] is None
 
 
 def test_the_sign_in_page_asks_google_for_a_sign_in_not_a_sign_up():

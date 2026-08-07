@@ -92,6 +92,58 @@ def run(command: list[str], *, env: dict | None = None, dry: bool) -> None:
     subprocess.run(command, check=True, env=env)
 
 
+def oauth_client_exists(aws: str) -> bool:
+    """Is there a Google OAuth client for the button to point at?
+
+    The three routes are always deployed; without a client they answer 404, and
+    a Sign in with Google button that 404s is worse than no button. Nothing at
+    build time can tell, so this asks Parameter Store the same question the CI
+    job asks.
+    """
+    result = subprocess.run(
+        [aws, "ssm", "get-parameter", "--name",
+         "/brasstacks/GOOGLE_OAUTH_CLIENT_ID", "--region", REGION],
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+def frontend_env(outputs: dict[str, str], *, oauth_enabled: bool) -> dict[str, str]:
+    """What `build_web.py` needs, from the deployed stack's outputs.
+
+    Kept as one pure function so it can be checked against
+    `.github/workflows/deploy-frontend.yml` in a test. The two build the same
+    site from the same commit, and the ways they can silently disagree are all
+    quiet: `build_web` derives most endpoints from the decision endpoint, so a
+    variable missing here produces a working site minus one feature rather than
+    a failure anybody notices.
+
+    Missing outputs become "" rather than absent, because "" is what `build_web`
+    reads as "derive it" — and the AWS CLI prints the string "None" for an
+    output that does not exist, which would otherwise be spliced into the page
+    as a URL.
+    """
+    def value(key: str) -> str:
+        raw = (outputs.get(key) or "").strip()
+        return "" if raw == "None" else raw
+
+    return {
+        "PYTHONIOENCODING": "utf-8",   # every find carries an emoji
+        "DECISION_API_ENDPOINT": value("DecisionEndpoint"),
+        "WORKFLOW_API_ENDPOINT": value("WorkflowEndpoint"),
+        "ONBOARDING_API_ENDPOINT": value("OnboardingEndpoint"),
+        "LOGIN_API_ENDPOINT": value("LoginEndpoint"),
+        "REGISTER_API_ENDPOINT": value("RegisterEndpoint"),
+        "RUN_API_ENDPOINT": value("RunEndpoint"),
+        "PROFILE_API_ENDPOINT": value("ProfileEndpoint"),
+        "ADMIN_API_ENDPOINT": value("AdminWorkspacesEndpoint"),
+        "GOOGLE_START_API_ENDPOINT": value("GoogleStartEndpoint"),
+        "GOOGLE_COMPLETE_API_ENDPOINT": value("GoogleCompleteEndpoint"),
+        # The one switch with no fallback. See oauth_client_exists.
+        "GOOGLE_OAUTH_ENABLED": "1" if oauth_enabled else "",
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-export", action="store_true",
@@ -107,17 +159,8 @@ def main() -> int:
     if not bucket:
         raise SystemExit("stack has no SiteBucketName output — is it deployed?")
 
-    base = outputs.get("DecisionEndpoint", "")
     env = dict(os.environ)
-    env.update({
-        "PYTHONIOENCODING": "utf-8",   # every find carries an emoji
-        "DECISION_API_ENDPOINT": base,
-        "WORKFLOW_API_ENDPOINT": outputs.get("WorkflowEndpoint", ""),
-        "ONBOARDING_API_ENDPOINT": outputs.get("OnboardingEndpoint", ""),
-        "LOGIN_API_ENDPOINT": outputs.get("LoginEndpoint", ""),
-        "REGISTER_API_ENDPOINT": outputs.get("RegisterEndpoint", ""),
-        "RUN_API_ENDPOINT": outputs.get("RunEndpoint", ""),
-    })
+    env.update(frontend_env(outputs, oauth_enabled=oauth_client_exists(aws)))
 
     if not args.no_export:
         print("\nexporting the fixture from the live cluster")
@@ -129,8 +172,12 @@ def main() -> int:
         env=env, dry=args.dry_run)
 
     print("\nuploading")
+    # no-cache on the objects themselves, matching the CI job. The
+    # invalidation below clears what CloudFront already holds; this stops it
+    # holding the next one for 24 hours.
     run([aws, "s3", "sync", str(REPO_ROOT / "web") + "/", f"s3://{bucket}/",
-         "--delete", "--region", REGION], dry=args.dry_run)
+         "--delete", "--cache-control", "no-cache", "--region", REGION],
+        dry=args.dry_run)
 
     print("\ninvalidating the cache (without this the old page serves for 24h)")
     dist = distribution_id(aws)
