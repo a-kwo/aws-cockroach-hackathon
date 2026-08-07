@@ -142,10 +142,22 @@ class Plan:
     publish_site: bool
 
 
-def plan_for(target: str, *, backend_changed: bool, force: bool = False) -> Plan:
+def plan_for(target: str, *, backend_changed: bool, force: bool = False,
+             schedule_change: bool = False) -> Plan:
+    """What this invocation will actually do.
+
+    `schedule_change` forces the backend deploy regardless of the fingerprint.
+    The nightly schedule is a CloudFormation parameter, so the only way to move
+    it is a stack update — and the fingerprint check exists to skip exactly
+    that when no code changed. Without this, `--schedule DISABLED` succeeds,
+    prints nothing alarming, deploys nothing, and the agents run again at 18:00.
+    An off-switch that quietly does nothing is worse than no off-switch.
+    """
     return Plan(
-        deploy_backend=(target in {"backend", "all", "auto"}
-                        and (backend_changed or force)),
+        deploy_backend=(
+            (target in {"backend", "all", "auto"} and (backend_changed or force))
+            or schedule_change
+        ),
         publish_site=target in {"site", "all", "auto"},
     )
 
@@ -246,10 +258,14 @@ def main(argv: list[str] | None = None) -> int:
 
     fingerprint = image_fingerprint()
     previous = STAMP.read_text(encoding="utf-8").strip() if STAMP.exists() else ""
+    schedule_change = bool(args.schedule or args.schedule_expression)
     plan = plan_for(args.target, backend_changed=fingerprint != previous,
-                    force=args.force)
+                    force=args.force, schedule_change=schedule_change)
 
     print(f"deploying: {args.target}")
+    if schedule_change:
+        print("  schedule  changing the nightly schedule needs a stack update, "
+              "so the backend deploys even though nothing changed")
     if args.target in {"auto", "backend"} and not plan.deploy_backend:
         print("  backend   unchanged since the last deploy — skipping the image "
               "build (--force to override)")

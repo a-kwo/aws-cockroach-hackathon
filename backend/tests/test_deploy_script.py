@@ -158,3 +158,25 @@ class TestWhatEachTargetDoes:
     def test_all_does_both(self):
         plan = deploy.plan_for("all", backend_changed=True)
         assert plan.publish_site and plan.deploy_backend
+
+
+class TestTheOffSwitchActuallyFires:
+    """`--schedule DISABLED` is the kill switch for nightly spend.
+
+    The schedule is a CloudFormation parameter, so the only way to change it is
+    a stack update — and the fingerprint check exists to skip exactly that when
+    no code changed. Left alone, the two combine into an off-switch that
+    silently does nothing: the command succeeds, prints nothing alarming, and
+    the agents run again at 18:00.
+    """
+
+    def test_asking_for_a_schedule_change_forces_the_deploy(self):
+        assert deploy.plan_for("auto", backend_changed=False,
+                               schedule_change=True).deploy_backend is True
+
+    def test_a_schedule_expression_alone_forces_it_too(self):
+        assert deploy.plan_for("site", backend_changed=False,
+                               schedule_change=True).deploy_backend is True
+
+    def test_without_a_schedule_change_the_skip_still_applies(self):
+        assert deploy.plan_for("auto", backend_changed=False).deploy_backend is False
