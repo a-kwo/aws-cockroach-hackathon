@@ -3590,7 +3590,10 @@ def test_the_growth_tab_offers_a_place_to_report_what_a_move_earned():
     html, strip = _growth_outcome_source()
 
     assert "function outcomeStripHtml(post, status)" in html
-    assert 'data-report-outcome=' in strip
+    # A disclosure, not a form open under every row. Collapsed it is one line.
+    assert "<details class=\"outcome-panel\"" in strip
+    assert "<summary>" in strip
+    assert 'data-outcome-panel=' in strip
     assert 'data-save-outcome=' in strip
     assert 'data-outcome-amount' in strip
     assert 'data-outcome-basis' in strip
@@ -3612,6 +3615,10 @@ def test_a_reported_figure_is_labelled_as_reported_never_as_verified():
     # And it says when the number will actually be scored, so "reported" does
     # not read as "waiting on nothing".
     assert "post.verifyAfter" in strip
+    # The caption is built from one date, not by patching a separator back into
+    # a prose fragment — which is how "score it on scored on Sep 1" reached a
+    # real screen.
+    assert ".replace(\" · \"" not in strip
 
 
 def test_a_measured_verdict_is_not_offered_a_correction_box():
@@ -3704,3 +3711,47 @@ def test_nothing_reported_is_absence_not_zero():
         money=build_web.money)
     assert zero is not None
     assert zero["amountCents"] == 0
+
+
+def test_the_result_panel_is_styled_for_the_theme_growth_actually_runs_in():
+    """The Growth tab is dark. The first cut of this shipped light surfaces.
+
+    `#fbfaf7` under a midnight card read as a white band glued to the panel,
+    spilling past its rounded corner. The dark rules have to live after every
+    block that could override them, which is what the version suffix on a style
+    id means in this file.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'id="owner-outcome-disclosure-v45"' in html
+    dark = html.split('id="owner-outcome-disclosure-v45"', 1)[1].split("</style>", 1)[0]
+    # Comments stripped: this block explains the light-theme surface it
+    # replaced, and naming a colour is not shipping it.
+    rules = re.sub(r"/\*.*?\*/", "", dark, flags=re.S)
+
+    assert "body.growth-mode .outcome-panel" in rules
+    assert "var(--owner-ink)" in rules
+    assert "var(--owner-muted)" in rules
+    # No light-theme surface among the declarations.
+    assert "#fbfaf7" not in rules
+    assert "background: #ffffff" not in rules
+
+    # And it is the last style block, so nothing later can undo it.
+    assert html.rindex('<style id="owner-outcome-disclosure-v45"') > html.rindex(
+        '<style id="maker-guided-reply-v44"')
+
+
+def test_opening_the_result_panel_does_not_rebuild_the_list():
+    """A re-render mid-typing throws away what was typed.
+
+    The first cut toggled a module variable and called renderGrowth(), so every
+    open and close rebuilt both lists. <details> owns its own open state; the
+    set only survives the renders that other things trigger.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    binding = html.split('document.querySelectorAll("[data-outcome-panel]")', 1)[1].split(
+        "document.querySelectorAll(\"[data-save-outcome]\")", 1)[0]
+
+    assert "renderGrowth()" not in binding
+    assert "openOutcomePanels.add" in binding
+    assert "openOutcomePanels.delete" in binding
