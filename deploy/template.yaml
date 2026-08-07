@@ -537,6 +537,54 @@ Resources:
             Method: POST
 
   # --------------------------------------------------------------------
+  # What the owner measured
+  # --------------------------------------------------------------------
+  # The only writer of find_outcome, which is the only table that can turn an
+  # ESTIMATED verdict into a VERIFIED one. Without this route NoOutcomeSource
+  # is the only outcome source that exists and the published hit rate is
+  # permanently undefined.
+  #
+  # A separate function from DecisionFunction on purpose, though both are POSTs
+  # to /finds/{id}/... behind one session. DecisionFunction may queue Maker
+  # tasks; recording a measurement must not be able to spend model calls, and
+  # the cheapest way to guarantee that is to not grant the permission.
+  OutcomeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: outcome
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.outcome.handler"]
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        Report:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /finds/{find_id}/outcome
+            Method: POST
+
+  # --------------------------------------------------------------------
   # Live, read-only owner workflow state for Memory Engine
   # --------------------------------------------------------------------
   WorkflowFunction:
@@ -1189,6 +1237,14 @@ Outputs:
       POST with a session token to start that owner's first night. Returns 202
       immediately — the night runs asynchronously and the board polls /workflow.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/run
+
+  OutcomeEndpoint:
+    Description: >
+      POST {"amount": "210.00", "basis": "day"|"week"|"month", "note": "..."}
+      with a session token to record what an accepted move actually earned.
+      The Meter judges against it when the measurement window closes — this
+      writes a measurement, it does not score one.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/finds/{find_id}/outcome
 
   RegisterEndpoint:
     Description: >

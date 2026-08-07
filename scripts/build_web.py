@@ -44,6 +44,7 @@ from brasstacks.finds import (  # noqa: E402
     clean_owner_copy,
     feed_brief_for_display,
     owner_card_summary,
+    reported_outcome_view,
 )
 from brasstacks.repository import WITHHELD_STATUS  # noqa: E402
 
@@ -521,6 +522,11 @@ def build_model(data: dict) -> dict:
             "predictedMonthlyShort": short_money(predicted * PER_MONTH),
             "actualDaily": int(actual) if actual is not None else None,
             "actualDailyTxt": money(int(actual)) if actual is not None else None,
+            # What the owner reported, if anything. Same helper as
+            # workflow_snapshot, so the first paint and the live refresh cannot
+            # show a different figure for the same find.
+            "reportedOutcome": reported_outcome_view(
+                f.get("reported_outcome"), money=money),
             "confidence": round((f["confidence"] or 0) * 100),
             "status": f["status"],
             "verdict": f["verdict"],

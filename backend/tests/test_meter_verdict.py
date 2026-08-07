@@ -9,7 +9,12 @@ Money is integer cents throughout. No floats.
 
 import pytest
 
-from brasstacks.meter import Verdict, judge
+from brasstacks.meter import (
+    MEASUREMENT_BASES,
+    Verdict,
+    daily_cents_from,
+    judge,
+)
 
 
 class TestNoOutcomeData:
@@ -144,3 +149,58 @@ class TestDegenerateInput:
         with pytest.raises(ValueError):
             judge(predicted_daily_cents=10000, actual_daily_cents=5000,
                   has_outcome_data=True, miss_threshold=1.5)
+
+
+class TestReportedAmountToDailyCents:
+    """An owner reports what a move earned over a period they actually track.
+
+    Nobody knows their takings per day; they know "about $300 a week". So the
+    entry point is an amount and the period it covers, and the conversion to
+    the daily figure the ledger judges against happens here — in integer cents,
+    once, rather than in the browser or three times in three callers.
+    """
+
+    def test_a_daily_figure_passes_through(self):
+        assert daily_cents_from(4200, "day") == 4200
+
+    def test_a_weekly_figure_is_divided_by_seven(self):
+        assert daily_cents_from(7000, "week") == 1000
+
+    def test_a_monthly_figure_uses_the_same_thirty_days_as_the_board(self):
+        # The card renders a daily prediction as `daily * 30` a month. A month
+        # that meant 30.4 days here would make a reported figure disagree with
+        # the forecast it is being measured against, for no reason the owner
+        # could see.
+        assert daily_cents_from(3000, "month") == 100
+
+    def test_rounding_is_half_up_and_never_leaves_a_fraction(self):
+        # 100/7 = 14.28..., 15/30 = 0.5. Both land on an integer number of
+        # cents, because a fraction of a cent has nowhere to be stored.
+        assert daily_cents_from(100, "week") == 14
+        assert daily_cents_from(15, "month") == 1
+
+    def test_a_reported_zero_stays_zero(self):
+        # This is the published miss. It must survive the conversion intact.
+        assert daily_cents_from(0, "week") == 0
+
+    def test_a_loss_keeps_its_sign(self):
+        # A move can cost money, and `judge` accepts a negative actual.
+        assert daily_cents_from(-3000, "month") == -100
+        assert daily_cents_from(-100, "week") == -14
+
+    def test_a_float_amount_is_rejected(self):
+        # Same rule as the verdict itself: money arrives as integer cents or
+        # not at all.
+        with pytest.raises(TypeError):
+            daily_cents_from(70.5, "week")
+
+    def test_a_bool_is_not_an_amount(self):
+        with pytest.raises(TypeError):
+            daily_cents_from(True, "day")
+
+    def test_an_unknown_period_is_rejected(self):
+        with pytest.raises(ValueError):
+            daily_cents_from(7000, "fortnight")
+
+    def test_the_offered_periods_are_the_ones_the_ui_offers(self):
+        assert set(MEASUREMENT_BASES) == {"day", "week", "month"}

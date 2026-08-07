@@ -18,7 +18,7 @@ from typing import Any
 from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
 from brasstacks.night import build_night_sources, run_night
-from brasstacks.outcomes import NoOutcomeSource
+from brasstacks.outcomes import build_outcome_source
 from brasstacks.providers import build_embedder, build_reasoner
 from brasstacks.secrets import hydrate_environment
 
@@ -116,7 +116,11 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                     # on the business row, so one scout for every tenant would
                     # point them all at the same street.
                     scout=build_competitor_scout(settings, business),
-                    outcomes=NoOutcomeSource(),
+                    # Per tenant, and read fresh each night: this is what the
+                    # owner reported through /finds/{id}/outcome. Without it
+                    # the Meter has no measurements at all and every verdict it
+                    # can ever reach is an estimate.
+                    outcomes=build_outcome_source(repo, business_id),
                     business_id=business_id,
                     today=today,
                     sources=sources,

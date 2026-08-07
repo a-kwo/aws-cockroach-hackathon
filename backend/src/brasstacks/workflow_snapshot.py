@@ -30,7 +30,9 @@ from brasstacks.artifact_usage import artifact_use_context
 from brasstacks.decision_schema import ensure_decision_schema
 from brasstacks.finds import (
     SUMMARY_MAX_CHARS, clean_owner_copy, normalise_feed_brief, owner_card_summary,
+    reported_outcome_view,
 )
+from brasstacks.outcome_schema import ensure_outcome_schema
 from brasstacks.repository import OWNER_SEEN_STATUSES, WITHHELD_STATUS
 from brasstacks.task_schema import ensure_task_schema
 
@@ -643,6 +645,12 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
             "predictedMonthlyShort": short_money(predicted * PER_MONTH),
             "actualDaily": actual,
             "actualDailyTxt": money(actual) if actual is not None else None,
+            # What the owner said this earned, if they have said. Separate from
+            # `actualDaily`, which is only ever a figure the Meter has already
+            # judged — a reported number waiting for its window to close is not
+            # yet a result and must not read as one.
+            "reportedOutcome": reported_outcome_view(
+                raw_find.get("reported_outcome"), money=money),
             "confidence": round(_float(raw_find.get("confidence")) * 100),
             "status": str(raw_find.get("status") or "proposed"),
             "verdict": raw_find.get("verdict"),
@@ -885,6 +893,9 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         return []
     ensure_task_schema(conn)
     ensure_decision_schema(conn)
+    # find_outcome is young; a cluster that has not been migrated would make
+    # the whole board fail to load rather than simply showing no figures.
+    ensure_outcome_schema(conn)
     placeholders = ",".join(["%s"] * len(ids))
 
     with conn.cursor() as cursor:
@@ -1022,6 +1033,17 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
             ORDER BY business_id, find_id, measured_at DESC
         """, ids)
 
+        # What the owner measured. Newest per find: a correction supersedes the
+        # figure it corrects on the board, exactly as it does for the Meter.
+        outcomes = _rows(cursor, f"""
+            SELECT DISTINCT ON (find_id)
+                   business_id, find_id, amount_cents, basis, daily_cents,
+                   note, reported_at
+            FROM find_outcome
+            WHERE business_id IN ({placeholders})
+            ORDER BY find_id, reported_at DESC
+        """, ids)
+
         runs = _rows(cursor, f"""
             SELECT business_id, id, agent, status, started_at, finished_at,
                    note, input_tokens, output_tokens, model_id, error
@@ -1089,6 +1111,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
     email_events_by_tool = _group(email_events, "tool_execution_id")
     decisions_by_find = _group(decision_events, "find_id")
     ledger_by_find = _group(ledger, "find_id")
+    outcomes_by_find = _group(outcomes, "find_id")
     runs_by_business = _group(runs)
     corpus_by_business = {str(row["business_id"]): row for row in corpus}
     kinds_by_business = _group(kinds)
@@ -1124,6 +1147,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
                 "measured_at", "period_start", "period_end",
             ):
                 raw[key] = latest_ledger.get(key) if latest_ledger else None
+            raw["reported_outcome"] = outcomes_by_find.get(find_id, [None])[0]
             raw_finds.append(raw)
 
         raw_tasks = []

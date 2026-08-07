@@ -143,6 +143,38 @@ Run `python db/migrate.py --schema-only` in CI before `sam deploy`. The migratio
 adds `external_connection`, `find.executed_at`, and the immutable link from the
 find to its successful `tool_execution` receipt.
 
+### Telling the Meter what a move actually earned
+
+The Meter's honest default reports **no data**, which produces an `estimated`
+verdict rather than a win. That is deliberate — but on its own it means no find
+can ever be `verified`, and the published hit rate stays undefined forever. A
+small business has no payments API to integrate; what it has is an owner who can
+count.
+
+So the **Growth** tab carries a result box on every approved move: an amount, the
+period it covers (a day, a week, or a month), and optionally how they know. It
+posts to `POST /finds/{find_id}/outcome`, which writes one append-only
+`find_outcome` row scoped to the caller's session.
+
+Three things it deliberately does not do:
+
+- **It does not score anything.** The row waits; the Meter judges it when the
+  measurement window closes. A figure reported on day two of fourteen is not a
+  result, and the interface says when the verdict is due rather than implying one.
+- **It does not move the forecast or the record.** The Growth headline stays a
+  sum of predictions and the chart stays drawn from the ledger. Nothing the owner
+  types can increase the verified figure.
+- **It cannot rewrite a measured verdict.** An `estimated` row is replaced when a
+  real figure arrives afterwards — that is the common case, since a find often
+  comes due before anyone has counted. A `verified` or `miss` row is final, in the
+  repository as well as in the UI.
+
+Money is entered as text and parsed to integer cents with `Decimal` on the
+server. The browser never multiplies by 100: `12.34 * 100` is 1233.9999999999998
+in JavaScript, and that is exactly how a cent goes missing.
+
+The migration adds the `find_outcome` table.
+
 Three details that are deliberate rather than incidental:
 
 - **The invite code is still required.** It is a spend control, not a formality —
@@ -189,11 +221,13 @@ backend/src/brasstacks/
   tools/              constrained external tools; SES review email is the first
   repository_pg.py   transactional SQL, atomic claims and execution receipts
   workflow_snapshot.py read-only operator projection for the live dashboard
-  meter.py           verdict logic; finds.py validates model output
+  meter.py           verdict logic and the reported-amount conversion
+  outcomes.py        where a measurement comes from; finds.py validates model output
 
 deploy/              SAM, Dockerfile, Step Functions ASL and deployment runbook
 
-db/schema.sql        15 tables, including decision_event/work_task/task_event/tool_execution
+db/schema.sql        19 tables, including decision_event/work_task/task_event/tool_execution
+                     and find_outcome, the owner's measured results
 db/fixtures/         the exported demo tenant the site build reads
 
 docs/MULTI_TENANT_AGENT_PLATFORM.md
@@ -345,6 +379,35 @@ operator can compare efficiency without mixing one business's memory with anothe
 | API Gateway | Throttled HTTP routes for Ask, decisions, authentication, onboarding and live workflow state. |
 
 Deployed with AWS SAM — see `deploy/` for the template and the runbook.
+
+### Turning the autopilot on
+
+The nightly schedule is what makes this a loop rather than a button, and it
+**ships disabled**: `ScheduleState` defaults to `DISABLED` in
+`deploy/template.yaml`, because a deploy that silently started spending on
+embeddings and Claude calls every night is a thing you would discover from a
+bill. Turning it on is meant to be a deliberate act.
+
+The `Deploy Brass Tacks` workflow asks for it explicitly — **Run workflow** takes
+`schedule_state` (defaults to `ENABLED`) and `schedule_expression` (defaults to
+`cron(0 18 * * ? *)`, read in the stack's `ScheduleTimezone`). Both are sent to
+CloudFormation on every deploy, because `sam deploy` reuses a stack's previous
+value for any parameter it is not given: a changed template default never
+reaches a stack that already exists.
+
+18:00 rather than dawn, and that is a data decision. The only three sweeps that
+ran on the original `cron(0 6 * * ? *)` fired at 06:28, 08:07 and 08:40 local, so
+every observation was captured while its tenant was closed — Radar read shut
+storefronts, "not available right now" reached the Analyst as an outage, and a
+find was published on it. 18:00 is inside trading hours for a restaurant, a shop
+and a salon alike, and the owner still wakes up to finished work.
+
+To confirm what is actually deployed:
+
+```bash
+aws scheduler get-schedule --name NightFunctionNightly --region us-east-1 \
+  --query "{State:State,Expr:ScheduleExpression,Tz:ScheduleExpressionTimezone}"
+```
 
 **Reasoning runs on the Anthropic API, not Bedrock.** This is forced, not preferred.
 AWS could not grant this account any current Claude model: `agreementAvailability` is
