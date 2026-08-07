@@ -104,8 +104,22 @@ jobs:
       # workflow dialog.
       - name: Deploy existing stack
         id: deploy_stack
+        # Values reach the shell through env rather than being interpolated into
+        # the script, so a workflow input can never become part of the command.
+        env:
+          ARTIFACT_BUCKET: ${{ steps.existing.outputs.artifact_bucket }}
+          SCHEDULE_STATE: ${{ inputs.schedule_state }}
+          SCHEDULE_EXPRESSION: ${{ inputs.schedule_expression }}
         run: |
-          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides               ArtifactBucket="${{ steps.existing.outputs.artifact_bucket }}" ScheduleState="${{ inputs.schedule_state }}" ScheduleExpression="${{ inputs.schedule_expression }}"
+          # The inner \" are load-bearing. `--parameter-overrides` takes one
+          # argument holding every Key=Value pair, and SAM re-splits it on
+          # whitespace itself — so the shell's own quotes, which it strips
+          # before SAM ever sees them, protect nothing. On 2026-08-07 that sent
+          # `ScheduleExpression=cron(0` to CloudFormation, EventBridge rejected
+          # it as an invalid schedule expression, and the whole stack update
+          # rolled back. SAM's parser does honour literal quotes in the value;
+          # these are the ones that survive to it.
+          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides "ArtifactBucket=\"$ARTIFACT_BUCKET\" ScheduleState=\"$SCHEDULE_STATE\" ScheduleExpression=\"$SCHEDULE_EXPRESSION\""
 
       - name: Show CloudFormation failure details
         if: always() && steps.deploy_stack.outcome == 'failure'
