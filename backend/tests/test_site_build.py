@@ -1921,19 +1921,47 @@ def test_the_welcome_screen_shows_once_not_forever():
 def test_each_audience_sees_only_its_own_views():
     """An owner and an operator are two products sharing one page.
 
-    The operator owns no business, so For You and Growth would be empty for
-    them — their session carries no tenant and the workflow endpoint answers
-    401 by design. An owner must never see the Memory Engine, which reads
-    across tenants.
+    The operator owns no business, so For You, Growth and DoorDash would be
+    empty for them — their session carries no tenant and the workflow endpoint
+    answers 401 by design. An owner must never see the Memory Engine, which
+    reads across tenants.
+
+    DoorDash joined the owner's side of that split when it was added. It shows
+    one tenant's standing orders, spend limits and receipts, so it belongs
+    wherever For You and Growth belong and nowhere else.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);" in html
-    assert 'OPERATOR_SESSION\n        ? ["autopilot", "growth"]' in html
+    assert 'OPERATOR_SESSION\n        ? ["autopilot", "growth", "orders"]' in html
     assert ': ["admin"];' in html
     # Several call sites ask for "autopilot" by name; one guard inside
     # switchView beats four at the call sites, and cannot be forgotten at a fifth.
     assert 'if (OPERATOR_SESSION) viewName = "admin";' in html
+
+
+def test_the_doordash_screen_admits_it_is_a_preview():
+    """Every other owner screen draws its figures out of CockroachDB.
+
+    The DoorDash screen does not yet — the ordering rules underneath it are
+    built and tested, but nothing is stored, no account is connected and no
+    order can be placed. A screen showing carts, receipts and weekly spend that
+    is quietly sample data is precisely the thing the honesty rules exist to
+    prevent, so it has to say so on the page rather than only in a comment.
+
+    Delete this test when the storage layer lands and the figures are real.
+    Until then it is what stops the label being tidied away.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    banner = html[html.index('id="view-orders"'):html.index('id="view-admin"')]
+
+    assert "orders-mock-banner" in banner
+    assert "Preview, not live." in banner
+    # The three specific claims. A vaguer "demo data" note would let a reader
+    # assume the connection is real and only the numbers are illustrative.
+    assert "nothing here is saved" in banner
+    assert "no DoorDash account is" in banner
+    assert "no order can be placed" in banner
 
 
 def test_removing_a_tab_happens_before_handlers_are_bound():
