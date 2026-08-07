@@ -18626,6 +18626,316 @@
     }
   </style>
 
+  <!--
+    DoorDash screen. Uses the shared tokens rather than a new palette: this is
+    the owner's screen and should feel like the rest of their board, not like a
+    bolted-on integration page.
+  -->
+  <style>
+    .orders-inner {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+      padding: 24px 0 48px;
+    }
+
+    .orders-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .orders-header h1 {
+      font-size: clamp(26px, 3.4vw, 34px);
+      letter-spacing: -.02em;
+      margin: 0;
+    }
+
+    .orders-sub {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .orders-connection {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+
+    .orders-conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted-2);
+    }
+
+    /* Says the screen is a preview. Deliberately loud, and deliberately the
+       first thing under the heading. */
+    .orders-mock-banner {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      padding: 13px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid #e7cf9a;
+      background: #fdf6e6;
+      color: #6b5316;
+    }
+
+    .orders-mock-banner svg { flex: none; margin-top: 1px; }
+    .orders-mock-banner p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+
+    .orders-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px 20px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .orders-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .orders-card-head h2 {
+      margin: 0;
+      font-size: 15.5px;
+      letter-spacing: -.01em;
+    }
+
+    .orders-chip {
+      font-size: 11.5px;
+      font-weight: 650;
+      color: var(--muted);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    .orders-chip.estimate { color: #7a5c12; background: #fdf6e6; border-color: #eddcb4; }
+
+    .orders-count {
+      min-width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .orders-count.has-items { background: var(--brand-soft); color: var(--brand-dark); }
+
+    .orders-ask { display: flex; gap: 9px; }
+
+    .orders-ask input {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line-strong);
+      background: var(--surface-soft);
+      color: var(--ink);
+      font: inherit;
+      font-size: 14.5px;
+    }
+
+    .orders-ask input:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: var(--surface);
+      box-shadow: 0 0 0 3px var(--brand-soft);
+    }
+
+    .orders-btn {
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      padding: 11px 17px;
+      font: inherit;
+      font-size: 13.5px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: background .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease);
+    }
+
+    .orders-btn.primary { background: var(--brand); color: #fff; }
+    .orders-btn.primary:hover { background: var(--brand-dark); }
+    .orders-btn.approve { background: var(--approve); color: #fff; }
+    .orders-btn.approve:hover { background: var(--approve-hover); }
+
+    .orders-btn.ghost {
+      background: var(--surface);
+      border-color: var(--line-strong);
+      color: var(--ink-soft);
+    }
+
+    .orders-btn.ghost:hover { background: var(--surface-soft); }
+    .orders-btn.small { padding: 6px 12px; font-size: 12.5px; }
+
+    .orders-ask-examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 11px;
+    }
+
+    .orders-example {
+      border: 1px dashed var(--line-strong);
+      background: transparent;
+      border-radius: 999px;
+      padding: 5px 12px;
+      font: inherit;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .orders-example:hover { color: var(--brand-dark); border-color: var(--brand); }
+
+    .orders-note {
+      margin: 12px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 10px 13px;
+      border-radius: var(--radius-md);
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+    }
+
+    .orders-note.warn { background: #fff6f6; border-color: #f0d2d6; color: #98404e; }
+
+    .orders-list { display: grid; gap: 10px; }
+
+    .orders-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      background: var(--surface-soft);
+      display: grid;
+      gap: 9px;
+    }
+
+    .orders-row.pending { background: var(--surface); border-color: var(--line-strong); }
+    .orders-row.blocked { background: #fff6f6; border-color: #f0d2d6; }
+
+    .orders-row-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .orders-row-title { font-weight: 650; font-size: 14.5px; color: var(--ink); }
+    .orders-row-total { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+
+    .orders-lines {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+
+    .orders-lines li { display: flex; justify-content: space-between; gap: 12px; }
+    .orders-lines span:last-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+    .orders-why {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .orders-row.blocked .orders-why { color: #98404e; }
+
+    .orders-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .orders-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .orders-tag.auto { background: var(--approve-soft); border-color: #bfe5d6; color: #0b6f52; }
+    .orders-tag.ask { background: var(--brand-soft); border-color: #ccd3fb; color: var(--brand-dark); }
+    .orders-tag.inferred { background: #fdf6e6; border-color: #eddcb4; color: #7a5c12; }
+
+    .orders-empty {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted-2);
+      padding: 6px 2px;
+    }
+
+    .orders-foot {
+      margin: 12px 0 0;
+      font-size: 12px;
+      color: var(--muted-2);
+      line-height: 1.55;
+    }
+
+    .orders-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+
+    .orders-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .orders-bar {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--line);
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .orders-bar > i { display: block; height: 100%; background: var(--brand); border-radius: 3px; }
+    .orders-bar > i.low { background: #d99a2b; }
+
+    @media (max-width: 640px) {
+      .orders-ask { flex-direction: column; }
+      .orders-card { padding: 16px; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -18659,6 +18969,13 @@
             <path d="M5 18V11M12 18V6M19 18V9" /><path d="M4 19h16" />
           </svg>
           <span>Growth</span>
+        </button>
+        <button class="view-tab" type="button" data-view="orders">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M4 7h16l-1.4 11.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8z" />
+            <path d="M9 7V5.6A3 3 0 0 1 12 3a3 3 0 0 1 3 2.6V7" />
+          </svg>
+          <span>DoorDash</span>
         </button>
         <button class="view-tab" type="button" data-view="admin">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -18799,6 +19116,128 @@
         console mock in `Product Demo/` was the visual reference for the shape; none
         of its simulated job pipeline is reproduced here, because none of it is real.
       -->
+      <!--
+        DoorDash — the Quartermaster's screen. A MOCKUP, and labelled as one on
+        the page itself rather than only in this comment.
+
+        Every other screen in this app draws rows out of CockroachDB and the
+        honesty rules in CLAUDE.md forbid putting anything on them that is not
+        stored. This screen breaks that rule on purpose and therefore has to
+        announce it: the ordering logic underneath is built and tested
+        (purchase_authority, ordering, quartermaster, standing_orders, stock,
+        order_intent) but nothing is persisted yet, there is no DoorDash
+        connection, and no money can move. The banner at the top says exactly
+        that and must not be removed until the storage layer lands.
+
+        The interactions are wired to the same rules the Python enforces, so
+        this is a faithful preview rather than a drawing: asking for something
+        prices it, an inferred low-stock order always stops for approval
+        however permissive the limits, and a cart whose price moved after
+        approval refuses to place itself.
+      -->
+      <section class="view" id="view-orders" aria-labelledby="ordersHeading">
+        <div class="view-inner orders-inner">
+          <header class="orders-header" data-enter>
+            <div>
+              <h1 id="ordersHeading">DoorDash</h1>
+              <p class="orders-sub">Supplies, handled. You approve what matters.</p>
+            </div>
+            <div class="orders-connection" id="ordersConnection">
+              <span class="orders-conn-dot" aria-hidden="true"></span>
+              <span>Not connected</span>
+            </div>
+          </header>
+
+          <div class="orders-mock-banner" role="note" data-enter>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.2v.1" />
+            </svg>
+            <p>
+              <strong>Preview, not live.</strong> The ordering rules below are built and
+              tested, but nothing here is saved to CockroachDB, no DoorDash account is
+              connected, and no order can be placed. Every figure on this screen is
+              sample data.
+            </p>
+          </div>
+
+          <!-- 1. Ask for something — the owner_instruction trigger. -->
+          <section class="orders-card" aria-labelledby="ordersAskHeading" data-enter>
+            <header class="orders-card-head">
+              <h2 id="ordersAskHeading">Ask for something</h2>
+              <span class="orders-chip">Say it how you'd say it</span>
+            </header>
+            <form class="orders-ask" id="ordersAskForm">
+              <input type="text" id="ordersAskInput" autocomplete="off"
+                     placeholder="order 20lb of tomatoes and a case of olive oil"
+                     aria-label="What would you like to order?" />
+              <button type="submit" class="orders-btn primary">Price it</button>
+            </form>
+            <div class="orders-ask-examples">
+              <button type="button" class="orders-example" data-example="order 20lb of tomatoes and a case of olive oil">20lb tomatoes + olive oil</button>
+              <button type="button" class="orders-example" data-example="get 3 bags of flour">3 bags of flour</button>
+              <button type="button" class="orders-example" data-example="how did we do last month?">how did we do last month?</button>
+            </div>
+            <p class="orders-note" id="ordersAskNote" hidden></p>
+          </section>
+
+          <!-- 2. The approval gate. -->
+          <section class="orders-card" aria-labelledby="ordersPendingHeading" data-enter>
+            <header class="orders-card-head">
+              <h2 id="ordersPendingHeading">Waiting for you</h2>
+              <span class="orders-count" id="ordersPendingCount">0</span>
+            </header>
+            <div id="ordersPendingList" class="orders-list"></div>
+            <p class="orders-empty" id="ordersPendingEmpty">Nothing needs your approval.</p>
+          </section>
+
+          <div class="orders-grid">
+            <!-- 3. Standing orders — the schedule trigger. -->
+            <section class="orders-card" aria-labelledby="ordersStandingHeading" data-enter>
+              <header class="orders-card-head">
+                <h2 id="ordersStandingHeading">Standing orders</h2>
+                <button type="button" class="orders-btn ghost small" id="ordersAddStanding">Add</button>
+              </header>
+              <div id="ordersStandingList" class="orders-list"></div>
+            </section>
+
+            <!-- 4. Stock — the inferred trigger. Every figure labelled an estimate. -->
+            <section class="orders-card" aria-labelledby="ordersStockHeading" data-enter>
+              <header class="orders-card-head">
+                <h2 id="ordersStockHeading">What's running low</h2>
+                <span class="orders-chip estimate">Estimated</span>
+              </header>
+              <div id="ordersStockList" class="orders-list"></div>
+              <p class="orders-foot">
+                Worked out from what you last bought and how long ago — not counted.
+                That's why anything here always asks before ordering.
+              </p>
+            </section>
+          </div>
+
+          <!-- 5. Purchase authority — the spend limits. -->
+          <section class="orders-card" aria-labelledby="ordersLimitsHeading" data-enter>
+            <header class="orders-card-head">
+              <h2 id="ordersLimitsHeading">What the agent may buy on its own</h2>
+              <button type="button" class="orders-btn ghost small" id="ordersAddLimit">Add</button>
+            </header>
+            <div id="ordersLimitsList" class="orders-list"></div>
+            <p class="orders-foot">
+              Limits are enforced in code before checkout, never by the model reading a
+              sentence. Going over one doesn't cancel an order — it asks you.
+            </p>
+          </section>
+
+          <!-- 6. Receipts. -->
+          <section class="orders-card" aria-labelledby="ordersHistoryHeading" data-enter>
+            <header class="orders-card-head">
+              <h2 id="ordersHistoryHeading">Orders placed</h2>
+            </header>
+            <div id="ordersHistoryList" class="orders-list"></div>
+            <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
+          </section>
+        </div>
+      </section>
+
       <!--
         Admin view — the operator console. Deliberately a different visual world from
         Autopilot and Growth: those are the owner's screens, this is the machine room.
@@ -19868,7 +20307,7 @@
 
     (function gateViewsToTheAudience() {
       const hidden = OPERATOR_SESSION
-        ? ["autopilot", "growth"]
+        ? ["autopilot", "growth", "orders"]
         : ["admin"];
       hidden.forEach(name => {
         //  The TAB goes; the view stays in the document.
@@ -27951,6 +28390,315 @@ ledger_entry · artifact · agent_run`,
     // device. Continuous polling remains operator-only and begins only when
     // Memory Engine is visible.
     if (workflowApiConfigured) refreshWorkflowSnapshot({ silent: true });
+
+    /* ------------------------------------------------------------------
+       DoorDash screen — a preview of the Quartermaster.
+
+       Sample data only. Nothing here reaches CockroachDB, no DoorDash
+       account is connected, and no money can move; the banner on the page
+       says so. What it is faithful about is the *rules*, which mirror the
+       tested Python exactly:
+
+         * a cart is placed automatically only when every line is covered
+           and the total sits inside every limit that applies;
+         * a low-stock order always stops for a human, however permissive
+           the limits, because a depletion figure is an estimate;
+         * an approval is bound to a specific cart, so a price that moved
+           since you agreed to it refuses to place and asks again.
+
+       When storage lands, these render functions keep their shape and the
+       fixtures below become reads.
+       ------------------------------------------------------------------ */
+    (function ordersPreview() {
+      const view = document.getElementById("view-orders");
+      if (!view) return;
+
+      const CATALOGUE = { "tomatoes": 450, "olive oil": 1200, "flour": 325, "saffron": 4200 };
+      const FEES = 299;
+
+      // Mirrors purchase_authority.PurchaseAuthority.
+      const limits = [
+        { scope: "produce", level: "auto", perOrder: 12000, periodCap: 20000, spent: 4850 },
+        { scope: "flour", level: "ask_if_over", perOrder: 8000, threshold: 2000, spent: 0 },
+        { scope: "saffron", level: "ask_always", perOrder: 50000, spent: 0 },
+      ];
+
+      const standing = [
+        { name: "The usual produce", items: [["tomatoes", 8]], when: "Every Tuesday", next: "Tue 11 Aug", paused: false, category: "produce" },
+        { name: "Dry goods top-up", items: [["flour", 4]], when: "Every 14 days", next: "Thu 20 Aug", paused: false, category: null },
+      ];
+
+      // Mirrors stock.StockEstimate — the basis sentence is shown, not hidden.
+      const stock = [
+        { name: "tomatoes", remaining: 5, reorderAt: 7, reorderQty: 12, full: 14,
+          basis: "Last bought 9 days ago (14 units); you get through about 7 a week, so roughly 5 left." },
+        { name: "olive oil", remaining: 2, reorderAt: 3, reorderQty: 6, full: 8,
+          basis: "Last bought 12 days ago (8 units); you get through about 3 a week, so roughly 2 left." },
+      ];
+
+      const pending = [];
+      const history = [
+        { title: "The usual produce", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing" },
+        { title: "Flour, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked" },
+      ];
+
+      const money = c => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
+      const el = id => document.getElementById(id);
+
+      function priceCart(items) {
+        const lines = items.map(([name, qty]) => {
+          const unit = CATALOGUE[name];
+          if (unit == null) throw new Error(`${name} is not sold here`);
+          return { name, qty, unit, total: unit * qty };
+        });
+        const subtotal = lines.reduce((sum, l) => sum + l.total, 0);
+        return { lines, subtotal, fees: FEES, total: subtotal + FEES };
+      }
+
+      /* The same shape as purchase_authority.authorize: every line must be
+         covered, and each line's rule is tested against the CART TOTAL — so a
+         rule permitting $10 of oil cannot help authorise a $200 order that
+         happens to contain some. */
+      function authorize(cart, category, trigger) {
+        if (trigger === "stock") {
+          return { ok: false, reason: "This came from an inferred stock level, which is an estimate, so it always needs your approval." };
+        }
+        for (const line of cart.lines) {
+          const rule = limits.find(l => l.scope === line.name)
+                    || (category ? limits.find(l => l.scope === category) : null);
+          if (!rule) return { ok: false, reason: `No standing authority covers ${line.name}.` };
+          if (rule.level === "ask_always") return { ok: false, reason: `${rule.scope} is set to ask every time.` };
+          if (cart.total > rule.perOrder) {
+            return { ok: false, reason: `${money(cart.total)} is over the ${money(rule.perOrder)} per-order limit for ${rule.scope}.` };
+          }
+          if (rule.periodCap != null && rule.spent + cart.total > rule.periodCap) {
+            return { ok: false, reason: `This would take 7-day spend on ${rule.scope} to ${money(rule.spent + cart.total)}, over the ${money(rule.periodCap)} limit.` };
+          }
+          if (rule.level === "ask_if_over" && cart.total > rule.threshold) {
+            return { ok: false, reason: `${money(cart.total)} is over the ${money(rule.threshold)} ask-me-first threshold for ${rule.scope}.` };
+          }
+        }
+        return { ok: true, reason: "Within your standing limits." };
+      }
+
+      const lineHtml = cart => `
+        <ul class="orders-lines">
+          ${cart.lines.map(l => `<li><span>${escapeHtml(l.name)} &times;${l.qty}</span><span>${money(l.total)}</span></li>`).join("")}
+          <li><span>Delivery &amp; fees</span><span>${money(cart.fees)}</span></li>
+        </ul>`;
+
+      function renderPending() {
+        const list = el("ordersPendingList");
+        const count = el("ordersPendingCount");
+        count.textContent = String(pending.length);
+        count.classList.toggle("has-items", pending.length > 0);
+        el("ordersPendingEmpty").hidden = pending.length > 0;
+        list.innerHTML = pending.map((p, i) => `
+          <article class="orders-row ${p.priceMoved ? "blocked" : "pending"}">
+            <div class="orders-row-top">
+              <span class="orders-row-title">${escapeHtml(p.title)}</span>
+              <span class="orders-row-total">${money(p.cart.total)}</span>
+            </div>
+            ${lineHtml(p.cart)}
+            <p class="orders-why">${escapeHtml(p.reason)}</p>
+            <div class="orders-actions">
+              <button type="button" class="orders-btn approve" data-approve="${i}">Approve &amp; order</button>
+              <button type="button" class="orders-btn ghost" data-reject="${i}">Not now</button>
+              ${p.priceMoved ? "" : `<button type="button" class="orders-btn ghost" data-drift="${i}">Simulate a price change</button>`}
+            </div>
+          </article>`).join("");
+      }
+
+      function renderStanding() {
+        el("ordersStandingList").innerHTML = standing.map((s, i) => `
+          <article class="orders-row">
+            <div class="orders-row-top">
+              <span class="orders-row-title">${escapeHtml(s.name)}</span>
+              <span class="orders-tag ${s.paused ? "" : "auto"}">${s.paused ? "Paused" : "Active"}</span>
+            </div>
+            <p class="orders-why">${escapeHtml(s.items.map(([n, q]) => `${n} ×${q}`).join(", "))}</p>
+            <div class="orders-meta">
+              <span>${escapeHtml(s.when)}</span><span>&middot;</span>
+              <span>Next: ${escapeHtml(s.paused ? "—" : s.next)}</span>
+            </div>
+            <div class="orders-actions">
+              <button type="button" class="orders-btn ghost small" data-pause="${i}">${s.paused ? "Resume" : "Pause"}</button>
+              <button type="button" class="orders-btn ghost small" data-run="${i}">Run it now</button>
+            </div>
+          </article>`).join("");
+      }
+
+      function renderStock() {
+        el("ordersStockList").innerHTML = stock.map((s, i) => {
+          const pct = Math.max(4, Math.round((s.remaining / s.full) * 100));
+          const low = s.remaining <= s.reorderAt;
+          return `
+            <article class="orders-row">
+              <div class="orders-row-top">
+                <span class="orders-row-title">${escapeHtml(s.name)}</span>
+                <span class="orders-tag inferred">~${s.remaining} left</span>
+              </div>
+              <div class="orders-bar"><i class="${low ? "low" : ""}" style="width:${pct}%"></i></div>
+              <p class="orders-why">${escapeHtml(s.basis)}</p>
+              ${low ? `<div class="orders-actions">
+                <button type="button" class="orders-btn ghost small" data-restock="${i}">Draft an order for ${s.reorderQty}</button>
+              </div>` : ""}
+            </article>`;
+        }).join("");
+      }
+
+      function renderLimits() {
+        const label = { auto: "Buys on its own", ask_if_over: "Asks above a limit", ask_always: "Always asks" };
+        const tag = { auto: "auto", ask_if_over: "ask", ask_always: "ask" };
+        el("ordersLimitsList").innerHTML = limits.map(l => `
+          <article class="orders-row">
+            <div class="orders-row-top">
+              <span class="orders-row-title">${escapeHtml(l.scope)}</span>
+              <span class="orders-tag ${tag[l.level]}">${label[l.level]}</span>
+            </div>
+            <div class="orders-meta">
+              <span>Up to ${money(l.perOrder)} an order</span>
+              ${l.threshold != null ? `<span>&middot;</span><span>Asks above ${money(l.threshold)}</span>` : ""}
+              ${l.periodCap != null ? `<span>&middot;</span><span>${money(l.spent)} of ${money(l.periodCap)} used this week</span>` : ""}
+            </div>
+          </article>`).join("");
+      }
+
+      function renderHistory() {
+        el("ordersHistoryEmpty").hidden = history.length > 0;
+        el("ordersHistoryList").innerHTML = history.map(h => `
+          <article class="orders-row">
+            <div class="orders-row-top">
+              <span class="orders-row-title">${escapeHtml(h.title)}</span>
+              <span class="orders-row-total">${money(h.total)}</span>
+            </div>
+            <div class="orders-meta">
+              <span>${escapeHtml(h.when)}</span><span>&middot;</span>
+              <span>${escapeHtml(h.tag)}</span><span>&middot;</span>
+              <span>Ref ${escapeHtml(h.ref)}</span>
+            </div>
+          </article>`).join("");
+      }
+
+      function renderAll() { renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory(); }
+
+      function submit(cart, title, category, trigger) {
+        const verdict = authorize(cart, category, trigger);
+        if (verdict.ok) {
+          history.unshift({ title, total: cart.total, when: "Just now",
+                            ref: `dd-preview-${history.length + 1}`, tag: "placed automatically" });
+          note(`Placed automatically — ${money(cart.total)}. ${verdict.reason}`, false);
+        } else {
+          pending.push({ title, cart, reason: verdict.reason, category, trigger });
+          note(`Needs your approval. ${verdict.reason}`, false);
+        }
+        renderAll();
+      }
+
+      function note(text, warn) {
+        const target = el("ordersAskNote");
+        target.textContent = text;
+        target.classList.toggle("warn", Boolean(warn));
+        target.hidden = false;
+      }
+
+      /* Stands in for order_intent.parse_order_request. The real one asks a
+         model and then distrusts everything it returns; this one keyword-matches
+         the fixture catalogue. Same contract: unknown text is refused rather
+         than guessed at. */
+      function readRequest(text) {
+        const lower = String(text || "").toLowerCase();
+        const items = [];
+        for (const name of Object.keys(CATALOGUE)) {
+          if (!lower.includes(name.split(" ")[0])) continue;
+          const near = lower.match(new RegExp(`(\\d+)[^.]{0,18}?${name.split(" ")[0]}`));
+          items.push([name, near ? Math.max(1, parseInt(near[1], 10)) : 1]);
+        }
+        return items;
+      }
+
+      el("ordersAskForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const text = el("ordersAskInput").value.trim();
+        if (!text) return;
+        const items = readRequest(text);
+        if (!items.length) {
+          note("That didn't look like a request to buy anything I recognise. Try naming an item.", true);
+          return;
+        }
+        const category = items.every(([n]) => n === "tomatoes" || n === "olive oil") ? "produce" : null;
+        submit(priceCart(items), text, category, "owner");
+        el("ordersAskInput").value = "";
+      });
+
+      view.addEventListener("click", event => {
+        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example]");
+        if (!target) return;
+
+        if (target.dataset.example != null) {
+          el("ordersAskInput").value = target.dataset.example;
+          el("ordersAskInput").focus();
+          return;
+        }
+        if (target.dataset.approve != null) {
+          const item = pending[Number(target.dataset.approve)];
+          if (item.priceMoved) {
+            note("Re-priced and placed at the new total.", false);
+          }
+          history.unshift({ title: item.title, total: item.cart.total, when: "Just now",
+                            ref: `dd-preview-${history.length + 1}`, tag: "you approved" });
+          pending.splice(Number(target.dataset.approve), 1);
+          renderAll();
+          return;
+        }
+        if (target.dataset.reject != null) {
+          pending.splice(Number(target.dataset.reject), 1);
+          renderAll();
+          return;
+        }
+        // The approval was bound to one cart at one price. Moving the price
+        // invalidates it — the order does not place, it comes back.
+        if (target.dataset.drift != null) {
+          const item = pending[Number(target.dataset.drift)];
+          item.cart = priceCart(item.cart.lines.map(l => [l.name, l.qty]));
+          item.cart.lines.forEach(l => { l.unit = Math.round(l.unit * 1.4); l.total = l.unit * l.qty; });
+          item.cart.subtotal = item.cart.lines.reduce((s, l) => s + l.total, 0);
+          item.cart.total = item.cart.subtotal + item.cart.fees;
+          item.priceMoved = true;
+          item.reason = "The price changed after you approved this, so it was not placed. Here is the current cart.";
+          renderAll();
+          return;
+        }
+        if (target.dataset.pause != null) {
+          const item = standing[Number(target.dataset.pause)];
+          item.paused = !item.paused;
+          renderStanding();
+          return;
+        }
+        if (target.dataset.run != null) {
+          const item = standing[Number(target.dataset.run)];
+          submit(priceCart(item.items), `Standing order: ${item.name}`, item.category, "standing");
+          return;
+        }
+        if (target.dataset.restock != null) {
+          const item = stock[Number(target.dataset.restock)];
+          submit(priceCart([[item.name, item.reorderQty]]), `Low stock: ${item.name}`, null, "stock");
+        }
+      });
+
+      // One waiting approval on first paint, so the screen shows the gate
+      // rather than an empty section. Saffron is set to ask every time, which
+      // is the reason shown.
+      pending.push({
+        title: "Saffron, 1 tin",
+        cart: priceCart([["saffron", 1]]),
+        reason: "saffron is set to ask every time.",
+        category: null,
+        trigger: "owner",
+      });
+
+      renderAll();
+    })();
   </script>
 </body>
 </html>
