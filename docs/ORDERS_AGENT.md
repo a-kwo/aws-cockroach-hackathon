@@ -1,7 +1,7 @@
 # The Quartermaster — an ordering agent for Brass Tacks
 
 > Status: **design only.** Nothing in this document is built. Written 2026-08-07.
-> Supersedes nothing. The phasing in §9 is the part to argue with.
+> Supersedes nothing. The phasing in §11 is the part to argue with.
 
 An agent that places and tracks the business's **own supply orders**, starting with
 DoorDash, and — later, when access allows — reads the business's **incoming** DoorDash
@@ -38,7 +38,7 @@ It is worth building for that reason alone, and the ordering convenience is a bo
 **The corollary is a constraint, not a bonus:** spend that Brass Tacks itself initiated
 is the only spend it may count. An outcome derived from an order the agent placed is
 clean. An outcome derived from guessing at orders the owner placed elsewhere is
-estimation wearing a receipt's clothing, and §8 forbids it.
+estimation wearing a receipt's clothing, and §10 forbids it.
 
 ---
 
@@ -67,11 +67,11 @@ cookies into a public hackathon repo. `dd-cli` is the sanctioned path and we tak
 
 1. **macOS-only.** Brass Tacks runs on Lambda container images, which are Linux. There is
    no `dd-cli` binary that can run in the nightly loop. This is not a packaging problem
-   to be worked around; the artifact does not exist. §6 is the answer.
+   to be worked around; the artifact does not exist. §8 is the answer.
 2. **Waitlist-gated.** Full function needs an approved account and an interactive
-   `dd-cli login`. A judge cloning the repo cannot reproduce it. §9 Phase 0 is the answer.
+   `dd-cli login`. A judge cloning the repo cannot reproduce it. §11 Phase 0 is the answer.
 3. **It spends real money from a real payment method.** An autonomous nightly Lambda with
-   checkout authority is a bad idea in general and an indefensible one in a demo. §8 is
+   checkout authority is a bad idea in general and an indefensible one in a demo. §10 is
    the answer.
 
 ---
@@ -118,7 +118,7 @@ the write path needs, and that is the strongest argument for the design being ri
 - `decision_event` already gives the append-only record of who approved what.
 
 The genuinely new pieces are: one `SignalSource`, one agent module, one tool adapter, one
-`OutcomeSource`, and the local worker in §6.
+`OutcomeSource`, and the local worker in §8.
 
 ---
 
@@ -157,7 +157,7 @@ A new agent, `agent='quartermaster'`, with three task types:
 
 | `task_type` | What it does | Spends money |
 |---|---|---|
-| `procurement.draft_order` | Build a cart from the find's `move`, price it, stop | No |
+| `procurement.draft_order` | Build a cart, price it, stop | No |
 | `procurement.place_order` | Check out the approved cart | **Yes** |
 | `procurement.reconcile` | Pull the receipt, write line items | No |
 
@@ -165,14 +165,111 @@ The split is the safety boundary. Drafting is free and can run unattended; only
 `place_order` touches the payment method, and it exists as a separate row with its own
 approval gate and its own idempotency key.
 
-**The nightly loop never places an order.** The most a night may do is write a *find*
-proposing one. `run_night()` sequences Radar → Analyst → Maker → Meter and stays exactly
-as it is; the Quartermaster is request-driven like Ask and Decision, not part of the
-chain. This also keeps the night inside its time budget.
+**The nightly loop never places an order.** The most a night may do is create a
+`draft_order` task. `run_night()` sequences Radar → Analyst → Maker → Meter and stays
+exactly as it is; the Quartermaster is request-driven like Ask and Decision, not part of
+the chain. This also keeps the night inside its time budget.
+
+### 5.1 Four ways an order starts
+
+Ordering is a **utility the owner has**, not only a consequence of an insight. An earlier
+draft of this document had exactly one entry point — a find, then *Do it* — which was too
+narrow: it meant the owner could not simply ask for tomatoes.
+
+| Trigger | Who starts it | Example |
+|---|---|---|
+| `owner_instruction` | The owner, in words | *"Order 20lb of tomatoes and a case of olive oil"* |
+| `standing_order` | A schedule the owner set | *"The usual produce order, every Tuesday"* |
+| `stock_threshold` | The agent's read of stock | *"Tomatoes are below par"* — §7 |
+| `find` | The Analyst | *"Consolidate your emergency runs — $23/day"* |
+
+**All four converge on the same pipeline**: `draft_order` → authorization → `place_order`
+→ receipt → Meter. The trigger changes *who asked* and *what authorizes it*; it never
+changes the machinery, the receipt, or the safety rules. One code path to test, one
+receipt format, one outcome source.
+
+This fits the existing table without a migration: `work_task.find_id` is already nullable,
+so an order that no find produced is representable today. The trigger goes in
+`input_data`, and `requested_by_account_id` already records a human requester.
+
+`owner_instruction` gets its own request-driven handler rather than being bolted onto
+Ask. **Ask stays read-only over MCP** — that is a stated property of the system and worth
+more than the convenience of one chat surface. Ask may later route an intent to the
+Quartermaster; it may not itself place orders.
 
 ---
 
-## 6. Where the tool adapter runs — the interesting problem
+## 6. Autonomy — how much the agent may do alone
+
+This is the real question behind "the owner should be able to trust the agent to make
+certain purchases," and it needs a sharper answer than a yes/no toggle.
+
+**Per item or category, the owner sets a level:**
+
+| Level | Behaviour |
+|---|---|
+| `ask_always` | Draft the cart, wait for approval. **The default for everything.** |
+| `ask_if_over` | Place it automatically under a cents threshold; ask above it |
+| `auto` | Place within the caps, notify afterwards |
+
+So *"reorder produce automatically up to $200/week, but ask me about anything else"* is
+expressible, which is the actual shape of the trust an owner wants to give. A blanket
+"the agent may buy things" is not.
+
+### Where this lives, and why not in `owner_rule`
+
+`owner_rule` is the right *concept* — the schema calls it "the leash you hold," and it
+already carries `cap_cents`. But it stores **prose**, fed into the Analyst's and Maker's
+prompts. A model reading *"you can reorder produce up to $200 a week"* and deciding
+whether a given cart complies is exactly the thing §10 rule 2 forbids: a spend ceiling
+must be enforced by deterministic code before checkout, not interpreted by a language
+model that can be argued with.
+
+So: **`owner_rule` stays the prose leash on reasoning. Standing purchase authority is
+structured** — a `purchase_authority` row naming the item or category, the level, the
+per-order and per-period caps, and the cadence for standing orders. Prose guides what the
+agent thinks; structure governs what it may spend. The two must not be the same field.
+
+### Scheduling without new infrastructure
+
+A standing order does **not** get its own EventBridge schedule. The night already runs
+daily per tenant, so it evaluates which standing orders are due and creates their
+`draft_order` tasks. No per-tenant infra to provision, no drift between a schedule and
+the row that describes it, and it is testable offline like the rest of the night. New
+tenants get scheduling for free.
+
+---
+
+## 7. Knowing what is in stock
+
+The third trigger needs something Brass Tacks does not have: a view of inventory. Three
+ways to get one, and only one is tractable now.
+
+1. **Par levels plus consumption inferred from receipts.** The owner declares what they
+   keep on hand and the reorder point. The agent depletes that model using purchase
+   history and elapsed time, and sharpens it as receipts accumulate. No new hardware, no
+   gated API, and it gets better the longer the system runs — which is the memory layer
+   doing its job.
+2. **POS integration.** Real stock data, and it needs merchant-side access we do not
+   have. Later.
+3. **Vision on the walk-in.** Demos well, works badly. Out of scope.
+
+Option 1, and with a caveat that matters more than the mechanism:
+
+> **An inferred stock level is a guess, not a measurement**, and the system already has
+> strong opinions about not confusing those. The ledger will not call a modelled figure
+> *Actual*; a depletion estimate must not be called *stock on hand*.
+
+Consequences: inference-triggered orders default to `ask_always` regardless of the
+category's level, and the draft must show its reasoning — *"last bought 9 days ago, you
+typically go through this in 7"* — so the owner can correct a wrong model instead of
+discovering it in a delivery. Promoting an item to `auto` on inferred stock should require
+the inference to have been right about that item several times, checked against real
+receipts. Same discipline as the Meter, applied to a different prediction.
+
+---
+
+## 8. Where the tool adapter runs — the interesting problem
 
 `dd-cli` is macOS-only. Lambda is Linux. The obvious answers are all bad: shipping a
 Linux binary that does not exist, reverse-engineering the private API, or driving a
@@ -205,7 +302,7 @@ decisions. All reasoning stays in the cloud where it is tested.
 
 ---
 
-## 7. Merchant side, for when access lands
+## 9. Merchant side, for when access lands
 
 Designed now, built when the gate opens. Kept short because speculating in detail about
 an API we cannot read is how designs rot.
@@ -223,32 +320,48 @@ an API we cannot read is how designs rot.
 
 ---
 
-## 8. Money safety — non-negotiable
+## 10. Money safety — non-negotiable
 
 These are product rules, not implementation details, and each should get a test that
 fails loudly.
 
-1. **No order is ever placed without an explicit owner approval recorded as a
-   `decision_event`.** Not a config flag, not an allowlist, not "under $50." A human says
-   yes to this specific cart, every time.
+1. **Every order traces to an explicit owner authorization recorded as a
+   `decision_event`** — either approval of this specific cart, or a standing authorization
+   the owner created that names the item or category and its caps (§6). Granted ahead of
+   time is still granted. What is never acceptable is an order authorized by nothing but
+   the model's judgement that it seemed reasonable.
+
+   > An earlier draft of this rule required per-cart approval every time. That is the
+   > safest possible rule and it makes the product useless for its most common case —
+   > the owner who wants produce handled without being asked weekly. The rule was
+   > loosened deliberately; the thing being preserved is *traceability to a human
+   > decision*, not the frequency of the clicking.
+
 2. **A per-tenant spend ceiling per order and per rolling 7 days**, enforced in the
-   adapter before checkout and re-checked against `tool_execution` history. A bug in the
-   agent must not be able to empty a bank account.
+   adapter before checkout and re-checked against `tool_execution` history. This is code,
+   not prose, and not a model's reading of prose (§6). It binds standing authority and
+   per-cart approval alike: a bug in the agent, or an owner who set a generous rule and
+   forgot, must not be able to empty a bank account.
 3. **The draft the owner approved is the cart that is bought.** The approved cart is
    hashed into the `place_order` idempotency key; if prices moved between draft and
    checkout, the task goes back to `waiting_user` rather than silently buying at the new
-   price.
-4. **Money stays integer cents**, per the standing rule. Receipts arrive as decimal
+   price. Under standing authority there is no cart to approve, so the same protection
+   becomes a bound: a total outside the authorized range escalates to `waiting_user`
+   instead of proceeding.
+4. **Every autonomous order is reversible for a window.** An `auto` order notifies the
+   owner immediately and offers cancellation while the provider still allows it. Trust
+   the owner grants ahead of time must stay revocable at the moment it is exercised.
+5. **Money stays integer cents**, per the standing rule. Receipts arrive as decimal
    strings; parse to cents at the boundary and never let a float in.
-5. **Spend is not revenue.** A procurement receipt is a *cost* fact. It may verify a
+6. **Spend is not revenue.** A procurement receipt is a *cost* fact. It may verify a
    savings prediction; it may never increment the verified daily figure directly, and the
    existing UI honesty rules apply unchanged.
-6. **Only Brass-Tacks-initiated orders count as outcomes** (§1). Orders the owner placed
+7. **Only Brass-Tacks-initiated orders count as outcomes** (§1). Orders the owner placed
    by other means are not receipts we are entitled to reason from.
 
 ---
 
-## 9. Phasing
+## 11. Phasing
 
 ### Phase 0 — the hackathon prototype (no DoorDash access required)
 
@@ -264,6 +377,15 @@ green.* The DoorDash boundary gets the same treatment.
 - The full Quartermaster task flow against a `FakeDoorDashTool`: draft → `waiting_user`
   → owner approves → `tool_execution` receipt → `ProcurementOutcomeSource` → Meter reads
   it on a later run → **VERIFIED**.
+- **All four triggers from §5.1**, since they are the same pipeline with different
+  entry points and building one is most of the work of building all four. Specifically:
+  `owner_instruction` (a handler that turns words into a draft cart), `standing_order`
+  (evaluated by the night, no new infrastructure), `stock_threshold` (par levels plus
+  depletion inferred from receipts, always `ask_always` in this phase), and `find`.
+- **The autonomy ladder and its enforcement** (§6): `purchase_authority` rows, and the
+  deterministic cap check that runs before any checkout. Worth building against the fake
+  adapter precisely *because* it is the code that must not be wrong when the adapter is
+  real — the ceiling is easiest to test against a tool that cannot actually charge anyone.
 - The local worker, running against the fake adapter.
 
 The demo beat this buys is the one CLAUDE.md calls the money shot, and it is better than
@@ -282,17 +404,17 @@ before that worker is ever trusted with a payment method.
 
 ### Phase 2 — real ordering
 
-`place_order` against live `dd-cli`, behind every rule in §8. Should not ship until
+`place_order` against live `dd-cli`, behind every rule in §10. Should not ship until
 Phase 1 has run unattended for a while and the spend ceilings have been tested against a
 deliberately misbehaving agent.
 
 ### Phase 3 — merchant side
 
-Whenever DoorDash opens the gate. §7.
+Whenever DoorDash opens the gate. §9.
 
 ---
 
-## 10. Test plan
+## 12. Test plan
 
 Per the working agreement: test first, fail first, and the money math gets the unhappy
 paths.
@@ -308,10 +430,15 @@ paths.
 - Spend ceiling: an agent that tries to exceed it fails closed and records why.
 - Approval gate: a `place_order` task with `approval_state != 'approved'` must refuse to
   execute, tested directly rather than only through the handler.
+- Standing authority: an order outside its named items or categories is refused; an order
+  inside them but over the cap is refused; a revoked authority stops taking effect
+  immediately; an expired cadence does not fire. Each of these is a way an owner ends up
+  paying for something they did not agree to, so each gets its own test.
+- Stock inference: a wrong depletion model must produce a *draft*, never a purchase.
 
 ---
 
-## 11. Open questions
+## 13. Open questions
 
 1. **Does the waitlist grant read-only access separately from ordering?** If yes, Phase 1
    gets much easier to justify and can ship before any payment method is attached.
@@ -323,3 +450,11 @@ paths.
    that already keeps the fictional corpus away from real tenants in
    `build_night_sources()`.
 4. **Spend ceiling defaults.** Wants an owner's opinion, not a developer's guess.
+5. **How does the owner express a standing order?** A structured form is unambiguous and
+   tedious; prose parsed into structure is pleasant and can be misread. Leaning towards
+   prose in, structure shown back for confirmation — the owner types it however they like
+   and approves the machine-readable version, so the thing that governs spending is
+   something a human explicitly signed off.
+6. **Does `auto` ship at all in the first real version?** `ask_always` and `ask_if_over`
+   cover most of the value at a fraction of the risk, and `auto` can wait until the
+   depletion model and the caps have a track record.
