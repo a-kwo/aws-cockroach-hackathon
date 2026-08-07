@@ -1,0 +1,237 @@
+"""The Quartermaster: the agent that buys the business's own supplies.
+
+Four things can start an order — the owner asking in words, a standing schedule,
+an inferred stock level, or a find the owner accepted — and all four arrive here.
+The trigger decides *who asked* and *what authorises it*; it never changes the
+machinery, the receipt, or the safety rules. One code path, one receipt format.
+
+This module is deliberately free of database and network access. It takes a
+request, an ordering tool and the owner's standing permissions, and returns
+either a receipt or a priced cart for a human to look at. The durable task rows,
+the lease protocol and the real provider live outside it, which is what makes
+the dangerous decisions here exhaustively testable offline.
+
+See docs/ORDERS_AGENT.md sections 5, 6 and 10.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Sequence
+
+from brasstacks.ordering import (
+    Cart,
+    ItemUnavailable,
+    OrderingError,
+    OrderingTool,
+    Receipt,
+)
+from brasstacks.purchase_authority import (
+    Authorization,
+    Decision,
+    PurchaseAuthority,
+    authorize,
+)
+
+#: How an order came to be proposed.
+TRIGGER_OWNER_INSTRUCTION = "owner_instruction"
+TRIGGER_STANDING_ORDER = "standing_order"
+TRIGGER_STOCK_THRESHOLD = "stock_threshold"
+TRIGGER_FIND = "find"
+
+TRIGGERS = frozenset({
+    TRIGGER_OWNER_INSTRUCTION,
+    TRIGGER_STANDING_ORDER,
+    TRIGGER_STOCK_THRESHOLD,
+    TRIGGER_FIND,
+})
+
+#: Triggers whose orders always go past a human, whatever standing permission
+#: exists. A depletion model is a guess, and a guess must not be able to spend.
+ALWAYS_ASK_TRIGGERS = frozenset({TRIGGER_STOCK_THRESHOLD})
+
+
+class Status(str, Enum):
+    PLACED = "placed"
+    AWAITING_APPROVAL = "awaiting_approval"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class OrderRequest:
+    items: tuple[tuple[str, int], ...]
+    trigger: str
+    #: Lets a category-level permission ("produce") cover a specific item.
+    category: str | None = None
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class OrderPlan:
+    status: Status
+    reason: str
+    #: Present whenever pricing succeeded — including when the answer is "ask
+    #: the owner", because approving a spend requires seeing the amount.
+    cart: Cart | None = None
+    receipt: Receipt | None = None
+    authorization: Authorization | None = None
+
+    @property
+    def placed(self) -> bool:
+        return self.status is Status.PLACED
+
+
+def _validate(request: OrderRequest) -> None:
+    if request.trigger not in TRIGGERS:
+        raise ValueError(
+            f"unknown trigger {request.trigger!r}; expected one of "
+            f"{sorted(TRIGGERS)}"
+        )
+
+
+def authorize_cart(
+    *,
+    cart: Cart,
+    request: OrderRequest,
+    authorities: Sequence[PurchaseAuthority],
+    spent_in_period_cents: int = 0,
+) -> Authorization:
+    """Whether this whole cart may be bought without asking.
+
+    Every line must be covered, and the **cart total** is what each line's
+    authority is tested against rather than that line's own subtotal. So a rule
+    permitting $10 of olive oil does not help authorise a $200 order that
+    happens to contain some. The strictest applicable limit wins, and one
+    uncovered item stops the whole order — otherwise anything could be bought by
+    bundling it with something that was covered.
+    """
+    for line in cart.lines:
+        result = authorize(
+            item=line.name,
+            category=request.category,
+            order_total_cents=cart.total_cents,
+            authorities=authorities,
+            spent_in_period_cents=spent_in_period_cents,
+        )
+        if result.decision is not Decision.ALLOW:
+            return result
+    return Authorization(
+        decision=Decision.ALLOW,
+        reason="Every item is covered by standing authority.",
+    )
+
+
+def plan_order(
+    *,
+    request: OrderRequest,
+    tool: OrderingTool,
+    authorities: Sequence[PurchaseAuthority],
+    spent_in_period_cents: int = 0,
+    near: str | None = None,
+    idempotency_key: str | None = None,
+) -> OrderPlan:
+    """Price the request, decide whether it may be placed, and place it if so."""
+    _validate(request)
+
+    try:
+        cart = tool.draft(items=list(request.items), near=near)
+    except ItemUnavailable as exc:
+        return OrderPlan(status=Status.FAILED, reason=str(exc))
+    except OrderingError as exc:
+        return OrderPlan(status=Status.FAILED, reason=str(exc))
+
+    if request.trigger in ALWAYS_ASK_TRIGGERS:
+        # Deliberately before the authority check, so that no configuration can
+        # cause an inferred order to skip the human.
+        return OrderPlan(
+            status=Status.AWAITING_APPROVAL,
+            reason=("This order came from an inferred stock level, which is an "
+                    "estimate, so it always needs your approval."),
+            cart=cart,
+        )
+
+    verdict = authorize_cart(cart=cart, request=request,
+                             authorities=authorities,
+                             spent_in_period_cents=spent_in_period_cents)
+    if verdict.decision is not Decision.ALLOW:
+        return OrderPlan(status=Status.AWAITING_APPROVAL, reason=verdict.reason,
+                         cart=cart, authorization=verdict)
+
+    key = idempotency_key or f"auto:{cart.fingerprint}"
+    return _place(tool=tool, cart=cart, idempotency_key=key,
+                  authorization=verdict)
+
+
+def place_approved_order(
+    *,
+    request: OrderRequest,
+    tool: OrderingTool,
+    approved_fingerprint: str,
+    idempotency_key: str,
+    near: str | None = None,
+) -> OrderPlan:
+    """Buy the cart the owner approved — and only that cart.
+
+    Re-prices first and compares against the fingerprint the owner agreed to. If
+    anything moved, the order stops and the new cart goes back for a fresh
+    approval rather than being charged at a price nobody agreed to.
+    """
+    _validate(request)
+    if not str(approved_fingerprint or "").strip():
+        raise ValueError(
+            "approved_fingerprint is required; an approval that is not bound to "
+            "a specific cart is not an approval"
+        )
+    if not str(idempotency_key or "").strip():
+        raise ValueError("idempotency_key is required to place an order")
+
+    try:
+        cart = tool.draft(items=list(request.items), near=near)
+    except ItemUnavailable as exc:
+        return OrderPlan(status=Status.FAILED, reason=str(exc))
+    except OrderingError as exc:
+        return OrderPlan(status=Status.FAILED, reason=str(exc))
+
+    if cart.fingerprint != approved_fingerprint:
+        return OrderPlan(
+            status=Status.AWAITING_APPROVAL,
+            reason=("The price or contents changed since you approved this, so "
+                    "it was not placed. Here is the current cart."),
+            cart=cart,
+        )
+
+    return _place(tool=tool, cart=cart, idempotency_key=idempotency_key)
+
+
+def _place(*, tool: OrderingTool, cart: Cart, idempotency_key: str,
+           authorization: Authorization | None = None) -> OrderPlan:
+    try:
+        receipt = tool.place(cart=cart, idempotency_key=idempotency_key)
+    except OrderingError as exc:
+        return OrderPlan(status=Status.FAILED, reason=str(exc), cart=cart,
+                         authorization=authorization)
+    return OrderPlan(
+        status=Status.PLACED,
+        reason=f"Placed for ${receipt.total_cents // 100}."
+               f"{receipt.total_cents % 100:02d}.",
+        cart=cart,
+        receipt=receipt,
+        authorization=authorization,
+    )
+
+
+__all__ = [
+    "ALWAYS_ASK_TRIGGERS",
+    "OrderPlan",
+    "OrderRequest",
+    "Status",
+    "TRIGGERS",
+    "TRIGGER_FIND",
+    "TRIGGER_OWNER_INSTRUCTION",
+    "TRIGGER_STANDING_ORDER",
+    "TRIGGER_STOCK_THRESHOLD",
+    "authorize_cart",
+    "place_approved_order",
+    "plan_order",
+]
