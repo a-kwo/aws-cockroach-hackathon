@@ -30,6 +30,11 @@ class MeterResult:
     misses: int
     estimated: int
     failed: int
+    #: How many of the above were estimates replaced by a figure the owner
+    #: reported afterwards. Counted separately because a night that re-scored
+    #: yesterday's placeholder on real numbers is the most interesting thing
+    #: the Meter does, and it looks identical to a quiet night otherwise.
+    remeasured: int = 0
 
     @property
     def note(self) -> str:
@@ -42,6 +47,8 @@ class MeterResult:
             parts.append(f"{self.misses} miss")
         if self.estimated:
             parts.append(f"{self.estimated} estimated")
+        if self.remeasured:
+            parts.append(f"{self.remeasured} re-scored on owner figures")
         if self.failed:
             parts.append(f"{self.failed} could not be measured")
         return "; ".join(parts)
@@ -69,7 +76,7 @@ def _meter_pass(
     today: date,
 ) -> MeterResult:
     due = repo.due_finds(business_id, today=today)
-    verified = misses = estimated = failed = 0
+    verified = misses = estimated = failed = remeasured = 0
 
     for find in due:
         try:
@@ -117,6 +124,57 @@ def _meter_pass(
         misses += verdict is Verdict.MISS
         estimated += verdict is Verdict.ESTIMATED
 
+    # Second pass: estimates the owner has since put a real number against.
+    #
+    # These are not in `due_finds` — they already carry a verdict, and the
+    # ledger is append-only per window, so they cannot be judged again by
+    # inserting. They are the common case rather than an edge one: a find comes
+    # due on a night when nothing was connected, gets the honest placeholder,
+    # and the owner has their sales figures a week later. Without this pass that
+    # figure could never reach the ledger at all.
+    for find in repo.remeasurable_finds(business_id):
+        try:
+            outcome = outcomes.measure(find, business_id=business_id)
+        except Exception:
+            failed += 1
+            continue
+
+        # Nothing to replace an estimate with. Leave the row exactly as it is
+        # rather than restamping it, which would only hide the fact that this
+        # find is still waiting for a number.
+        if not outcome.has_outcome_data:
+            continue
+
+        verdict = judge(
+            predicted_daily_cents=find.predicted_daily_cents,
+            actual_daily_cents=outcome.actual_daily_cents,
+            has_outcome_data=True,
+        )
+
+        try:
+            repo.update_ledger_entry(
+                business_id,
+                find_id=find.find_id,
+                # The window already on the row. Recomputing it would write a
+                # second verdict for one find instead of replacing the first.
+                period_start=find.measurement_start or find.created_at.date(),
+                period_end=find.verify_after,
+                verdict=verdict.value,
+                actual_daily_cents=outcome.actual_daily_cents,
+                method=outcome.method,
+                note=outcome.note,
+                run_id=run_id,
+            )
+        except RepositoryError:
+            # The verdict stopped being an estimate between the two statements —
+            # another run got there first. Not an error; there is simply nothing
+            # left to replace.
+            continue
+
+        remeasured += 1
+        verified += verdict is Verdict.VERIFIED
+        misses += verdict is Verdict.MISS
+
     result = MeterResult(
         run_id=run_id,
         judged=verified + misses + estimated,
@@ -124,6 +182,7 @@ def _meter_pass(
         misses=misses,
         estimated=estimated,
         failed=failed,
+        remeasured=remeasured,
     )
     # Partial measurement is a normal night, not a failed one.
     repo.finish_run(run_id, status="ok", note=result.note)

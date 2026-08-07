@@ -1021,6 +1021,174 @@
 
     .decision-list { display: grid; gap: 8px; }
 
+    /* Reporting what a move earned.
+
+       A disclosure, not a permanent strip: the Growth tab is a glanceable
+       record of decisions, and a form open under every approved row buries
+       that under boxes nobody is filling in today. Collapsed it is one quiet
+       line; opened it is the three fields.
+
+       Built in the same shape as the reconsider panel in the drawer, because
+       that is already this product's answer to "an action that needs a moment
+       of thought, tucked under the thing it acts on". */
+    .decision-row-group { min-width: 0; }
+
+    .outcome-panel {
+      margin-top: 2px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-soft);
+      overflow: hidden;
+    }
+
+    .outcome-panel > summary {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 11px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    /* Safari draws its own triangle and ignores list-style. */
+    .outcome-panel > summary::-webkit-details-marker { display: none; }
+
+    .outcome-panel > summary:hover { background: rgba(0, 0, 0, .02); }
+
+    .outcome-summary-icon {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      border: 1px solid var(--line-strong);
+      background: #ffffff;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .outcome-summary-copy { min-width: 0; }
+
+    .outcome-summary-copy strong {
+      display: block;
+      overflow: hidden;
+      color: var(--ink-soft);
+      font-size: 10.5px;
+      font-weight: 700;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .outcome-summary-copy small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .outcome-summary-chevron {
+      display: grid;
+      place-items: center;
+      color: var(--muted-2);
+      transition: transform .2s var(--ease);
+    }
+
+    .outcome-panel[open] > summary > .outcome-summary-chevron {
+      transform: rotate(180deg);
+    }
+
+    .outcome-panel-body {
+      padding: 4px 11px 11px;
+      border-top: 1px solid var(--line);
+    }
+
+    .outcome-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+      margin-top: 9px;
+    }
+
+    .outcome-field { display: block; min-width: 0; }
+    .outcome-field.is-wide { grid-column: 1 / -1; }
+
+    .outcome-field > span {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .outcome-field > span small { display: inline; font-weight: 500; }
+
+    .outcome-field input,
+    .outcome-field select {
+      width: 100%;
+      padding: 7px 9px;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      background: #ffffff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 10.5px;
+    }
+
+    .outcome-field input:focus,
+    .outcome-field select:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px var(--brand-soft);
+    }
+
+    .outcome-actions {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .outcome-caveat {
+      flex: 1 1 auto;
+      margin: 0;
+      color: var(--muted-2);
+      font-size: 8.5px;
+      line-height: 1.4;
+    }
+
+    .outcome-save {
+      flex: 0 0 auto;
+      padding: 7px 14px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--brand);
+      color: #ffffff;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .18s var(--ease);
+    }
+
+    .outcome-save:hover { background: var(--brand-dark); }
+    .outcome-save[disabled] { opacity: .6; cursor: default; }
+
+    .outcome-scored {
+      margin: 2px 0 0;
+      padding: 8px 11px;
+      border-radius: 12px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+
     .decision-row {
       width: 100%;
       min-height: 68px;
@@ -1062,6 +1230,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
 
     .decision-row-copy span {
       display: block;
@@ -18936,6 +19105,159 @@
     }
   </style>
 
+  <style id="owner-outcome-disclosure-v45">
+    /* v45: the result disclosure, in the owner's dark theme.
+
+       The first cut of this shipped the light-theme surface — #fbfaf7 on a
+       midnight card — which read as a white band glued under the panel and
+       spilled past its rounded corner. Growth runs in the dark theme, so the
+       dark rules are the real ones and they live here, after everything that
+       could override them.
+
+       In growth mode the approved list is a flat stack: no gap, one hairline
+       between neighbours. The panel joins that stack rather than floating on
+       top of it, so it drops its radius and takes over the row's hairline. */
+    body.growth-mode .outcome-panel,
+    body.autopilot-mode .outcome-panel {
+      margin: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: rgba(255, 255, 255, .014) !important;
+    }
+
+    body.growth-mode .decision-row-group:not(:last-child) .outcome-panel {
+      border-bottom: 1px solid rgba(255, 255, 255, .075) !important;
+    }
+
+    body.growth-mode .decision-row-group:has(.outcome-panel) .decision-row {
+      border-bottom: 0 !important;
+    }
+
+    body.growth-mode .outcome-panel > summary,
+    body.autopilot-mode .outcome-panel > summary {
+      padding: 9px 18px 11px !important;
+      grid-template-columns: 24px minmax(0, 1fr) auto !important;
+      gap: 11px !important;
+    }
+
+    body.growth-mode .outcome-panel > summary:hover,
+    body.autopilot-mode .outcome-panel > summary:hover {
+      background: rgba(255, 255, 255, .03) !important;
+    }
+
+    body.growth-mode .outcome-summary-icon,
+    body.autopilot-mode .outcome-summary-icon {
+      width: 24px !important;
+      height: 24px !important;
+      border-color: rgba(196, 160, 255, .19) !important;
+      background: rgba(196, 160, 255, .09) !important;
+      color: #d7b5ff !important;
+      font-size: 12px !important;
+    }
+
+    body.growth-mode .outcome-summary-copy strong,
+    body.autopilot-mode .outcome-summary-copy strong {
+      color: var(--owner-ink) !important;
+      font-size: 12px !important;
+      font-weight: 700 !important;
+    }
+
+    body.growth-mode .outcome-summary-copy small,
+    body.autopilot-mode .outcome-summary-copy small {
+      color: var(--owner-muted) !important;
+      font-size: 10px !important;
+    }
+
+    body.growth-mode .outcome-summary-chevron,
+    body.autopilot-mode .outcome-summary-chevron {
+      color: var(--owner-muted) !important;
+    }
+
+    body.growth-mode .outcome-panel-body,
+    body.autopilot-mode .outcome-panel-body {
+      padding: 0 18px 15px !important;
+      border-top: 0 !important;
+    }
+
+    body.growth-mode .outcome-field > span,
+    body.autopilot-mode .outcome-field > span {
+      color: var(--owner-muted) !important;
+      font-size: 10px !important;
+    }
+
+    body.growth-mode .outcome-field input,
+    body.growth-mode .outcome-field select,
+    body.autopilot-mode .outcome-field input,
+    body.autopilot-mode .outcome-field select {
+      padding: 9px 11px !important;
+      border: 1px solid var(--owner-line) !important;
+      border-radius: 10px !important;
+      background: rgba(255, 255, 255, .045) !important;
+      color: var(--owner-ink) !important;
+      font-size: 12px !important;
+    }
+
+    /* A native <select> renders its list in the OS palette, so its options need
+       a colour that survives on both. */
+    body.growth-mode .outcome-field select option,
+    body.autopilot-mode .outcome-field select option {
+      background: #12162b;
+      color: var(--owner-ink);
+    }
+
+    body.growth-mode .outcome-field input::placeholder,
+    body.autopilot-mode .outcome-field input::placeholder {
+      color: rgba(127, 135, 159, .75) !important;
+    }
+
+    body.growth-mode .outcome-field input:focus,
+    body.growth-mode .outcome-field select:focus,
+    body.autopilot-mode .outcome-field input:focus,
+    body.autopilot-mode .outcome-field select:focus {
+      border-color: rgba(196, 160, 255, .5) !important;
+      box-shadow: 0 0 0 3px rgba(141, 69, 255, .16) !important;
+    }
+
+    body.growth-mode .outcome-caveat,
+    body.autopilot-mode .outcome-caveat {
+      color: var(--owner-muted) !important;
+      font-size: 9.5px !important;
+    }
+
+    body.growth-mode .outcome-save,
+    body.autopilot-mode .outcome-save {
+      padding: 9px 16px !important;
+      border-radius: 10px !important;
+      background: var(--owner-gradient) !important;
+      color: #ffffff !important;
+      font-size: 11px !important;
+      box-shadow: 0 8px 20px rgba(141, 69, 255, .28) !important;
+    }
+
+    body.growth-mode .outcome-save:hover,
+    body.autopilot-mode .outcome-save:hover {
+      filter: brightness(1.07);
+    }
+
+    body.growth-mode .outcome-scored,
+    body.autopilot-mode .outcome-scored {
+      margin: 0 !important;
+      padding: 10px 18px !important;
+      border-radius: 0 !important;
+      background: rgba(255, 255, 255, .014) !important;
+      color: var(--owner-muted) !important;
+      font-size: 10px !important;
+    }
+
+    @media (max-width: 720px) {
+      .outcome-fields { grid-template-columns: minmax(0, 1fr); }
+      body.growth-mode .outcome-panel > summary { padding: 9px 16px 11px !important; }
+      body.growth-mode .outcome-panel-body { padding: 0 16px 14px !important; }
+      .outcome-actions { flex-direction: column; align-items: stretch; }
+      .outcome-save { width: 100%; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -20206,6 +20528,14 @@
         // One line per concrete action, already split by build_web.
         steps: Array.isArray(find.bullets) ? find.bullets : [],
         amount: Math.max(0, Math.round((Number(find.predictedDaily) || 0) * 30 / 100)),
+        // What the owner has already told us this earned, straight out of
+        // CockroachDB. Null until they do — which is not the same as zero, and
+        // a reported zero is a measured miss.
+        reportedOutcome: find.reportedOutcome || null,
+        // The end of the measurement window, so the Growth tab can say when a
+        // reported figure will actually be scored rather than leaving it as
+        // "waiting" forever.
+        verifyAfter: find.verifyAfter || null,
         sourceTime: relativeTime(find.createdAt),
         highlightLabel: "Evidence used",
         highlightValue: `${find.evidenceCount || 0} memories`,
@@ -25424,6 +25754,196 @@ ledger_entry · artifact · agent_run`,
     function clampText(text, max) {
       return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
     }
+    /**
+     * Reporting what a move actually earned.
+     *
+     * This is the other half of the product's central claim. The Meter reads a
+     * prediction it made on an earlier night and asks whether it was right —
+     * but with no measurement connected, `NoOutcomeSource` is the only outcome
+     * source that exists, every verdict it can reach is ESTIMATED, and the
+     * published hit rate is permanently undefined. A small business has no
+     * payments API. What it has is an owner who can count.
+     *
+     * Three rules this strip must not break, all of them about somebody's money:
+     *
+     *   1. A figure the owner typed is *reported*, never *verified*. It becomes
+     *      a verdict when the Meter judges it at the end of the measurement
+     *      window, and the copy says so rather than leaving it implied.
+     *   2. Reporting moves nothing on this screen. The headline is a sum of
+     *      predictions and the chart is drawn from the ledger; neither may be
+     *      touched by the owner typing a number into a box.
+     *   3. A verdict that was already measured is final here. Correcting a
+     *      published miss into a win from the browser is exactly what the
+     *      append-only ledger exists to prevent, and the repository refuses it
+     *      too — the interface should not imply otherwise.
+     */
+    const OUTCOME_BASES = [
+      ["day", "a day"],
+      ["week", "a week"],
+      ["month", "a month"],
+    ];
+
+    //  Which panels the owner has opened. A <details> keeps its own open state,
+    //  but the growth lists re-render whole on every decision and refresh, and a
+    //  panel that snapped shut mid-typing would look like the page had thrown
+    //  the figure away. Restored on render from here.
+    const openOutcomePanels = new Set();
+
+    function outcomeStripHtml(post, status) {
+      //  Only a move the owner accepted can have earned anything. A find that
+      //  was passed over has no outcome to report and never will.
+      if (status !== "approved") return "";
+
+      const reported = post.reportedOutcome;
+
+      if (post.verdict === "verified" || post.verdict === "miss") {
+        //  Judged, and against a real measurement. Nothing to offer: correcting
+        //  a scored move from the browser is what the append-only ledger exists
+        //  to prevent, and the repository refuses it too.
+        return `
+          <p class="outcome-scored">The Meter has scored this move.</p>`;
+      }
+
+      //  When the figure gets judged. Worth saying plainly — "reported" with no
+      //  date reads as waiting on nothing.
+      const when = post.verifyAfter ? escapeHtml(shortDate(post.verifyAfter)) : "";
+      const headline = reported
+        ? `You reported ${escapeHtml(reported.amountTxt)} ${escapeHtml(reported.basisLabel)}`
+        : "Add what this move earned";
+      const caption = reported
+        ? (when ? `The Meter scores it on ${when}.` : "The Meter scores it when the window closes.")
+        : (when ? `Scored on ${when}, against what the agents predicted.` : "Scored when the measurement window closes.");
+
+      return `
+        <details class="outcome-panel" data-outcome-panel="${escapeHtml(post.id)}"${openOutcomePanels.has(post.id) ? " open" : ""}>
+          <summary>
+            <span class="outcome-summary-icon" aria-hidden="true">${reported ? "✓" : "＋"}</span>
+            <span class="outcome-summary-copy">
+              <strong>${headline}</strong>
+              <small>${caption}</small>
+            </span>
+            <span class="outcome-summary-chevron" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </span>
+          </summary>
+          <div class="outcome-panel-body">
+            <div class="outcome-fields">
+              <label class="outcome-field">
+                <span>What it earned</span>
+                <input data-outcome-amount type="text" inputmode="decimal"
+                       placeholder="0.00" autocomplete="off"
+                       aria-label="What this move earned"
+                       value="${reported ? escapeHtml(reported.amountTxt.replace("$", "")) : ""}">
+              </label>
+              <label class="outcome-field">
+                <span>Over</span>
+                <select data-outcome-basis aria-label="The period that figure covers">
+                  ${OUTCOME_BASES.map(([value, label]) => `
+                    <option value="${escapeHtml(value)}"${reported && reported.basis === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+                </select>
+              </label>
+              <label class="outcome-field is-wide">
+                <span>How you know <small>optional</small></span>
+                <input data-outcome-note maxlength="280" autocomplete="off"
+                       aria-label="How you measured it"
+                       placeholder="Counted the lunch covers"
+                       value="${reported && reported.note ? escapeHtml(reported.note) : ""}">
+              </label>
+            </div>
+            <div class="outcome-actions">
+              <p class="outcome-caveat">Nothing here moves your record. The Meter
+                judges this against what it predicted and publishes the verdict
+                either way.</p>
+              <button class="outcome-save" type="button" data-save-outcome="${escapeHtml(post.id)}">Save result</button>
+            </div>
+          </div>
+        </details>`;
+    }
+
+    async function persistOutcome(post, { amount, basis, note }) {
+      const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
+      if (!base) return { demoOnly: true };
+      const response = await fetch(`${base}/finds/${encodeURIComponent(post.databaseId || post.id)}/outcome`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        //  The string the owner typed, untouched. The server parses it with
+        //  Decimal; doing it here would go through binary floating point,
+        //  where 12.34 in cents is 1233.9999999999998.
+        body: JSON.stringify({ amount: amount, basis: basis, note: note || null })
+      });
+      let payload = {};
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const error = new Error(payload.error || `Outcome API returned ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return payload;
+    }
+
+    async function saveOutcome(postId, button) {
+      const post = posts.find(item => item.id === postId);
+      if (!post) return;
+      const row = button.closest(".outcome-panel");
+      const amount = String(row?.querySelector("[data-outcome-amount]")?.value || "").trim();
+      const basis = String(row?.querySelector("[data-outcome-basis]")?.value || "week");
+      const note = String(row?.querySelector("[data-outcome-note]")?.value || "").trim();
+
+      if (!amount) {
+        showToast("Enter what this move earned.", "rejected");
+        return;
+      }
+
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      const original = button.textContent;
+      button.textContent = "Saving…";
+      try {
+        const receipt = await persistOutcome(post, { amount, basis, note });
+        //  Held on the post so the row reads back correctly straight away. The
+        //  durable copy is the CockroachDB row the build and the live snapshot
+        //  both read, which is what survives a reload.
+        post.reportedOutcome = receipt.demoOnly ? post.reportedOutcome : {
+          amountCents: receipt.amountCents,
+          amountTxt: outcomeMoney(receipt.amountCents),
+          basis: receipt.basis,
+          basisLabel: (OUTCOME_BASES.find(([value]) => value === receipt.basis) || [])[1] || receipt.basis,
+          dailyCents: receipt.dailyCents,
+          dailyTxt: outcomeMoney(receipt.dailyCents),
+          note: receipt.note || null,
+          reportedAt: receipt.reportedAt || null,
+        };
+        openOutcomePanels.delete(postId);
+        showToast(receipt.demoOnly
+          ? "This is the demo build — nothing was saved."
+          : "Result recorded. The Meter scores it when the window closes.",
+          "approved");
+      } catch (error) {
+        showToast(error.message || "That figure could not be saved.", "rejected");
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        button.textContent = original;
+        return;
+      }
+      renderGrowth();
+    }
+
+    /**
+     * The one place this page turns cents into a string.
+     *
+     * Every other figure on the board is formatted in scripts/build_web.py and
+     * arrives as text, and that rule stands. This is the exception it has to
+     * make: the receipt for a figure the owner typed one second ago has not
+     * been through a build, and echoing back the raw input instead would show
+     * "210" where the row beside it says "$210".
+     */
+    function outcomeMoney(cents) {
+      const value = Number(cents || 0) / 100;
+      return value % 1 === 0
+        ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+        : `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
     function renderDecisionRow(post, status) {
       // The row's figure is the find's prediction, so it says so twice: in the
       // dashed forecast treatment a sighted owner sees, and in the label a
@@ -25434,13 +25954,16 @@ ledger_entry · artifact · agent_run`,
         ? `${value}, projected, not earned`
         : value;
       return `
-        <button class="decision-row" type="button" data-feature="${post.featureKey}" data-open-post="${post.id}" aria-label="${post.title}. ${status}. ${spoken}.">
+        <div class="decision-row-group">
+        <button class="decision-row" type="button" data-feature="${escapeHtml(post.featureKey)}" data-open-post="${escapeHtml(post.id)}" aria-label="${escapeHtml(post.title)}. ${status}. ${spoken}.">
           <span class="decision-row-icon" aria-hidden="true">${icons[post.featureKey]}</span>
           <span class="decision-row-copy">
-            <strong>${post.title}</strong>
+            <strong>${escapeHtml(post.title)}</strong>
           </span>
           <span class="decision-row-value ${projected ? "forecast" : status === "rejected" ? "rejected" : ""}" aria-hidden="true">${value}</span>
         </button>
+        ${outcomeStripHtml(post, status)}
+        </div>
       `;
     }
 
@@ -27242,6 +27765,24 @@ ledger_entry · artifact · agent_run`,
       });
       document.querySelectorAll("[data-undo-pass]").forEach(button => {
         button.onclick = () => undoPass(button.dataset.postId, button);
+      });
+      document.querySelectorAll("[data-outcome-panel]").forEach(panel => {
+        //  <details> owns open/close, so nothing here re-renders the list to
+        //  toggle a form — which is what used to throw away a half-typed
+        //  figure. This only remembers the state across the renders other
+        //  things trigger.
+        panel.ontoggle = () => {
+          const id = panel.dataset.outcomePanel;
+          if (panel.open) {
+            openOutcomePanels.add(id);
+            panel.querySelector("[data-outcome-amount]")?.focus();
+          } else {
+            openOutcomePanels.delete(id);
+          }
+        };
+      });
+      document.querySelectorAll("[data-save-outcome]").forEach(button => {
+        button.onclick = () => saveOutcome(button.dataset.saveOutcome, button);
       });
       document.querySelectorAll("[data-reconsider]").forEach(button => {
         button.onclick = () => reconsider(button.dataset.postId, button);

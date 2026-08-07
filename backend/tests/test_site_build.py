@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
 
 import pytest
@@ -1536,8 +1537,36 @@ def test_the_login_page_stores_only_the_session():
 # ---------------------------------------------------------------------------
 # Sign in with Google
 # ---------------------------------------------------------------------------
+#: Every variable that can put a Google endpoint into the model. Cleared
+#: together, because `build_web` derives the two Google URLs from the decision
+#: endpoint when they are not given explicitly — so unsetting only the obvious
+#: two proves nothing.
+_GOOGLE_BUILD_VARS = (
+    "GOOGLE_START_API_ENDPOINT",
+    "GOOGLE_COMPLETE_API_ENDPOINT",
+    "GOOGLE_OAUTH_ENABLED",
+    "DECISION_API_ENDPOINT",
+)
 
-def test_the_google_button_is_not_drawn_unless_it_was_switched_on():
+
+def _model_without_google(payload):
+    """The model a build with no OAuth client produces.
+
+    Built in-process from a cleaned environment. Reading `web/` instead makes
+    the assertion depend on how that directory last happened to be built, which
+    is a different thing from what the code does.
+    """
+    saved = {name: os.environ.pop(name, None) for name in _GOOGLE_BUILD_VARS}
+    try:
+        return build_web.build_model(copy.deepcopy(payload))
+    finally:
+        for name, value in saved.items():
+            if value is not None:
+                os.environ[name] = value
+
+
+
+def test_the_google_button_is_not_drawn_unless_it_was_switched_on(data):
     """A build with no OAuth client must produce no button.
 
     Nothing at build time can tell whether a client actually exists in the
@@ -1545,17 +1574,19 @@ def test_the_google_button_is_not_drawn_unless_it_was_switched_on():
     the endpoint is null and `.alt-auth` never gets `.available` — a button that
     404s is worse than no button.
     """
-    built = (build_web.OUT_DIR / "register" / "index.html").read_text(
-        encoding="utf-8")
-    data = json.loads(
-        built.split('id="bt-data" type="application/json">', 1)[1]
-             .split("</script>", 1)[0])
+    # Built here with the switch explicitly off, rather than read out of web/.
+    # That directory is whatever the last build left behind — and since deploys
+    # now run from this machine, the last build is usually a real one with live
+    # endpoints spliced in, which made this assertion fail for a reason that had
+    # nothing to do with the code under test.
+    model = _model_without_google(data)
+    assert model["api"]["googleStartEndpoint"] is None
+    assert model["api"]["googleCompleteEndpoint"] is None
 
-    assert data["api"]["googleStartEndpoint"] is None
-    assert data["api"]["googleCompleteEndpoint"] is None
     # The markup ships either way; only the class that reveals it is withheld.
-    assert 'class="alt-auth"' in built
-    assert 'getElementById("altAuth").classList.add("available")' in built
+    source = (build_web.SITE / "register.html").read_text(encoding="utf-8")
+    assert 'class="alt-auth"' in source
+    assert 'getElementById("altAuth").classList.add("available")' in source
 
 
 def test_the_google_button_still_demands_the_invite_code():
@@ -1597,7 +1628,7 @@ def test_every_workflow_that_publishes_the_site_passes_the_google_switch():
         assert "GOOGLE_OAUTH_CLIENT_ID" in workflow
 
 
-def test_the_sign_in_page_offers_google_under_the_same_switch():
+def test_the_sign_in_page_offers_google_under_the_same_switch(data):
     """The button belongs on /login/ too — an owner who created a workspace
     with Google has no password to come back with.
 
@@ -1605,14 +1636,13 @@ def test_the_sign_in_page_offers_google_under_the_same_switch():
     class that reveals it depends on the build having been told a client
     exists.
     """
-    built = (build_web.OUT_DIR / "login" / "index.html").read_text(
-        encoding="utf-8")
+    source = (build_web.SITE / "login.html").read_text(encoding="utf-8")
 
-    assert 'class="alt-auth"' in built
-    assert 'getElementById("altAuth").classList.add("available")' in built
-    assert json.loads(
-        built.split('id="bt-data" type="application/json">', 1)[1]
-             .split("</script>", 1)[0])["api"]["googleStartEndpoint"] is None
+    assert 'class="alt-auth"' in source
+    assert 'getElementById("altAuth").classList.add("available")' in source
+    # Same reason as the register test above: built from a controlled
+    # environment rather than read out of whatever web/ currently holds.
+    assert _model_without_google(data)["api"]["googleStartEndpoint"] is None
 
 
 def test_the_sign_in_page_asks_google_for_a_sign_in_not_a_sign_up():
@@ -3545,3 +3575,211 @@ def test_maker_workspace_and_chat_name_the_draft_destination_and_owner_gate():
     assert 'id="drawerComposerDestination"' in html
     assert "function configureDrawerDestination" in html
     assert drawer.index("${makerChatDestinationHtml(post)}") < drawer.index('id="drawerChatThread"')
+
+
+def test_growth_decision_rows_escape_the_find_title():
+    """A find title is model text over scraped web content, so it is escaped.
+
+    Every other render of `post.title` escapes it — the feed card, the evidence
+    button, the details button, the drawer heading. This row was the one that
+    did not, and it is written into innerHTML twice: once as the visible label
+    and once inside an aria-label attribute, where a bare quote is enough to
+    break out of the attribute.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    row = html.split("function renderDecisionRow(post, status)", 1)[1].split(
+        "function renderGrowthDecisionList", 1
+    )[0]
+
+    assert "${post.title}" not in row
+    assert row.count("escapeHtml(post.title)") == 2
+    assert "${post.id}" not in row
+    assert "${post.featureKey}" not in row
+
+
+# ------------------------------------------------- reporting what a move earned
+
+def _growth_outcome_source():
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    strip = html.split("function outcomeStripHtml(post, status)", 1)[1].split(
+        "async function persistOutcome(", 1
+    )[0]
+    return html, strip
+
+
+def test_the_growth_tab_offers_a_place_to_report_what_a_move_earned():
+    """The only way a verdict can ever be anything but an estimate.
+
+    `NoOutcomeSource` is the honest default and it can never produce a verified
+    win, so without a control here the ledger publishes estimates forever and
+    the hit rate stays undefined. It lives on the approved list because that is
+    where the moves that could have earned anything are.
+    """
+    html, strip = _growth_outcome_source()
+
+    assert "function outcomeStripHtml(post, status)" in html
+    # A disclosure, not a form open under every row. Collapsed it is one line.
+    assert "<details class=\"outcome-panel\"" in strip
+    assert "<summary>" in strip
+    assert 'data-outcome-panel=' in strip
+    assert 'data-save-outcome=' in strip
+    assert 'data-outcome-amount' in strip
+    assert 'data-outcome-basis' in strip
+    # Only against moves the owner accepted. A passed-over find has no outcome.
+    assert 'status !== "approved"' in strip
+
+
+def test_a_reported_figure_is_labelled_as_reported_never_as_verified():
+    """An owner's own number is not a verdict until the Meter judges it.
+
+    Showing it as "actual" would be the mock's original sin — a figure the
+    product had not measured, presented as one it had.
+    """
+    _, strip = _growth_outcome_source()
+
+    assert "You reported" in strip
+    assert "Actual" not in strip
+    assert "Verified" not in strip
+    # And it says when the number will actually be scored, so "reported" does
+    # not read as "waiting on nothing".
+    assert "post.verifyAfter" in strip
+    # The caption is built from one date, not by patching a separator back into
+    # a prose fragment — which is how "score it on scored on Sep 1" reached a
+    # real screen.
+    assert ".replace(\" · \"" not in strip
+
+
+def test_a_measured_verdict_is_not_offered_a_correction_box():
+    # A published miss cannot be edited away from the browser. The repository
+    # refuses it too; the interface should not imply otherwise.
+    _, strip = _growth_outcome_source()
+    assert 'post.verdict === "verified" || post.verdict === "miss"' in strip
+
+
+def test_the_page_never_does_arithmetic_on_the_typed_amount():
+    """`12.34 * 100` is 1233.9999999999998 in JavaScript.
+
+    The string the owner typed goes to the server, which parses it with
+    Decimal. This is the same rule the growth chart keeps: money is formatted
+    and computed once, in Python.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    persist = html.split("async function persistOutcome(", 1)[1].split(
+        "async function saveOutcome(", 1
+    )[0]
+
+    assert "* 100" not in persist
+    assert "parseFloat" not in persist
+    assert "Number(" not in persist
+    assert "amount:" in persist
+    assert "basis:" in persist
+    assert "/outcome" in persist
+    assert "authHeaders(" in persist
+
+
+def test_reporting_an_outcome_never_moves_the_forecast_or_the_record():
+    """Nothing the owner does in the UI may increase the verified record.
+
+    Reporting a figure is the closest this product comes to breaking that rule,
+    so it is worth pinning: the save path updates the row it belongs to and
+    nothing else. The headline stays a sum of predictions until the Meter says
+    otherwise.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    save = html.split("async function saveOutcome(", 1)[1].split(
+        "function renderDecisionRow(post, status)", 1
+    )[0]
+
+    assert "forecastTotal" not in save
+    assert "renderRevenueChart" not in save
+    assert "summary" not in save
+    # It re-renders the lists it owns, and that is all.
+    assert "renderGrowth()" in save
+
+
+def test_the_reported_figure_survives_a_reload(data):
+    """Straight through from CockroachDB, both paths.
+
+    A form that forgets what was entered the moment the page reloads reads as
+    broken, and the number is already in the cluster — build_web and the live
+    snapshot both carry it, through the same helper, so the first paint and the
+    refresh cannot disagree.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    assert "reportedOutcome: find.reportedOutcome" in html
+
+    payload = build_web.build_model(data)
+    rendered = payload["finds"][0]
+    assert "reportedOutcome" in rendered
+
+
+def test_a_reported_outcome_renders_the_figure_the_owner_entered():
+    from brasstacks.finds import reported_outcome_view
+
+    view = reported_outcome_view(
+        {"amount_cents": 21000, "basis": "week", "daily_cents": 3000,
+         "note": "Counted from the till.", "reported_at": None},
+        money=build_web.money)
+
+    assert view["amountTxt"] == "$210"
+    assert view["basisLabel"] == "a week"
+    assert view["dailyCents"] == 3000
+    assert view["note"] == "Counted from the till."
+
+
+def test_nothing_reported_is_absence_not_zero():
+    # A reported zero is a measured miss. "Nobody has said" is a different fact
+    # and the two must not collapse into one.
+    from brasstacks.finds import reported_outcome_view
+
+    assert reported_outcome_view(None, money=build_web.money) is None
+    assert reported_outcome_view({}, money=build_web.money) is None
+    zero = reported_outcome_view(
+        {"amount_cents": 0, "basis": "week", "daily_cents": 0},
+        money=build_web.money)
+    assert zero is not None
+    assert zero["amountCents"] == 0
+
+
+def test_the_result_panel_is_styled_for_the_theme_growth_actually_runs_in():
+    """The Growth tab is dark. The first cut of this shipped light surfaces.
+
+    `#fbfaf7` under a midnight card read as a white band glued to the panel,
+    spilling past its rounded corner. The dark rules have to live after every
+    block that could override them, which is what the version suffix on a style
+    id means in this file.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'id="owner-outcome-disclosure-v45"' in html
+    dark = html.split('id="owner-outcome-disclosure-v45"', 1)[1].split("</style>", 1)[0]
+    # Comments stripped: this block explains the light-theme surface it
+    # replaced, and naming a colour is not shipping it.
+    rules = re.sub(r"/\*.*?\*/", "", dark, flags=re.S)
+
+    assert "body.growth-mode .outcome-panel" in rules
+    assert "var(--owner-ink)" in rules
+    assert "var(--owner-muted)" in rules
+    # No light-theme surface among the declarations.
+    assert "#fbfaf7" not in rules
+    assert "background: #ffffff" not in rules
+
+    # And it is the last style block, so nothing later can undo it.
+    assert html.rindex('<style id="owner-outcome-disclosure-v45"') > html.rindex(
+        '<style id="maker-guided-reply-v44"')
+
+
+def test_opening_the_result_panel_does_not_rebuild_the_list():
+    """A re-render mid-typing throws away what was typed.
+
+    The first cut toggled a module variable and called renderGrowth(), so every
+    open and close rebuilt both lists. <details> owns its own open state; the
+    set only survives the renders that other things trigger.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    binding = html.split('document.querySelectorAll("[data-outcome-panel]")', 1)[1].split(
+        "document.querySelectorAll(\"[data-save-outcome]\")", 1)[0]
+
+    assert "renderGrowth()" not in binding
+    assert "openOutcomePanels.add" in binding
+    assert "openOutcomePanels.delete" in binding

@@ -21,6 +21,7 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any
 
 from brasstacks.agents.analyst import AnalystResult, run_analyst
@@ -30,7 +31,11 @@ from brasstacks.agents.radar import RadarResult, run_radar
 from brasstacks.artifacts import ArtifactStore, build_artifact_store
 from brasstacks.competitors import build_competitor_scout
 from brasstacks.config import Settings
-from brasstacks.outcomes import NoOutcomeSource, OutcomeSource
+from brasstacks.outcomes import (
+    NoOutcomeSource,
+    OutcomeSource,
+    build_outcome_source,
+)
 from brasstacks.providers import Embedder, Reasoner, build_embedder, build_reasoner
 from brasstacks.repository import Repository
 from brasstacks.signals import (
@@ -38,6 +43,7 @@ from brasstacks.signals import (
     SignalSource,
     TavilySignalSource,
     YelpSignalSource,
+    offering_from_facts,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -146,7 +152,8 @@ def run_night(
 
 
 def build_night_sources(settings: Any, anchor: datetime, *,
-                        use_corpus: bool = False) -> list[SignalSource]:
+                        use_corpus: bool = False,
+                        facts: Sequence[str] = ()) -> list[SignalSource]:
     """What a **deployed** night is allowed to observe.
 
     The opposite polarity to `_build_sources` below, and deliberately so. That
@@ -163,10 +170,20 @@ def build_night_sources(settings: Any, anchor: datetime, *,
     something explicitly asks for it. When neither is available the night
     observes nothing, which is honest. It is not a reason to fall back to
     someone else's imaginary reviews.
+
+    ``facts`` are this tenant's `business_fact` sentences, and they are what
+    lets the web source ask about rivals — the offering ("What we sell is Korean
+    BBQ.") is the one thing a competitor query cannot be built without. Passing
+    them makes this per-tenant, which is why the handler now builds sources
+    inside its loop rather than once for everybody, exactly as it already does
+    for the competitor scout.
     """
     sources: list[SignalSource] = []
     if getattr(settings, "search_api_key", None):
-        sources.append(TavilySignalSource(api_key=settings.search_api_key))
+        sources.append(TavilySignalSource(
+            api_key=settings.search_api_key,
+            offering=offering_from_facts(facts),
+        ))
     if use_corpus:
         sources.append(CorpusSignalSource(CORPUS_PATH, anchor=anchor))
     return sources
@@ -243,13 +260,16 @@ def main(argv: list[str] | None = None) -> int:
     embedder = build_embedder(settings)
     reasoner = build_reasoner(settings)
     store = build_artifact_store(settings)
-    outcomes = NoOutcomeSource()
 
     with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
         repo = PostgresRepository(conn)
         # After the connection, not before: the scout searches around the
         # coordinates on the business row.
         scout = build_competitor_scout(settings, repo.get_business(settings.business_id))
+        # Whatever the owner has reported through /finds/{id}/outcome. The
+        # local harness judges against the same measurements the deployed
+        # nightly run does, or there is no point rehearsing with it.
+        outcomes = build_outcome_source(repo, settings.business_id)
 
         for index in range(args.nights):
             tonight = start + timedelta(days=index * args.step)

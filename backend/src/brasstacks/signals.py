@@ -87,62 +87,306 @@ class CorpusSignalSource:
         return signals
 
 
+TAVILY_SEARCH_URL = "https://api.tavily.com/search"
+
+#: Tavily rejects a larger `max_results`. The previous code computed
+#: `limit // len(queries)` with no ceiling, which asks for 50 as soon as a
+#: source is built with one query and Radar's default limit.
+MAX_TAVILY_RESULTS = 20
+
+#: Below this, measured against the live API on 2026-08-07, results stop being
+#: about the business at all: 0.199 was a chef-bio carousel, 0.172 a "Get
+#: Directions" block, 0.134 a travel feature, 0.066 OCR'd text from a Facebook
+#: image, 0.040 an article about restaurant closures in Houston. Everything
+#: genuinely useful in the same sweep scored 0.35 or better.
+#:
+#: Set deliberately low rather than at the 0.5 the good rows mostly cleared.
+#: One useful row measured 0.226 ("We take reservations on call. It gets busy on
+#: the weekends"), so this floor does lose real signal — but a floor that trims
+#: the tail is recoverable, and a floor that silently empties a tenant's memory
+#: is not. Raise it once there is a night's data to raise it against.
+DEFAULT_MIN_SCORE = 0.35
+
+#: Domains that answered these queries with something other than the business.
+#: Kept short and specific on purpose: the aggregators everyone reaches for as a
+#: blocklist — Yelp, TripAdvisor, Grubhub, Instagram, TikTok — are where the
+#: actual review text lives, and excluding them would delete the best rows in
+#: the corpus. What is here is directory filler and property listings, which is
+#: what "1835 W Redondo Beach Blvd" was really matching.
+NOISE_DOMAINS = (
+    "mapquest.com",
+    "zillow.com", "redfin.com", "realtor.com", "trulia.com", "homes.com",
+    "litt.ly", "frankiapp.com",
+    "indeed.com", "glassdoor.com", "ziprecruiter.com",
+)
+
+
+@dataclass(frozen=True)
+class TavilyQuery:
+    """One search, and what its answers mean.
+
+    A query used to be a bare string and every row it produced was written as
+    `kind='trend'`. That flattened a diner complaining about a 40-minute wait
+    and a market report into one label, and left `observation_kind`'s 'review'
+    value unused across the entire live corpus. What a query asks for decides
+    what its results are, so the two travel together.
+    """
+
+    text: str
+    #: An `observation_kind` value. 'trend' remains the honest default for a
+    #: query whose answers could be anything.
+    kind: str = "trend"
+    #: Stored as `observation.source_name`. Namespaced ("web:reviews") so a
+    #: corpus can be audited per query — "which question filled memory with
+    #: junk?" had no answer while every row said "web".
+    label: str = "web"
+    topic: str = "general"
+    time_range: str | None = None
+    search_depth: str = "basic"
+    include_domains: tuple[str, ...] = ()
+    exclude_domains: tuple[str, ...] = NOISE_DOMAINS
+
+    def body(self, *, max_results: int) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "query": self.text,
+            "max_results": max_results,
+            "topic": self.topic,
+            "search_depth": self.search_depth,
+        }
+        if self.time_range:
+            payload["time_range"] = self.time_range
+        if self.include_domains:
+            payload["include_domains"] = list(self.include_domains)
+        if self.exclude_domains:
+            payload["exclude_domains"] = list(self.exclude_domains)
+        return payload
+
+
+def locality_of(address: str | None) -> str | None:
+    """The town to search in, from whatever ``business.city`` happens to hold.
+
+    That column holds a full street address for every tenant that signed up
+    through the deployed flow, and a plain city name for the seeded one. Radar's
+    ingest hygiene already copes with both; the *queries* never did, so two of
+    the three nightly searches ran pinned to a single doorway.
+
+    Measured cost of that on 2026-08-07: "1835 W Redondo Beach Blvd, Gardena, CA
+    90247 restaurant dining trends" returned MapQuest (0.752), Yelp (0.701) and
+    TripAdvisor (0.656) listings **of the tenant itself** — a query about the
+    local market answered entirely with the business that asked it.
+
+    Takes the last two comma-separated parts after dropping any country and ZIP,
+    which is "city, state" for a US address and a no-op for something already in
+    that shape.
+    """
+    if not address or not address.strip():
+        return None
+
+    parts = [p.strip() for p in address.split(",") if p.strip()]
+    if not parts:
+        return None
+
+    if parts[-1].lower().replace(".", "") in {"united states", "usa", "us"}:
+        parts.pop()
+    if not parts:
+        return None
+
+    # "CA 90247" -> "CA". A ZIP pins a search as tightly as a street number.
+    parts[-1] = re.sub(r"\s+\d{5}(?:-\d{4})?$", "", parts[-1]).strip()
+    parts = [p for p in parts if p]
+    if not parts:
+        return None
+
+    return ", ".join(parts[-2:])
+
+
+#: The sentence `onboarding.build_profile_facts` writes for `buyers.offers`.
+_OFFERING_RE = re.compile(r"^\s*What we sell is\s+(.+?)\s*\.?\s*$", re.I)
+
+
+def offering_from_facts(facts: Sequence[str]) -> str | None:
+    """What the business sells, recovered from its own signup sentence.
+
+    Read from `business_fact` rather than `business.profile_data` because the
+    fact is what survived: all three live tenants carry "What we sell is Korean
+    BBQ."/"...is Sushi." while their `profile_data.buyers.offers` is an empty
+    list, emptied by a later profile edit. Parsing prose is not lovely, but
+    parsing the copy that exists beats reading the copy that does not.
+
+    None when absent, and callers must treat that as "do not ask about rivals"
+    rather than substituting a category — "best restaurant or café in Gardena"
+    is a query about nothing.
+    """
+    for fact in facts:
+        match = _OFFERING_RE.match(fact or "")
+        if match:
+            return match.group(1).strip() or None
+    return None
+
+
+def build_query_plan(*, business_name: str, locality: str | None,
+                     offering: str | None = None,
+                     category: str | None = None) -> tuple[TavilyQuery, ...]:
+    """The night's questions.
+
+    CLAUDE.md establishes that Titan answers *concrete, hypothesis-shaped*
+    queries far better than abstract ones — 0.583 against 0.238 — and treats
+    that as an architectural requirement for the Analyst's retrieval. The same
+    rule holds one step earlier, at ingest: a corpus can only be retrieved for
+    what somebody thought to go and look at.
+
+    So this asks about waits, prices, hours and rivals by name rather than
+    running one "tell me about this business" sweep. Each measured live on
+    2026-08-07 for Yellow Cow Korean BBQ:
+
+    * reviews — 0.515-0.726, real customer sentiment, previously stored as trend
+    * waits   — 0.715 "Thursday through Saturday gets packed with long wait";
+                the live corpus contains no row like this at all
+    * hours   — 0.794 real opening hours, 0.544 "Great value for the two meat
+                combo", which is a price point in a sentence
+    * rivals  — 0.565 "Top 10 Best Korean Near Gardena", 0.488 a named rival
+                with an address. The query it replaces returned the tenant.
+
+    A news/trends query was measured too and is deliberately absent: for a
+    suburb it topped out at 0.673 on an Instagram post and fell to 0.040 by the
+    fifth result. It can come back when it has a geography wide enough to work.
+    """
+    if not locality or not business_name:
+        # Searching without a place returns the country, and storing that as an
+        # observation about this street would be a lie the Analyst then cites.
+        return ()
+
+    plan = [
+        TavilyQuery(
+            text=f"{business_name} {locality} reviews what customers say",
+            kind="review", label="web:reviews"),
+        TavilyQuery(
+            text=f"{business_name} {locality} wait time busy weekend crowded",
+            kind="review", label="web:experience"),
+        TavilyQuery(
+            text=f"{business_name} {locality} hours menu prices lunch specials",
+            kind="trend", label="web:listing", search_depth="advanced"),
+    ]
+
+    if offering:
+        plan.append(TavilyQuery(
+            text=f"best {offering} restaurants in {locality} menu prices per person",
+            kind="rival_price", label="web:rivals", search_depth="advanced"))
+
+    return tuple(plan)
+
+
 class TavilySignalSource:
     """Live web signals via the Tavily search API.
 
-    Deliberately narrow: it asks about the business and its immediate competitive
-    context and returns result snippets as observations. Dedup downstream means
-    re-seeing the same snippet nightly is free.
+    The only source a real tenant has, and until 2026-08-07 the only one with no
+    test — which is how three defects reached production together: the street
+    address used as a search locality, every row labelled a trend, and Tavily's
+    own relevance score thrown away. See test_tavily.py for the measurements.
+
+    Still deliberately narrow, and still best-effort: dedup downstream means
+    re-seeing the same snippet nightly is free, and a query that fails costs its
+    own results rather than the sweep's.
     """
 
     name = "web"
     retention_hours = None
 
     def __init__(self, *, api_key: str, client: Any | None = None,
-                 queries: Sequence[str] | None = None) -> None:
+                 queries: Sequence[Any] | None = None,
+                 offering: str | None = None,
+                 category: str | None = None,
+                 min_score: float = DEFAULT_MIN_SCORE) -> None:
         self._api_key = api_key
         self._client = client
-        self._queries = list(queries) if queries else None
+        self._offering = offering
+        self._category = category
+        self._min_score = min_score
+        # Bare strings stay valid: the local `--web` harness and several tests
+        # construct this source with them, and breaking that is a larger change
+        # than this one earns.
+        self._queries: tuple[TavilyQuery, ...] | None = tuple(
+            q if isinstance(q, TavilyQuery) else TavilyQuery(text=str(q))
+            for q in queries
+        ) if queries else None
 
-    def _default_queries(self, business_name: str, city: str | None) -> list[str]:
-        where = f" {city}" if city else ""
-        return [
-            f"{business_name}{where} reviews",
-            f"restaurants near {business_name}{where} lunch prices",
-            f"{city or ''} restaurant dining trends".strip(),
-        ]
+    def _plan(self, business_name: str, city: str | None) -> tuple[TavilyQuery, ...]:
+        if self._queries is not None:
+            return self._queries
+        return build_query_plan(
+            business_name=business_name,
+            locality=locality_of(city),
+            offering=self._offering,
+            category=self._category,
+        )
+
+    def _keep(self, result: dict) -> bool:
+        score = result.get("score")
+        if score is None:
+            # Absent is not zero. If Tavily ever stops returning the field this
+            # degrades to the old take-everything behaviour rather than quietly
+            # storing nothing at all.
+            return True
+        try:
+            return float(score) >= self._min_score
+        except (TypeError, ValueError):
+            return True
 
     def fetch(self, *, business_name: str, city: str | None,
               limit: int) -> list[RawSignal]:
-        # Imported lazily so the unit suite never needs the dependency.
         client = self._client
         if client is None:
-            import httpx
+            import httpx  # lazy, so the unit suite never needs it
 
-            client = httpx.Client(timeout=20.0)
+            client = httpx.Client(timeout=30.0)
 
-        queries = self._queries or self._default_queries(business_name, city)
+        queries = self._plan(business_name, city)
+        if not queries:
+            return []
+
+        # Clamped at both ends: Tavily rejects more than MAX_TAVILY_RESULTS, and
+        # integer division used to be able to reach zero — which spends a call
+        # to ask for nothing.
+        per_query = max(1, min(MAX_TAVILY_RESULTS, limit // len(queries)))
         now = datetime.now(timezone.utc)
         signals: list[RawSignal] = []
+        failures: list[str] = []
 
         for query in queries:
-            response = client.post(
-                "https://api.tavily.com/search",
-                json={"api_key": self._api_key, "query": query,
-                      "max_results": max(1, limit // len(queries))},
-            )
-            response.raise_for_status()
-            for result in response.json().get("results", []):
+            try:
+                response = client.post(
+                    TAVILY_SEARCH_URL,
+                    # Documented auth is a Bearer header. The body `api_key` form
+                    # is legacy, and a body parameter is the one that ends up in
+                    # a logged payload.
+                    headers={"Authorization": f"Bearer {self._api_key}"},
+                    json=query.body(max_results=per_query),
+                )
+                response.raise_for_status()
+                results = response.json().get("results", []) or []
+            except Exception as exc:
+                # Per query, not per source. A single rate-limited question used
+                # to cost the night every other question's observations, which
+                # is the difference between a thin night and a blind one.
+                failures.append(f"{query.label}: {exc}")
+                continue
+
+            for result in results:
                 content = (result.get("content") or "").strip()
-                if not content:
+                if not content or not self._keep(result):
                     continue
                 signals.append(RawSignal(
                     content=content,
-                    kind="trend",
-                    source_name="web",
+                    kind=query.kind,
+                    source_name=query.label,
                     source_url=result.get("url"),
                     observed_at=now,
                 ))
+
+        if failures and len(failures) == len(queries):
+            # Radar names failed sources in the run note. Returning [] here would
+            # let a dead API read as a quiet night.
+            raise RuntimeError("every Tavily query failed: " + "; ".join(failures))
 
         return signals[:limit]
 

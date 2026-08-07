@@ -31,6 +31,7 @@ from brasstacks.decisions import (
     DecisionEvent,
     ReconsiderResult,
 )
+from brasstacks.meter import daily_cents_from
 from brasstacks.connections import (
     CONNECTION_CONNECTED,
     CONNECTION_PENDING,
@@ -167,6 +168,31 @@ class DueFind:
     verify_after: date
     created_at: datetime
     measurement_start: date | None = None
+
+
+@dataclass(frozen=True)
+class OutcomeReport:
+    """What the owner measured, in their own units, and when they said so.
+
+    Stored as reported — the amount and the period it covers — beside the daily
+    figure derived from them. Keeping both means a reported "$300 a week" can
+    still be shown back as $300 a week, while the Meter judges the number the
+    prediction was made in. Deriving it in one place is what stops the two
+    stores disagreeing about the same report.
+
+    Rows accumulate: a corrected figure is a new row, never an edit of the old
+    one, on the same rule the decision log keeps.
+    """
+
+    report_id: str
+    business_id: str
+    find_id: str
+    amount_cents: int
+    basis: str
+    daily_cents: int
+    reported_at: datetime
+    note: str | None = None
+    reported_by_account_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -614,7 +640,27 @@ class Repository(Protocol):
         measured_at: datetime | None = ...,
     ) -> str: ...
 
+    def update_ledger_entry(
+        self, business_id: str, *, find_id: str, period_start: date,
+        period_end: date, verdict: str, actual_daily_cents: int | None,
+        method: str, note: str | None = ..., run_id: str | None = ...,
+        measured_at: datetime | None = ...,
+    ) -> str: ...
+
     def ledger_summary(self, business_id: str) -> LedgerSummary: ...
+
+    def record_find_outcome(
+        self, business_id: str, *, find_id: str, amount_cents: int, basis: str,
+        note: str | None = ..., reported_by_account_id: str | None = ...,
+        reported_at: datetime | None = ...,
+    ) -> OutcomeReport: ...
+
+    def find_outcome_reports(self, business_id: str) -> list[OutcomeReport]: ...
+
+    def find_outcome_history(self, business_id: str, *,
+                             find_id: str) -> list[OutcomeReport]: ...
+
+    def remeasurable_finds(self, business_id: str) -> list[DueFind]: ...
 
 
 # ---------------------------------------------------------------------------
@@ -751,6 +797,11 @@ class _LedgerEntry:
     period_end: date
     method: str
     note: str | None = None
+    #: When this verdict was reached. Not decoration: an owner-reported figure
+    #: is only worth re-judging if it arrived after the verdict it would
+    #: replace, and that comparison is made against this.
+    measured_at: datetime | None = None
+    run_id: str | None = None
 
 
 class InMemoryRepository:
@@ -780,6 +831,7 @@ class InMemoryRepository:
         self._email_events: dict[str, EmailEventRecord] = {}
         self._external_connections: dict[tuple[str, str], ExternalConnectionRecord] = {}
         self._ledger: list[_LedgerEntry] = []
+        self._outcome_reports: list[OutcomeReport] = []
         self._accounts: dict[str, dict[str, Any]] = {}
         self._sessions: dict[str, dict[str, Any]] = {}
         self._handoffs: dict[str, dict[str, Any]] = {}
@@ -2411,8 +2463,125 @@ class InMemoryRepository:
             verdict=verdict, predicted_daily_cents=predicted_daily_cents,
             actual_daily_cents=actual_daily_cents, period_start=period_start,
             period_end=period_end, method=method, note=note,
+            measured_at=measured_at or self._now(), run_id=run_id,
         ))
         return entry_id
+
+    def update_ledger_entry(
+        self, business_id: str, *, find_id: str, period_start: date,
+        period_end: date, verdict: str, actual_daily_cents: int | None,
+        method: str, note: str | None = None, run_id: str | None = None,
+        measured_at: datetime | None = None,
+    ) -> str:
+        """Replace an estimate with a measurement. Nothing else.
+
+        The append-only rule the ledger keeps is about *measured* verdicts: a
+        published miss must not become a win because a better number turned up
+        later. An estimate is not a measurement — it is the placeholder written
+        because nobody had counted yet — so replacing one with a real figure is
+        the ledger getting more honest, not less.
+        """
+        for entry in self._ledger:
+            if (entry.find_id == find_id and entry.period_start == period_start
+                    and entry.period_end == period_end
+                    and entry.business_id == business_id):
+                if entry.verdict != "estimated":
+                    raise RepositoryError(
+                        f"find {find_id} already has a measured verdict for "
+                        f"{period_start}..{period_end}"
+                    )
+                entry.verdict = verdict
+                entry.actual_daily_cents = actual_daily_cents
+                entry.method = method
+                entry.note = note
+                entry.run_id = run_id
+                entry.measured_at = measured_at or self._now()
+                return entry.entry_id
+        raise RepositoryError(
+            f"no estimated verdict for find {find_id} over "
+            f"{period_start}..{period_end}"
+        )
+
+    # -- outcomes the owner measured -------------------------------------
+    def record_find_outcome(
+        self, business_id: str, *, find_id: str, amount_cents: int, basis: str,
+        note: str | None = None, reported_by_account_id: str | None = None,
+        reported_at: datetime | None = None,
+    ) -> OutcomeReport:
+        found = self._finds.get(find_id)
+        if found is None or found.business_id != business_id:
+            raise RepositoryError("recommendation is no longer available")
+        if found.status not in JUDGEABLE_STATUSES:
+            raise RepositoryError(
+                "only a move you accepted can have an outcome to report"
+            )
+
+        report = OutcomeReport(
+            report_id=str(uuid.uuid4()),
+            business_id=business_id,
+            find_id=find_id,
+            amount_cents=amount_cents,
+            basis=basis,
+            # Raises before anything is stored, so a bad period or a float
+            # amount never reaches the table.
+            daily_cents=daily_cents_from(amount_cents, basis),
+            reported_at=reported_at or self._now(),
+            note=note,
+            reported_by_account_id=reported_by_account_id,
+        )
+        self._outcome_reports.append(report)
+        return report
+
+    def find_outcome_reports(self, business_id: str) -> list[OutcomeReport]:
+        """The current figure for every find that has one, newest first."""
+        latest: dict[str, OutcomeReport] = {}
+        for report in sorted(self._outcome_reports,
+                             key=lambda r: r.reported_at):
+            if report.business_id == business_id:
+                latest[report.find_id] = report
+        return sorted(latest.values(), key=lambda r: r.reported_at,
+                      reverse=True)
+
+    def find_outcome_history(self, business_id: str, *,
+                             find_id: str) -> list[OutcomeReport]:
+        return sorted(
+            (r for r in self._outcome_reports
+             if r.business_id == business_id and r.find_id == find_id),
+            key=lambda r: r.reported_at, reverse=True,
+        )
+
+    def remeasurable_finds(self, business_id: str) -> list[DueFind]:
+        """Estimates whose owner has since reported a real number.
+
+        Gated on the report being *newer* than the verdict. Without that the
+        Meter would re-judge every estimate that ever had a figure, every
+        night, rewriting the same row forever.
+        """
+        current = {r.find_id: r for r in self.find_outcome_reports(business_id)}
+        due: list[DueFind] = []
+        for entry in self._ledger:
+            if (entry.business_id != business_id
+                    or entry.verdict != "estimated"):
+                continue
+            report = current.get(entry.find_id)
+            if report is None or entry.measured_at is None:
+                continue
+            if report.reported_at <= entry.measured_at:
+                continue
+            found = self._finds.get(entry.find_id)
+            if found is None:
+                continue
+            due.append(DueFind(
+                find_id=entry.find_id, title=found.title,
+                predicted_daily_cents=found.predicted_daily_cents,
+                # The window already on the row, not a freshly computed one:
+                # the update has to land on the verdict being replaced.
+                verify_after=entry.period_end,
+                created_at=found.created_at,
+                measurement_start=entry.period_start,
+            ))
+        due.sort(key=lambda f: (f.verify_after, f.created_at))
+        return due
 
     def ledger_summary(self, business_id: str) -> LedgerSummary:
         entries = [e for e in self._ledger if e.business_id == business_id]

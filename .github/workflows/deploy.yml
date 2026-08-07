@@ -2,6 +2,16 @@ name: Deploy Brass Tacks
 
 on:
   workflow_dispatch:
+    inputs:
+      schedule_state:
+        description: "Nightly autopilot"
+        type: choice
+        options: [ENABLED, DISABLED]
+        default: ENABLED
+      schedule_expression:
+        description: "When the night runs, in the stack's ScheduleTimezone"
+        type: string
+        default: "cron(0 18 * * ? *)"
 
 permissions:
   contents: read
@@ -79,10 +89,37 @@ jobs:
           echo "artifact_bucket=$ARTIFACT_BUCKET" >> "$GITHUB_OUTPUT"
           echo "Existing artifact bucket found."
 
+      # ScheduleState and ScheduleExpression are passed on every deploy, and
+      # that is the whole point. `sam deploy` reuses the stack's PREVIOUS value
+      # for any parameter it is not given, so the template default is only ever
+      # read once — at stack creation. The consequence was live: ee58901 moved
+      # the nightly run from 06:00 to 18:00 on 2026-08-03 because a 6 AM sweep
+      # was reading closed storefronts and the Analyst was publishing finds on
+      # the outage, and four successful deploys later the deployed schedule was
+      # still cron(0 6 * * ? *). A default nobody sends is a default nobody has.
+      #
+      # The template keeps DISABLED as its own default, so a fresh clone still
+      # deploys a stack that spends nothing until someone asks it to. This
+      # workflow is our deployment saying what it wants, visibly, in the Run
+      # workflow dialog.
       - name: Deploy existing stack
         id: deploy_stack
+        # Values reach the shell through env rather than being interpolated into
+        # the script, so a workflow input can never become part of the command.
+        env:
+          ARTIFACT_BUCKET: ${{ steps.existing.outputs.artifact_bucket }}
+          SCHEDULE_STATE: ${{ inputs.schedule_state }}
+          SCHEDULE_EXPRESSION: ${{ inputs.schedule_expression }}
         run: |
-          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides               ArtifactBucket="${{ steps.existing.outputs.artifact_bucket }}"
+          # The inner \" are load-bearing. `--parameter-overrides` takes one
+          # argument holding every Key=Value pair, and SAM re-splits it on
+          # whitespace itself — so the shell's own quotes, which it strips
+          # before SAM ever sees them, protect nothing. On 2026-08-07 that sent
+          # `ScheduleExpression=cron(0` to CloudFormation, EventBridge rejected
+          # it as an invalid schedule expression, and the whole stack update
+          # rolled back. SAM's parser does honour literal quotes in the value;
+          # these are the ones that survive to it.
+          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides "ArtifactBucket=\"$ARTIFACT_BUCKET\" ScheduleState=\"$SCHEDULE_STATE\" ScheduleExpression=\"$SCHEDULE_EXPRESSION\""
 
       - name: Show CloudFormation failure details
         if: always() && steps.deploy_stack.outcome == 'failure'

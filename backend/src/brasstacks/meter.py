@@ -14,6 +14,14 @@ from __future__ import annotations
 from enum import Enum
 from fractions import Fraction
 
+#: The periods an owner may report a figure over, and the days each covers.
+#:
+#: A month is 30 days, not 30.44, because the board already renders a daily
+#: prediction as ``daily * 30`` a month. Two different months would make a
+#: reported figure disagree with the forecast it is measured against, and the
+#: owner would have no way to see why.
+MEASUREMENT_BASES = {"day": 1, "week": 7, "month": 30}
+
 #: Below this fraction of the prediction, a positive result is still a miss.
 #: A move that delivers 2% of what we promised did not work; calling it a win
 #: because the number is technically above zero is the kind of scorekeeping the
@@ -36,6 +44,38 @@ def _require_cents(name: str, value: object) -> int:
             f"{name} must be integer cents, got {type(value).__name__}: {value!r}"
         )
     return value
+
+
+def daily_cents_from(amount_cents: int, basis: str) -> int:
+    """Convert an owner-reported figure to the daily cents the ledger judges.
+
+    Args:
+        amount_cents: What the move earned over one `basis`, in integer cents.
+            May be negative — a move can cost money — and may be zero, which is
+            a measured miss rather than an absence.
+        basis: One of `MEASUREMENT_BASES`.
+
+    Rounding is half-up on the magnitude, so a loss rounds the same distance
+    from zero as the equivalent gain. There is nowhere to keep a fraction of a
+    cent, and dropping it silently in one direction would bias every reported
+    week by up to six sevenths of a cent a day in the product's favour.
+
+    Raises:
+        TypeError: if the amount is not integer cents.
+        ValueError: for a period the owner was never offered.
+    """
+    amount = _require_cents("amount_cents", amount_cents)
+    try:
+        days = MEASUREMENT_BASES[basis]
+    except (KeyError, TypeError):
+        raise ValueError(
+            f"basis must be one of {sorted(MEASUREMENT_BASES)}, got {basis!r}"
+        ) from None
+
+    if days == 1:
+        return amount
+    magnitude = (abs(amount) * 2 + days) // (days * 2)
+    return magnitude if amount >= 0 else -magnitude
 
 
 def judge(

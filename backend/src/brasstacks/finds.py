@@ -1008,3 +1008,44 @@ def parse_find(
         claim_type=verdict.tier,
         claim=verdict,
     )
+
+
+#: What the owner is offered when reporting a figure, and how each reads in a
+#: sentence. Kept beside the find payload rather than in the page, because the
+#: label is part of what the ledger will claim: "$210 a week" measured against
+#: a daily prediction is a statement about somebody's money.
+BASIS_LABEL = {"day": "a day", "week": "a week", "month": "a month"}
+
+
+def reported_outcome_view(raw: Any, *, money: Any) -> dict[str, Any] | None:
+    """The owner's latest reported figure, shaped for the board.
+
+    `None` when nobody has reported anything, which is not the same as zero: a
+    reported zero is a measured miss and has to survive as a number all the way
+    to the screen.
+
+    Formatting is done here, once, by the caller's money formatter — the page
+    is not allowed to do arithmetic on money, and both the static build and the
+    live snapshot have to agree on the string.
+    """
+    if not isinstance(raw, Mapping):
+        return None
+    amount = raw.get("amount_cents")
+    if amount is None:
+        return None
+
+    amount = int(amount)
+    basis = str(raw.get("basis") or "day")
+    daily = int(raw.get("daily_cents") or 0)
+    reported_at = raw.get("reported_at")
+    return {
+        "amountCents": amount,
+        "amountTxt": money(amount),
+        "basis": basis,
+        "basisLabel": BASIS_LABEL.get(basis, basis),
+        "dailyCents": daily,
+        "dailyTxt": money(daily),
+        "note": (raw.get("note") or None),
+        "reportedAt": (reported_at.isoformat()
+                       if hasattr(reported_at, "isoformat") else reported_at),
+    }

@@ -27,6 +27,8 @@ from brasstacks.connections import (
     ExternalConnectionRecord,
 )
 from brasstacks.execution_schema import ensure_execution_schema
+from brasstacks.meter import daily_cents_from
+from brasstacks.outcome_schema import ensure_outcome_schema
 from brasstacks.decisions import (
     DECISION_ACCEPTED,
     DECISION_PASSED,
@@ -51,6 +53,7 @@ from brasstacks.repository import (
     FindContext,
     FindSummary,
     LedgerSummary,
+    OutcomeReport,
     OwnerRule,
     RepositoryError,
     Retrieved,
@@ -2720,6 +2723,185 @@ class PostgresRepository:
                 f"could not record verdict for find {find_id} "
                 f"({period_start}..{period_end}): {e}"
             ) from e
+
+    def update_ledger_entry(
+        self, business_id: str, *, find_id: str, period_start: date,
+        period_end: date, verdict: str, actual_daily_cents: int | None,
+        method: str, note: str | None = None, run_id: str | None = None,
+        measured_at: datetime | None = None,
+    ) -> str:
+        """Replace an estimate with a measurement. Nothing else.
+
+        The append-only rule the ledger keeps is about *measured* verdicts: a
+        published miss must not become a win because a better number turned up
+        later. An estimate is not a measurement — it is the placeholder written
+        because nobody had counted yet — so `verdict = 'estimated'` in the WHERE
+        clause is the whole guard, enforced by the database rather than by a
+        read-then-write the next request could interleave with.
+        """
+        ensure_decision_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ledger_entry
+                   SET verdict = %s,
+                       actual_daily_cents = %s,
+                       method = %s,
+                       note = %s,
+                       run_id = %s,
+                       measured_at = coalesce(%s, clock_timestamp())
+                 WHERE business_id = %s
+                   AND find_id = %s
+                   AND period_start = %s
+                   AND period_end = %s
+                   AND verdict = 'estimated'
+                RETURNING id
+                """,
+                (verdict, actual_daily_cents, method, note, run_id,
+                 measured_at, business_id, find_id, period_start, period_end),
+            )
+            row = cur.fetchone()
+        if row is None:
+            raise RepositoryError(
+                f"no estimated verdict for find {find_id} over "
+                f"{period_start}..{period_end}"
+            )
+        return str(row[0])
+
+    # -- outcomes the owner measured -------------------------------------
+    def record_find_outcome(
+        self, business_id: str, *, find_id: str, amount_cents: int, basis: str,
+        note: str | None = None, reported_by_account_id: str | None = None,
+        reported_at: datetime | None = None,
+    ) -> OutcomeReport:
+        # Raises before anything is written, so a bad period or a float amount
+        # never reaches the table.
+        daily = daily_cents_from(amount_cents, basis)
+        ensure_outcome_schema(self._conn)
+
+        with self._conn.cursor() as cur:
+            # Scope and status in one statement: a find belonging to another
+            # tenant and a find nobody acted on are both refused, and neither
+            # answer tells the caller which it was.
+            cur.execute(
+                """
+                SELECT status FROM find WHERE id = %s AND business_id = %s
+                """,
+                (find_id, business_id),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise RepositoryError("recommendation is no longer available")
+            if row[0] not in JUDGEABLE_STATUSES:
+                raise RepositoryError(
+                    "only a move you accepted can have an outcome to report"
+                )
+
+            cur.execute(
+                """
+                INSERT INTO find_outcome (
+                    business_id, find_id, reported_by_account_id,
+                    amount_cents, basis, daily_cents, note, reported_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s,
+                        coalesce(%s, clock_timestamp()))
+                RETURNING id, reported_at
+                """,
+                (business_id, find_id, reported_by_account_id, amount_cents,
+                 basis, daily, note, reported_at),
+            )
+            report_id, stored_at = cur.fetchone()
+
+        return OutcomeReport(
+            report_id=str(report_id), business_id=business_id,
+            find_id=find_id, amount_cents=int(amount_cents), basis=basis,
+            daily_cents=daily, reported_at=stored_at, note=note,
+            reported_by_account_id=reported_by_account_id,
+        )
+
+    def find_outcome_reports(self, business_id: str) -> list[OutcomeReport]:
+        """The current figure for every find that has one, newest first."""
+        ensure_outcome_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT ON (find_id)
+                       id, find_id, amount_cents, basis, daily_cents, note,
+                       reported_by_account_id, reported_at
+                FROM find_outcome
+                WHERE business_id = %s
+                ORDER BY find_id, reported_at DESC
+                """,
+                (business_id,),
+            )
+            rows = cur.fetchall()
+        reports = [self._outcome_row(business_id, r) for r in rows]
+        reports.sort(key=lambda r: r.reported_at, reverse=True)
+        return reports
+
+    def find_outcome_history(self, business_id: str, *,
+                             find_id: str) -> list[OutcomeReport]:
+        ensure_outcome_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, find_id, amount_cents, basis, daily_cents, note,
+                       reported_by_account_id, reported_at
+                FROM find_outcome
+                WHERE business_id = %s AND find_id = %s
+                ORDER BY reported_at DESC
+                """,
+                (business_id, find_id),
+            )
+            return [self._outcome_row(business_id, r) for r in cur.fetchall()]
+
+    @staticmethod
+    def _outcome_row(business_id: str, row: Sequence[Any]) -> OutcomeReport:
+        return OutcomeReport(
+            report_id=str(row[0]), business_id=business_id,
+            find_id=str(row[1]), amount_cents=int(row[2]), basis=row[3],
+            daily_cents=int(row[4]), note=row[5],
+            reported_by_account_id=str(row[6]) if row[6] else None,
+            reported_at=row[7],
+        )
+
+    def remeasurable_finds(self, business_id: str) -> list[DueFind]:
+        """Estimates whose owner has since reported a real number.
+
+        Gated on the report being *newer* than the verdict. Without that the
+        Meter would re-judge every estimate that ever had a figure, every
+        night, rewriting the same row forever.
+
+        The window comes off the ledger row rather than being recomputed: the
+        update has to land on the verdict being replaced.
+        """
+        ensure_outcome_schema(self._conn)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT f.id, f.title, f.predicted_daily_cents,
+                       le.period_end, f.created_at, le.period_start
+                FROM ledger_entry le
+                JOIN find f ON f.id = le.find_id
+                JOIN (
+                    SELECT find_id, max(reported_at) AS reported_at
+                    FROM find_outcome
+                    WHERE business_id = %s
+                    GROUP BY find_id
+                ) latest ON latest.find_id = le.find_id
+                WHERE le.business_id = %s
+                  AND le.verdict = 'estimated'
+                  AND latest.reported_at > le.measured_at
+                ORDER BY le.period_end, f.created_at
+                """,
+                (business_id, business_id),
+            )
+            return [
+                DueFind(find_id=str(r[0]), title=r[1],
+                        predicted_daily_cents=int(r[2]), verify_after=r[3],
+                        created_at=r[4], measurement_start=r[5])
+                for r in cur.fetchall()
+            ]
 
     def ledger_summary(self, business_id: str) -> LedgerSummary:
         with self._conn.cursor() as cur:
