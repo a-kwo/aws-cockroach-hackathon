@@ -1571,6 +1571,72 @@ def test_the_google_button_still_demands_the_invite_code():
     assert handler.index("if (!inviteCode)") < handler.index("window.location.href")
 
 
+def test_every_workflow_that_publishes_the_site_passes_the_google_switch():
+    """Two workflows build and upload `web/`, and both must build it the same.
+
+    On 2026-08-07 they did not. `deploy-frontend.yml` resolved
+    `GOOGLE_OAUTH_ENABLED=1` and produced a page with the button; `deploy.yml`
+    passed only the decision endpoint, and its later upload replaced that page
+    with one where the button was switched off. Nothing failed — every other
+    endpoint survived because `build_web.py` derives them from the decision
+    endpoint, and the switch is the one value with no fallback.
+
+    So the rule is about the pair, not about either file: whatever runs
+    `build_web.py` and then syncs to S3 has to carry the switch.
+    """
+    for name in ("deploy.yml", "deploy-frontend.yml"):
+        workflow = (build_web.REPO / ".github" / "workflows" / name).read_text(
+            encoding="utf-8")
+        if "aws s3 sync web/" not in workflow:
+            continue
+
+        assert "GOOGLE_OAUTH_ENABLED:" in workflow, (
+            f"{name} uploads web/ but never passes GOOGLE_OAUTH_ENABLED, so "
+            f"the site it publishes has no Sign in with Google button")
+        # Resolved from the OAuth client actually existing, not hard-coded on.
+        assert "GOOGLE_OAUTH_CLIENT_ID" in workflow
+
+
+def test_the_sign_in_page_offers_google_under_the_same_switch():
+    """The button belongs on /login/ too — an owner who created a workspace
+    with Google has no password to come back with.
+
+    Gated identically to /register/: the markup always ships, and only the
+    class that reveals it depends on the build having been told a client
+    exists.
+    """
+    built = (build_web.OUT_DIR / "login" / "index.html").read_text(
+        encoding="utf-8")
+
+    assert 'class="alt-auth"' in built
+    assert 'getElementById("altAuth").classList.add("available")' in built
+    assert json.loads(
+        built.split('id="bt-data" type="application/json">', 1)[1]
+             .split("</script>", 1)[0])["api"]["googleStartEndpoint"] is None
+
+
+def test_the_sign_in_page_asks_google_for_a_sign_in_not_a_sign_up():
+    """`intent=login` is what tells the backend to skip the invite check — and
+    therefore what tells the callback it may not create an account. The sign-in
+    page has no invite field, so it must never claim to have one."""
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+    handler = html.split("googleButton.addEventListener", 1)[1].split("});", 1)[0]
+
+    assert "?intent=login" in handler
+    # Not anywhere on the page: there is no field to read one from, and a page
+    # that sent one would be claiming a check nobody ran.
+    assert "invite=" not in html
+
+
+def test_the_sign_in_page_says_so_when_the_google_account_is_unknown():
+    """The callback sends them back here rather than creating a workspace off
+    an uninvited sign-in. A silent bounce would read as a broken button."""
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+
+    assert '"no-account"' in html
+    assert '"cancelled"' in html
+
+
 def test_the_landing_page_never_reads_a_token_from_the_url():
     """The callback hands over a one-time code, never a session token.
 
@@ -1612,6 +1678,19 @@ def test_the_landing_page_sends_owners_without_a_business_to_onboarding():
     html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
 
     assert 'payload.business_id ? "../../app/" : "../../signup/"' in html
+
+
+def test_the_landing_page_offers_a_way_back_that_signs_you_in():
+    """By the time anyone reaches this page the callback has already found or
+    created their account — so a failure here is a spent or expired handoff
+    code, not a missing workspace. Sending them to sign-up would offer to make
+    a second account for someone who already has one, and since the button now
+    also sits on /login/, the page they left from is as likely to be that."""
+    html = (build_web.SITE / "auth-complete.html").read_text(encoding="utf-8")
+    link = html.split('class="retry"', 1)[1].split("</a>", 1)[0]
+
+    assert 'href="../../login/"' in link
+    assert "sign-up" not in link
 
 
 def test_the_landing_page_is_built_even_when_the_button_is_off():

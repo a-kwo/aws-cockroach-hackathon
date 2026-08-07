@@ -108,6 +108,20 @@ jobs:
           echo "site_bucket=$(value SiteBucketName)" >> "$GITHUB_OUTPUT"
           echo "site_url=$(value SiteUrl)" >> "$GITHUB_OUTPUT"
 
+          # This job also publishes the site, so it has to build it the same way
+          # deploy-frontend.yml does -- it runs later and its upload wins. Every
+          # other endpoint survives being left out here, because build_web.py
+          # derives them from the decision endpoint; this switch has no fallback,
+          # so omitting it silently ships a site with no Sign in with Google
+          # button. Same rule, same reason: a button that 404s is worse than none.
+          if aws ssm get-parameter \
+               --name "/brasstacks/GOOGLE_OAUTH_CLIENT_ID" \
+               --region "$REGION" >/dev/null 2>&1; then
+            echo "google_oauth_enabled=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "google_oauth_enabled=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Validate stack outputs
         if: success()
         shell: bash
@@ -132,6 +146,7 @@ jobs:
         env:
           DECISION_API_ENDPOINT: ${{ steps.outputs.outputs.decision_endpoint }}
           WORKFLOW_API_ENDPOINT: ${{ steps.outputs.outputs.workflow_endpoint }}
+          GOOGLE_OAUTH_ENABLED: ${{ steps.outputs.outputs.google_oauth_enabled }}
         run: python scripts/build_web.py
 
       - name: Publish frontend to S3
