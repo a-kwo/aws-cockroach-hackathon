@@ -20022,6 +20022,50 @@
 
     .chat-msg.is-error { border-color: rgba(255, 155, 172, .35); color: #ffb3c0; }
 
+    /* Structured answers inside agent bubbles: sections with small caps
+       labels, real lists, and long responses folded behind a summary. */
+    .chat-msg.agent .chat-answer { display: grid; gap: 12px; }
+
+    .chat-msg.agent .chat-answer-section h4 {
+      margin: 0 0 5px;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: #c9a9ff;
+    }
+
+    .chat-msg.agent .chat-answer-section p { margin: 0 0 7px; }
+    .chat-msg.agent .chat-answer-section p:last-child { margin-bottom: 0; }
+
+    .chat-msg.agent .chat-answer-section ul,
+    .chat-msg.agent .chat-answer-section ol {
+      margin: 0 0 7px;
+      padding-left: 19px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .chat-msg.agent .chat-answer-section li::marker { color: #a985e6; }
+
+    .chat-msg.agent .chat-answer-more {
+      border-top: 1px solid rgba(198, 204, 255, .12);
+      padding-top: 8px;
+    }
+
+    .chat-msg.agent .chat-answer-more summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 650;
+      color: #c9a9ff;
+      list-style: none;
+    }
+
+    .chat-msg.agent .chat-answer-more summary::-webkit-details-marker { display: none; }
+    .chat-msg.agent .chat-answer-more summary::after { content: " ▸"; }
+    .chat-msg.agent .chat-answer-more[open] summary::after { content: " ▾"; }
+    .chat-msg.agent .chat-answer-full { margin-top: 10px; display: grid; gap: 12px; }
+
     .chat-send {
       flex: none;
       width: 46px;
@@ -20039,6 +20083,12 @@
 
     .chat-send:hover { filter: brightness(1.08); }
     .chat-send:active { transform: scale(.95); }
+
+    /* display:flex would beat the [hidden] UA rule — the bug that once kept
+       the orders forms open. Restate it for every flexed chat element. */
+    .chat-hints[hidden],
+    .chat-context[hidden],
+    #detailDrawer .drawer-composer[hidden] { display: none !important; }
 
     .chat-hints {
       flex: none;
@@ -20549,8 +20599,8 @@
                 <button type="button" class="orders-example" data-chat-hint="how did we do last month?">how did we do last month?</button>
               </div>
               <div class="chat-context" id="chatContext" hidden>
-                <span>About: <strong id="chatContextTitle"></strong></span>
-                <button type="button" id="chatContextClear" aria-label="Stop discussing this move">&times;</button>
+                <span>Discussing: <strong id="chatContextTitle"></strong></span>
+                <button type="button" id="chatContextClear" aria-label="Stop discussing this move" title="Back to everything">&times;</button>
               </div>
               <form class="chat-composer" id="chatComposer">
                 <input type="text" id="chatInput" autocomplete="off"
@@ -31169,12 +31219,20 @@ ledger_entry · artifact · agent_run`,
           // app the owner already knows.
           const first = messages[index - 1]?.role !== "agent";
           const classes = `chat-msg agent${message.error ? " is-error" : ""}${message.loading ? " is-loading" : ""}`;
+          // Real answers go through the structured renderer the drawer chat
+          // used: sections, lists, and a preview with "Read the full
+          // response" past ~900 characters — not a wall of prose.
+          const structured = !message.loading && !message.error
+            && typeof renderAssistantChatHtml === "function";
+          const body = structured
+            ? renderAssistantChatHtml(message.text)
+            : escapeHtml(message.text);
           return `
             <div class="chat-turn agent">
               <span class="chat-avatar${first ? "" : " ghost"}" aria-hidden="true">${first ? AGENT_MARK : ""}</span>
               <div>
                 ${first ? `<span class="chat-author">Brass Tacks</span>` : ""}
-                <div class="${classes}">${escapeHtml(message.text)}</div>
+                <div class="${classes}">${body}</div>
               </div>
             </div>`;
         }).join("");
