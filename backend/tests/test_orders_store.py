@@ -162,6 +162,48 @@ class TestOrders:
             store.update_order(BIZ, oid, verdict="placed")
 
 
+class TestSupplierSetting:
+    """Which shop the Quartermaster talks to: simulated, DoorDash, or the
+    owner's supplier by email. One row per business, defaulting to simulated
+    so a fresh tenant can never accidentally send a real order anywhere."""
+
+    def test_the_default_is_the_simulated_store(self, store):
+        setting = store.get_supplier(BIZ)
+        assert setting["supplier"] == "simulated"
+        assert setting["supplier_email"] is None
+
+    def test_a_choice_is_remembered(self, store):
+        store.set_supplier(BIZ, supplier="email",
+                           supplier_email="orders@wholesaler.example")
+        setting = store.get_supplier(BIZ)
+        assert setting["supplier"] == "email"
+        assert setting["supplier_email"] == "orders@wholesaler.example"
+
+    def test_a_second_choice_replaces_the_first(self, store):
+        store.set_supplier(BIZ, supplier="email",
+                           supplier_email="orders@wholesaler.example")
+        store.set_supplier(BIZ, supplier="simulated")
+        assert store.get_supplier(BIZ)["supplier"] == "simulated"
+
+    def test_an_unknown_supplier_is_refused(self, store):
+        with pytest.raises(ValueError):
+            store.set_supplier(BIZ, supplier="pigeon-courier")
+
+    def test_the_email_supplier_needs_an_address(self, store):
+        with pytest.raises(ValueError):
+            store.set_supplier(BIZ, supplier="email")
+
+    def test_an_address_without_an_at_sign_is_refused(self, store):
+        with pytest.raises(ValueError):
+            store.set_supplier(BIZ, supplier="email",
+                               supplier_email="not-an-address")
+
+    def test_the_choice_is_tenant_scoped(self, store):
+        store.set_supplier(BIZ, supplier="email",
+                           supplier_email="orders@wholesaler.example")
+        assert store.get_supplier(OTHER)["supplier"] == "simulated"
+
+
 class TestSpentInPeriod:
     def test_placed_orders_in_the_window_are_summed(self, store):
         store.create_order(BIZ, title="a", trigger="owner_instruction",

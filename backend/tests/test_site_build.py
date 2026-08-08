@@ -1921,19 +1921,20 @@ def test_the_welcome_screen_shows_once_not_forever():
 def test_each_audience_sees_only_its_own_views():
     """An owner and an operator are two products sharing one page.
 
-    The operator owns no business, so For You, Growth and DoorDash would be
+    The operator owns no business, so For You, Growth and Chat would be
     empty for them — their session carries no tenant and the workflow endpoint
     answers 401 by design. An owner must never see the Memory Engine, which
     reads across tenants.
 
-    DoorDash joined the owner's side of that split when it was added. It shows
-    one tenant's standing orders, spend limits and receipts, so it belongs
-    wherever For You and Growth belong and nowhere else.
+    Chat replaced the DoorDash tab on the owner's side of that split: it
+    hosts the supplies board in its canvas, showing one tenant's standing
+    orders, spend limits and receipts, so it belongs wherever For You and
+    Growth belong and nowhere else.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);" in html
-    assert 'OPERATOR_SESSION\n        ? ["autopilot", "growth", "orders"]' in html
+    assert 'OPERATOR_SESSION\n        ? ["autopilot", "growth", "chat"]' in html
     assert ': ["admin"];' in html
     # Several call sites ask for "autopilot" by name; one guard inside
     # switchView beats four at the call sites, and cannot be forgotten at a fifth.

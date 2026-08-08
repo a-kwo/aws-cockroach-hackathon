@@ -657,6 +657,12 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+            # The email-supplier option sends approved orders through the
+            # same verified SES identity the Maker uses.
+            - Sid: SendSupplierOrderEmail
+              Effect: Allow
+              Action: ses:SendEmail
+              Resource: "*"
       Events:
         OrdersState:
           Type: HttpApi

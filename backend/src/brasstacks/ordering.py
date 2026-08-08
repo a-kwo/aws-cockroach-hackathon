@@ -211,12 +211,105 @@ class FakeOrderingTool:
         return receipt
 
 
+class EmailOrderingTool:
+    """Orders by email to the owner's real supplier.
+
+    The one real-world supplier that needs no API partner: many small
+    businesses genuinely order by emailing a rep. ``draft`` prices from the
+    known catalogue — estimates, since the supplier invoices directly, which
+    is also why this mode never touches the card — and ``place`` sends the
+    approved cart to a human. The receipt's external reference is the mail
+    provider's message id: what an owner quotes when chasing a delivery.
+    """
+
+    name = "email"
+
+    def __init__(self, *, catalogue: dict[str, int], recipient: str,
+                 source: str, send, business_name: str = "",
+                 fees_cents: int = 0) -> None:
+        if not str(recipient or "").strip() or "@" not in str(recipient):
+            raise ValueError("the email supplier needs a recipient address")
+        if not str(source or "").strip():
+            raise ValueError("a verified sender address is required")
+        self._pricing = FakeOrderingTool(
+            catalogue=dict(catalogue), store_id=f"email:{recipient}",
+            store_name=f"Supplier ({recipient})", fees_cents=fees_cents)
+        self._recipient = recipient
+        self._source = source
+        self._send = send
+        self._business_name = str(business_name or "").strip()
+
+    def draft(self, *, items: Sequence[tuple[str, int]],
+              near: str | None = None) -> Cart:
+        return self._pricing.draft(items=items, near=near)
+
+    def place(self, *, cart: Cart, idempotency_key: str) -> Receipt:
+        key = str(idempotency_key or "").strip()
+        if not key:
+            raise ValueError(
+                "idempotency_key is required; without one a retry would order "
+                "twice"
+            )
+        lines = "\n".join(
+            f"  - {line.name}: {line.quantity}" for line in cart.lines)
+        who = self._business_name or "a Brass Tacks business"
+        subject = f"Supply order from {who}"
+        body = (
+            f"Hello,\n\n{who} would like to order:\n\n{lines}\n\n"
+            f"Estimated value ${cart.total_cents // 100}."
+            f"{cart.total_cents % 100:02d} at last known prices — please "
+            "invoice as usual.\n\n"
+            f"Reference: {key}\n\n"
+            "Sent by the owner's Brass Tacks ordering agent, after the owner "
+            "approved this order."
+        )
+        try:
+            message_id = self._send(source=self._source,
+                                    recipient=self._recipient,
+                                    subject=subject, body=body)
+        except Exception as exc:
+            raise OrderingError(
+                f"the order email could not be sent: {exc}") from exc
+        return Receipt(
+            external_reference=f"email:{message_id}",
+            total_cents=cart.total_cents,
+            lines=cart.lines,
+            placed_at=datetime.now(timezone.utc),
+            store_name=cart.store_name,
+            status="sent",
+        )
+
+
+class UnavailableOrderingTool:
+    """A supplier slot that exists before its credentials do.
+
+    DoorDash's ordering surface is waitlist-gated; the owner can still see
+    and select the option, and what they get until access lands is an honest
+    refusal with the reason — not a silent failure, not a simulation wearing
+    the wrong name. The real adapter replaces this class and nothing above
+    the seam changes.
+    """
+
+    def __init__(self, *, name: str, reason: str) -> None:
+        self.name = name
+        self._reason = reason
+
+    def draft(self, *, items: Sequence[tuple[str, int]],
+              near: str | None = None) -> Cart:
+        raise OrderingError(self._reason)
+
+    def place(self, *, cart: Cart, idempotency_key: str) -> Receipt:
+        raise OrderingError(self._reason)
+
+
 __all__ = [
     "Cart",
+    "EmailOrderingTool",
     "FakeOrderingTool",
     "ItemUnavailable",
     "LineItem",
     "OrderingError",
     "OrderingTool",
     "Receipt",
+    "UnavailableOrderingTool",
 ]

@@ -231,6 +231,111 @@ class TestFailure:
         assert receipt.total_cents == cart.total_cents
 
 
+class TestEmailOrderingTool:
+    """Orders by email to the owner's real supplier.
+
+    The one supplier that needs no API partner: `place` sends the approved
+    cart to a human who fulfils it. Prices are the catalogue's estimates —
+    the card is never charged in this mode, the supplier settles directly —
+    and the receipt's external reference is the provider message id, which
+    is what an owner would quote when chasing the order.
+    """
+
+    def sends(self):
+        from brasstacks.ordering import EmailOrderingTool
+        sent = []
+
+        def send(*, source, recipient, subject, body):
+            sent.append({"source": source, "recipient": recipient,
+                         "subject": subject, "body": body})
+            return f"msg-{len(sent)}"
+
+        tool = EmailOrderingTool(
+            catalogue=dict(CATALOGUE), recipient="orders@wholesaler.example",
+            source="agents@brasstacks.example", send=send,
+            business_name="Rosa's")
+        return tool, sent
+
+    def test_it_satisfies_the_protocol(self):
+        tool, _ = self.sends()
+        assert isinstance(tool, OrderingTool)
+        assert tool.name == "email"
+
+    def test_drafting_prices_from_the_catalogue(self):
+        tool, sent = self.sends()
+        cart = tool.draft(items=[("tomatoes", 2)])
+        assert cart.total_cents == 9_00
+        assert sent == []  # drafting spends nothing and sends nothing
+
+    def test_placing_sends_one_email_to_the_supplier(self):
+        tool, sent = self.sends()
+        cart = tool.draft(items=[("tomatoes", 2), ("flour", 1)])
+        tool.place(cart=cart, idempotency_key="k1")
+        assert len(sent) == 1
+        assert sent[0]["recipient"] == "orders@wholesaler.example"
+
+    def test_the_email_lists_what_to_deliver(self):
+        tool, sent = self.sends()
+        cart = tool.draft(items=[("tomatoes", 2)])
+        tool.place(cart=cart, idempotency_key="k1")
+        assert "tomatoes" in sent[0]["body"]
+        assert "2" in sent[0]["body"]
+        assert "Rosa's" in sent[0]["subject"]
+
+    def test_the_receipt_carries_the_message_id(self):
+        tool, _ = self.sends()
+        cart = tool.draft(items=[("tomatoes", 1)])
+        receipt = tool.place(cart=cart, idempotency_key="k1")
+        assert receipt.external_reference == "email:msg-1"
+
+    def test_a_send_failure_is_an_ordering_error(self):
+        from brasstacks.ordering import EmailOrderingTool
+
+        def send(**kwargs):
+            raise RuntimeError("SES is down")
+
+        tool = EmailOrderingTool(catalogue=dict(CATALOGUE),
+                                 recipient="orders@wholesaler.example",
+                                 source="agents@brasstacks.example", send=send)
+        cart = tool.draft(items=[("tomatoes", 1)])
+        with pytest.raises(OrderingError, match="SES is down"):
+            tool.place(cart=cart, idempotency_key="k1")
+
+    def test_an_empty_key_is_still_refused(self):
+        tool, _ = self.sends()
+        cart = tool.draft(items=[("tomatoes", 1)])
+        with pytest.raises(ValueError):
+            tool.place(cart=cart, idempotency_key="")
+
+
+class TestUnavailableOrderingTool:
+    """The DoorDash slot before the waitlist clears: selectable machinery, an
+    honest refusal at runtime. When access lands, the real adapter replaces
+    this class and nothing above the seam changes."""
+
+    def test_it_satisfies_the_protocol(self):
+        from brasstacks.ordering import UnavailableOrderingTool
+        tool = UnavailableOrderingTool(name="doordash", reason="waitlisted")
+        assert isinstance(tool, OrderingTool)
+        assert tool.name == "doordash"
+
+    def test_drafting_refuses_with_the_reason(self):
+        from brasstacks.ordering import UnavailableOrderingTool
+        tool = UnavailableOrderingTool(
+            name="doordash",
+            reason="DoorDash has not granted API access yet.")
+        with pytest.raises(OrderingError, match="granted API access"):
+            tool.draft(items=[("tomatoes", 1)])
+
+    def test_placing_refuses_too(self):
+        from brasstacks.ordering import UnavailableOrderingTool
+        working = FakeOrderingTool(catalogue=dict(CATALOGUE))
+        cart = working.draft(items=[("tomatoes", 1)])
+        tool = UnavailableOrderingTool(name="doordash", reason="waitlisted")
+        with pytest.raises(OrderingError):
+            tool.place(cart=cart, idempotency_key="k1")
+
+
 class TestLineItemArithmetic:
     def test_line_total_multiplies_cleanly(self):
         assert LineItem(name="x", quantity=3, unit_price_cents=333).total_cents == 999
