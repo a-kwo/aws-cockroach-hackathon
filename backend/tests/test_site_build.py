@@ -2374,6 +2374,12 @@ def test_the_doordash_screen_is_live_when_the_deployment_gives_it_an_api():
     # configurations.
     assert "Live, with one honest exception." in html
     assert "Live, with two honest exceptions." in html
+    # The chat can act: a decision spoken in the thread goes through the
+    # same decide() every button uses, and ambiguity asks instead of
+    # guessing which move gets the owner's yes.
+    assert "function parseDecisionIntent" in html
+    assert "async function performDecision" in html
+    assert "if (await handleDecision(text)) return;" in html
 
 
 def test_mobile_for_you_uses_native_scroll_snap_instead_of_pointer_drag():
