@@ -32043,31 +32043,10 @@ ledger_entry · artifact · agent_run`,
         // 0. A decision outranks everything — it is the owner acting.
         if (await handleDecision(text)) return;
 
-        // A move on the canvas means the conversation is about that move:
-        // straight to Ask, carrying its find_id, exactly as the drawer did.
-        if (chatContext) {
-          if (!chatAskEndpoint) {
-            replaceLoading("This deployment has no Ask agent configured, so I "
-              + "can't discuss the move. Clear the context (×) to order "
-              + "supplies instead.");
-            return;
-          }
-          try {
-            const response = await fetch(chatAskEndpoint, {
-              method: "POST",
-              headers: chatHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
-              body: JSON.stringify({ question: text, find_id: chatContext.id }),
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
-            replaceLoading(payload.answer || "No answer came back.");
-          } catch (error) {
-            replaceLoading(String(error.message || error), { error: true });
-          }
-          return;
-        }
-
-        // 1. The Quartermaster reads it first.
+        // 1. The Quartermaster reads it first — even mid-discussion of a
+        //    move. "order milk" is an order wherever it is typed; routing it
+        //    to the read-only Ask agent earned the owner an apology instead
+        //    of groceries. Ask still gets the move's find_id below.
         try {
           const response = await fetch(`${chatOrdersEndpoint}/ask`, {
             method: "POST",
@@ -32091,7 +32070,13 @@ ledger_entry · artifact · agent_run`,
               replaceLoading("I priced it, and it needs your OK — it's waiting "
                 + `on the board under Needs you. ${answer.reason}`);
             } else {
-              replaceLoading(`That didn't go through: ${answer.reason}`, { error: true });
+              let failure = `That didn't go through: ${answer.reason}`;
+              if (/not sold here/i.test(String(answer.reason || ""))) {
+                const stocked = (window.__btOrdersLastState?.store?.catalogue || [])
+                  .map(entry => entry.name).join(", ");
+                if (stocked) failure += `\n\nThe simulated store stocks: ${stocked}.`;
+              }
+              replaceLoading(failure, { error: true });
             }
             return;
           }
@@ -32100,7 +32085,8 @@ ledger_entry · artifact · agent_run`,
           return;
         }
 
-        // 2. Not an order — the Ask agent answers from memory.
+        // 2. Not an order — the Ask agent answers from memory, carrying the
+        //    move on the canvas when there is one.
         if (!chatAskEndpoint) {
           replaceLoading("That didn't read as an order, and this deployment "
             + "has no Ask agent configured for questions.");
@@ -32110,7 +32096,9 @@ ledger_entry · artifact · agent_run`,
           const response = await fetch(chatAskEndpoint, {
             method: "POST",
             headers: chatHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
-            body: JSON.stringify({ question: text }),
+            body: JSON.stringify(chatContext
+              ? { question: text, find_id: chatContext.id }
+              : { question: text }),
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
