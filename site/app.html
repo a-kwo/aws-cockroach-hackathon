@@ -20139,6 +20139,15 @@
 
     .chat-move-note { margin: 0; color: var(--owner-muted); font-size: 11.5px; line-height: 1.55; }
 
+    .chat-move-actions {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chat-move-actions .orders-btn.approve { min-width: 120px; }
+
     /* The context pill above the composer. */
     .chat-context {
       display: flex;
@@ -28818,7 +28827,16 @@ ledger_entry · artifact · agent_run`,
         button.onclick = () => refreshWorkflowSnapshot({ force: true, silent: false });
       });
       document.querySelectorAll("[data-open-post]").forEach(button => {
-        button.onclick = () => openDrawer(button.dataset.openPost);
+        //  Every conversation entry point converges on the one Chat tab: the
+        //  move lands on the canvas with the thread beside it. The drawer
+        //  remains behind the canvas's "Full details" button — it is the
+        //  evidence room now, not a second chat.
+        button.onclick = () => {
+          const post = posts.find(entry =>
+            String(entry.id) === String(button.dataset.openPost));
+          if (post && window.__btOpenChatAbout) window.__btOpenChatAbout(post);
+          else openDrawer(button.dataset.openPost);
+        };
       });
       document.querySelectorAll("[data-open-evidence]").forEach(button => {
         button.onclick = event => {
@@ -30879,6 +30897,7 @@ ledger_entry · artifact · agent_run`,
         const panel = document.getElementById("chatCanvasMove");
         if (!panel || !post) return;
         const decision = typeof getDecision === "function" ? getDecision(post.id) : null;
+        const pending = !decision;
         const status = decision?.status === "approved" ? "Approved"
           : decision?.status === "rejected" ? "Passed" : "Waiting for your decision";
         panel.innerHTML = `
@@ -30892,7 +30911,13 @@ ledger_entry · artifact · agent_run`,
               <span>Monthly potential</span>
               <strong>${typeof formatMoney === "function" ? formatMoney(post.amount) : escapeHtml(String(post.amount || ""))}</strong>
             </div>
-            <p class="chat-move-note">Decisions still happen on For You — this canvas is for understanding the move. Everything here is a stored row, not a projection.</p>
+            <div class="chat-move-actions">
+              ${pending ? `
+                <button type="button" class="orders-btn approve" data-chat-decide="approved" data-post-id="${escapeHtml(post.id)}">Do it</button>
+                <button type="button" class="orders-btn ghost" data-chat-decide="rejected" data-post-id="${escapeHtml(post.id)}">Pass</button>
+              ` : ""}
+              <button type="button" class="orders-btn ghost small" data-chat-full-details data-post-id="${escapeHtml(post.id)}">Full details &amp; evidence</button>
+            </div>
           </article>`;
       }
 
@@ -31044,7 +31069,7 @@ ledger_entry · artifact · agent_run`,
         routeMessage(text);
       });
 
-      view.addEventListener("click", event => {
+      view.addEventListener("click", async event => {
         const hint = event.target.closest("[data-chat-hint]");
         if (hint) {
           input.value = hint.dataset.chatHint;
@@ -31052,7 +31077,24 @@ ledger_entry · artifact · agent_run`,
           return;
         }
         const canvasTab = event.target.closest("[data-canvas]");
-        if (canvasTab) setCanvas(canvasTab.dataset.canvas);
+        if (canvasTab) { setCanvas(canvasTab.dataset.canvas); return; }
+
+        const decider = event.target.closest("[data-chat-decide]");
+        if (decider && typeof decide === "function") {
+          const choice = decider.dataset.chatDecide;
+          decider.disabled = true;
+          await decide(decider.dataset.postId, choice, false);
+          if (chatContext?.post) renderMoveCanvas(chatContext.post);
+          push("agent", choice === "approved"
+            ? "Approved. The Maker picks it up from here — you'll see the draft under this move when it's ready, and the forecast on Growth updates now."
+            : "Passed. It moves to your Passed list on Growth; you can undo from there if you change your mind.");
+          return;
+        }
+
+        const details = event.target.closest("[data-chat-full-details]");
+        if (details && typeof openDrawer === "function") {
+          openDrawer(details.dataset.postId);
+        }
       });
 
       document.getElementById("chatContextClear")?.addEventListener("click", () => {
@@ -31067,8 +31109,8 @@ ledger_entry · artifact · agent_run`,
         if (!post) return;
         applyContext(post);
         push("agent", `We're looking at “${post.title || "this move"}”. Ask me `
-          + "anything about it — the evidence, the number, what happens next. "
-          + "Decisions still happen on For You.");
+          + "anything about it — the evidence, the number, what happens next — "
+          + "or decide right there on the canvas.");
         if (typeof switchView === "function") switchView("chat");
       };
 
