@@ -20046,6 +20046,144 @@
 
     body.orders-mode .orders-supplier select option { background: #12162b; color: var(--owner-ink); }
 
+    /* Canvas panel tabs: This move | Supplies. */
+    .chat-canvas-tabs {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid var(--owner-line);
+      border-radius: 11px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .chat-canvas-tabs button {
+      border: 0;
+      border-radius: 8px;
+      padding: 5px 13px;
+      background: transparent;
+      color: var(--owner-muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .chat-canvas-tabs button:hover { color: var(--owner-ink); }
+    .chat-canvas-tabs button.active {
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+    }
+
+    /* The move on the canvas, while the thread discusses it. */
+    .chat-canvas-move {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 18px;
+    }
+
+    .chat-move-card {
+      border: 1px solid rgba(196, 160, 255, .24);
+      border-radius: 18px;
+      padding: 20px;
+      background:
+        radial-gradient(480px 240px at 85% 0%, rgba(141,69,255,.13), transparent 70%),
+        rgba(255,255,255,.03);
+      display: grid;
+      gap: 14px;
+    }
+
+    .chat-move-status {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(196, 160, 255, .32);
+      background: rgba(141, 69, 255, .12);
+      color: #d0aaff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .chat-move-card header strong {
+      display: block;
+      color: var(--owner-ink);
+      font-size: 20px;
+      line-height: 1.3;
+      letter-spacing: -.02em;
+    }
+
+    .chat-move-signal {
+      margin: 0;
+      color: var(--owner-copy);
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    .chat-move-impact {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 16px;
+      border: 1px solid var(--owner-line);
+      border-radius: 13px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .chat-move-impact span { color: var(--owner-muted); font-size: 12px; }
+    .chat-move-impact strong { color: var(--owner-ink); font-size: 20px; font-variant-numeric: tabular-nums; }
+
+    .chat-move-note { margin: 0; color: var(--owner-muted); font-size: 11.5px; line-height: 1.55; }
+
+    /* The context pill above the composer. */
+    .chat-context {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 14px;
+      padding: 7px 12px;
+      border: 1px solid rgba(196, 160, 255, .3);
+      border-radius: 11px;
+      background: rgba(141, 69, 255, .1);
+      font-size: 12px;
+      color: var(--owner-copy);
+    }
+
+    .chat-context strong { color: #d9bdff; }
+
+    .chat-context button {
+      border: 0;
+      background: transparent;
+      color: var(--owner-muted);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .chat-context button:hover { color: #fff; }
+
+    /* The drawer's door into the one chat. */
+    .drawer-open-chat {
+      flex: none;
+      border: 1px solid rgba(196, 160, 255, .34);
+      border-radius: 999px;
+      padding: 7px 14px;
+      background: rgba(141, 69, 255, .12);
+      color: #d0aaff;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .drawer-open-chat:hover { background: rgba(141, 69, 255, .2); color: #fff; }
+
     @media (max-width: 960px) {
       .chat-shell {
         grid-template-columns: 1fr;
@@ -20259,6 +20397,10 @@
                 <button type="button" class="orders-example" data-chat-hint="what is waiting for my approval?">what's waiting for me?</button>
                 <button type="button" class="orders-example" data-chat-hint="how did we do last month?">how did we do last month?</button>
               </div>
+              <div class="chat-context" id="chatContext" hidden>
+                <span>About: <strong id="chatContextTitle"></strong></span>
+                <button type="button" id="chatContextClear" aria-label="Stop discussing this move">&times;</button>
+              </div>
               <form class="chat-composer" id="chatComposer">
                 <input type="text" id="chatInput" autocomplete="off"
                        placeholder="Order supplies, or ask anything&hellip;"
@@ -20266,11 +20408,15 @@
                 <button type="submit" class="orders-btn primary">Send</button>
               </form>
             </aside>
-            <section class="chat-canvas" aria-label="Supplies canvas">
+            <section class="chat-canvas" aria-label="Canvas">
               <header class="chat-canvas-head">
-                <strong>Supplies &middot; autopilot</strong>
-                <span id="chatCanvasStatus">The Quartermaster's board</span>
+                <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
+                  <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
+                  <button type="button" data-canvas="supplies" class="active">Supplies</button>
+                </nav>
+                <span id="chatCanvasStatus">Live from your memory</span>
               </header>
+              <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
               <div id="chatCanvasBody"></div>
             </section>
           </div>
@@ -27761,7 +27907,10 @@ ledger_entry · artifact · agent_run`,
         <section class="drawer-chat-panel" aria-label="Conversation with Brass Tacks">
           <header class="drawer-chat-head">
             <div><strong>Ask Brass Tacks</strong><span>Ask one question or request one change at a time. Replies are concise and saved with this business.</span></div>
-            <span class="memory-chip">Memory on</span>
+            <button class="drawer-open-chat" type="button" data-open-chat-tab data-post-id="${post.id}"
+                    title="Continue this conversation in the Chat tab, with this move on the canvas">
+              Open in Chat &rarr;
+            </button>
           </header>
           ${makerChatDestinationHtml(post)}
           ${makerChatContextHtml(post)}
@@ -29944,6 +30093,12 @@ ledger_entry · artifact · agent_run`,
         }
 
         function note(text, warn) {
+          // The chat thread is the live board's voice. The inline note only
+          // exists for the preview, whose command bar is still visible.
+          if (window.__btChatNotify) {
+            window.__btChatNotify(text, Boolean(warn));
+            return;
+          }
           const target = el("ordersAskNote");
           if (!target) return;
           target.textContent = text;
@@ -29991,6 +30146,15 @@ ledger_entry · artifact · agent_run`,
           }
           const addStock = el("ordersAddStock");
           if (addStock) addStock.hidden = false;
+
+          // Live, the chat thread is the only input — a second ask bar on
+          // the canvas was the same conversation twice. Its catalogue chips
+          // migrate to the chat's suggestion row.
+          const command = screen.querySelector(".orders-zone-command");
+          if (command) command.hidden = true;
+          if (window.__btChatCatalogue && state?.store?.catalogue) {
+            window.__btChatCatalogue(state.store.catalogue);
+          }
 
           // The supplier switch: simulated today, DoorDash when the waitlist
           // clears, or the owner's supplier by email. Options the deployment
@@ -30693,6 +30857,66 @@ ledger_entry · artifact · agent_run`,
 
       const messages = [];
 
+      /* One conversation, optionally about one move. When a For You or
+         Growth conversation lands here, the move rides along as context:
+         questions carry its find_id to Ask, and the canvas shows the move
+         itself instead of the supplies board. */
+      let chatContext = null;
+
+      function setCanvas(mode) {
+        const movePanel = document.getElementById("chatCanvasMove");
+        const suppliesPanel = document.getElementById("chatCanvasBody");
+        const tabs = document.getElementById("chatCanvasTabs");
+        if (!movePanel || !suppliesPanel) return;
+        movePanel.hidden = mode !== "move";
+        suppliesPanel.hidden = mode === "move";
+        tabs?.querySelectorAll("[data-canvas]").forEach(button => {
+          button.classList.toggle("active", button.dataset.canvas === mode);
+        });
+      }
+
+      function renderMoveCanvas(post) {
+        const panel = document.getElementById("chatCanvasMove");
+        if (!panel || !post) return;
+        const decision = typeof getDecision === "function" ? getDecision(post.id) : null;
+        const status = decision?.status === "approved" ? "Approved"
+          : decision?.status === "rejected" ? "Passed" : "Waiting for your decision";
+        panel.innerHTML = `
+          <article class="chat-move-card">
+            <header>
+              <span class="chat-move-status">${escapeHtml(status)}</span>
+              <strong>${escapeHtml(post.title || "")}</strong>
+            </header>
+            <p class="chat-move-signal">${escapeHtml(post.fullSignal || post.signal || "")}</p>
+            <div class="chat-move-impact">
+              <span>Monthly potential</span>
+              <strong>${typeof formatMoney === "function" ? formatMoney(post.amount) : escapeHtml(String(post.amount || ""))}</strong>
+            </div>
+            <p class="chat-move-note">Decisions still happen on For You — this canvas is for understanding the move. Everything here is a stored row, not a projection.</p>
+          </article>`;
+      }
+
+      function applyContext(post) {
+        chatContext = post ? { id: post.databaseId || post.id, title: post.title || "this move", post } : null;
+        const pill = document.getElementById("chatContext");
+        const title = document.getElementById("chatContextTitle");
+        const moveTab = document.getElementById("chatCanvasMoveTab");
+        if (pill) pill.hidden = !chatContext;
+        if (title) title.textContent = chatContext ? chatContext.title : "";
+        if (moveTab) moveTab.hidden = !chatContext;
+        if (input) {
+          input.placeholder = chatContext
+            ? `Ask about “${chatContext.title}”…`
+            : "Order supplies, or ask anything…";
+        }
+        if (chatContext) {
+          renderMoveCanvas(chatContext.post);
+          setCanvas("move");
+        } else {
+          setCanvas("supplies");
+        }
+      }
+
       function chatHeaders(extra) {
         const session = readSession();
         return session
@@ -30732,6 +30956,30 @@ ledger_entry · artifact · agent_run`,
           replaceLoading("I can't act in this preview. On the deployed site "
             + "I'd price that, check your limits, and either place it or ask "
             + "you first.");
+          return;
+        }
+
+        // A move on the canvas means the conversation is about that move:
+        // straight to Ask, carrying its find_id, exactly as the drawer did.
+        if (chatContext) {
+          if (!chatAskEndpoint) {
+            replaceLoading("This deployment has no Ask agent configured, so I "
+              + "can't discuss the move. Clear the context (×) to order "
+              + "supplies instead.");
+            return;
+          }
+          try {
+            const response = await fetch(chatAskEndpoint, {
+              method: "POST",
+              headers: chatHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
+              body: JSON.stringify({ question: text, find_id: chatContext.id }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
+            replaceLoading(payload.answer || "No answer came back.");
+          } catch (error) {
+            replaceLoading(String(error.message || error), { error: true });
+          }
           return;
         }
 
@@ -30798,9 +31046,57 @@ ledger_entry · artifact · agent_run`,
 
       view.addEventListener("click", event => {
         const hint = event.target.closest("[data-chat-hint]");
-        if (!hint) return;
-        input.value = hint.dataset.chatHint;
-        input.focus();
+        if (hint) {
+          input.value = hint.dataset.chatHint;
+          input.focus();
+          return;
+        }
+        const canvasTab = event.target.closest("[data-canvas]");
+        if (canvasTab) setCanvas(canvasTab.dataset.canvas);
+      });
+
+      document.getElementById("chatContextClear")?.addEventListener("click", () => {
+        applyContext(null);
+        push("agent", "Back to everything — order supplies or ask anything.");
+      });
+
+      /* The one front door for every conversation. For You and Growth reach
+         it through the drawer's Open in Chat button; the supplies board's
+         own module reaches it through the notify hook. */
+      window.__btOpenChatAbout = post => {
+        if (!post) return;
+        applyContext(post);
+        push("agent", `We're looking at “${post.title || "this move"}”. Ask me `
+          + "anything about it — the evidence, the number, what happens next. "
+          + "Decisions still happen on For You.");
+        if (typeof switchView === "function") switchView("chat");
+      };
+
+      window.__btChatNotify = (text, warn) => {
+        push("agent", text, warn ? { error: true } : undefined);
+      };
+
+      // The board's catalogue becomes chat suggestions, so removing the
+      // board's own input loses nothing.
+      window.__btChatCatalogue = catalogue => {
+        const hints = document.getElementById("chatHints");
+        if (!hints || !Array.isArray(catalogue) || !catalogue.length) return;
+        const items = catalogue.slice(0, 5).map(entry =>
+          `<button type="button" class="orders-example" data-chat-hint="order 2 ${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</button>`).join("");
+        hints.innerHTML = `${items}
+          <button type="button" class="orders-example" data-chat-hint="what's waiting for me?">what's waiting for me?</button>
+          <button type="button" class="orders-example" data-chat-hint="how did we do last month?">how did we do last month?</button>`;
+      };
+
+      document.addEventListener("click", event => {
+        const opener = event.target.closest("[data-open-chat-tab]");
+        if (!opener) return;
+        const id = opener.dataset.postId;
+        const post = (typeof posts !== "undefined" && Array.isArray(posts))
+          ? posts.find(entry => String(entry.id) === String(id))
+          : null;
+        if (typeof closeDrawer === "function") closeDrawer();
+        window.__btOpenChatAbout(post || { id, title: "this move" });
       });
     })();
   </script>
