@@ -447,6 +447,15 @@ capability rather than as revenue.
 Flipping to real is a config change and a waitlist approval, not a rewrite. That is the
 whole reason for faking at the boundary rather than mocking inside the agent.
 
+**Status 2026-08-08: the storage layer and the API shipped.** Four tables
+(`standing_order`, `purchase_authority`, `stock_item`, `supply_order` — see
+db/schema.sql), a `/orders` Lambda (`handlers/orders.py`) with session-scoped
+routes for ask / approve / reject / standing / limits / stock, and the DoorDash
+screen rendering those rows live. The ordering tool is still the simulated
+catalogue this section describes; payment is a real Stripe test-mode
+PaymentIntent when `STRIPE_SECRET_KEY` and `STRIPE_PAYMENT_METHOD` exist in SSM
+under `/brasstacks/`, and the fake otherwise. The screen labels which.
+
 ### Phase 1 — real `dd-cli`, read-only
 
 Live rival pricing into Radar, on the owner's Mac. No checkout. Needs waitlist access.

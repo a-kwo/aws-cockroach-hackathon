@@ -1941,16 +1941,15 @@ def test_each_audience_sees_only_its_own_views():
 
 
 def test_the_doordash_screen_admits_it_is_a_preview():
-    """Every other owner screen draws its figures out of CockroachDB.
+    """The static build's DoorDash screen is sample data, and must say so.
 
-    The DoorDash screen does not yet — the ordering rules underneath it are
-    built and tested, but nothing is stored, no account is connected and no
-    order can be placed. A screen showing carts, receipts and weekly spend that
-    is quietly sample data is precisely the thing the honesty rules exist to
-    prevent, so it has to say so on the page rather than only in a comment.
-
-    Delete this test when the storage layer lands and the figures are real.
-    Until then it is what stops the label being tidied away.
+    The storage layer has landed: deployed with an /orders endpoint, the screen
+    renders CockroachDB rows and swaps this banner at runtime for the live one
+    (see test_the_doordash_screen_is_live_when_the_deployment_gives_it_an_api).
+    But a fresh clone builds with no endpoint and renders the preview, so the
+    static banner stays, and stays specific — a vaguer "demo data" note would
+    let a reader assume the connection is real and only the numbers are
+    illustrative.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     banner = html[html.index('id="view-orders"'):html.index('id="view-admin"')]
@@ -2344,6 +2343,36 @@ def test_build_infers_the_ask_endpoint_from_the_shared_api(monkeypatch, data):
     assert model["api"]["askEndpoint"] == (
         "https://example.execute-api.us-east-1.amazonaws.com/v1/ask"
     )
+
+
+def test_build_infers_the_orders_endpoint_from_the_shared_api(monkeypatch, data):
+    """The Quartermaster shares the one HTTP API, so its URL derives from the
+    decision endpoint like login and profile do. A deployment that forgets the
+    explicit variable still gets a live DoorDash screen rather than the
+    sample-data preview."""
+    monkeypatch.setenv("DECISION_API_ENDPOINT", "https://example.execute-api.us-east-1.amazonaws.com/v1")
+    monkeypatch.delenv("ORDERS_API_ENDPOINT", raising=False)
+
+    model = build_web.build_model(data)
+
+    assert model["api"]["ordersEndpoint"] == (
+        "https://example.execute-api.us-east-1.amazonaws.com/v1/orders"
+    )
+
+
+def test_the_doordash_screen_is_live_when_the_deployment_gives_it_an_api():
+    """Two modes, one honest each way: with an injected endpoint and a session
+    the screen renders only rows the /orders API returned from CockroachDB;
+    without one it stays the labelled sample-data preview. The dispatcher is
+    what keeps the preview banner truthful in both worlds."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+    assert "btData.api?.ordersEndpoint" in html
+    assert "ordersLive();" in html
+    assert "ordersPreview();" in html
+    # The live mode announces what is real and what is not, in both payment
+    # configurations.
+    assert "Live, with one honest exception." in html
+    assert "Live, with two honest exceptions." in html
 
 
 def test_mobile_for_you_uses_native_scroll_snap_instead_of_pointer_drag():

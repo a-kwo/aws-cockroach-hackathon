@@ -19594,6 +19594,57 @@
       font-weight: 650;
     }
 
+    .orders-head-tools { display: inline-flex; align-items: center; gap: 8px; }
+
+    /* Inline add-forms: Standing orders, Running low, Spending limits.
+       display:grid would beat the [hidden] UA rule, so restate it. */
+    .orders-form[hidden] { display: none !important; }
+
+    .orders-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 0 0 14px;
+      padding: 14px;
+      border: 1px solid rgba(196, 160, 255, .24);
+      border-radius: 14px;
+      background: rgba(141, 69, 255, .06);
+    }
+
+    .orders-form label {
+      display: grid;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 650;
+      color: var(--muted);
+    }
+
+    .orders-form input,
+    .orders-form select {
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--line-strong);
+      background: rgba(255,255,255,.05);
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .orders-form input:focus,
+    .orders-form select:focus {
+      outline: none;
+      border-color: rgba(196, 160, 255, .5);
+      box-shadow: 0 0 0 3px rgba(141, 69, 255, .16);
+    }
+
+    body.orders-mode .orders-form select option { background: #12162b; color: var(--owner-ink); }
+
+    .orders-form-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 8px;
+    }
+
     @media (max-width: 860px) {
       .orders-how { flex-direction: column; }
       .orders-step-arrow { display: none; }
@@ -19781,23 +19832,23 @@
         of its simulated job pipeline is reproduced here, because none of it is real.
       -->
       <!--
-        DoorDash — the Quartermaster's screen. A MOCKUP, and labelled as one on
-        the page itself rather than only in this comment.
+        DoorDash — the Quartermaster's screen. Two modes, honest in both.
 
-        Every other screen in this app draws rows out of CockroachDB and the
-        honesty rules in CLAUDE.md forbid putting anything on them that is not
-        stored. This screen breaks that rule on purpose and therefore has to
-        announce it: the ordering logic underneath is built and tested
-        (purchase_authority, ordering, quartermaster, standing_orders, stock,
-        order_intent) but nothing is persisted yet, there is no DoorDash
-        connection, and no money can move. The banner at the top says exactly
-        that and must not be removed until the storage layer lands.
+        LIVE, when the deployment injected an /orders endpoint and the visitor
+        holds a session: everything rendered is a row the API returned from
+        CockroachDB — standing orders, spend limits, stock estimates, pending
+        approvals, receipts. Asking prices a real cart against real limits; an
+        approval places and pays (Stripe test mode when keys exist in SSM, the
+        fake otherwise, and the payload says which). Two things stay simulated
+        and the banner swaps at runtime to say so: the store catalogue (DoorDash
+        access is waitlist-gated, docs/ORDERS_AGENT.md §2) and, without Stripe
+        keys, the card.
 
-        The interactions are wired to the same rules the Python enforces, so
-        this is a faithful preview rather than a drawing: asking for something
-        prices it, an inferred low-stock order always stops for approval
-        however permissive the limits, and a cart whose price moved after
-        approval refuses to place itself.
+        PREVIEW, otherwise — a local build with no API. Sample data, and the
+        static banner below says exactly that; it must not be tidied away,
+        because a fresh clone renders this mode. The interactions still mirror
+        the tested Python: an inferred low-stock order always stops for
+        approval, and a cart whose price moved after approval refuses itself.
       -->
       <section class="view" id="view-orders" aria-labelledby="ordersHeading">
         <div class="view-inner orders-inner">
@@ -19902,17 +19953,55 @@
                 <button type="button" class="orders-btn ghost small" id="ordersAddStanding">Add</button>
               </header>
               <p class="orders-card-sub">Repeat orders on a schedule. Priced fresh every time and checked against your limits like anything else.</p>
+              <form class="orders-form" id="ordersStandingForm" hidden>
+                <label>Name<input type="text" name="name" placeholder="The usual produce" required /></label>
+                <label>Items<input type="text" name="items" placeholder="tomatoes x8, flour x2" required /></label>
+                <label>Repeats
+                  <select name="schedule">
+                    <option value="w1">Every Tuesday</option>
+                    <option value="w0">Every Monday</option>
+                    <option value="w2">Every Wednesday</option>
+                    <option value="w3">Every Thursday</option>
+                    <option value="w4">Every Friday</option>
+                    <option value="w5">Every Saturday</option>
+                    <option value="w6">Every Sunday</option>
+                    <option value="i7">Every 7 days</option>
+                    <option value="i14">Every 14 days</option>
+                    <option value="i30">Every 30 days</option>
+                  </select>
+                </label>
+                <label>Category (optional)<input type="text" name="category" placeholder="produce" /></label>
+                <div class="orders-form-actions">
+                  <button type="submit" class="orders-btn primary small">Save</button>
+                  <button type="button" class="orders-btn ghost small" data-form-cancel>Cancel</button>
+                </div>
+              </form>
               <div id="ordersStandingList" class="orders-list"></div>
+              <p class="orders-empty" id="ordersStandingEmpty" hidden>No standing orders yet. Add one and the usual basket takes care of itself.</p>
             </section>
 
             <!-- 4. Stock — the inferred trigger. Every figure labelled an estimate. -->
             <section class="orders-card" aria-labelledby="ordersStockHeading" data-enter>
               <header class="orders-card-head">
                 <h2 id="ordersStockHeading">Running low</h2>
-                <span class="orders-chip estimate">Estimated</span>
+                <div class="orders-head-tools">
+                  <span class="orders-chip estimate">Estimated</span>
+                  <button type="button" class="orders-btn ghost small" id="ordersAddStock" hidden>Add</button>
+                </div>
               </header>
               <p class="orders-card-sub">Worked out from what you last bought and how long ago — not counted. That's why anything here always asks first.</p>
+              <form class="orders-form" id="ordersStockForm" hidden>
+                <label>Item<input type="text" name="name" placeholder="tomatoes" required /></label>
+                <label>You get through per week<input type="number" name="usage_per_week" min="1" value="3" required /></label>
+                <label>Ask to reorder at<input type="number" name="reorder_at" min="0" value="2" required /></label>
+                <label>Reorder this many<input type="number" name="reorder_quantity" min="1" value="6" required /></label>
+                <div class="orders-form-actions">
+                  <button type="submit" class="orders-btn primary small">Save</button>
+                  <button type="button" class="orders-btn ghost small" data-form-cancel>Cancel</button>
+                </div>
+              </form>
               <div id="ordersStockList" class="orders-list"></div>
+              <p class="orders-empty" id="ordersStockEmpty" hidden>Nothing tracked yet. Add what you keep on hand and the agent will watch it against what you buy.</p>
             </section>
           </div>
 
@@ -19924,7 +20013,25 @@
                 <button type="button" class="orders-btn ghost small" id="ordersAddLimit">Add</button>
               </header>
               <p class="orders-card-sub">What the agent may buy without asking. Enforced in code before checkout, never by the model reading a sentence.</p>
+              <form class="orders-form" id="ordersLimitsForm" hidden>
+                <label>Item or category<input type="text" name="scope" placeholder="produce" required /></label>
+                <label>Trust level
+                  <select name="level">
+                    <option value="ask_always">Always ask me</option>
+                    <option value="ask_if_over">Buy small things, ask above a limit</option>
+                    <option value="auto">Buy on its own within the caps</option>
+                  </select>
+                </label>
+                <label>Per-order cap ($)<input type="text" name="per_order" inputmode="decimal" placeholder="120.00" required /></label>
+                <label data-threshold-field hidden>Ask above ($)<input type="text" name="threshold" inputmode="decimal" placeholder="20.00" /></label>
+                <label>Weekly cap ($, optional)<input type="text" name="period_cap" inputmode="decimal" placeholder="200.00" /></label>
+                <div class="orders-form-actions">
+                  <button type="submit" class="orders-btn primary small">Save</button>
+                  <button type="button" class="orders-btn ghost small" data-form-cancel>Cancel</button>
+                </div>
+              </form>
               <div id="ordersLimitsList" class="orders-list"></div>
+              <p class="orders-empty" id="ordersLimitsEmpty" hidden>No limits yet, so every order will stop and ask you first. Add one to let the agent handle small purchases on its own.</p>
             </section>
 
             <!-- 6. Payment — the Stripe card the Quartermaster charges. -->
@@ -29359,7 +29466,378 @@ ledger_entry · artifact · agent_run`,
        When storage lands, these render functions keep their shape and the
        fixtures below become reads.
        ------------------------------------------------------------------ */
-    (function ordersPreview() {
+    (function ordersScreen() {
+      const screen = document.getElementById("view-orders");
+      if (!screen) return;
+
+      /* Live when the deployment injected an orders endpoint and the visitor
+         holds a session; the sample-data preview otherwise, banner and all.
+         The live screen renders only what CockroachDB returned — the same
+         honesty rule as every other owner screen. */
+      const ordersEndpoint = String(btData.api?.ordersEndpoint || "").trim().replace(/\/$/, "");
+      if (ordersEndpoint && readSession()) {
+        ordersLive();
+      } else {
+        ordersPreview();
+      }
+
+      function ordersLive() {
+        const el = id => document.getElementById(id);
+        const money = c => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
+        const day = iso => {
+          if (!iso) return "—";
+          const d = new Date(iso);
+          return isNaN(d) ? "—" : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+        };
+        const TRIGGER_WORDS = {
+          owner_instruction: "you asked",
+          standing_order: "standing",
+          stock_threshold: "low stock",
+          find: "from a find",
+        };
+        let state = null;
+
+        function authHeaders(extra) {
+          const session = readSession();
+          return session
+            ? { ...(extra || {}), Authorization: `Bearer ${session.token}` }
+            : { ...(extra || {}) };
+        }
+
+        function note(text, warn) {
+          const target = el("ordersAskNote");
+          if (!target) return;
+          target.textContent = text;
+          target.classList.toggle("warn", Boolean(warn));
+          target.hidden = false;
+        }
+
+        /* The banner and pills tell the live truth: the memory is real, the
+           store is not, and the payload says which card is in play. */
+        function applyChrome() {
+          const banner = screen.querySelector(".orders-mock-banner p");
+          const stripeLive = state?.payment?.provider === "stripe";
+          if (banner) {
+            banner.innerHTML = stripeLive
+              ? `<strong>Live, with one honest exception.</strong> Standing orders,
+                 limits, approvals and receipts on this screen are rows in
+                 CockroachDB for your business. The store itself is simulated
+                 until DoorDash grants API access &mdash; carts price against a fixed
+                 catalogue and no goods are delivered. Payments run on Stripe in
+                 test mode: every charge is a real PaymentIntent on a test card.`
+              : `<strong>Live, with two honest exceptions.</strong> Standing orders,
+                 limits, approvals and receipts on this screen are rows in
+                 CockroachDB for your business. The store is simulated until
+                 DoorDash grants API access, and payments are simulated until
+                 Stripe keys are configured &mdash; no real money can move.`;
+          }
+          const conn = el("ordersConnection");
+          if (conn) conn.innerHTML = `<span class="orders-conn-dot" aria-hidden="true"></span><span>Simulated store &middot; memory live</span>`;
+          const stripePill = el("ordersStripeStatus");
+          if (stripePill) {
+            stripePill.innerHTML = stripeLive
+              ? `<span class="orders-conn-dot test" aria-hidden="true"></span><span>Stripe &middot; Test mode</span>`
+              : `<span class="orders-conn-dot test" aria-hidden="true"></span><span>Payments &middot; Simulated</span>`;
+          }
+          const payCopy = screen.querySelector(".orders-pay-copy");
+          if (payCopy) {
+            payCopy.innerHTML = stripeLive
+              ? `<strong>Stripe test card on file</strong>
+                 <span>Charges are real test-mode PaymentIntents &mdash; open the Stripe dashboard and each receipt below is there.</span>`
+              : `<strong>No card configured yet</strong>
+                 <span>Add STRIPE_SECRET_KEY and STRIPE_PAYMENT_METHOD to SSM under /brasstacks/ and test-mode Stripe charges replace the simulated ones.</span>`;
+          }
+          const payChip = screen.querySelector("#ordersPaymentHeading")?.closest(".orders-card")?.querySelector(".orders-chip");
+          if (payChip) payChip.textContent = stripeLive ? "Stripe · Test card" : "Simulated";
+          const addStock = el("ordersAddStock");
+          if (addStock) addStock.hidden = false;
+        }
+
+        async function refresh() {
+          try {
+            const response = await fetch(ordersEndpoint, { headers: authHeaders() });
+            if (response.status === 401) {
+              note("Your session has expired — sign out and back in.", true);
+              return;
+            }
+            state = await response.json();
+            renderAll();
+          } catch (_) {
+            note("Could not reach the Quartermaster. The board will retry when you next act.", true);
+          }
+        }
+
+        async function act(action, body, button) {
+          if (button) button.disabled = true;
+          try {
+            const response = await fetch(`${ordersEndpoint}/${action}`, {
+              method: "POST",
+              headers: authHeaders({ "Content-Type": "application/json" }),
+              body: JSON.stringify(body || {}),
+            });
+            const answer = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              note(answer.error || `That didn't work (${response.status}).`, true);
+              return null;
+            }
+            if (answer.state) { state = answer.state; renderAll(); }
+            return answer;
+          } catch (_) {
+            note("Could not reach the Quartermaster. Try again.", true);
+            return null;
+          } finally {
+            if (button) button.disabled = false;
+          }
+        }
+
+        const cartHtml = cart => cart ? `
+          <ul class="orders-lines">
+            ${(cart.lines || []).map(l => `<li><span>${escapeHtml(l.name)} &times;${l.quantity}</span><span>${money(l.total_cents)}</span></li>`).join("")}
+            <li><span>Delivery &amp; fees</span><span>${money(cart.fees_cents || 0)}</span></li>
+          </ul>` : "";
+
+        function renderPending() {
+          const rows = state.pending || [];
+          el("ordersPendingCount").textContent = String(rows.length);
+          el("ordersPendingCount").classList.toggle("has-items", rows.length > 0);
+          el("ordersPendingEmpty").hidden = rows.length > 0;
+          el("ordersPendingList").innerHTML = rows.map(p => `
+            <article class="orders-row pending">
+              <div class="orders-row-top">
+                <span class="orders-row-title">${escapeHtml(p.title)}</span>
+                <span class="orders-row-total">${money(p.total_cents || 0)}</span>
+              </div>
+              ${cartHtml(p.cart)}
+              <p class="orders-why">${escapeHtml(p.reason || "")}</p>
+              <div class="orders-actions">
+                <button type="button" class="orders-btn approve" data-live-approve="${escapeHtml(p.id)}">Approve &amp; pay ${money(p.total_cents || 0)}</button>
+                <button type="button" class="orders-btn ghost" data-live-reject="${escapeHtml(p.id)}">Not now</button>
+              </div>
+            </article>`).join("");
+        }
+
+        function renderStanding() {
+          const rows = state.standing || [];
+          el("ordersStandingEmpty").hidden = rows.length > 0;
+          el("ordersStandingList").innerHTML = rows.map(s => `
+            <article class="orders-row">
+              <div class="orders-row-top">
+                <span class="orders-row-title">${escapeHtml(s.name)}</span>
+                <span class="orders-tag ${s.enabled ? "auto" : ""}">${s.enabled ? "Active" : "Paused"}</span>
+              </div>
+              <p class="orders-why">${escapeHtml((s.items || []).map(([n, q]) => `${n} ×${q}`).join(", "))}</p>
+              <div class="orders-meta">
+                <span>${escapeHtml(s.schedule || "")}</span><span>&middot;</span>
+                <span>Next: ${escapeHtml(s.enabled ? day(s.next) : "—")}</span>
+              </div>
+              <div class="orders-actions">
+                <button type="button" class="orders-btn ghost small" data-live-pause="${escapeHtml(s.id)}">${s.enabled ? "Pause" : "Resume"}</button>
+                <button type="button" class="orders-btn ghost small" data-live-run="${escapeHtml(s.id)}">Run it now</button>
+              </div>
+            </article>`).join("");
+        }
+
+        function renderStock() {
+          const rows = state.stock || [];
+          el("ordersStockEmpty").hidden = rows.length > 0;
+          el("ordersStockList").innerHTML = rows.map(s => {
+            const gauge = s.known && s.gauge_full
+              ? `<div class="orders-bar"><i class="${s.is_low ? "low" : ""}" style="width:${Math.max(4, Math.round((s.remaining / s.gauge_full) * 100))}%"></i></div>`
+              : "";
+            const tag = s.known ? `~${s.remaining} left` : "No history yet";
+            return `
+              <article class="orders-row">
+                <div class="orders-row-top">
+                  <span class="orders-row-title">${escapeHtml(s.name)}</span>
+                  <span class="orders-tag inferred">${escapeHtml(tag)}</span>
+                </div>
+                ${gauge}
+                <p class="orders-why">${escapeHtml(s.basis || "")}</p>
+                ${s.is_low ? `<div class="orders-actions">
+                  <button type="button" class="orders-btn ghost small" data-live-restock="${escapeHtml(s.id)}">Draft an order for ${s.reorder_quantity}</button>
+                </div>` : ""}
+              </article>`;
+          }).join("");
+        }
+
+        function renderLimits() {
+          const label = { auto: "Buys on its own", ask_if_over: "Asks above a limit", ask_always: "Always asks" };
+          const tag = { auto: "auto", ask_if_over: "ask", ask_always: "ask" };
+          const rows = state.limits || [];
+          el("ordersLimitsEmpty").hidden = rows.length > 0;
+          el("ordersLimitsList").innerHTML = rows.map(l => `
+            <article class="orders-row">
+              <div class="orders-row-top">
+                <span class="orders-row-title">${escapeHtml(l.scope)}</span>
+                <span class="orders-tag ${tag[l.level] || ""}">${label[l.level] || escapeHtml(l.level)}</span>
+              </div>
+              <div class="orders-meta">
+                <span>Up to ${money(l.per_order_cap_cents)} an order</span>
+                ${l.auto_threshold_cents != null ? `<span>&middot;</span><span>Asks above ${money(l.auto_threshold_cents)}</span>` : ""}
+                ${l.period_cap_cents != null ? `<span>&middot;</span><span>${money(l.spent_in_period_cents || 0)} of ${money(l.period_cap_cents)} used this week</span>` : ""}
+              </div>
+            </article>`).join("");
+        }
+
+        function renderHistory() {
+          const rows = state.history || [];
+          el("ordersHistoryEmpty").hidden = rows.length > 0;
+          el("ordersHistoryList").innerHTML = rows.map(h => `
+            <article class="orders-row ${h.status === "failed" ? "blocked" : ""}">
+              <div class="orders-row-top">
+                <span class="orders-row-title">${escapeHtml(h.title)}</span>
+                <span class="orders-row-total">${h.total_cents != null ? money(h.total_cents) : ""}</span>
+              </div>
+              ${h.status === "failed" ? `<p class="orders-why">${escapeHtml(h.reason || "This order failed.")}</p>` : ""}
+              <div class="orders-meta">
+                <span>${escapeHtml(day(h.created_at))}</span><span>&middot;</span>
+                <span>${escapeHtml(h.status === "rejected" ? "you passed" : (TRIGGER_WORDS[h.trigger] || h.trigger))}</span>
+                ${h.external_reference ? `<span>&middot;</span><span>Order ${escapeHtml(h.external_reference)}</span>` : ""}
+                ${h.payment_reference ? `<span>&middot;</span><span class="orders-paid">Paid &middot; ${h.payment_provider === "stripe" ? "Stripe" : "Simulated"} ${escapeHtml(h.payment_reference)}</span>` : ""}
+              </div>
+            </article>`).join("");
+        }
+
+        /* What the simulated store sells doubles as the example chips, so the
+           owner is never guessing at a catalogue. */
+        function renderExamples() {
+          const holder = screen.querySelector(".orders-ask-examples");
+          if (!holder || !state.store) return;
+          const chips = (state.store.catalogue || []).map(entry =>
+            `<button type="button" class="orders-example" data-example="order 2 ${escapeHtml(entry.name)}">${escapeHtml(entry.name)} ${money(entry.unit_cents)}</button>`).join("");
+          holder.innerHTML = `<span class="orders-example-label">The simulated store sells:</span>${chips}`;
+        }
+
+        function renderAll() {
+          if (!state) return;
+          applyChrome();
+          renderPending(); renderStanding(); renderStock();
+          renderLimits(); renderHistory(); renderExamples();
+        }
+
+        function parseDollars(raw, label) {
+          const text = String(raw || "").trim().replace(/^\$/, "");
+          if (!text) return null;
+          const match = text.match(/^(\d+)(?:\.(\d{1,2}))?$/);
+          if (!match) { note(`${label} should be a dollar amount like 120.00.`, true); return undefined; }
+          return parseInt(match[1], 10) * 100 + parseInt((match[2] || "0").padEnd(2, "0"), 10);
+        }
+
+        function parseItems(raw) {
+          return String(raw || "").split(",").map(part => part.trim()).filter(Boolean).map(part => {
+            const match = part.match(/^(.+?)\s*[x×]\s*(\d+)$/i);
+            return match ? [match[1].trim(), parseInt(match[2], 10)] : [part, 1];
+          });
+        }
+
+        el("ordersAskForm").addEventListener("submit", async event => {
+          event.preventDefault();
+          const input = el("ordersAskInput");
+          const text = input.value.trim();
+          if (!text) return;
+          const answer = await act("ask", { text }, event.submitter);
+          if (!answer) return;
+          if (answer.kind === "placed") note(`Placed and paid — ${answer.reason}`);
+          else if (answer.kind === "needs_approval") note(`Waiting for you below — nothing has been charged. ${answer.reason}`);
+          else note(answer.reason || "", answer.kind === "failed");
+          if (answer.kind === "placed" || answer.kind === "needs_approval") input.value = "";
+        });
+
+        // The three add-forms share one toggle-and-submit shape.
+        const forms = [
+          { button: "ordersAddStanding", form: "ordersStandingForm" },
+          { button: "ordersAddLimit", form: "ordersLimitsForm" },
+          { button: "ordersAddStock", form: "ordersStockForm" },
+        ];
+        forms.forEach(({ button, form }) => {
+          el(button)?.addEventListener("click", () => { const f = el(form); f.hidden = !f.hidden; });
+          el(form)?.querySelector("[data-form-cancel]")?.addEventListener("click", () => { el(form).hidden = true; });
+        });
+
+        el("ordersLimitsForm")?.querySelector('[name="level"]')?.addEventListener("change", event => {
+          const threshold = el("ordersLimitsForm").querySelector("[data-threshold-field]");
+          if (threshold) threshold.hidden = event.target.value !== "ask_if_over";
+        });
+
+        el("ordersStandingForm")?.addEventListener("submit", async event => {
+          event.preventDefault();
+          const form = event.target;
+          const schedule = form.schedule.value;
+          const body = {
+            name: form.name.value.trim(),
+            items: parseItems(form.items.value),
+            category: form.category.value.trim() || null,
+          };
+          if (schedule.startsWith("w")) body.weekday = parseInt(schedule.slice(1), 10);
+          else body.interval_days = parseInt(schedule.slice(1), 10);
+          const answer = await act("standing", body, form.querySelector('[type="submit"]'));
+          if (answer) { form.reset(); form.hidden = true; }
+        });
+
+        el("ordersLimitsForm")?.addEventListener("submit", async event => {
+          event.preventDefault();
+          const form = event.target;
+          const perOrder = parseDollars(form.per_order.value, "The per-order cap");
+          if (perOrder === undefined) return;
+          const threshold = parseDollars(form.threshold.value, "The ask-above amount");
+          if (threshold === undefined) return;
+          const periodCap = parseDollars(form.period_cap.value, "The weekly cap");
+          if (periodCap === undefined) return;
+          const answer = await act("limits", {
+            scope: form.scope.value.trim(),
+            level: form.level.value,
+            per_order_cap_cents: perOrder,
+            auto_threshold_cents: threshold,
+            period_cap_cents: periodCap,
+          }, form.querySelector('[type="submit"]'));
+          if (answer) { form.reset(); form.hidden = true; }
+        });
+
+        el("ordersStockForm")?.addEventListener("submit", async event => {
+          event.preventDefault();
+          const form = event.target;
+          const answer = await act("stock", {
+            name: form.name.value.trim(),
+            reorder_at: parseInt(form.reorder_at.value, 10),
+            usage_per_week: parseInt(form.usage_per_week.value, 10),
+            reorder_quantity: parseInt(form.reorder_quantity.value, 10),
+          }, form.querySelector('[type="submit"]'));
+          if (answer) { form.reset(); form.hidden = true; }
+        });
+
+        screen.addEventListener("click", async event => {
+          const target = event.target.closest("[data-live-approve],[data-live-reject],[data-live-pause],[data-live-run],[data-live-restock],[data-example]");
+          if (!target) return;
+          if (target.dataset.example != null) {
+            el("ordersAskInput").value = target.dataset.example;
+            el("ordersAskInput").focus();
+            return;
+          }
+          if (target.dataset.liveApprove) {
+            const answer = await act("approve", { order_id: target.dataset.liveApprove }, target);
+            if (answer?.kind === "placed") note(answer.reason || "Placed and paid.");
+            if (answer?.kind === "price_moved") note(answer.reason || "The price moved — look again below.", true);
+            if (answer?.kind === "failed") note(answer.reason || "The order failed.", true);
+            return;
+          }
+          if (target.dataset.liveReject) { await act("reject", { order_id: target.dataset.liveReject }, target); return; }
+          if (target.dataset.livePause) { await act("standing/pause", { standing_id: target.dataset.livePause }, target); return; }
+          if (target.dataset.liveRun) {
+            const answer = await act("standing/run", { standing_id: target.dataset.liveRun }, target);
+            if (answer?.kind === "placed") note(answer.reason || "Placed and paid.");
+            if (answer?.kind === "needs_approval") note(`Waiting for you — nothing charged. ${answer.reason || ""}`);
+            return;
+          }
+          if (target.dataset.liveRestock) {
+            const answer = await act("stock/draft", { stock_id: target.dataset.liveRestock }, target);
+            if (answer?.kind === "needs_approval") note("Drafted — it is waiting for your approval above.");
+          }
+        });
+
+        refresh();
+      }
+
+      function ordersPreview() {
       const view = document.getElementById("view-orders");
       if (!view) return;
 
@@ -29659,6 +30137,7 @@ ledger_entry · artifact · agent_run`,
       });
 
       renderAll();
+      }
     })();
   </script>
 </body>

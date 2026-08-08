@@ -644,6 +644,9 @@ def build_model(data: dict) -> dict:
         ask_endpoint = f"{decision_endpoint}/ask"
     if not profile_endpoint and decision_endpoint:
         profile_endpoint = f"{decision_endpoint}/profile"
+    orders_endpoint = (os.environ.get("ORDERS_API_ENDPOINT") or "").rstrip("/")
+    if not orders_endpoint and decision_endpoint:
+        orders_endpoint = f"{decision_endpoint}/orders"
 
     google_start = (os.environ.get("GOOGLE_START_API_ENDPOINT") or "").rstrip("/")
     google_complete = (os.environ.get("GOOGLE_COMPLETE_API_ENDPOINT") or "").rstrip("/")
@@ -681,6 +684,7 @@ def build_model(data: dict) -> dict:
             "adminEndpoint": admin_endpoint or None,
             "googleStartEndpoint": google_start or None,
             "googleCompleteEndpoint": google_complete or None,
+            "ordersEndpoint": orders_endpoint or None,
         },
         "owner": {
             "id": owner.get("id"),
