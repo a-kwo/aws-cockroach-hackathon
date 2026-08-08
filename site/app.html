@@ -13778,6 +13778,7 @@
     body.autopilot-mode .brand-copy span,
     body.growth-mode .brand-copy span { color: var(--owner-muted) !important; }
 
+    body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button,
     body.growth-mode .profile-menu-button,
     body.autopilot-mode .queue-pill,
@@ -13790,6 +13791,7 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
     }
 
+    body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button span,
     body.growth-mode .profile-menu-button span { background: #cbd0e3 !important; }
 
@@ -15728,6 +15730,7 @@
     }
 
     /* Business profile: same midnight system, scoped away from Memory Engine. */
+    body.chat-mode .profile-scrim,
     body.autopilot-mode .profile-scrim,
     body.growth-mode .profile-scrim {
       background: rgba(2,4,12,.76) !important;
@@ -15735,6 +15738,7 @@
       -webkit-backdrop-filter: blur(8px) !important;
     }
 
+    body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel,
     body.growth-mode .profile-panel {
       --ink: var(--owner-text);
@@ -15746,14 +15750,17 @@
       box-shadow: 32px 0 96px rgba(0,0,0,.56), inset -1px 0 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode .profile-panel-head,
     body.autopilot-mode .profile-panel-head,
     body.growth-mode .profile-panel-head,
+    body.chat-mode .profile-panel-foot,
     body.autopilot-mode .profile-panel-foot,
     body.growth-mode .profile-panel-foot {
       border-color: var(--owner-border) !important;
       background: rgba(13,18,37,.96) !important;
     }
 
+    body.chat-mode .profile-panel-mark,
     body.autopilot-mode .profile-panel-mark,
     body.growth-mode .profile-panel-mark {
       border: 1px solid rgba(226,190,255,.20) !important;
@@ -15762,6 +15769,7 @@
       box-shadow: 0 10px 28px rgba(74,27,126,.26), inset 0 1px 0 rgba(255,255,255,.14) !important;
     }
 
+    body.chat-mode .profile-panel-title,
     body.autopilot-mode .profile-panel-title strong,
     body.growth-mode .profile-panel-title strong {
       color: var(--owner-text) !important;
@@ -15769,12 +15777,14 @@
       font-weight: 780 !important;
     }
 
+    body.chat-mode .profile-panel-title,
     body.autopilot-mode .profile-panel-title span,
     body.growth-mode .profile-panel-title span {
       color: var(--owner-text-muted) !important;
       font-size: 11px !important;
     }
 
+    body.chat-mode .profile-close,
     body.autopilot-mode .profile-close,
     body.growth-mode .profile-close {
       border-color: var(--owner-border) !important;
@@ -15782,6 +15792,7 @@
       color: #b7bfd4 !important;
     }
 
+    body.chat-mode .profile-close,
     body.autopilot-mode .profile-close:hover,
     body.growth-mode .profile-close:hover {
       border-color: var(--owner-border-strong) !important;
@@ -15789,31 +15800,39 @@
       color: #fff !important;
     }
 
+    body.chat-mode .profile-panel-body,
     body.autopilot-mode .profile-panel-body,
     body.growth-mode .profile-panel-body {
       scrollbar-color: rgba(181,109,255,.44) transparent !important;
       scrollbar-width: thin !important;
     }
 
+    body.chat-mode .profile-loading,
     body.autopilot-mode .profile-loading,
     body.growth-mode .profile-loading,
+    body.chat-mode .profile-empty,
     body.autopilot-mode .profile-empty,
     body.growth-mode .profile-empty {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode .profile-loading,
     body.autopilot-mode .profile-loading::before,
     body.growth-mode .profile-loading::before {
       border-color: rgba(255,255,255,.12) !important;
       border-top-color: var(--owner-accent) !important;
     }
 
+    body.chat-mode .profile-identity-card,
     body.autopilot-mode .profile-identity-card,
     body.growth-mode .profile-identity-card,
+    body.chat-mode .profile-section,
     body.autopilot-mode .profile-section,
     body.growth-mode .profile-section,
+    body.chat-mode .profile-portfolio-summary,
     body.autopilot-mode .profile-portfolio-summary article,
     body.growth-mode .profile-portfolio-summary article,
+    body.chat-mode .profile-account-card,
     body.autopilot-mode .profile-account-card,
     body.growth-mode .profile-account-card {
       border-color: var(--owner-border) !important;
@@ -15822,8 +15841,10 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode .profile-identity-card,
     body.autopilot-mode .profile-identity-card .profile-identity-avatar,
     body.growth-mode .profile-identity-card .profile-identity-avatar,
+    body.chat-mode .profile-account-card,
     body.autopilot-mode .profile-account-card .profile-account-avatar,
     body.growth-mode .profile-account-card .profile-account-avatar {
       display: grid !important;
@@ -15835,33 +15856,43 @@
       font-weight: 820 !important;
     }
 
+    body.chat-mode .profile-identity-card,
     body.autopilot-mode .profile-identity-card strong,
     body.growth-mode .profile-identity-card strong,
+    body.chat-mode .profile-section-head,
     body.autopilot-mode .profile-section-head strong,
     body.growth-mode .profile-section-head strong,
+    body.chat-mode .profile-account-card,
     body.autopilot-mode .profile-account-card strong,
     body.growth-mode .profile-account-card strong,
+    body.chat-mode .profile-portfolio-summary,
     body.autopilot-mode .profile-portfolio-summary b,
     body.growth-mode .profile-portfolio-summary b {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode .profile-identity-card,
     body.autopilot-mode .profile-identity-card span,
     body.growth-mode .profile-identity-card span,
+    body.chat-mode .profile-section-head,
     body.autopilot-mode .profile-section-head span,
     body.growth-mode .profile-section-head span,
+    body.chat-mode .profile-account-card,
     body.autopilot-mode .profile-account-card small,
     body.growth-mode .profile-account-card small,
+    body.chat-mode .profile-portfolio-summary,
     body.autopilot-mode .profile-portfolio-summary span,
     body.growth-mode .profile-portfolio-summary span {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode .profile-account-card,
     body.autopilot-mode .profile-account-card .profile-email,
     body.growth-mode .profile-account-card .profile-email {
       color: #c99bff !important;
     }
 
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field label,
     body.growth-mode .profile-field label {
       color: #c5ccdf !important;
@@ -15869,10 +15900,13 @@
       font-weight: 760 !important;
     }
 
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field input,
     body.growth-mode .profile-field input,
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field select,
     body.growth-mode .profile-field select,
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field textarea,
     body.growth-mode .profile-field textarea {
       min-height: 44px !important;
@@ -15885,18 +15919,23 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.02) !important;
     }
 
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field input::placeholder,
     body.growth-mode .profile-field input::placeholder,
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field textarea::placeholder,
     body.growth-mode .profile-field textarea::placeholder {
       color: #737e99 !important;
       opacity: 1 !important;
     }
 
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field input:focus,
     body.growth-mode .profile-field input:focus,
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field select:focus,
     body.growth-mode .profile-field select:focus,
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field textarea:focus,
     body.growth-mode .profile-field textarea:focus {
       border-color: rgba(190,124,255,.62) !important;
@@ -15904,18 +15943,23 @@
       box-shadow: 0 0 0 3px rgba(181,109,255,.14) !important;
     }
 
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field small,
     body.growth-mode .profile-field small,
+    body.chat-mode .profile-save-note,
     body.autopilot-mode .profile-save-note,
     body.growth-mode .profile-save-note {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode .profile-save-note,
     body.autopilot-mode .profile-save-note.is-error,
     body.growth-mode .profile-save-note.is-error { color: #ffb0bd !important; }
+    body.chat-mode .profile-save-note,
     body.autopilot-mode .profile-save-note.is-success,
     body.growth-mode .profile-save-note.is-success { color: #8ce7c6 !important; }
 
+    body.chat-mode .profile-save,
     body.autopilot-mode .profile-save,
     body.growth-mode .profile-save {
       min-width: 136px !important;
@@ -15935,12 +15979,16 @@
     body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer input:focus-visible,
     body.growth-mode #detailDrawer input:focus-visible,
+    body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel button:focus-visible,
     body.growth-mode .profile-panel button:focus-visible,
+    body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel input:focus-visible,
     body.growth-mode .profile-panel input:focus-visible,
+    body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel select:focus-visible,
     body.growth-mode .profile-panel select:focus-visible,
+    body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel textarea:focus-visible,
     body.growth-mode .profile-panel textarea:focus-visible {
       outline: 3px solid rgba(181,109,255,.22) !important;
@@ -15990,7 +16038,8 @@
         font-size: 12.5px !important;
       }
 
-      body.autopilot-mode .profile-panel,
+      body.chat-mode .profile-panel,
+    body.autopilot-mode .profile-panel,
       body.growth-mode .profile-panel { width: 100vw !important; }
     }
 
@@ -16047,6 +16096,7 @@
     /* Brass Tacks owner brand: one restrained violet/plum identity. */
     body.autopilot-mode .brand-mark,
     body.growth-mode .brand-mark,
+    body.chat-mode .profile-panel-mark,
     body.autopilot-mode .profile-panel-mark,
     body.growth-mode .profile-panel-mark {
       border: 1px solid rgba(231, 213, 255, .24) !important;
@@ -16068,6 +16118,7 @@
       color: #8f99b4 !important;
     }
 
+    body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button,
     body.growth-mode .profile-menu-button {
       border-color: var(--owner-border) !important;
@@ -16075,12 +16126,14 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
+    body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button:hover,
     body.growth-mode .profile-menu-button:hover {
       border-color: var(--owner-accent-border) !important;
       background: #151d33 !important;
     }
 
+    body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button span,
     body.growth-mode .profile-menu-button span {
       background: #d8c3ff !important;
@@ -16649,6 +16702,7 @@
     body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields select option,
     body.growth-mode #detailDrawer .reconsider-fields select option,
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field select option,
     body.growth-mode .profile-field select option {
       background: #0b1121 !important;
@@ -16683,6 +16737,7 @@
     body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .undo-pass-button,
     body.growth-mode #detailDrawer .undo-pass-button,
+    body.chat-mode .profile-save,
     body.autopilot-mode .profile-save,
     body.growth-mode .profile-save {
       border: 1px solid rgba(231,213,255,.22) !important;
@@ -16725,6 +16780,7 @@
     }
 
     /* Profile selects use the same dark native menu as the drawer. */
+    body.chat-mode .profile-field,
     body.autopilot-mode .profile-field select,
     body.growth-mode .profile-field select {
       appearance: none !important;
@@ -20288,8 +20344,11 @@
     .chat-msg.is-error { border-color: rgba(255, 155, 172, .35); color: #ffb3c0; }
 
     /* Structured answers inside agent bubbles: sections with small caps
-       labels, real lists, and long responses folded behind a summary. */
-    .chat-msg.agent .chat-answer { display: grid; gap: 12px; }
+       labels, real lists, and long responses folded behind a summary.
+       white-space returns to normal here — the bubble's pre-wrap exists for
+       plain text, and applied to rendered HTML it printed the template's own
+       indentation as fields of empty space. */
+    .chat-msg.agent .chat-answer { display: grid; gap: 10px; white-space: normal; }
 
     .chat-msg.agent .chat-answer-section h4 {
       margin: 0 0 5px;
@@ -20401,6 +20460,47 @@
       margin: -6px 14px 10px;
       font-size: 10.5px;
       color: var(--owner-muted);
+    }
+
+    /* The read-only payments block in the business profile. Uses the same
+       --ink/--muted variables the profile's dark remap sets, so it matches
+       in every mode without its own theme fork. */
+    .profile-payments {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px;
+      border: 1px solid var(--line, #e4e8ed);
+      border-radius: 14px;
+      background: rgba(127, 135, 159, .06);
+    }
+
+    .profile-payment-row {
+      display: grid;
+      grid-template-columns: 84px minmax(0, 1fr);
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    .profile-payment-row > span {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted, #737f8f);
+    }
+
+    .profile-payment-row > strong {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.5;
+      color: var(--ink, #151922);
+    }
+
+    .profile-payment-note {
+      margin: 0;
+      font-size: 11.5px;
+      line-height: 1.55;
+      color: var(--muted, #737f8f);
     }
 
     #chatCanvasBody {
@@ -20516,6 +20616,39 @@
     /* [hidden] must always win inside the chat view — a display rule on a
        panel class has silently beaten it three separate times now. */
     #view-chat [hidden] { display: none !important; }
+
+    /* Slim scrollbars that appear on hover: the OS gutter read as chrome the
+       design never asked for. Firefox gets thin-and-quiet; WebKit gets
+       invisible-until-hovered. */
+    #view-chat *,
+    .profile-panel * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(150, 160, 200, .22) transparent;
+    }
+
+    #view-chat *::-webkit-scrollbar,
+    .profile-panel *::-webkit-scrollbar { width: 9px; height: 9px; }
+
+    #view-chat *::-webkit-scrollbar-track,
+    .profile-panel *::-webkit-scrollbar-track { background: transparent; }
+
+    #view-chat *::-webkit-scrollbar-thumb,
+    .profile-panel *::-webkit-scrollbar-thumb {
+      background-color: transparent;
+      border-radius: 999px;
+      border: 2.5px solid transparent;
+      background-clip: padding-box;
+    }
+
+    #view-chat *:hover::-webkit-scrollbar-thumb,
+    .profile-panel *:hover::-webkit-scrollbar-thumb {
+      background-color: rgba(160, 170, 210, .3);
+    }
+
+    #view-chat *::-webkit-scrollbar-thumb:hover,
+    .profile-panel *::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(160, 170, 210, .5);
+    }
 
     /* The default canvas: a glance, not a board. */
     .chat-canvas-overview {
@@ -22483,7 +22616,37 @@
               ${profileField("profileObjective", "Current priority", profile.objective, { wide: true, placeholder: "Fill weekday lunch seats" })}
             </div>
           </section>
+          <section class="profile-section">
+            <div class="profile-section-head"><strong>Payments &amp; supplier</strong><span>How the supplies agent buys and pays. Read-only here — change it from Chat &rarr; Supplies.</span></div>
+            ${profilePaymentsHtml()}
+          </section>
         </form>`;
+    }
+
+    function profilePaymentsHtml() {
+      // Live status from the Quartermaster's last state read. Card numbers
+      // never appear here: keys live in SSM, charges live in Stripe, and this
+      // profile only says which world is active.
+      const state = window.__btOrdersLastState;
+      const active = state?.supplier?.active;
+      const supplierOption = (state?.supplier?.options || [])
+        .find(option => option.id === active);
+      const supplierLine = supplierOption
+        ? supplierOption.label + (state?.supplier?.email ? ` · ${state.supplier.email}` : "")
+        : "Simulated store";
+      const paymentLine = !state
+        ? "Open the Chat tab once to load live payment status."
+        : active === "email"
+          ? "No card in play — your supplier invoices you directly."
+          : state.payment?.provider === "stripe"
+            ? "Stripe, test mode. Every placed order is a real PaymentIntent; its reference sits on the receipt under Chat → Supplies → Activity."
+            : "Simulated. Add STRIPE_SECRET_KEY and STRIPE_PAYMENT_METHOD to SSM under /brasstacks/ and test-mode Stripe charges take over automatically.";
+      return `
+        <div class="profile-payments">
+          <div class="profile-payment-row"><span>Supplier</span><strong>${escapeHtml(supplierLine)}</strong></div>
+          <div class="profile-payment-row"><span>Payment</span><strong>${escapeHtml(paymentLine)}</strong></div>
+          <p class="profile-payment-note">Charged only at the moment an order places. A failed order refunds automatically; a price that moved after approval is never charged.</p>
+        </div>`;
     }
 
     function renderOperatorProfiles() {
@@ -30909,6 +31072,7 @@ ledger_entry · artifact · agent_run`,
 
         function renderAll() {
           if (!state) return;
+          window.__btOrdersLastState = state;
           applyChrome();
           renderPending(); renderStanding(); renderStock();
           renderLimits(); renderHistory(); renderExamples();
@@ -31499,7 +31663,7 @@ ledger_entry · artifact · agent_run`,
               <small>${escapeHtml(supplierLabel)}</small>
             </button>
           </div>
-          <p class="chat-overview-note">Every figure is a row in CockroachDB. Open Supplies for the full board.</p>`;
+          `;
       }
 
       function renderMoveCanvas(post) {
