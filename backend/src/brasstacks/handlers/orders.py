@@ -65,6 +65,12 @@ CATALOGUE: dict[str, int] = {
     "coffee beans": 14_00,
     "napkins": 3_99,
     "cleaning spray": 5_25,
+    # The first thing a real owner asked for was milk, and the store did not
+    # stock it. A simulated catalogue should stock what a kitchen runs out of.
+    "milk": 4_49,
+    "sugar": 3_49,
+    "eggs": 5_75,
+    "butter": 6_25,
 }
 
 STORE_NAME = "Simulated store"

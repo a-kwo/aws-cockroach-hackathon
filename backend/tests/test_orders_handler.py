@@ -447,6 +447,19 @@ class TestSupplierSwitch:
         assert board.payments.charged == []
 
 
+class TestCatalogueStocksTheBasics:
+    def test_kitchen_staples_are_stocked(self):
+        # "order milks for me" was the first live ask from a real owner, and
+        # it failed on an unstocked simulated shelf. The pantry basics stay in.
+        from brasstacks.handlers.orders import CATALOGUE
+        for staple in ("milk", "sugar", "eggs", "butter", "tomatoes"):
+            assert staple in CATALOGUE
+
+    def test_the_fallback_parse_reads_a_milk_order(self):
+        from brasstacks.handlers.orders import CATALOGUE
+        assert ("milk", 2) in simple_parse("order 2 milk", CATALOGUE)
+
+
 class TestSimpleParse:
     """The no-model fallback: keyword-matched against the catalogue, refusing
     what it does not recognise — the same contract as order_intent."""
