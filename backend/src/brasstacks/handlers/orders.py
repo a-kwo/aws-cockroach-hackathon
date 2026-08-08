@@ -312,15 +312,22 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         if not text:
             return respond(400, {"error": "say what you would like to order"})
 
+        request = None
         if reasoner is not None:
             try:
                 request = parse_order_request(text, reasoner=reasoner)
             except NotAnOrderRequest as exc:
+                # A trustworthy negative: the model read the message and it
+                # was not an order. Different from the model failing.
                 return respond(200, {"kind": "not_an_order",
                                      "reason": str(exc), "state": state()})
-            except ValueError as exc:
-                return respond(400, {"error": str(exc)})
-        else:
+            except Exception:
+                # The model being down, misconfigured, or returning a shape
+                # order_intent refuses must cost the fancy parse, not the
+                # screen. The first live deployment 500'd exactly here.
+                request = None
+
+        if request is None:
             items = simple_parse(text, CATALOGUE)
             if not items:
                 return respond(200, {
@@ -549,6 +556,14 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
             )
     except psycopg.Error:
         return respond(503, {"error": "orders are unavailable right now"})
+    except Exception:
+        # A raw Lambda crash reaches the owner as a bare 500 with no body and
+        # reaches nobody else at all. Log the traceback where CloudWatch keeps
+        # it, and answer with a sentence the screen can show.
+        import traceback
+        traceback.print_exc()
+        return respond(500, {"error": "the Quartermaster hit an unexpected "
+                                      "error; it has been logged"})
 
 
 __all__ = [
