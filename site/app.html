@@ -19258,6 +19258,348 @@
     }
   </style>
 
+  <style id="orders-midnight-v46">
+    /* v46: DoorDash joins the owner midnight system.
+
+       For You and Growth wear one calm midnight surface; DoorDash shipped in
+       the light default and looked like a bolted-on integration page — the
+       exact thing its first comment said it must not be. Rather than duplicate
+       every card rule in dark, the shared light-theme tokens are remapped to
+       owner tokens for this mode, the same trick the recommendation drawer
+       uses, and only the hardcoded ambers and reds get explicit overrides. */
+    body.orders-mode {
+      --surface: rgba(255, 255, 255, .035);
+      --surface-soft: rgba(255, 255, 255, .05);
+      --ink: var(--owner-ink);
+      --ink-soft: var(--owner-copy);
+      --muted: var(--owner-muted);
+      --muted-2: #6d7590;
+      --line: var(--owner-line);
+      --line-strong: var(--owner-line-strong);
+      --brand: var(--owner-violet);
+      --brand-dark: #a06bff;
+      --brand-soft: rgba(141, 69, 255, .18);
+      --approve: var(--owner-success);
+      --approve-hover: #3fc697;
+      --approve-soft: rgba(77, 215, 168, .12);
+      color-scheme: dark;
+      color: var(--owner-ink) !important;
+      background:
+        radial-gradient(900px 560px at -8% 4%, rgba(35, 83, 209, .36), transparent 66%),
+        radial-gradient(760px 520px at 102% 14%, rgba(144, 44, 191, .24), transparent 65%),
+        linear-gradient(145deg, var(--owner-shell-2), var(--owner-shell) 70%) !important;
+    }
+
+    body.orders-mode::before {
+      opacity: 1 !important;
+      background:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px) !important;
+      background-size: 48px 48px !important;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.25), transparent 78%) !important;
+    }
+
+    /* The same topbar chrome For You and Growth get. */
+    body.orders-mode .topbar {
+      border-bottom: 1px solid rgba(255,255,255,.07) !important;
+      background: rgba(5, 8, 20, .76) !important;
+      box-shadow: 0 12px 34px rgba(0,0,0,.18) !important;
+      backdrop-filter: blur(22px) saturate(130%) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(130%) !important;
+    }
+
+    body.orders-mode .brand-copy strong { color: var(--owner-ink) !important; }
+    body.orders-mode .brand-copy span { color: var(--owner-muted) !important; }
+
+    body.orders-mode .profile-menu-button,
+    body.orders-mode .queue-pill,
+    body.orders-mode .restart-button {
+      border-color: var(--owner-line) !important;
+      background: rgba(255,255,255,.055) !important;
+      color: var(--owner-copy) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+    }
+
+    body.orders-mode .profile-menu-button span { background: #cbd0e3 !important; }
+
+    body.orders-mode .view-switcher {
+      border: 1px solid var(--owner-line) !important;
+      background: rgba(255,255,255,.045) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+      backdrop-filter: blur(18px) !important;
+    }
+
+    body.orders-mode .view-tab { color: #8991aa !important; }
+    body.orders-mode .view-tab:hover { color: #e7eaff !important; }
+    body.orders-mode .view-tab.active {
+      background: rgba(255,255,255,.10) !important;
+      color: #fff !important;
+      box-shadow: 0 8px 22px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.08) !important;
+    }
+
+    /* One readable column. The screen is a sequence — ask, approve, review —
+       and a sequence reads best narrow. */
+    body.orders-mode .view-inner.orders-inner {
+      width: min(1060px, calc(100% - 48px));
+      gap: 18px;
+    }
+
+    body.orders-mode .orders-header h1 { color: var(--owner-ink); }
+    body.orders-mode .orders-sub { color: var(--owner-muted); font-size: 14.5px; }
+
+    .orders-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    body.orders-mode .orders-connection {
+      border-color: var(--owner-line);
+      background: rgba(255,255,255,.05);
+      color: var(--owner-copy);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+    }
+
+    .orders-conn-dot.test { background: #e7bd63; box-shadow: 0 0 10px rgba(231,189,99,.55); }
+
+    body.orders-mode .orders-card {
+      border: 1px solid var(--owner-line);
+      border-radius: 20px;
+      background:
+        linear-gradient(150deg, rgba(17,22,44,.92), rgba(9,13,28,.94));
+      box-shadow: 0 22px 60px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    body.orders-mode .orders-card-primary {
+      border-color: rgba(196, 160, 255, .22);
+      background:
+        radial-gradient(560px 280px at 85% 0%, rgba(141,69,255,.14), transparent 70%),
+        linear-gradient(150deg, rgba(17,22,44,.94), rgba(9,13,28,.96));
+    }
+
+    .orders-card-sub {
+      margin: -6px 0 14px;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--muted);
+      max-width: 62ch;
+    }
+
+    /* The three-step strip: how the whole screen is used, in one line. */
+    .orders-how {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      padding: 4px 2px;
+    }
+
+    .orders-step {
+      flex: 1;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px 16px;
+      border: 1px solid var(--owner-line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.03);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .orders-step-num {
+      flex: none;
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--owner-gradient);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 6px 18px rgba(141,69,255,.35);
+    }
+
+    .orders-step-copy strong {
+      display: block;
+      color: var(--owner-ink);
+      font-size: 13.5px;
+      letter-spacing: -.01em;
+    }
+
+    .orders-step-copy p {
+      margin: 3px 0 0;
+      color: var(--owner-muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .orders-step-arrow {
+      align-self: center;
+      color: var(--owner-muted);
+      opacity: .7;
+      flex: none;
+    }
+
+    body.orders-mode .orders-mock-banner {
+      border-color: rgba(231, 189, 99, .32);
+      background: rgba(231, 189, 99, .09);
+      color: #ecd9a8;
+    }
+
+    body.orders-mode .orders-chip {
+      color: var(--owner-copy);
+      background: rgba(255,255,255,.05);
+      border-color: var(--owner-line);
+    }
+
+    body.orders-mode .orders-chip.estimate {
+      color: #e9c87f;
+      background: rgba(231, 189, 99, .1);
+      border-color: rgba(231, 189, 99, .28);
+    }
+
+    body.orders-mode .orders-ask input {
+      border-color: var(--owner-line-strong);
+      background: rgba(255,255,255,.05);
+      color: var(--owner-ink);
+    }
+
+    body.orders-mode .orders-ask input::placeholder { color: rgba(127,135,159,.8); }
+
+    body.orders-mode .orders-ask input:focus {
+      border-color: rgba(196, 160, 255, .5);
+      background: rgba(255,255,255,.07);
+      box-shadow: 0 0 0 3px rgba(141, 69, 255, .18);
+    }
+
+    body.orders-mode .orders-btn.primary {
+      background: var(--owner-gradient);
+      box-shadow: 0 10px 26px rgba(141, 69, 255, .3);
+    }
+
+    body.orders-mode .orders-btn.primary:hover { filter: brightness(1.08); background: var(--owner-gradient); }
+
+    body.orders-mode .orders-btn.approve {
+      background: linear-gradient(135deg, #16a879, #2bc793);
+      box-shadow: 0 10px 24px rgba(32, 184, 135, .25);
+    }
+
+    body.orders-mode .orders-btn.approve:hover { filter: brightness(1.07); background: linear-gradient(135deg, #16a879, #2bc793); }
+
+    body.orders-mode .orders-btn.ghost {
+      background: rgba(255,255,255,.05);
+      border-color: var(--owner-line-strong);
+      color: var(--owner-copy);
+    }
+
+    body.orders-mode .orders-btn.ghost:hover { background: rgba(255,255,255,.09); }
+
+    .orders-example-label {
+      align-self: center;
+      font-size: 12px;
+      color: var(--muted-2);
+      font-weight: 650;
+    }
+
+    body.orders-mode .orders-example {
+      border-color: rgba(205, 211, 255, .22);
+      color: var(--owner-muted);
+    }
+
+    body.orders-mode .orders-example:hover {
+      color: #d9bdff;
+      border-color: rgba(196, 160, 255, .55);
+    }
+
+    body.orders-mode .orders-row {
+      border-color: var(--owner-line);
+      background: rgba(255,255,255,.028);
+    }
+
+    body.orders-mode .orders-row.pending {
+      border-color: rgba(196, 160, 255, .3);
+      background: rgba(141, 69, 255, .08);
+    }
+
+    body.orders-mode .orders-row.blocked {
+      border-color: rgba(255, 155, 172, .32);
+      background: rgba(255, 155, 172, .07);
+    }
+
+    body.orders-mode .orders-row.blocked .orders-why { color: #ffb3c0; }
+
+    body.orders-mode .orders-note {
+      background: rgba(255,255,255,.04);
+      border-color: var(--owner-line);
+      color: var(--owner-copy);
+    }
+
+    body.orders-mode .orders-note.warn {
+      background: rgba(255, 155, 172, .08);
+      border-color: rgba(255, 155, 172, .3);
+      color: #ffb3c0;
+    }
+
+    body.orders-mode .orders-tag.auto {
+      background: rgba(77, 215, 168, .12);
+      border-color: rgba(77, 215, 168, .3);
+      color: #74e2bd;
+    }
+
+    body.orders-mode .orders-tag.ask {
+      background: rgba(141, 69, 255, .14);
+      border-color: rgba(196, 160, 255, .32);
+      color: #d0aaff;
+    }
+
+    body.orders-mode .orders-tag.inferred {
+      background: rgba(231, 189, 99, .1);
+      border-color: rgba(231, 189, 99, .28);
+      color: #e9c87f;
+    }
+
+    body.orders-mode .orders-bar { background: rgba(255,255,255,.09); }
+    body.orders-mode .orders-bar > i { background: var(--owner-violet); }
+    body.orders-mode .orders-bar > i.low { background: #e7bd63; }
+
+    /* The payment method row. */
+    .orders-pay {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--owner-line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .orders-pay-chip {
+      flex: none;
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--owner-gradient-soft);
+      border: 1px solid rgba(196, 160, 255, .26);
+      color: #c99aff;
+    }
+
+    .orders-pay-copy { display: grid; gap: 3px; }
+    .orders-pay-copy strong { color: var(--owner-ink); font-size: 14px; letter-spacing: -.01em; }
+    .orders-pay-copy span { color: var(--owner-muted); font-size: 12px; line-height: 1.5; }
+
+    /* The Stripe reference on a receipt row. */
+    .orders-paid {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #74e2bd;
+      font-weight: 650;
+    }
+
+    @media (max-width: 860px) {
+      .orders-how { flex-direction: column; }
+      .orders-step-arrow { display: none; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -19462,11 +19804,17 @@
           <header class="orders-header" data-enter>
             <div>
               <h1 id="ordersHeading">DoorDash</h1>
-              <p class="orders-sub">Supplies, handled. You approve what matters.</p>
+              <p class="orders-sub">Your supplies, on autopilot. You only approve what matters.</p>
             </div>
-            <div class="orders-connection" id="ordersConnection">
-              <span class="orders-conn-dot" aria-hidden="true"></span>
-              <span>Not connected</span>
+            <div class="orders-pills">
+              <div class="orders-connection" id="ordersConnection">
+                <span class="orders-conn-dot" aria-hidden="true"></span>
+                <span>DoorDash &middot; Not connected</span>
+              </div>
+              <div class="orders-connection is-test" id="ordersStripeStatus">
+                <span class="orders-conn-dot test" aria-hidden="true"></span>
+                <span>Stripe &middot; Test mode</span>
+              </div>
             </div>
           </header>
 
@@ -19475,18 +19823,50 @@
               <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.2v.1" />
             </svg>
             <p>
-              <strong>Preview, not live.</strong> The ordering rules below are built and
-              tested, but nothing here is saved to CockroachDB, no DoorDash account is
-              connected, and no order can be placed. Every figure on this screen is
-              sample data.
+              <strong>Preview, not live.</strong> The ordering and payment rules below
+              are built and tested, but nothing here is saved to CockroachDB,
+              no DoorDash account is connected, and no order can be placed.
+              Payments run against a Stripe test card, so no real money can move.
+              Every figure is sample data.
             </p>
           </div>
 
+          <!-- The whole product in three steps, before any control appears. -->
+          <section class="orders-how" aria-label="How this works" data-enter>
+            <article class="orders-step">
+              <span class="orders-step-num" aria-hidden="true">1</span>
+              <div class="orders-step-copy">
+                <strong>Ask</strong>
+                <p>Type what you need, the way you'd say it out loud.</p>
+              </div>
+            </article>
+            <span class="orders-step-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
+            </span>
+            <article class="orders-step">
+              <span class="orders-step-num" aria-hidden="true">2</span>
+              <div class="orders-step-copy">
+                <strong>It prices &amp; checks</strong>
+                <p>The agent builds the cart and checks it against your spending limits.</p>
+              </div>
+            </article>
+            <span class="orders-step-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
+            </span>
+            <article class="orders-step">
+              <span class="orders-step-num" aria-hidden="true">3</span>
+              <div class="orders-step-copy">
+                <strong>It orders &amp; pays</strong>
+                <p>Inside your limits it orders and pays by card. Anything else waits for your OK.</p>
+              </div>
+            </article>
+          </section>
+
           <!-- 1. Ask for something — the owner_instruction trigger. -->
-          <section class="orders-card" aria-labelledby="ordersAskHeading" data-enter>
+          <section class="orders-card orders-card-primary" aria-labelledby="ordersAskHeading" data-enter>
             <header class="orders-card-head">
               <h2 id="ordersAskHeading">Ask for something</h2>
-              <span class="orders-chip">Say it how you'd say it</span>
+              <span class="orders-chip">Plain words work</span>
             </header>
             <form class="orders-ask" id="ordersAskForm">
               <input type="text" id="ordersAskInput" autocomplete="off"
@@ -19495,9 +19875,10 @@
               <button type="submit" class="orders-btn primary">Price it</button>
             </form>
             <div class="orders-ask-examples">
+              <span class="orders-example-label">Try:</span>
               <button type="button" class="orders-example" data-example="order 20lb of tomatoes and a case of olive oil">20lb tomatoes + olive oil</button>
               <button type="button" class="orders-example" data-example="get 3 bags of flour">3 bags of flour</button>
-              <button type="button" class="orders-example" data-example="how did we do last month?">how did we do last month?</button>
+              <button type="button" class="orders-example" data-example="order 1 tin of saffron">1 tin of saffron</button>
             </div>
             <p class="orders-note" id="ordersAskNote" hidden></p>
           </section>
@@ -19508,6 +19889,7 @@
               <h2 id="ordersPendingHeading">Waiting for you</h2>
               <span class="orders-count" id="ordersPendingCount">0</span>
             </header>
+            <p class="orders-card-sub">Orders that went past a limit, or that the agent inferred, stop here. Nothing below is charged until you approve it.</p>
             <div id="ordersPendingList" class="orders-list"></div>
             <p class="orders-empty" id="ordersPendingEmpty">Nothing needs your approval.</p>
           </section>
@@ -19519,41 +19901,61 @@
                 <h2 id="ordersStandingHeading">Standing orders</h2>
                 <button type="button" class="orders-btn ghost small" id="ordersAddStanding">Add</button>
               </header>
+              <p class="orders-card-sub">Repeat orders on a schedule. Priced fresh every time and checked against your limits like anything else.</p>
               <div id="ordersStandingList" class="orders-list"></div>
             </section>
 
             <!-- 4. Stock — the inferred trigger. Every figure labelled an estimate. -->
             <section class="orders-card" aria-labelledby="ordersStockHeading" data-enter>
               <header class="orders-card-head">
-                <h2 id="ordersStockHeading">What's running low</h2>
+                <h2 id="ordersStockHeading">Running low</h2>
                 <span class="orders-chip estimate">Estimated</span>
               </header>
+              <p class="orders-card-sub">Worked out from what you last bought and how long ago — not counted. That's why anything here always asks first.</p>
               <div id="ordersStockList" class="orders-list"></div>
+            </section>
+          </div>
+
+          <div class="orders-grid">
+            <!-- 5. Purchase authority — the spend limits. -->
+            <section class="orders-card" aria-labelledby="ordersLimitsHeading" data-enter>
+              <header class="orders-card-head">
+                <h2 id="ordersLimitsHeading">Spending limits</h2>
+                <button type="button" class="orders-btn ghost small" id="ordersAddLimit">Add</button>
+              </header>
+              <p class="orders-card-sub">What the agent may buy without asking. Enforced in code before checkout, never by the model reading a sentence.</p>
+              <div id="ordersLimitsList" class="orders-list"></div>
+            </section>
+
+            <!-- 6. Payment — the Stripe card the Quartermaster charges. -->
+            <section class="orders-card" aria-labelledby="ordersPaymentHeading" data-enter>
+              <header class="orders-card-head">
+                <h2 id="ordersPaymentHeading">Payment</h2>
+                <span class="orders-chip estimate">Stripe &middot; Test card</span>
+              </header>
+              <p class="orders-card-sub">Charged only at the moment an order is placed — never for anything still waiting on you.</p>
+              <div class="orders-pay">
+                <span class="orders-pay-chip" aria-hidden="true">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 9.5h19M6 15h4" /></svg>
+                </span>
+                <div class="orders-pay-copy">
+                  <strong>Visa ending 4242</strong>
+                  <span>Stripe's standard test card. Swaps for a real card when this screen goes live.</span>
+                </div>
+              </div>
               <p class="orders-foot">
-                Worked out from what you last bought and how long ago — not counted.
-                That's why anything here always asks before ordering.
+                If an order fails after payment, the charge is refunded automatically.
+                A price that moved after you approved is never charged.
               </p>
             </section>
           </div>
 
-          <!-- 5. Purchase authority — the spend limits. -->
-          <section class="orders-card" aria-labelledby="ordersLimitsHeading" data-enter>
-            <header class="orders-card-head">
-              <h2 id="ordersLimitsHeading">What the agent may buy on its own</h2>
-              <button type="button" class="orders-btn ghost small" id="ordersAddLimit">Add</button>
-            </header>
-            <div id="ordersLimitsList" class="orders-list"></div>
-            <p class="orders-foot">
-              Limits are enforced in code before checkout, never by the model reading a
-              sentence. Going over one doesn't cancel an order — it asks you.
-            </p>
-          </section>
-
-          <!-- 6. Receipts. -->
+          <!-- 7. Receipts. -->
           <section class="orders-card" aria-labelledby="ordersHistoryHeading" data-enter>
             <header class="orders-card-head">
               <h2 id="ordersHistoryHeading">Orders placed</h2>
             </header>
+            <p class="orders-card-sub">Every order keeps two references: the DoorDash order and the Stripe charge that paid for it.</p>
             <div id="ordersHistoryList" class="orders-list"></div>
             <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
           </section>
@@ -20672,9 +21074,9 @@
         tab.classList.toggle("active", tab.dataset.view === "admin");
       });
       //  The topbar is a sibling of the views, so the console's dark treatment
-      //  is driven from body. Same three classes switchView manages.
+      //  is driven from body. Same classes switchView manages.
       document.body.classList.add("console-mode");
-      document.body.classList.remove("autopilot-mode", "growth-mode");
+      document.body.classList.remove("autopilot-mode", "growth-mode", "orders-mode");
     })();
 
     //  Sign out, and show who is signed in. The board is one tenant's, and
@@ -21634,6 +22036,9 @@
       document.body.classList.toggle("console-mode", viewName === "admin");
       document.body.classList.toggle("autopilot-mode", viewName === "autopilot");
       document.body.classList.toggle("growth-mode", viewName === "growth");
+      // DoorDash is an owner screen, so it wears the same midnight system as
+      // For You and Growth rather than the light default.
+      document.body.classList.toggle("orders-mode", viewName === "orders");
       // Cards measure as zero-height while their view is hidden, so any fit
       // that was skipped is settled here, on the way in.
       if (viewName === "autopilot") fitFeedCards();
@@ -28945,7 +29350,11 @@ ledger_entry · artifact · agent_run`,
          * a low-stock order always stops for a human, however permissive
            the limits, because a depletion figure is an estimate;
          * an approval is bound to a specific cart, so a price that moved
-           since you agreed to it refuses to place and asks again.
+           since you agreed to it refuses to place and asks again;
+         * the card is charged only at the moment an order places (never
+           for anything awaiting approval), and every receipt carries the
+           Stripe reference beside the order reference — the rules in
+           payments.py and test_quartermaster_payments.py.
 
        When storage lands, these render functions keep their shape and the
        fixtures below become reads.
@@ -28979,9 +29388,13 @@ ledger_entry · artifact · agent_run`,
 
       const pending = [];
       const history = [
-        { title: "The usual produce", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing" },
-        { title: "Flour, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked" },
+        { title: "The usual produce", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing", payRef: "pi_test_60417" },
+        { title: "Flour, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked", payRef: "pi_test_60318" },
       ];
+
+      // Deterministic test-mode Stripe references, like the fake payment
+      // tool's: derived from a counter, never random.
+      const payRef = () => `pi_test_${60417 + history.length + 1}`;
 
       const money = c => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
       const el = id => document.getElementById(id);
@@ -29043,7 +29456,7 @@ ledger_entry · artifact · agent_run`,
             ${lineHtml(p.cart)}
             <p class="orders-why">${escapeHtml(p.reason)}</p>
             <div class="orders-actions">
-              <button type="button" class="orders-btn approve" data-approve="${i}">Approve &amp; order</button>
+              <button type="button" class="orders-btn approve" data-approve="${i}">Approve &amp; pay ${money(p.cart.total)}</button>
               <button type="button" class="orders-btn ghost" data-reject="${i}">Not now</button>
               ${p.priceMoved ? "" : `<button type="button" class="orders-btn ghost" data-drift="${i}">Simulate a price change</button>`}
             </div>
@@ -29116,7 +29529,8 @@ ledger_entry · artifact · agent_run`,
             <div class="orders-meta">
               <span>${escapeHtml(h.when)}</span><span>&middot;</span>
               <span>${escapeHtml(h.tag)}</span><span>&middot;</span>
-              <span>Ref ${escapeHtml(h.ref)}</span>
+              <span>Order ${escapeHtml(h.ref)}</span>
+              ${h.payRef ? `<span>&middot;</span><span class="orders-paid">Paid &middot; Stripe ${escapeHtml(h.payRef)}</span>` : ""}
             </div>
           </article>`).join("");
       }
@@ -29126,12 +29540,15 @@ ledger_entry · artifact · agent_run`,
       function submit(cart, title, category, trigger) {
         const verdict = authorize(cart, category, trigger);
         if (verdict.ok) {
+          // Charged at the moment of placement and never before — the same
+          // ordering the Python enforces in _place.
           history.unshift({ title, total: cart.total, when: "Just now",
-                            ref: `dd-preview-${history.length + 1}`, tag: "placed automatically" });
-          note(`Placed automatically — ${money(cart.total)}. ${verdict.reason}`, false);
+                            ref: `dd-preview-${history.length + 1}`,
+                            tag: "placed automatically", payRef: payRef() });
+          note(`Placed and paid — ${money(cart.total)} to your card. ${verdict.reason}`, false);
         } else {
           pending.push({ title, cart, reason: verdict.reason, category, trigger });
-          note(`Needs your approval. ${verdict.reason}`, false);
+          note(`Needs your approval — nothing has been charged. ${verdict.reason}`, false);
         }
         renderAll();
       }
@@ -29184,10 +29601,13 @@ ledger_entry · artifact · agent_run`,
         if (target.dataset.approve != null) {
           const item = pending[Number(target.dataset.approve)];
           if (item.priceMoved) {
-            note("Re-priced and placed at the new total.", false);
+            note("Re-priced, placed and paid at the new total.", false);
+          } else {
+            note(`Placed and paid — ${money(item.cart.total)} to your card.`, false);
           }
           history.unshift({ title: item.title, total: item.cart.total, when: "Just now",
-                            ref: `dd-preview-${history.length + 1}`, tag: "you approved" });
+                            ref: `dd-preview-${history.length + 1}`,
+                            tag: "you approved", payRef: payRef() });
           pending.splice(Number(target.dataset.approve), 1);
           renderAll();
           return;

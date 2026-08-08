@@ -112,6 +112,16 @@ Build Radar, Analyst, Maker, Meter, Ask. **Dropped:** Stripe, and the **Mapper**
 `business_fact` rows, and it contributes to neither required disclosure. Maker
 ships exactly one artifact type.
 
+**Stripe is back as of 2026-08-07** — not as product billing (that stays
+dropped), but as the Quartermaster's payment seam. `payments.py` mirrors the
+ordering seam: a two-verb `PaymentTool` protocol (`charge` / `refund`), a
+deterministic fake, and a Stripe adapter that speaks form-encoded HTTPS over
+`httpx` directly — no new dependency. The Quartermaster charges the card only
+at the moment an order places (never for anything awaiting approval), and an
+order that fails after a successful charge refunds it automatically. The
+earlier decision is preserved above rather than deleted, in the same spirit as
+the multi-tenancy note.
+
 **Accounts and multi-tenancy are back in, as of 2026-08-01.** They were dropped
 on the reasoning that a single seeded tenant proves the memory-layer claim just
 as well and costs a fraction of the work. That held while the tenant was
