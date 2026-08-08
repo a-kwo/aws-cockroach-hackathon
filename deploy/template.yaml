@@ -624,6 +624,54 @@ Resources:
             Method: GET
 
   # --------------------------------------------------------------------
+  # Orders — the Quartermaster, live. Standing orders, spend limits, stock
+  # and receipts are per-tenant CockroachDB rows; the store stays simulated
+  # until DoorDash access lands and the screen says so. Stripe charges are
+  # real whenever STRIPE_SECRET_KEY / STRIPE_PAYMENT_METHOD exist in SSM.
+  # --------------------------------------------------------------------
+  OrdersFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      DockerContext: ../
+      Dockerfile: deploy/Dockerfile
+      DockerTag: orders
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["brasstacks.handlers.orders.handler"]
+      Timeout: 30
+      Policies:
+        - Statement:
+            - Sid: ReadSecrets
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
+      Events:
+        OrdersState:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /orders
+            Method: ANY
+        OrdersAction:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AskApi
+            Path: /orders/{proxy+}
+            Method: ANY
+
+  # --------------------------------------------------------------------
   # Login — unauthenticated by definition, and the way into every tenant
   # --------------------------------------------------------------------
   LoginFunction:
@@ -1225,6 +1273,13 @@ Outputs:
   WorkflowEndpoint:
     Description: GET live owner workflow state for the Memory Engine overlay.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/workflow
+
+  OrdersEndpoint:
+    Description: >
+      The Quartermaster. GET returns the owner's standing orders, limits,
+      stock estimates and receipts; POST /orders/{action} asks, approves,
+      rejects, and edits them. Session-scoped like /decision.
+    Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/orders
 
   AdminWorkspacesEndpoint:
     Description: >

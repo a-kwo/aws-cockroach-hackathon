@@ -745,3 +745,82 @@ ALTER TYPE find_status ADD VALUE IF NOT EXISTS 'withheld';
 ALTER TABLE find ADD COLUMN IF NOT EXISTS executed_at TIMESTAMPTZ;
 ALTER TABLE find ADD COLUMN IF NOT EXISTS execution_tool_id UUID REFERENCES tool_execution(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS find_execution_idx ON find (business_id, executed_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- Quartermaster storage (2026-08-08). The DoorDash screen stops being a
+-- preview: standing orders, spend authorities, stock estimates and order
+-- records become per-tenant rows. The store itself stays simulated until
+-- DoorDash access lands, and the screen says so; what is real is the memory.
+-- Everything money-shaped is integer cents (BIGINT), never a float.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS standing_order (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id   UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  name          STRING NOT NULL,
+  -- [["tomatoes", 8], ...] -- the same (name, quantity) pairs OrderRequest takes.
+  items         JSONB NOT NULL,
+  weekday       INT,
+  interval_days INT,
+  last_run_on   DATE,
+  enabled       BOOL NOT NULL DEFAULT true,
+  paused_until  DATE,
+  category      STRING,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  INDEX (business_id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_authority (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id          UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  scope                STRING NOT NULL,
+  -- ask_always | ask_if_over | auto, the Level enum in purchase_authority.py.
+  level                STRING NOT NULL,
+  per_order_cap_cents  BIGINT NOT NULL,
+  auto_threshold_cents BIGINT,
+  period_cap_cents     BIGINT,
+  period_days          INT NOT NULL DEFAULT 7,
+  enabled              BOOL NOT NULL DEFAULT true,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  INDEX (business_id)
+);
+
+CREATE TABLE IF NOT EXISTS stock_item (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id              UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  name                     STRING NOT NULL,
+  reorder_at               INT NOT NULL,
+  usage_per_week           INT NOT NULL,
+  reorder_quantity         INT NOT NULL DEFAULT 1,
+  last_purchased_on        DATE,
+  last_purchased_quantity  INT,
+  category                 STRING,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  INDEX (business_id)
+);
+
+CREATE TABLE IF NOT EXISTS supply_order (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id        UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  title              STRING NOT NULL,
+  -- owner_instruction | standing_order | stock_threshold | find.
+  trigger            STRING NOT NULL,
+  -- placed | awaiting_approval | failed | rejected.
+  status             STRING NOT NULL,
+  items              JSONB NOT NULL,
+  category           STRING,
+  -- The priced cart the owner saw, for the approval screen and the receipt.
+  cart               JSONB,
+  total_cents        BIGINT,
+  reason             STRING,
+  -- Binds an approval to the exact cart at the exact price (ordering.py).
+  fingerprint        STRING,
+  external_reference STRING,
+  payment_reference  STRING,
+  -- stripe | simulated -- the UI labels the receipt with which one was real.
+  payment_provider   STRING,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  decided_at         TIMESTAMPTZ,
+  INDEX (business_id, status),
+  INDEX (business_id, created_at DESC)
+);
