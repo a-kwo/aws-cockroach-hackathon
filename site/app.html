@@ -20151,6 +20151,72 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
     }
 
+    /* The default canvas: a glance, not a board. */
+    .chat-canvas-overview {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .chat-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .chat-tile {
+      display: grid;
+      gap: 4px;
+      justify-items: start;
+      text-align: left;
+      padding: 18px;
+      border: 1px solid var(--owner-line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.03);
+      color: var(--owner-copy);
+      font: inherit;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+
+    .chat-tile:hover {
+      border-color: rgba(196, 160, 255, .4);
+      background: rgba(141, 69, 255, .07);
+      transform: translateY(-1px);
+    }
+
+    .chat-tile strong {
+      color: var(--owner-ink);
+      font-size: 24px;
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chat-tile span { font-size: 12.5px; color: var(--owner-copy); }
+    .chat-tile small { font-size: 11px; color: var(--owner-muted); }
+
+    .chat-tile.is-hot {
+      border-color: rgba(196, 160, 255, .38);
+      background: rgba(141, 69, 255, .1);
+    }
+
+    .chat-tile.is-hot strong { color: #d9bdff; }
+
+    .chat-overview-note {
+      margin: auto 0 0;
+      font-size: 11.5px;
+      color: var(--owner-muted);
+      line-height: 1.5;
+    }
+
     /* The move on the canvas, while the thread discusses it. */
     .chat-canvas-move {
       flex: 1;
@@ -20501,11 +20567,13 @@
               <header class="chat-canvas-head">
                 <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
                   <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
+                  <button type="button" data-canvas="overview" id="chatCanvasOverviewTab" hidden>Overview</button>
                   <button type="button" data-canvas="supplies" class="active">Supplies</button>
                 </nav>
                 <span id="chatCanvasStatus">Live from your memory</span>
               </header>
               <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
+              <div class="chat-canvas-overview" id="chatCanvasOverview" hidden></div>
               <div id="chatCanvasBody"></div>
             </section>
           </div>
@@ -30252,6 +30320,7 @@ ledger_entry · artifact · agent_run`,
           if (window.__btChatCatalogue && state?.store?.catalogue) {
             window.__btChatCatalogue(state.store.catalogue);
           }
+          if (window.__btChatOverview) window.__btChatOverview(state);
 
           // The supplier switch: simulated today, DoorDash when the waitlist
           // clears, or the owner's supplier by email. Options the deployment
@@ -30435,6 +30504,13 @@ ledger_entry · artifact · agent_run`,
 
         function renderHistory() {
           const rows = state.history || [];
+          // A reference is for chasing an order, not for reading: the tail
+          // identifies it, the title attribute holds the whole thing, and a
+          // simulated payment gets a label rather than fake-id soup.
+          const shortRef = value => {
+            const text = String(value || "");
+            return text.length > 14 ? `…${text.slice(-6)}` : text;
+          };
           el("ordersHistoryEmpty").hidden = rows.length > 0;
           el("ordersHistoryList").innerHTML = rows.map(h => `
             <article class="orders-row ${h.status === "failed" ? "blocked" : ""}">
@@ -30446,8 +30522,8 @@ ledger_entry · artifact · agent_run`,
               <div class="orders-meta">
                 <span>${escapeHtml(day(h.created_at))}</span><span>&middot;</span>
                 <span>${escapeHtml(h.status === "rejected" ? "you passed" : (TRIGGER_WORDS[h.trigger] || h.trigger))}</span>
-                ${h.external_reference ? `<span>&middot;</span><span>Order ${escapeHtml(h.external_reference)}</span>` : ""}
-                ${h.payment_reference ? `<span>&middot;</span><span class="orders-paid">Paid &middot; ${h.payment_provider === "stripe" ? "Stripe" : "Simulated"} ${escapeHtml(h.payment_reference)}</span>` : ""}
+                ${h.external_reference ? `<span>&middot;</span><span title="${escapeHtml(h.external_reference)}">${h.external_reference.startsWith("email:") ? "Emailed" : "Order"} ${escapeHtml(shortRef(h.external_reference))}</span>` : ""}
+                ${h.payment_reference ? `<span>&middot;</span><span class="orders-paid" title="${escapeHtml(h.payment_reference)}">Paid &middot; ${h.payment_provider === "stripe" ? `Stripe ${escapeHtml(shortRef(h.payment_reference))}` : "Simulated"}</span>` : ""}
               </div>
             </article>`).join("");
         }
@@ -30962,14 +31038,60 @@ ledger_entry · artifact · agent_run`,
 
       function setCanvas(mode) {
         const movePanel = document.getElementById("chatCanvasMove");
+        const overviewPanel = document.getElementById("chatCanvasOverview");
         const suppliesPanel = document.getElementById("chatCanvasBody");
         const tabs = document.getElementById("chatCanvasTabs");
         if (!movePanel || !suppliesPanel) return;
         movePanel.hidden = mode !== "move";
-        suppliesPanel.hidden = mode === "move";
+        if (overviewPanel) overviewPanel.hidden = mode !== "overview";
+        suppliesPanel.hidden = mode !== "supplies";
         tabs?.querySelectorAll("[data-canvas]").forEach(button => {
           button.classList.toggle("active", button.dataset.canvas === mode);
         });
+      }
+
+      /* The default canvas: a glance, not a board. Four calm tiles from the
+         live state; the full board waits behind the Supplies tab, or appears
+         on its own the moment the conversation is about supplies. */
+      function renderOverview(state) {
+        const panel = document.getElementById("chatCanvasOverview");
+        if (!panel || !state) return;
+        const money = c => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
+        const pendingCount = (state.pending || []).length;
+        const nextStanding = (state.standing || [])
+          .filter(row => row.enabled && row.next)
+          .sort((a, b) => String(a.next).localeCompare(String(b.next)))[0];
+        const lowCount = (state.stock || []).filter(row => row.is_low).length;
+        const supplierLabel = (state.supplier?.options || [])
+          .find(option => option.id === state.supplier?.active)?.label
+          || "Simulated store";
+        const paymentLabel = state.supplier?.active === "email"
+          ? "Supplier invoices you"
+          : state.payment?.provider === "stripe" ? "Stripe · test mode" : "Simulated";
+        panel.innerHTML = `
+          <div class="chat-tiles">
+            <button type="button" class="chat-tile${pendingCount ? " is-hot" : ""}" data-canvas="supplies">
+              <strong>${pendingCount}</strong>
+              <span>${pendingCount === 1 ? "order needs" : "orders need"} you</span>
+              <small>${pendingCount ? "Waiting on the board" : "All handled automatically"}</small>
+            </button>
+            <button type="button" class="chat-tile" data-canvas="supplies">
+              <strong>${money(state.spent_week_cents || 0)}</strong>
+              <span>spent this week</span>
+              <small>${paymentLabel}</small>
+            </button>
+            <button type="button" class="chat-tile" data-canvas="supplies">
+              <strong>${nextStanding ? escapeHtml(nextStanding.name) : "—"}</strong>
+              <span>${nextStanding ? `next repeat · ${escapeHtml(String(nextStanding.next))}` : "no repeats yet"}</span>
+              <small>${nextStanding ? escapeHtml(nextStanding.schedule || "") : "Say “order tomatoes every Tuesday”"}</small>
+            </button>
+            <button type="button" class="chat-tile${lowCount ? " is-hot" : ""}" data-canvas="supplies">
+              <strong>${lowCount || "0"}</strong>
+              <span>running low</span>
+              <small>${escapeHtml(supplierLabel)}</small>
+            </button>
+          </div>
+          <p class="chat-overview-note">Every figure is a row in CockroachDB. Open Supplies for the full board.</p>`;
       }
 
       function renderMoveCanvas(post) {
@@ -31017,7 +31139,7 @@ ledger_entry · artifact · agent_run`,
           renderMoveCanvas(chatContext.post);
           setCanvas("move");
         } else {
-          setCanvas("supplies");
+          setCanvas(chatLive ? "overview" : "supplies");
         }
       }
 
@@ -31124,6 +31246,8 @@ ledger_entry · artifact · agent_run`,
             if (answer.state && window.__btOrdersApplyState) {
               window.__btOrdersApplyState(answer.state);
             }
+            // The conversation just became about supplies; the canvas follows.
+            setCanvas("supplies");
             if (answer.kind === "placed") {
               replaceLoading(`Done — ${answer.reason} It's on the board under Activity.`);
             } else if (answer.kind === "needs_approval") {
@@ -31222,6 +31346,14 @@ ledger_entry · artifact · agent_run`,
       window.__btChatNotify = (text, warn) => {
         push("agent", text, warn ? { error: true } : undefined);
       };
+
+      // The board keeps the overview tiles fresh on every state change.
+      window.__btChatOverview = state => {
+        const tab = document.getElementById("chatCanvasOverviewTab");
+        if (tab) tab.hidden = false;
+        renderOverview(state);
+      };
+      if (chatLive) setCanvas("overview");
 
       // The board's catalogue becomes chat suggestions, so removing the
       // board's own input loses nothing.
