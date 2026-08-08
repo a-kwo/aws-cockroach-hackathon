@@ -175,6 +175,34 @@ class TestAsk:
         assert answer["kind"] == "needs_approval"
         assert answer["order"]["cart"]["total_cents"] == 3 * 3_25 + 2_99
 
+    def test_a_broken_model_falls_back_to_the_keyword_parse(self, board):
+        # The first live deployment 500'd here: the model call raised, nothing
+        # caught it, and the whole ask died. A model outage must cost the
+        # fancy parse, not the screen.
+        class Reasoner:
+            def complete_json(self, **kwargs):
+                raise RuntimeError("the model API is down")
+        response = board.call(method="POST", action="ask",
+                              body={"text": "order 2 flour"},
+                              reasoner=Reasoner())
+        assert response["statusCode"] == 200
+        answer = board.body(response)
+        assert answer["kind"] == "needs_approval"
+        assert answer["order"]["cart"]["total_cents"] == 2 * 3_25 + 2_99
+
+    def test_an_untrustworthy_model_answer_falls_back_too(self, board):
+        # order_intent raises ValueError when the model's shape cannot be
+        # trusted. Same rule: distrust the model, not the owner's sentence.
+        class Reasoner:
+            def complete_json(self, **kwargs):
+                return {"is_order_request": True,
+                        "items": [{"name": "flour", "quantity": 2.5}]}
+        response = board.call(method="POST", action="ask",
+                              body={"text": "order 2 flour"},
+                              reasoner=Reasoner())
+        assert response["statusCode"] == 200
+        assert board.body(response)["kind"] == "needs_approval"
+
     def test_an_empty_ask_is_a_400(self, board):
         assert board.call(method="POST", action="ask",
                           body={"text": ""})["statusCode"] == 400
