@@ -3587,6 +3587,10 @@ def test_owner_reply_follows_the_latest_chat_after_submit_and_live_refresh():
 
 
 def test_maker_workspace_and_chat_name_the_draft_destination_and_owner_gate():
+    """The destination and owner-gate story survives the drawer losing its
+    chat. The drawer's conversation moved to the one Chat tab; what stays here
+    is the Maker workspace naming where a draft goes and who gates it, and
+    the guided-answer composer that still carries the destination strip."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     placement = html.split("function makerPlacementInfo", 1)[1].split(
         "function currentMakerInputState", 1
@@ -3604,7 +3608,10 @@ def test_maker_workspace_and_chat_name_the_draft_destination_and_owner_gate():
     assert "Not published" in html
     assert 'id="drawerComposerDestination"' in html
     assert "function configureDrawerDestination" in html
-    assert drawer.index("${makerChatDestinationHtml(post)}") < drawer.index('id="drawerChatThread"')
+    # The drawer no longer hosts a chat thread — one conversation for the
+    # whole app lives in the Chat tab, and the drawer routes there.
+    assert 'id="drawerChatThread"' not in drawer
+    assert "data-open-chat-tab" in drawer
 
 
 def test_growth_decision_rows_escape_the_find_title():
