@@ -14373,6 +14373,7 @@
     /* Owner drawer and chat feel like part of the same product, not a second skin. */
     body.autopilot-mode .drawer-scrim,
     body.growth-mode .drawer-scrim { background: rgba(2,4,12,.72) !important; }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer,
     body.growth-mode #detailDrawer {
       border-color: var(--owner-line) !important;
@@ -14380,41 +14381,51 @@
       color: var(--owner-copy) !important;
       box-shadow: -28px 0 80px rgba(0,0,0,.46) !important;
     }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-header,
     body.growth-mode #detailDrawer .drawer-header,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-body,
     body.growth-mode #detailDrawer .drawer-body {
       border-color: rgba(255,255,255,.08) !important;
       background: #0b0f20 !important;
     }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-title strong,
     body.growth-mode #detailDrawer .drawer-title strong { color: #fff !important; }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-title span,
     body.growth-mode #detailDrawer .drawer-title span { color: #8a92a9 !important; }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-panel,
     body.growth-mode #detailDrawer .drawer-chat-panel,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-card,
     body.growth-mode #detailDrawer .detail-card {
       border-color: rgba(255,255,255,.09) !important;
       background: rgba(255,255,255,.035) !important;
       color: var(--owner-copy) !important;
     }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message.agent,
     body.growth-mode #detailDrawer .chat-message.agent {
       border-color: rgba(255,255,255,.09) !important;
       background: rgba(255,255,255,.045) !important;
       color: #d9dced !important;
     }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message.owner,
     body.growth-mode #detailDrawer .chat-message.owner {
       background: var(--owner-gradient) !important;
       color: #fff !important;
     }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer,
     body.growth-mode #detailDrawer .drawer-composer {
       border-color: rgba(255,255,255,.08) !important;
       background: rgba(5,8,20,.94) !important;
     }
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer input,
     body.growth-mode #detailDrawer .drawer-composer input {
       border-color: rgba(255,255,255,.10) !important;
@@ -15077,7 +15088,8 @@
       information density and visual language.
     */
     body.autopilot-mode,
-    body.growth-mode {
+    body.growth-mode,
+    body.chat-mode {
       --owner-surface-base: #080c1a;
       --owner-surface: #0d1225;
       --owner-surface-raised: #12182d;
@@ -15177,6 +15189,7 @@
     }
 
     /* Owner recommendation drawer and durable chat. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer,
     body.growth-mode #detailDrawer {
       --theme-ink: var(--owner-text);
@@ -15198,6 +15211,7 @@
       box-shadow: -30px 0 90px rgba(0,0,0,.54), inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-header,
     body.growth-mode #detailDrawer .drawer-header {
       min-height: 76px !important;
@@ -15206,6 +15220,7 @@
       background: rgba(13,18,37,.96) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-avatar,
     body.growth-mode #detailDrawer .drawer-avatar {
       width: 42px !important;
@@ -15218,6 +15233,7 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-title strong,
     body.growth-mode #detailDrawer .drawer-title strong {
       color: var(--owner-text) !important;
@@ -15226,12 +15242,14 @@
       letter-spacing: -.018em !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-title span,
     body.growth-mode #detailDrawer .drawer-title span {
       color: var(--owner-text-muted) !important;
       font-size: 10.5px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-header .icon-button,
     body.growth-mode #detailDrawer .drawer-header .icon-button {
       border-color: var(--owner-border) !important;
@@ -15239,6 +15257,7 @@
       color: #b7bfd4 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-header .icon-button:hover,
     body.growth-mode #detailDrawer .drawer-header .icon-button:hover {
       border-color: var(--owner-border-strong) !important;
@@ -15246,6 +15265,7 @@
       color: #fff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-body,
     body.growth-mode #detailDrawer .drawer-body {
       padding: 18px !important;
@@ -15254,6 +15274,7 @@
       scrollbar-width: thin !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state,
     body.growth-mode #detailDrawer .decision-state {
       min-height: 68px !important;
@@ -15265,30 +15286,35 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state.pending,
     body.growth-mode #detailDrawer .decision-state.pending {
       border-color: rgba(193,132,255,.25) !important;
       background: rgba(181,109,255,.075) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state.approved,
     body.growth-mode #detailDrawer .decision-state.approved {
       border-color: rgba(104,221,179,.22) !important;
       background: rgba(104,221,179,.07) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state.rejected,
     body.growth-mode #detailDrawer .decision-state.rejected {
       border-color: rgba(255,155,172,.22) !important;
       background: rgba(255,155,172,.07) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state strong,
     body.growth-mode #detailDrawer .decision-state strong {
       color: var(--owner-text) !important;
       font-size: 15px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state span:last-child,
     body.growth-mode #detailDrawer .decision-state span:last-child {
       color: var(--owner-text-secondary) !important;
@@ -15296,6 +15322,7 @@
       line-height: 1.45 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .decision-state-icon,
     body.growth-mode #detailDrawer .decision-state-icon {
       border: 1px solid var(--owner-border) !important;
@@ -15303,6 +15330,7 @@
       color: #d8b9ff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-stack,
     body.growth-mode #detailDrawer .detail-stack {
       display: grid !important;
@@ -15311,6 +15339,7 @@
       background: transparent !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-section,
     body.growth-mode #detailDrawer .detail-section {
       padding: 16px !important;
@@ -15320,11 +15349,13 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-section + .detail-section,
     body.growth-mode #detailDrawer .detail-section + .detail-section {
       border-top: 1px solid var(--owner-border) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-section-label,
     body.growth-mode #detailDrawer .detail-section-label {
       color: #c99bff !important;
@@ -15332,6 +15363,7 @@
       letter-spacing: .09em !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-section h3,
     body.growth-mode #detailDrawer .detail-section h3 {
       color: var(--owner-text) !important;
@@ -15339,8 +15371,10 @@
       line-height: 1.48 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-section p,
     body.growth-mode #detailDrawer .detail-section p,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-recommendation-list,
     body.growth-mode #detailDrawer .drawer-recommendation-list {
       color: var(--owner-text-muted) !important;
@@ -15348,6 +15382,7 @@
       line-height: 1.52 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-impact,
     body.growth-mode #detailDrawer .detail-impact {
       margin-top: 12px !important;
@@ -15356,22 +15391,26 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.045) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-impact span,
     body.growth-mode #detailDrawer .detail-impact span {
       color: var(--owner-text-secondary) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-impact small,
     body.growth-mode #detailDrawer .detail-impact small {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .detail-impact strong,
     body.growth-mode #detailDrawer .detail-impact strong {
       color: #e5c9ff !important;
       font-variant-numeric: tabular-nums !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-panel,
     body.growth-mode #detailDrawer .drawer-chat-panel {
       gap: 13px !important;
@@ -15383,6 +15422,7 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-head strong,
     body.growth-mode #detailDrawer .drawer-chat-head strong {
       color: var(--owner-text) !important;
@@ -15390,12 +15430,14 @@
       font-weight: 780 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-head span,
     body.growth-mode #detailDrawer .drawer-chat-head span {
       color: var(--owner-text-muted) !important;
       font-size: 10.5px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .memory-chip,
     body.growth-mode #detailDrawer .memory-chip {
       border: 1px solid rgba(104,221,179,.22) !important;
@@ -15403,6 +15445,7 @@
       color: #8ce7c6 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-empty,
     body.growth-mode #detailDrawer .chat-empty {
       border: 1px solid rgba(255,255,255,.06) !important;
@@ -15410,12 +15453,14 @@
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message,
     body.growth-mode #detailDrawer .chat-message {
       font-size: 12px !important;
       line-height: 1.55 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message.agent,
     body.growth-mode #detailDrawer .chat-message.agent {
       border: 1px solid rgba(197,205,255,.12) !important;
@@ -15424,6 +15469,7 @@
       box-shadow: 0 10px 28px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message.owner,
     body.growth-mode #detailDrawer .chat-message.owner {
       border: 1px solid rgba(225,188,255,.18) !important;
@@ -15432,11 +15478,13 @@
       box-shadow: 0 10px 26px rgba(83,31,139,.28), inset 0 1px 0 rgba(255,255,255,.12) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message.is-loading,
     body.growth-mode #detailDrawer .chat-message.is-loading {
       color: #a7b0c7 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-message.is-error,
     body.growth-mode #detailDrawer .chat-message.is-error {
       border-color: rgba(255,155,172,.24) !important;
@@ -15444,35 +15492,43 @@
       color: #ffc1cc !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-receipt,
     body.growth-mode #detailDrawer .chat-receipt {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-receipt summary,
     body.growth-mode #detailDrawer .chat-receipt summary {
       color: #c99bff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-action,
     body.growth-mode #detailDrawer .drawer-chat-action {
       border-top-color: var(--owner-border) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-action-copy strong,
     body.growth-mode #detailDrawer .drawer-chat-action-copy strong {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-chat-action-copy span,
     body.growth-mode #detailDrawer .drawer-chat-action-copy span {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .undo-pass-button,
     body.growth-mode #detailDrawer .undo-pass-button,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-button,
     body.growth-mode #detailDrawer .reconsider-button,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-copy-button,
     body.growth-mode #detailDrawer .maker-copy-button {
       border: 1px solid rgba(213,172,255,.2) !important;
@@ -15481,6 +15537,7 @@
       box-shadow: 0 10px 24px rgba(74,27,126,.24) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer,
     body.growth-mode #detailDrawer .drawer-composer {
       padding: 12px !important;
@@ -15488,6 +15545,7 @@
       background: rgba(8,12,26,.97) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer input,
     body.growth-mode #detailDrawer .drawer-composer input {
       height: 44px !important;
@@ -15499,18 +15557,21 @@
       font-size: 12px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer input::placeholder,
     body.growth-mode #detailDrawer .drawer-composer input::placeholder {
       color: #77829d !important;
       opacity: 1 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer input:focus,
     body.growth-mode #detailDrawer .drawer-composer input:focus {
       border-color: rgba(190,124,255,.58) !important;
       box-shadow: 0 0 0 3px rgba(181,109,255,.14) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .send-button,
     body.growth-mode #detailDrawer .send-button {
       width: 44px !important;
@@ -15523,24 +15584,34 @@
     }
 
     /* Maker review content can appear inside chat; it must not reintroduce paper-white cards. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-panel,
     body.growth-mode #detailDrawer .maker-review-panel,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head,
     body.growth-mode #detailDrawer .maker-review-head,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-body,
     body.growth-mode #detailDrawer .maker-review-body,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-actions,
     body.growth-mode #detailDrawer .maker-review-actions,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-tool-receipt,
     body.growth-mode #detailDrawer .maker-tool-receipt,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-section-card,
     body.growth-mode #detailDrawer .maker-section-card,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft,
     body.growth-mode #detailDrawer .maker-full-draft,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-receipt,
     body.growth-mode #detailDrawer .maker-email-receipt,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-revision-tools,
     body.growth-mode #detailDrawer .maker-revision-tools,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel,
     body.growth-mode #detailDrawer .reconsider-panel {
       border-color: var(--owner-border) !important;
@@ -15548,66 +15619,88 @@
       color: var(--owner-text-secondary) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head,
     body.growth-mode #detailDrawer .maker-review-head,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-actions,
     body.growth-mode #detailDrawer .maker-review-actions {
       border-color: var(--owner-border) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head strong,
     body.growth-mode #detailDrawer .maker-review-head strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-summary p,
     body.growth-mode #detailDrawer .maker-review-summary p,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-next-action strong,
     body.growth-mode #detailDrawer .maker-next-action strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions ol,
     body.growth-mode #detailDrawer .maker-owner-questions ol,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-section-card h4,
     body.growth-mode #detailDrawer .maker-section-card h4,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft pre,
     body.growth-mode #detailDrawer .maker-full-draft pre,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-message pre,
     body.growth-mode #detailDrawer .maker-email-message pre,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-tool-receipt strong,
     body.growth-mode #detailDrawer .maker-tool-receipt strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel strong,
     body.growth-mode #detailDrawer .reconsider-panel strong {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-section-card div,
     body.growth-mode #detailDrawer .maker-section-card div,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head span,
     body.growth-mode #detailDrawer .maker-review-head span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-actions p,
     body.growth-mode #detailDrawer .maker-review-actions p,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions p,
     body.growth-mode #detailDrawer .maker-owner-questions p,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel p,
     body.growth-mode #detailDrawer .reconsider-panel p {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta div,
     body.growth-mode #detailDrawer .maker-email-meta div {
       background: rgba(255,255,255,.035) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta dt,
     body.growth-mode #detailDrawer .maker-email-meta dt,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline small,
     body.growth-mode #detailDrawer .maker-email-timeline small {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta dd,
     body.growth-mode #detailDrawer .maker-email-meta dd,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline strong,
     body.growth-mode #detailDrawer .maker-email-timeline strong {
       color: var(--owner-text-secondary) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-revision-chips button,
     body.growth-mode #detailDrawer .maker-revision-chips button {
       border-color: var(--owner-border) !important;
@@ -15615,6 +15708,7 @@
       color: #d7c1ed !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-revision-chips button:hover,
     body.growth-mode #detailDrawer .maker-revision-chips button:hover {
       border-color: var(--owner-accent-border) !important;
@@ -15622,8 +15716,10 @@
       color: #fff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields select,
     body.growth-mode #detailDrawer .reconsider-fields select,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields input,
     body.growth-mode #detailDrawer .reconsider-fields input {
       border-color: var(--owner-border) !important;
@@ -15833,8 +15929,10 @@
       font-weight: 800 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer button:focus-visible,
     body.growth-mode #detailDrawer button:focus-visible,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer input:focus-visible,
     body.growth-mode #detailDrawer input:focus-visible,
     body.autopilot-mode .profile-panel button:focus-visible,
@@ -15874,16 +15972,19 @@
         font-size: 11px !important;
       }
 
-      body.autopilot-mode #detailDrawer,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer,
       body.growth-mode #detailDrawer {
         width: calc(100% - 8px) !important;
         border-radius: 20px !important;
       }
 
-      body.autopilot-mode #detailDrawer .drawer-body,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer .drawer-body,
       body.growth-mode #detailDrawer .drawer-body { padding: 14px !important; }
 
-      body.autopilot-mode #detailDrawer .chat-message,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer .chat-message,
       body.growth-mode #detailDrawer .chat-message {
         max-width: 94% !important;
         font-size: 12.5px !important;
@@ -16022,17 +16123,20 @@
     }
 
     /* Drawer structure: calm spacing, readable type, and one control language. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer,
     body.growth-mode #detailDrawer {
       width: min(560px, calc(100% - 24px)) !important;
       background: linear-gradient(180deg, #0d1427 0%, #070b17 100%) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-body,
     body.growth-mode #detailDrawer .drawer-body {
       padding: 16px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-panel,
     body.growth-mode #detailDrawer .maker-review-panel {
       margin-top: 14px !important;
@@ -16043,6 +16147,7 @@
       overflow: hidden !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-panel.is-archived,
     body.growth-mode #detailDrawer .maker-review-panel.is-archived {
       border-color: rgba(190,199,224,.14) !important;
@@ -16050,6 +16155,7 @@
       opacity: 1 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head,
     body.growth-mode #detailDrawer .maker-review-head {
       padding: 17px 18px !important;
@@ -16057,21 +16163,28 @@
       background: rgba(255,255,255,.018) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head div,
     body.growth-mode #detailDrawer .maker-review-head div {
       gap: 5px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head small,
     body.growth-mode #detailDrawer .maker-review-head small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-summary small,
     body.growth-mode #detailDrawer .maker-review-summary small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-next-action small,
     body.growth-mode #detailDrawer .maker-next-action small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions small,
     body.growth-mode #detailDrawer .maker-owner-questions small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-section-card > span,
     body.growth-mode #detailDrawer .maker-section-card > span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-head small,
     body.growth-mode #detailDrawer .maker-email-head small {
       color: #c7a6ff !important;
@@ -16080,6 +16193,7 @@
       letter-spacing: .09em !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head strong,
     body.growth-mode #detailDrawer .maker-review-head strong {
       color: var(--owner-text) !important;
@@ -16089,6 +16203,7 @@
       letter-spacing: -.018em !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head span,
     body.growth-mode #detailDrawer .maker-review-head span {
       color: var(--owner-text-muted) !important;
@@ -16096,8 +16211,10 @@
       line-height: 1.4 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state,
     body.growth-mode #detailDrawer .maker-review-state,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status,
     body.growth-mode #detailDrawer .maker-email-status {
       min-height: 29px !important;
@@ -16117,10 +16234,13 @@
       white-space: nowrap !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.superseded,
     body.growth-mode #detailDrawer .maker-review-state.superseded,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.cancelled,
     body.growth-mode #detailDrawer .maker-review-state.cancelled,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.skipped,
     body.growth-mode #detailDrawer .maker-email-status.skipped {
       border-color: rgba(190,199,224,.18) !important;
@@ -16128,14 +16248,19 @@
       color: #d1d7e7 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.running,
     body.growth-mode #detailDrawer .maker-review-state.running,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.queued,
     body.growth-mode #detailDrawer .maker-review-state.queued,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.retry,
     body.growth-mode #detailDrawer .maker-review-state.retry,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.running,
     body.growth-mode #detailDrawer .maker-email-status.running,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.delivery_delayed,
     body.growth-mode #detailDrawer .maker-email-status.delivery_delayed {
       border-color: rgba(244,204,145,.25) !important;
@@ -16143,14 +16268,19 @@
       color: var(--owner-warning) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.delivered,
     body.growth-mode #detailDrawer .maker-email-status.delivered,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.opened,
     body.growth-mode #detailDrawer .maker-email-status.opened,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.clicked,
     body.growth-mode #detailDrawer .maker-email-status.clicked,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.accepted,
     body.growth-mode #detailDrawer .maker-email-status.accepted,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.sent,
     body.growth-mode #detailDrawer .maker-email-status.sent {
       border-color: rgba(82,217,175,.24) !important;
@@ -16158,16 +16288,22 @@
       color: var(--owner-success) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.failed,
     body.growth-mode #detailDrawer .maker-review-state.failed,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.bounced,
     body.growth-mode #detailDrawer .maker-email-status.bounced,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.complaint,
     body.growth-mode #detailDrawer .maker-email-status.complaint,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.rejected,
     body.growth-mode #detailDrawer .maker-email-status.rejected,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.rendering_failed,
     body.growth-mode #detailDrawer .maker-email-status.rendering_failed,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-status.failed,
     body.growth-mode #detailDrawer .maker-email-status.failed {
       border-color: rgba(255,138,158,.25) !important;
@@ -16175,6 +16311,7 @@
       color: var(--owner-danger) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-body,
     body.growth-mode #detailDrawer .maker-review-body {
       display: grid !important;
@@ -16183,12 +16320,16 @@
       background: transparent !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-summary,
     body.growth-mode #detailDrawer .maker-review-summary,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-next-action,
     body.growth-mode #detailDrawer .maker-next-action,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions,
     body.growth-mode #detailDrawer .maker-owner-questions,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-section-card,
     body.growth-mode #detailDrawer .maker-section-card {
       margin: 0 !important;
@@ -16199,24 +16340,30 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-next-action,
     body.growth-mode #detailDrawer .maker-next-action {
       border-color: rgba(196,160,255,.22) !important;
       background: rgba(139,92,246,.08) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-next-action.needs-input,
     body.growth-mode #detailDrawer .maker-next-action.needs-input {
       border-color: rgba(244,204,145,.22) !important;
       background: rgba(217,151,49,.08) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-summary p,
     body.growth-mode #detailDrawer .maker-review-summary p,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-next-action strong,
     body.growth-mode #detailDrawer .maker-next-action strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions ol,
     body.growth-mode #detailDrawer .maker-owner-questions ol,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-section-card div,
     body.growth-mode #detailDrawer .maker-section-card div {
       color: #d9deed !important;
@@ -16225,6 +16372,7 @@
     }
 
     /* Complete draft: a dark, bounded reading surface instead of a white sheet. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft,
     body.growth-mode #detailDrawer .maker-full-draft {
       margin: 0 !important;
@@ -16234,6 +16382,7 @@
       overflow: hidden !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft summary,
     body.growth-mode #detailDrawer .maker-full-draft summary {
       padding: 13px 14px !important;
@@ -16244,17 +16393,20 @@
       line-height: 1.35 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft summary::marker,
     body.growth-mode #detailDrawer .maker-full-draft summary::marker {
       color: #a78bfa !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft[open] summary,
     body.growth-mode #detailDrawer .maker-full-draft[open] summary {
       border-bottom: 1px solid var(--owner-border) !important;
       background: rgba(139,92,246,.09) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-full-draft pre,
     body.growth-mode #detailDrawer .maker-full-draft pre {
       max-height: min(48vh, 520px) !important;
@@ -16271,6 +16423,7 @@
     }
 
     /* Email receipt and timeline use dark semantic states with strong text. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-receipt,
     body.growth-mode #detailDrawer .maker-email-receipt {
       gap: 12px !important;
@@ -16282,6 +16435,7 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-head strong,
     body.growth-mode #detailDrawer .maker-email-head strong {
       color: var(--owner-text) !important;
@@ -16289,11 +16443,13 @@
       font-weight: 740 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta,
     body.growth-mode #detailDrawer .maker-email-meta {
       gap: 8px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta div,
     body.growth-mode #detailDrawer .maker-email-meta div {
       padding: 10px 11px !important;
@@ -16301,12 +16457,14 @@
       background: #0a1020 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta dt,
     body.growth-mode #detailDrawer .maker-email-meta dt {
       color: #7f8aa5 !important;
       font-size: 8px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-meta dd,
     body.growth-mode #detailDrawer .maker-email-meta dd {
       color: #d8ddec !important;
@@ -16314,21 +16472,25 @@
       line-height: 1.45 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline,
     body.growth-mode #detailDrawer .maker-email-timeline {
       gap: 8px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline > div,
     body.growth-mode #detailDrawer .maker-email-timeline > div {
       opacity: .62 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline > div.is-complete,
     body.growth-mode #detailDrawer .maker-email-timeline > div.is-complete {
       opacity: 1 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline i,
     body.growth-mode #detailDrawer .maker-email-timeline i {
       width: 22px !important;
@@ -16339,6 +16501,7 @@
       color: #a7b0c7 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline .is-complete i,
     body.growth-mode #detailDrawer .maker-email-timeline .is-complete i {
       border-color: rgba(82,217,175,.24) !important;
@@ -16346,23 +16509,27 @@
       color: var(--owner-success) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline strong,
     body.growth-mode #detailDrawer .maker-email-timeline strong {
       color: #dce1ee !important;
       font-size: 9.5px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline small,
     body.growth-mode #detailDrawer .maker-email-timeline small {
       color: #808ba5 !important;
       font-size: 8px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-message,
     body.growth-mode #detailDrawer .maker-email-message {
       border-top-color: var(--owner-border) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-message summary,
     body.growth-mode #detailDrawer .maker-email-message summary {
       color: #d0b3ff !important;
@@ -16370,6 +16537,7 @@
       font-weight: 750 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-message pre,
     body.growth-mode #detailDrawer .maker-email-message pre {
       color: #d5dbea !important;
@@ -16378,6 +16546,7 @@
     }
 
     /* Reconsideration is a real form: full-width labels and a dark native menu. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel,
     body.growth-mode #detailDrawer .reconsider-panel {
       gap: 13px !important;
@@ -16389,12 +16558,14 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel > div:first-child,
     body.growth-mode #detailDrawer .reconsider-panel > div:first-child {
       display: grid !important;
       gap: 5px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel strong,
     body.growth-mode #detailDrawer .reconsider-panel strong {
       color: var(--owner-text) !important;
@@ -16403,6 +16574,7 @@
       line-height: 1.35 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel p,
     body.growth-mode #detailDrawer .reconsider-panel p {
       color: var(--owner-text-muted) !important;
@@ -16410,12 +16582,14 @@
       line-height: 1.5 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields,
     body.growth-mode #detailDrawer .reconsider-fields {
       grid-template-columns: minmax(0, 1fr) !important;
       gap: 10px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-field,
     body.growth-mode #detailDrawer .reconsider-field {
       display: grid !important;
@@ -16423,6 +16597,7 @@
       min-width: 0 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-field > span,
     body.growth-mode #detailDrawer .reconsider-field > span {
       color: #bfc7db !important;
@@ -16432,6 +16607,7 @@
       text-transform: uppercase !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-field > span small,
     body.growth-mode #detailDrawer .reconsider-field > span small {
       color: #727e9a !important;
@@ -16439,8 +16615,10 @@
       font-weight: 650 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields select,
     body.growth-mode #detailDrawer .reconsider-fields select,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields input,
     body.growth-mode #detailDrawer .reconsider-fields input {
       width: 100% !important;
@@ -16456,6 +16634,7 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.02) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields select,
     body.growth-mode #detailDrawer .reconsider-fields select {
       appearance: none !important;
@@ -16467,6 +16646,7 @@
       background-size: 14px 14px !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields select option,
     body.growth-mode #detailDrawer .reconsider-fields select option,
     body.autopilot-mode .profile-field select option,
@@ -16475,14 +16655,17 @@
       color: #f4f6ff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields input::placeholder,
     body.growth-mode #detailDrawer .reconsider-fields input::placeholder {
       color: #727d98 !important;
       opacity: 1 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields select:focus,
     body.growth-mode #detailDrawer .reconsider-fields select:focus,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-fields input:focus,
     body.growth-mode #detailDrawer .reconsider-fields input:focus {
       border-color: rgba(196,160,255,.58) !important;
@@ -16491,10 +16674,13 @@
     }
 
     /* Primary actions use the brand gradient. Secondary actions stay neutral. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .send-button,
     body.growth-mode #detailDrawer .send-button,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-button,
     body.growth-mode #detailDrawer .reconsider-button,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .undo-pass-button,
     body.growth-mode #detailDrawer .undo-pass-button,
     body.autopilot-mode .profile-save,
@@ -16505,6 +16691,7 @@
       box-shadow: 0 10px 26px rgba(82,31,145,.28), inset 0 1px 0 rgba(255,255,255,.13) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-button,
     body.growth-mode #detailDrawer .reconsider-button {
       width: 100% !important;
@@ -16514,8 +16701,10 @@
       font-weight: 760 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-copy-button,
     body.growth-mode #detailDrawer .maker-copy-button,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-revision-chips button,
     body.growth-mode #detailDrawer .maker-revision-chips button {
       border: 1px solid var(--owner-border) !important;
@@ -16524,8 +16713,10 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.03) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-copy-button:hover,
     body.growth-mode #detailDrawer .maker-copy-button:hover,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-revision-chips button:hover,
     body.growth-mode #detailDrawer .maker-revision-chips button:hover {
       border-color: var(--owner-accent-border) !important;
@@ -16548,27 +16739,32 @@
     }
 
     @media (max-width: 700px) {
-      body.autopilot-mode #detailDrawer,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer,
       body.growth-mode #detailDrawer {
         width: calc(100% - 8px) !important;
       }
 
-      body.autopilot-mode #detailDrawer .maker-review-head,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer .maker-review-head,
       body.growth-mode #detailDrawer .maker-review-head {
         padding: 15px !important;
       }
 
-      body.autopilot-mode #detailDrawer .maker-review-body,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer .maker-review-body,
       body.growth-mode #detailDrawer .maker-review-body {
         padding: 14px !important;
       }
 
-      body.autopilot-mode #detailDrawer .maker-email-receipt,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer .maker-email-receipt,
       body.growth-mode #detailDrawer .maker-email-receipt {
         margin: 0 14px 14px !important;
       }
 
-      body.autopilot-mode #detailDrawer .maker-full-draft pre,
+      body.chat-mode #detailDrawer,
+    body.autopilot-mode #detailDrawer .maker-full-draft pre,
       body.growth-mode #detailDrawer .maker-full-draft pre {
         max-height: 42vh !important;
         padding: 14px !important;
@@ -16587,6 +16783,7 @@
   
 
     /* Specificity guard: review header copy rules must never mute status pills. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state {
       color: #e8dcff !important;
@@ -16595,28 +16792,35 @@
       line-height: 1 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.superseded,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state.superseded,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.cancelled,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state.cancelled {
       color: #d1d7e7 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.running,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state.running,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.queued,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state.queued,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.retry,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state.retry {
       color: var(--owner-warning) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-head .maker-review-state.failed,
     body.growth-mode #detailDrawer .maker-review-head .maker-review-state.failed {
       color: var(--owner-danger) !important;
     }
 
     /* Keep compact receipt icons crisp even when legacy timeline rules win. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-email-timeline i,
     body.growth-mode #detailDrawer .maker-email-timeline i {
       font: 800 9px/1 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
@@ -18034,17 +18238,20 @@
     }
 
     /* Owner dark theme. */
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel.is-compact,
     body.growth-mode #detailDrawer .reconsider-panel.is-compact {
       border-color: rgba(196, 160, 255, .17) !important;
       background: rgba(139, 92, 246, .065) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel.is-compact > summary,
     body.growth-mode #detailDrawer .reconsider-panel.is-compact > summary {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-summary-icon,
     body.growth-mode #detailDrawer .reconsider-summary-icon {
       border-color: rgba(196, 160, 255, .19) !important;
@@ -18052,42 +18259,53 @@
       color: #d7b5ff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-summary-copy strong,
     body.growth-mode #detailDrawer .reconsider-summary-copy strong {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-summary-copy small,
     body.growth-mode #detailDrawer .reconsider-summary-copy small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-summary-chevron,
     body.growth-mode #detailDrawer .reconsider-summary-chevron {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .reconsider-panel-body,
     body.growth-mode #detailDrawer .reconsider-panel-body {
       border-top-color: var(--owner-border) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions,
     body.growth-mode #detailDrawer .maker-owner-questions,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-context,
     body.growth-mode #detailDrawer .maker-chat-context,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-context,
     body.growth-mode #detailDrawer .drawer-composer-context {
       border-color: rgba(244, 204, 145, .22) !important;
       background: rgba(217, 151, 49, .075) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-question-head strong,
     body.growth-mode #detailDrawer .maker-owner-question-head strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-context strong,
     body.growth-mode #detailDrawer .maker-chat-context strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-context strong,
     body.growth-mode #detailDrawer .drawer-composer-context strong {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-review-state.needs-input,
     body.growth-mode #detailDrawer .maker-review-state.needs-input {
       border: 1px solid rgba(244, 204, 145, .24) !important;
@@ -18095,6 +18313,7 @@
       color: #f4cc91 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-question-head > span,
     body.growth-mode #detailDrawer .maker-owner-question-head > span {
       border-color: rgba(244, 204, 145, .22) !important;
@@ -18102,16 +18321,20 @@
       color: #f4cc91 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions li,
     body.growth-mode #detailDrawer .maker-owner-questions li {
       border-color: rgba(244, 204, 145, .13) !important;
       background: rgba(255, 255, 255, .025) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions li > span,
     body.growth-mode #detailDrawer .maker-owner-questions li > span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-question-action button,
     body.growth-mode #detailDrawer .maker-owner-question-action button,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-context button,
     body.growth-mode #detailDrawer .maker-chat-context button {
       border-color: rgba(244, 204, 145, .2) !important;
@@ -18120,25 +18343,31 @@
       box-shadow: 0 8px 20px rgba(112, 65, 22, .22) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-owner-questions li p,
     body.growth-mode #detailDrawer .maker-owner-questions li p {
       color: #e6e9f4 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-context small,
     body.growth-mode #detailDrawer .maker-chat-context small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-context small,
     body.growth-mode #detailDrawer .drawer-composer-context small {
       color: #f4cc91 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-context span,
     body.growth-mode #detailDrawer .maker-chat-context span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-hint,
     body.growth-mode #detailDrawer .drawer-composer-hint {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section,
     body.growth-mode #detailDrawer .chat-answer-section {
       border-color: rgba(197, 205, 255, .12) !important;
@@ -18147,52 +18376,62 @@
       box-shadow: 0 10px 28px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .03) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section h4,
     body.growth-mode #detailDrawer .chat-answer-section h4 {
       color: #c99bff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section p,
     body.growth-mode #detailDrawer .chat-answer-section p,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section li,
     body.growth-mode #detailDrawer .chat-answer-section li {
       color: #dde1ef !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section.is-needs-input,
     body.growth-mode #detailDrawer .chat-answer-section.is-needs-input {
       border-color: rgba(244, 204, 145, .22) !important;
       background: rgba(217, 151, 49, .075) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section.is-needs-input h4,
     body.growth-mode #detailDrawer .chat-answer-section.is-needs-input h4 {
       color: #f4cc91 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section.is-reply-template,
     body.growth-mode #detailDrawer .chat-answer-section.is-reply-template {
       border-color: rgba(181, 109, 255, .26) !important;
       background: rgba(181, 109, 255, .075) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-section.is-next,
     body.growth-mode #detailDrawer .chat-answer-section.is-next {
       border-color: rgba(82, 217, 175, .2) !important;
       background: rgba(45, 181, 142, .07) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-more,
     body.growth-mode #detailDrawer .chat-answer-more {
       border-color: var(--owner-border) !important;
       background: rgba(255, 255, 255, .022) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .chat-answer-more > summary,
     body.growth-mode #detailDrawer .chat-answer-more > summary {
       color: #c99bff !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer textarea,
     body.growth-mode #detailDrawer .drawer-composer textarea {
       border-color: var(--owner-border) !important;
@@ -18202,18 +18441,21 @@
       box-shadow: none !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer textarea::placeholder,
     body.growth-mode #detailDrawer .drawer-composer textarea::placeholder {
       color: #77829d !important;
       opacity: 1 !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer textarea:focus,
     body.growth-mode #detailDrawer .drawer-composer textarea:focus {
       border-color: rgba(190, 124, 255, .58) !important;
       box-shadow: 0 0 0 3px rgba(181, 109, 255, .14) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-context button,
     body.growth-mode #detailDrawer .drawer-composer-context button {
       border-color: var(--owner-border) !important;
@@ -18614,61 +18856,81 @@
       align-self: end;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-destination,
     body.growth-mode #detailDrawer .drawer-composer-destination,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-card,
     body.growth-mode #detailDrawer .maker-placement-card,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-destination,
     body.growth-mode #detailDrawer .maker-chat-destination {
       border-color: rgba(82, 217, 175, .18) !important;
       background: rgba(45, 181, 142, .065) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-icon,
     body.growth-mode #detailDrawer .maker-placement-icon {
       background: linear-gradient(135deg, #287a68, #35a384) !important;
       box-shadow: 0 9px 24px rgba(15, 82, 67, .26) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-destination > span,
     body.growth-mode #detailDrawer .drawer-composer-destination > span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-destination > em,
     body.growth-mode #detailDrawer .drawer-composer-destination > em,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-copy small,
     body.growth-mode #detailDrawer .maker-placement-copy small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-destination small,
     body.growth-mode #detailDrawer .maker-chat-destination small,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-destination > em,
     body.growth-mode #detailDrawer .maker-chat-destination > em {
       color: #78d9bc !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-destination > strong,
     body.growth-mode #detailDrawer .drawer-composer-destination > strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-copy strong,
     body.growth-mode #detailDrawer .maker-placement-copy strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-destination strong,
     body.growth-mode #detailDrawer .maker-chat-destination strong,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-meta b,
     body.growth-mode #detailDrawer .maker-placement-meta b {
       color: var(--owner-text) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-copy > span,
     body.growth-mode #detailDrawer .maker-placement-copy > span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-destination > div > span,
     body.growth-mode #detailDrawer .maker-chat-destination > div > span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-meta,
     body.growth-mode #detailDrawer .maker-placement-meta,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-context-copy > span,
     body.growth-mode #detailDrawer .drawer-composer-context-copy > span,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer-safety,
     body.growth-mode #detailDrawer .drawer-composer-safety {
       color: var(--owner-text-muted) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-state,
     body.growth-mode #detailDrawer .maker-placement-state,
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-chat-destination-icon,
     body.growth-mode #detailDrawer .maker-chat-destination-icon {
       border-color: rgba(82, 217, 175, .19) !important;
@@ -18676,11 +18938,13 @@
       color: #78d9bc !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .maker-placement-meta,
     body.growth-mode #detailDrawer .maker-placement-meta {
       border-top-color: rgba(82, 217, 175, .13) !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .voice-reply-button,
     body.growth-mode #detailDrawer .voice-reply-button {
       border-color: var(--owner-border) !important;
@@ -18689,6 +18953,7 @@
       box-shadow: none !important;
     }
 
+    body.chat-mode #detailDrawer,
     body.autopilot-mode #detailDrawer .drawer-composer.is-guided .drawer-composer-row,
     body.growth-mode #detailDrawer .drawer-composer.is-guided .drawer-composer-row {
       border-color: rgba(244, 204, 145, .19) !important;
@@ -20106,7 +20371,8 @@
       border-top: 1px solid var(--owner-line);
     }
 
-    .chat-composer input {
+    .chat-composer input,
+    .chat-composer textarea {
       flex: 1;
       min-width: 0;
       padding: 12px 14px;
@@ -20116,14 +20382,25 @@
       color: var(--owner-ink);
       font: inherit;
       font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      max-height: 132px;
     }
 
-    .chat-composer input::placeholder { color: rgba(127,135,159,.8); }
+    .chat-composer input::placeholder,
+    .chat-composer textarea::placeholder { color: rgba(127,135,159,.8); }
 
-    .chat-composer input:focus {
+    .chat-composer input:focus,
+    .chat-composer textarea:focus {
       outline: none;
       border-color: rgba(196, 160, 255, .5);
       box-shadow: 0 0 0 3px rgba(141, 69, 255, .18);
+    }
+
+    .chat-composer-hint {
+      margin: -6px 14px 10px;
+      font-size: 10.5px;
+      color: var(--owner-muted);
     }
 
     #chatCanvasBody {
@@ -20214,6 +20491,9 @@
       position: relative;
     }
 
+    /* body.chat-mode variant outranks the midnight drawer remap, which sets
+       a popup width this docked context must not inherit. */
+    body.chat-mode .chat-canvas-details #detailDrawer,
     .chat-canvas-details #detailDrawer {
       position: static !important;
       inset: auto !important;
@@ -20232,6 +20512,10 @@
       display: flex !important;
       flex-direction: column !important;
     }
+
+    /* [hidden] must always win inside the chat view — a display rule on a
+       panel class has silently beaten it three separate times now. */
+    #view-chat [hidden] { display: none !important; }
 
     /* The default canvas: a glance, not a board. */
     .chat-canvas-overview {
@@ -20635,15 +20919,16 @@
                 <button type="button" id="chatContextClear" aria-label="Stop discussing this move" title="Back to everything">&times;</button>
               </div>
               <form class="chat-composer" id="chatComposer">
-                <input type="text" id="chatInput" autocomplete="off"
-                       placeholder="Order supplies, or ask anything&hellip;"
-                       aria-label="Message your agents" />
+                <textarea id="chatInput" rows="1" autocomplete="off"
+                          placeholder="Order supplies, or ask anything&hellip;"
+                          aria-label="Message your agents"></textarea>
                 <button type="submit" class="chat-send" aria-label="Send">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M5 12h13M13 6l6 6-6 6" />
                   </svg>
                 </button>
               </form>
+              <p class="chat-composer-hint">Enter to send &middot; Shift+Enter for a new line</p>
             </aside>
             <section class="chat-canvas" aria-label="Canvas">
               <header class="chat-canvas-head">
@@ -31123,6 +31408,13 @@ ledger_entry · artifact · agent_run`,
           const tab = document.getElementById("chatCanvasDetailsTab");
           if (tab) tab.hidden = false;
           setCanvas("details");
+          // The thread acknowledges what the canvas is doing, so the two
+          // halves read as one surface.
+          const note = "Full details are on the canvas — the signal, the "
+            + "evidence, and any drafts. Ask me about anything you read "
+            + "there; × puts it away.";
+          const last = messages[messages.length - 1];
+          if (!last || last.text !== note) push("agent", note);
         };
         // The drawer's × now means "put the document away", not "close a
         // popup": back to whichever canvas the conversation wants.
@@ -31548,8 +31840,22 @@ ledger_entry · artifact · agent_run`,
         if (!text) return;
         push("owner", text);
         input.value = "";
+        input.style.height = "";
         push("agent", "Thinking…", { loading: true });
         routeMessage(text);
+      });
+
+      // Enter sends; Shift+Enter makes a paragraph. The field grows with the
+      // text up to a few lines, then scrolls.
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          composer.requestSubmit();
+        }
+      });
+      input.addEventListener("input", () => {
+        input.style.height = "";
+        input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
       });
 
       view.addEventListener("click", async event => {
