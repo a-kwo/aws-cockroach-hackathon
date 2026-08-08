@@ -20223,12 +20223,83 @@
       padding: 14px 0 28px;
     }
 
+    /* The dashboard row: greeting plus four numbers, the mock's opening move. */
+    .chat-hello { padding: 2px 2px 0; }
+
+    .chat-hello h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -.02em;
+      color: var(--owner-ink);
+    }
+
+    .chat-hello p {
+      margin: 3px 0 0;
+      font-size: 12.5px;
+      color: var(--owner-muted);
+    }
+
+    .chat-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin: 12px 0 14px;
+    }
+
+    .chat-stat {
+      display: grid;
+      gap: 3px;
+      justify-items: start;
+      text-align: left;
+      padding: 13px 16px;
+      border: 1px solid var(--owner-line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.028);
+      color: var(--owner-copy);
+      font: inherit;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+
+    .chat-stat:hover {
+      border-color: rgba(196, 160, 255, .4);
+      background: rgba(141, 69, 255, .06);
+      transform: translateY(-1px);
+    }
+
+    .chat-stat > span { font-size: 11.5px; font-weight: 650; color: var(--owner-muted); }
+    .chat-stat > strong {
+      font-size: 22px;
+      letter-spacing: -.02em;
+      color: var(--owner-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .chat-stat > small { font-size: 11px; color: var(--owner-muted); }
+
+    .chat-stat.is-alert > span, .chat-stat.is-alert > small { color: #f0c46a; }
+    .chat-stat.is-warn > span, .chat-stat.is-warn > small { color: #ff9bac; }
+
+    /* Status pills on activity rows, in the mock's badge voice. */
+    .orders-pill {
+      display: inline-block;
+      margin-left: 7px;
+      padding: 2.5px 9px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 700;
+      vertical-align: 1.5px;
+    }
+
+    .orders-pill.p-ok { background: rgba(77, 215, 168, .12); border: 1px solid rgba(77, 215, 168, .26); color: #74e2bd; }
+    .orders-pill.p-bad { background: rgba(255, 155, 172, .1); border: 1px solid rgba(255, 155, 172, .3); color: #ffb3c0; }
+    .orders-pill.p-mute { background: rgba(255,255,255,.05); border: 1px solid var(--owner-line); color: var(--owner-muted); }
+
     .chat-shell {
       display: grid;
       grid-template-columns: minmax(330px, 410px) minmax(0, 1fr);
       gap: 16px;
-      height: calc(100dvh - 120px);
-      min-height: 540px;
+      height: calc(100dvh - 236px);
+      min-height: 480px;
     }
 
     .chat-pane,
@@ -21058,6 +21129,11 @@
       -->
       <section class="view" id="view-chat" aria-labelledby="chatHeading">
         <div class="view-inner chat-inner">
+          <header class="chat-hello" data-enter>
+            <h1 id="chatHello">Good morning&thinsp;👋</h1>
+            <p id="chatHelloSub">Here's what's happening with your business today.</p>
+          </header>
+          <section class="chat-stats" id="chatStats" aria-label="Today at a glance" data-enter hidden></section>
           <div class="chat-shell">
             <aside class="chat-pane" aria-labelledby="chatHeading">
               <header class="chat-pane-head">
@@ -21091,14 +21167,12 @@
                 <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
                   <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
                   <button type="button" data-canvas="details" id="chatCanvasDetailsTab" hidden>Details</button>
-                  <button type="button" data-canvas="overview" id="chatCanvasOverviewTab" hidden>Overview</button>
                   <button type="button" data-canvas="supplies" class="active">Supplies</button>
                 </nav>
                 <span id="chatCanvasStatus">Live from your memory</span>
               </header>
               <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
               <div class="chat-canvas-details" id="chatCanvasDetails" hidden></div>
-              <div class="chat-canvas-overview" id="chatCanvasOverview" hidden></div>
               <div id="chatCanvasBody"></div>
             </section>
           </div>
@@ -31076,10 +31150,16 @@ ledger_entry · artifact · agent_run`,
             return text.length > 14 ? `…${text.slice(-6)}` : text;
           };
           el("ordersHistoryEmpty").hidden = rows.length > 0;
+          const pill = h => {
+            if (h.status === "failed") return `<span class="orders-pill p-bad">Failed</span>`;
+            if (h.status === "rejected") return `<span class="orders-pill p-mute">Passed</span>`;
+            if (String(h.external_reference || "").startsWith("email:")) return `<span class="orders-pill p-ok">Sent</span>`;
+            return `<span class="orders-pill p-ok">${h.payment_reference ? "Paid" : "Placed"}</span>`;
+          };
           el("ordersHistoryList").innerHTML = rows.map(h => `
             <article class="orders-row ${h.status === "failed" ? "blocked" : ""}">
               <div class="orders-row-top">
-                <span class="orders-row-title">${escapeHtml(h.title)}</span>
+                <span class="orders-row-title">${escapeHtml(h.title)} ${pill(h)}</span>
                 <span class="orders-row-total">${h.total_cents != null ? money(h.total_cents) : ""}</span>
               </div>
               ${h.status === "failed" ? `<p class="orders-why">${escapeHtml(h.reason || "This order failed.")}</p>` : ""}
@@ -31641,62 +31721,72 @@ ledger_entry · artifact · agent_run`,
       function setCanvas(mode) {
         const movePanel = document.getElementById("chatCanvasMove");
         const detailsPanel = document.getElementById("chatCanvasDetails");
-        const overviewPanel = document.getElementById("chatCanvasOverview");
         const suppliesPanel = document.getElementById("chatCanvasBody");
         const tabs = document.getElementById("chatCanvasTabs");
         if (!movePanel || !suppliesPanel) return;
         movePanel.hidden = mode !== "move";
         if (detailsPanel) detailsPanel.hidden = mode !== "details";
-        if (overviewPanel) overviewPanel.hidden = mode !== "overview";
         suppliesPanel.hidden = mode !== "supplies";
         tabs?.querySelectorAll("[data-canvas]").forEach(button => {
           button.classList.toggle("active", button.dataset.canvas === mode);
         });
       }
 
-      /* The default canvas: a glance, not a board. Four calm tiles from the
-         live state; the full board waits behind the Supplies tab, or appears
-         on its own the moment the conversation is about supplies. */
-      function renderOverview(state) {
-        const panel = document.getElementById("chatCanvasOverview");
-        if (!panel || !state) return;
+      /* The dashboard row: a greeting and four numbers, always in view above
+         the conversation. Pending moves count as needing you — a decision is
+         a decision, whether it is an order or a recommendation. */
+      function renderStats(state) {
+        const holder = document.getElementById("chatStats");
+        if (!holder || !state) return;
         const money = c => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
-        const pendingCount = (state.pending || []).length;
-        const nextStanding = (state.standing || [])
-          .filter(row => row.enabled && row.next)
-          .sort((a, b) => String(a.next).localeCompare(String(b.next)))[0];
+        const waitingOrders = (state.pending || []).length;
+        const waitingMoves = pendingMoves().length;
+        const needsYou = waitingOrders + waitingMoves;
         const lowCount = (state.stock || []).filter(row => row.is_low).length;
-        const supplierLabel = (state.supplier?.options || [])
-          .find(option => option.id === state.supplier?.active)?.label
-          || "Simulated store";
+        const placedWeek = (state.history || [])
+          .filter(row => row.status === "placed").length;
         const paymentLabel = state.supplier?.active === "email"
           ? "Supplier invoices you"
           : state.payment?.provider === "stripe" ? "Stripe · test mode" : "Simulated";
-        panel.innerHTML = `
-          <div class="chat-tiles">
-            <button type="button" class="chat-tile${pendingCount ? " is-hot" : ""}" data-canvas="supplies">
-              <strong>${pendingCount}</strong>
-              <span>${pendingCount === 1 ? "order needs" : "orders need"} you</span>
-              <small>${pendingCount ? "Waiting on the board" : "All handled automatically"}</small>
-            </button>
-            <button type="button" class="chat-tile" data-canvas="supplies">
-              <strong>${money(state.spent_week_cents || 0)}</strong>
-              <span>spent this week</span>
-              <small>${paymentLabel}</small>
-            </button>
-            <button type="button" class="chat-tile" data-canvas="supplies">
-              <strong>${nextStanding ? escapeHtml(nextStanding.name) : "—"}</strong>
-              <span>${nextStanding ? `next repeat · ${escapeHtml(String(nextStanding.next))}` : "no repeats yet"}</span>
-              <small>${nextStanding ? escapeHtml(nextStanding.schedule || "") : "Say “order tomatoes every Tuesday”"}</small>
-            </button>
-            <button type="button" class="chat-tile${lowCount ? " is-hot" : ""}" data-canvas="supplies">
-              <strong>${lowCount || "0"}</strong>
-              <span>running low</span>
-              <small>${escapeHtml(supplierLabel)}</small>
-            </button>
-          </div>
-          `;
+        holder.hidden = false;
+        holder.innerHTML = `
+          <button type="button" class="chat-stat${needsYou ? " is-alert" : ""}" data-canvas="supplies">
+            <span>Needs you</span>
+            <strong>${needsYou}</strong>
+            <small>${needsYou ? "Action needed" : "All clear"}</small>
+          </button>
+          <button type="button" class="chat-stat" data-canvas="supplies">
+            <span>Spent this week</span>
+            <strong>${money(state.spent_week_cents || 0)}</strong>
+            <small>${paymentLabel}</small>
+          </button>
+          <button type="button" class="chat-stat${lowCount ? " is-warn" : ""}" data-canvas="supplies">
+            <span>Low stock</span>
+            <strong>${lowCount}</strong>
+            <small>${lowCount ? "Restock soon" : "Stocked up"}</small>
+          </button>
+          <button type="button" class="chat-stat" data-canvas="supplies">
+            <span>Orders placed</span>
+            <strong>${placedWeek}</strong>
+            <small>Recent activity</small>
+          </button>`;
       }
+
+      // The greeting knows the hour and the owner.
+      (function helloLine() {
+        const hello = document.getElementById("chatHello");
+        if (!hello) return;
+        const hour = new Date().getHours();
+        const part = hour < 5 ? "Good evening" : hour < 12 ? "Good morning"
+          : hour < 18 ? "Good afternoon" : "Good evening";
+        // The generic placeholder is not a name to greet anyone by.
+        const raw = String(btData.owner?.name || "").trim();
+        const named = raw && raw.toLowerCase() !== "business owner"
+          ? raw : String(btData.business?.name || "").trim();
+        const first = named.split(" ")[0];
+        const name = first ? first.charAt(0).toUpperCase() + first.slice(1) : "";
+        hello.textContent = `${part}${name ? `, ${name}` : ""} 👋`;
+      })();
 
       function renderMoveCanvas(post) {
         const panel = document.getElementById("chatCanvasMove");
@@ -31743,7 +31833,7 @@ ledger_entry · artifact · agent_run`,
           renderMoveCanvas(chatContext.post);
           setCanvas("move");
         } else {
-          setCanvas(chatLive ? "overview" : "supplies");
+          setCanvas("supplies");
         }
       }
 
@@ -32108,13 +32198,8 @@ ledger_entry · artifact · agent_run`,
         push("agent", text, warn ? { error: true } : undefined);
       };
 
-      // The board keeps the overview tiles fresh on every state change.
-      window.__btChatOverview = state => {
-        const tab = document.getElementById("chatCanvasOverviewTab");
-        if (tab) tab.hidden = false;
-        renderOverview(state);
-      };
-      if (chatLive) setCanvas("overview");
+      // The board keeps the dashboard row fresh on every state change.
+      window.__btChatOverview = state => renderStats(state);
 
       // The board's catalogue becomes chat suggestions, so removing the
       // board's own input loses nothing.
