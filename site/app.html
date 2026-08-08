@@ -31256,6 +31256,138 @@ ledger_entry · artifact · agent_run`,
            + "the supplies board on the right is a working sample. When the "
            + "deployed site loads this screen, everything here is live."));
 
+      /* ----------------------------------------------------------------
+         Decisions in the chat. "approve item 1", "do it", "pass on the
+         sushi set" — parsed here, resolved against the pending moves, and
+         executed through the same decide() every button uses. Ambiguity
+         asks; it never guesses which move gets the owner's yes.
+         ---------------------------------------------------------------- */
+      let pendingDecision = null; // {verb, options?} or {verb, post}
+
+      const APPROVE_WORDS = /\b(approve|do it|accept|go ahead|greenlight|green light)\b/i;
+      const REJECT_WORDS = /\b(pass|reject|skip|decline)\b/i;
+      const CONFIRM_ONLY = /^\s*(yes|yep|yeah|confirm|ok|okay|do it|go ahead)[.!]?\s*$/i;
+      const NUMBER_ONLY = /^\s*(?:item\s*)?#?(\d+)\s*$/i;
+
+      function parseDecisionIntent(text) {
+        const approve = APPROVE_WORDS.test(text);
+        const reject = !approve && REJECT_WORDS.test(text);
+        if (!approve && !reject) return null;
+        const verb = approve ? "approved" : "rejected";
+        const numbered = text.match(/(?:item|number|move|#)\s*(\d+)/i);
+        return { verb, index: numbered ? parseInt(numbered[1], 10) : null };
+      }
+
+      function pendingMoves() {
+        return typeof getPendingPosts === "function" ? getPendingPosts() : [];
+      }
+
+      function matchByWords(text, options) {
+        const words = text.toLowerCase().replace(APPROVE_WORDS, "")
+          .replace(REJECT_WORDS, "").match(/[a-z]{4,}/g) || [];
+        if (!words.length) return [];
+        return options.filter(post => {
+          const title = String(post.title || "").toLowerCase();
+          return words.some(word => title.includes(word));
+        });
+      }
+
+      function listMoves(options, verb) {
+        const lines = options.map((post, index) =>
+          `${index + 1}. ${post.title}`).join("\n");
+        return `Which one? Reply with a number.\n${lines}\n\n(You're `
+          + `${verb === "approved" ? "approving" : "passing on"} it.)`;
+      }
+
+      async function performDecision(post, verb) {
+        if (typeof decide !== "function") {
+          replaceLoading("I can't reach the decision machinery in this build.",
+            { error: true });
+          return;
+        }
+        try {
+          await decide(post.id, verb, false);
+        } catch (_) {
+          replaceLoading("The decision didn't save — try again, or use the "
+            + "card on For You.", { error: true });
+          return;
+        }
+        applyContext(post);
+        replaceLoading(verb === "approved"
+          ? `Approved — “${post.title}”. The Maker starts drafting it, and the `
+            + "forecast on Growth moves now. (Verified money only moves when "
+            + "the Meter measures a real result.) Changed your mind? Open "
+            + "Growth and return it to For You."
+          : `Passed on “${post.title}”. It's in your Passed list on Growth — `
+            + "Undo Pass there if you change your mind.");
+      }
+
+      async function handleDecision(text) {
+        // A bare "yes" answers an outstanding confirmation…
+        if (pendingDecision?.post && CONFIRM_ONLY.test(text)) {
+          const { post, verb } = pendingDecision;
+          pendingDecision = null;
+          await performDecision(post, verb);
+          return true;
+        }
+        // …and a bare number answers an outstanding "which one?".
+        const numberReply = text.match(NUMBER_ONLY);
+        if (pendingDecision?.options && numberReply) {
+          const chosen = pendingDecision.options[parseInt(numberReply[1], 10) - 1];
+          const verb = pendingDecision.verb;
+          pendingDecision = null;
+          if (!chosen) {
+            replaceLoading("That number isn't on the list — try again.");
+            return true;
+          }
+          await performDecision(chosen, verb);
+          return true;
+        }
+
+        const intent = parseDecisionIntent(text);
+        if (!intent) { pendingDecision = null; return false; }
+
+        const options = pendingMoves();
+        // The move on the canvas is the natural target of a plain "do it".
+        if (chatContext?.post && intent.index === null) {
+          const post = chatContext.post;
+          const decided = typeof getDecision === "function" && getDecision(post.id);
+          if (decided) {
+            replaceLoading(`“${post.title}” is already ${decided.status}. `
+              + "Manage it from Growth.");
+            return true;
+          }
+          await performDecision(post, intent.verb);
+          return true;
+        }
+        if (intent.index !== null) {
+          const post = options[intent.index - 1];
+          if (!post) {
+            replaceLoading(options.length
+              ? listMoves(options, intent.verb)
+              : "Nothing is waiting for a decision right now.");
+            pendingDecision = options.length
+              ? { verb: intent.verb, options } : null;
+            return true;
+          }
+          await performDecision(post, intent.verb);
+          return true;
+        }
+        const matches = matchByWords(text, options);
+        if (matches.length === 1) {
+          await performDecision(matches[0], intent.verb);
+          return true;
+        }
+        if (!options.length) {
+          replaceLoading("Nothing is waiting for a decision right now.");
+          return true;
+        }
+        pendingDecision = { verb: intent.verb,
+                            options: matches.length ? matches : options };
+        replaceLoading(listMoves(pendingDecision.options, intent.verb));
+        return true;
+      }
+
       async function routeMessage(text) {
         if (!chatLive) {
           replaceLoading("I can't act in this preview. On the deployed site "
@@ -31263,6 +31395,9 @@ ledger_entry · artifact · agent_run`,
             + "you first.");
           return;
         }
+
+        // 0. A decision outranks everything — it is the owner acting.
+        if (await handleDecision(text)) return;
 
         // A move on the canvas means the conversation is about that move:
         // straight to Ask, carrying its find_id, exactly as the drawer did.
