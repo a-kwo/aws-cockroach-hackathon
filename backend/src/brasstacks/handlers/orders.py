@@ -271,9 +271,18 @@ def _payload(event) -> dict[str, Any]:
     return parsed
 
 
+#: Why DoorDash is a slot rather than a shop, until the waitlist clears.
+DOORDASH_WAITLIST_REASON = (
+    "DoorDash hasn't granted API access yet — the application is on the "
+    "waitlist, and orders will flow through it the moment access lands."
+)
+
+
 def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                payment_tool: Any = None, payment_provider: str = "simulated",
                reasoner: Any = None, now: datetime | None = None,
+               email_sender: Any = None, email_source: str | None = None,
+               doordash_tool: Any = None,
                ) -> dict[str, Any]:
     moment = now or datetime.now(timezone.utc)
     today = moment.date()
@@ -292,9 +301,59 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
     action = str(((event or {}).get("pathParameters") or {})
                  .get("proxy") or "").strip("/")
 
+    # -- which shop, and which of the three are genuinely on offer ---------
+    setting = store.get_supplier(business_id)
+    supplier = setting["supplier"]
+    email_ok = bool(email_sender and email_source)
+
+    from brasstacks.ordering import EmailOrderingTool, UnavailableOrderingTool
+
+    if supplier == "email" and email_ok and setting["supplier_email"]:
+        active_tool = EmailOrderingTool(
+            catalogue=dict(CATALOGUE), recipient=setting["supplier_email"],
+            source=email_source, send=email_sender)
+        # The supplier invoices directly; charging the card too would be
+        # paying twice.
+        active_payment = None
+    elif supplier == "email":
+        active_tool = UnavailableOrderingTool(
+            name="email",
+            reason=("Email ordering isn't configured on this deployment — "
+                    "it needs a verified sending address."))
+        active_payment = None
+    elif supplier == "doordash":
+        active_tool = doordash_tool or UnavailableOrderingTool(
+            name="doordash", reason=DOORDASH_WAITLIST_REASON)
+        active_payment = payment_tool if doordash_tool else None
+    else:
+        active_tool = tool
+        active_payment = payment_tool
+
+    supplier_block = {
+        "active": supplier,
+        "email": setting["supplier_email"],
+        "options": [
+            {"id": "simulated", "label": "Simulated store", "available": True,
+             "note": ("Practice mode — carts price against a fixed catalogue "
+                      "and nothing is delivered.")},
+            {"id": "doordash", "label": "DoorDash",
+             "available": doordash_tool is not None,
+             "note": ("Connected." if doordash_tool is not None
+                      else DOORDASH_WAITLIST_REASON)},
+            {"id": "email", "label": "Email my supplier",
+             "available": email_ok,
+             "note": ("Approved orders are emailed to your supplier, who "
+                      "invoices you directly — the card is never charged."
+                      if email_ok else
+                      "Needs a verified sending address on this deployment.")},
+        ],
+    }
+
     def state():
-        return _state(store, business_id, payment_provider=payment_provider,
-                      now=moment)
+        payload = _state(store, business_id,
+                         payment_provider=payment_provider, now=moment)
+        payload["supplier"] = supplier_block
+        return payload
 
     if method == "GET":
         return respond(200, state())
@@ -340,9 +399,10 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                                    trigger=TRIGGER_OWNER_INSTRUCTION,
                                    note=text)
 
-        plan = plan_order(request=request, tool=tool, authorities=authorities,
+        plan = plan_order(request=request, tool=active_tool,
+                          authorities=authorities,
                           spent_in_period_cents=spent,
-                          payment_tool=payment_tool)
+                          payment_tool=active_payment)
         answer = _record_plan(store, business_id, plan=plan,
                               title=_title(request.items),
                               trigger=request.trigger,
@@ -370,10 +430,10 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                                trigger=row["trigger"],
                                category=row["category"])
         plan = place_approved_order(
-            request=request, tool=tool,
+            request=request, tool=active_tool,
             approved_fingerprint=row["fingerprint"],
             idempotency_key=f"approve:{order_id}",
-            payment_tool=payment_tool)
+            payment_tool=active_payment)
 
         if plan.status is Status.PLACED:
             store.update_order(
@@ -428,9 +488,10 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
             items=tuple((n, q) for n, q in row["items"]),
             trigger=TRIGGER_STANDING_ORDER, category=row["category"],
             note=f"Standing order: {row['name']}.")
-        plan = plan_order(request=request, tool=tool, authorities=authorities,
+        plan = plan_order(request=request, tool=active_tool,
+                          authorities=authorities,
                           spent_in_period_cents=spent,
-                          payment_tool=payment_tool)
+                          payment_tool=active_payment)
         if plan.status is not Status.FAILED:
             store.mark_standing_ran(business_id, sid, on=today)
         answer = _record_plan(store, business_id, plan=plan,
@@ -484,9 +545,10 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         request = OrderRequest(
             items=((row["name"], int(row["reorder_quantity"])),),
             trigger=TRIGGER_STOCK_THRESHOLD, category=row["category"])
-        plan = plan_order(request=request, tool=tool, authorities=authorities,
+        plan = plan_order(request=request, tool=active_tool,
+                          authorities=authorities,
                           spent_in_period_cents=spent,
-                          payment_tool=payment_tool)
+                          payment_tool=active_payment)
         answer = _record_plan(store, business_id, plan=plan,
                               title=f"Low stock: {row['name']}",
                               trigger=TRIGGER_STOCK_THRESHOLD,
@@ -496,6 +558,26 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                               payment_provider=payment_provider, now=moment)
         answer["state"] = state()
         return respond(200, answer)
+
+    if action == "supplier":
+        choice = str(payload.get("supplier") or "").strip()
+        if choice == "doordash" and doordash_tool is None:
+            return respond(400, {"error": DOORDASH_WAITLIST_REASON})
+        if choice == "email" and not email_ok:
+            return respond(400, {
+                "error": ("Email ordering isn't available on this deployment "
+                          "yet — it needs a verified sending address.")})
+        try:
+            store.set_supplier(business_id, supplier=choice,
+                               supplier_email=payload.get("email"))
+        except ValueError as exc:
+            return respond(400, {"error": str(exc)})
+        # The tool block above already ran with the OLD setting; answer with
+        # freshly-read state so the screen reflects the switch immediately.
+        setting.update(store.get_supplier(business_id))
+        supplier_block["active"] = setting["supplier"]
+        supplier_block["email"] = setting["supplier_email"]
+        return respond(200, {"kind": "supplier_set", "state": state()})
 
     return respond(404, {"error": f"unknown orders action {action!r}"})
 
@@ -543,6 +625,28 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     tool = FakeOrderingTool(catalogue=dict(CATALOGUE), store_name=STORE_NAME,
                             fees_cents=FEES_CENTS)
 
+    # The email supplier rides the Maker's verified SES sender. No sender, no
+    # email option — the state payload says so rather than failing at place.
+    email_source = os.environ.get("MAKER_EMAIL_FROM", "").strip() or None
+    email_sender = None
+    if email_source:
+        import boto3
+        ses = boto3.client("ses", region_name=settings.aws_region)
+
+        def email_sender(*, source, recipient, subject, body):
+            response = ses.send_email(
+                Source=source,
+                Destination={"ToAddresses": [recipient]},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+                })
+            return str(response.get("MessageId") or "")
+
+    # The DoorDash adapter lands here when the waitlist clears; None keeps
+    # the option visible on screen and honestly refused at runtime.
+    doordash_tool = None
+
     try:
         with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
             return run_orders(
@@ -553,6 +657,9 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 payment_tool=payment_tool,
                 payment_provider=payment_provider,
                 reasoner=reasoner,
+                email_sender=email_sender,
+                email_source=email_source,
+                doordash_tool=doordash_tool,
             )
     except psycopg.Error:
         return respond(503, {"error": "orders are unavailable right now"})

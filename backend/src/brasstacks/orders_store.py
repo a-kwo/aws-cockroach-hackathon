@@ -22,6 +22,23 @@ from typing import Any, Iterable, Sequence
 
 VALID_LEVELS = {"ask_always", "ask_if_over", "auto"}
 ORDER_STATUSES = {"placed", "awaiting_approval", "failed", "rejected"}
+#: Which shop the Quartermaster talks to. `simulated` is the default and the
+#: only one that needs no credentials; `doordash` activates when the waitlist
+#: clears; `email` sends approved orders to the owner's supplier.
+VALID_SUPPLIERS = {"simulated", "doordash", "email"}
+
+
+def _validate_supplier(supplier: str, supplier_email: str | None) -> str | None:
+    if supplier not in VALID_SUPPLIERS:
+        raise ValueError(
+            f"supplier must be one of {sorted(VALID_SUPPLIERS)}, got "
+            f"{supplier!r}")
+    email = str(supplier_email or "").strip() or None
+    if supplier == "email":
+        if not email or "@" not in email:
+            raise ValueError(
+                "the email supplier needs your supplier's email address")
+    return email
 
 #: The only fields update_order may touch. Anything else is a caller typo, and
 #: silently dropping it would report an update that never happened.
@@ -86,6 +103,21 @@ class InMemoryOrdersStore:
         self._authorities: list[dict[str, Any]] = []
         self._stock: list[dict[str, Any]] = []
         self._orders: list[dict[str, Any]] = []
+        self._suppliers: dict[str, dict[str, Any]] = {}
+
+    # -- supplier setting --------------------------------------------------
+
+    def get_supplier(self, business_id: str) -> dict[str, Any]:
+        row = self._suppliers.get(business_id)
+        if row is None:
+            return {"supplier": "simulated", "supplier_email": None}
+        return dict(row)
+
+    def set_supplier(self, business_id: str, *, supplier: str,
+                     supplier_email: str | None = None) -> None:
+        email = _validate_supplier(supplier, supplier_email)
+        self._suppliers[business_id] = {
+            "supplier": supplier, "supplier_email": email}
 
     # -- standing orders ---------------------------------------------------
 
@@ -273,6 +305,37 @@ class PostgresOrdersStore:
 
     def __init__(self, conn: Any) -> None:
         self._conn = conn
+
+    # -- supplier setting --------------------------------------------------
+
+    def get_supplier(self, business_id) -> dict[str, Any]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT supplier, supplier_email FROM orders_setting"
+                " WHERE business_id = %s",
+                (business_id,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return {"supplier": "simulated", "supplier_email": None}
+        return {"supplier": row[0], "supplier_email": row[1]}
+
+    def set_supplier(self, business_id, *, supplier,
+                     supplier_email=None) -> None:
+        email = _validate_supplier(supplier, supplier_email)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO orders_setting (business_id, supplier,
+                                            supplier_email)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (business_id) DO UPDATE
+                SET supplier = EXCLUDED.supplier,
+                    supplier_email = EXCLUDED.supplier_email,
+                    updated_at = clock_timestamp()
+                """,
+                (business_id, supplier, email),
+            )
 
     # -- standing orders ---------------------------------------------------
 

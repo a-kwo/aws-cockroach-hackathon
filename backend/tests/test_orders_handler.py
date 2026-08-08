@@ -343,6 +343,110 @@ class TestStock:
         assert pending[0]["trigger"] == "stock_threshold"
 
 
+class TestSupplierSwitch:
+    """Three shops behind one seam: simulated, DoorDash-when-it-clears, and
+    the owner's supplier by email. The owner switches on the screen; the
+    payload says which options are genuinely available and why."""
+
+    def sender(self, board):
+        sent = []
+
+        def send(*, source, recipient, subject, body):
+            sent.append({"source": source, "recipient": recipient,
+                         "subject": subject, "body": body})
+            return f"msg-{len(sent)}"
+
+        board.email_sender = send
+        board.sent = sent
+        return board
+
+    def call(self, board, **kwargs):
+        return run_orders(
+            event(token=board.token, **{k: v for k, v in kwargs.items()
+                                        if k in {"method", "action", "body"}}),
+            repo=board.repo, store=board.store, tool=board.tool,
+            payment_tool=board.payments, payment_provider="simulated",
+            reasoner=None, now=NOW,
+            email_sender=getattr(board, "email_sender", None),
+            email_source="agents@brasstacks.example"
+            if getattr(board, "email_sender", None) else None,
+            doordash_tool=getattr(board, "doordash_tool", None))
+
+    def test_the_state_lists_the_three_options(self, board):
+        state = json.loads(self.call(board)["body"])
+        options = {o["id"]: o for o in state["supplier"]["options"]}
+        assert set(options) == {"simulated", "doordash", "email"}
+        assert state["supplier"]["active"] == "simulated"
+
+    def test_doordash_is_marked_waitlisted_until_a_tool_exists(self, board):
+        state = json.loads(self.call(board)["body"])
+        doordash = next(o for o in state["supplier"]["options"]
+                        if o["id"] == "doordash")
+        assert doordash["available"] is False
+        assert "waitlist" in doordash["note"].lower()
+
+    def test_doordash_cannot_be_selected_before_access_lands(self, board):
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "doordash"})
+        assert response["statusCode"] == 400
+
+    def test_doordash_becomes_selectable_with_a_real_tool(self, board):
+        board.doordash_tool = FakeOrderingTool(catalogue=dict(CATALOGUE))
+        board.doordash_tool.name = "doordash"
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "doordash"})
+        assert response["statusCode"] == 200
+        assert board.store.get_supplier(board.business_id)["supplier"] == \
+            "doordash"
+
+    def test_email_needs_a_configured_sender(self, board):
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "email",
+                                   "email": "orders@wholesaler.example"})
+        assert response["statusCode"] == 400
+
+    def test_email_selection_stores_the_address(self, board):
+        self.sender(board)
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "email",
+                                   "email": "orders@wholesaler.example"})
+        assert response["statusCode"] == 200
+        setting = board.store.get_supplier(board.business_id)
+        assert setting["supplier_email"] == "orders@wholesaler.example"
+
+    def test_an_email_order_mails_the_supplier_and_never_touches_the_card(
+            self, board):
+        self.sender(board)
+        board.store.set_supplier(board.business_id, supplier="email",
+                                 supplier_email="orders@wholesaler.example")
+        board.store.add_authority(board.business_id, scope="tomatoes",
+                                  level="auto", per_order_cap_cents=100_00)
+        answer = json.loads(self.call(
+            board, method="POST", action="ask",
+            body={"text": "order 2 tomatoes"})["body"])
+        assert answer["kind"] == "placed"
+        assert len(board.sent) == 1
+        assert board.sent[0]["recipient"] == "orders@wholesaler.example"
+        # The supplier invoices directly; charging the card too would be
+        # paying twice.
+        assert board.payments.charged == []
+        placed = board.store.list_orders(board.business_id, status="placed")
+        assert placed[0]["external_reference"].startswith("email:")
+        assert placed[0]["payment_reference"] is None
+
+    def test_a_waitlisted_doordash_order_fails_honestly(self, board):
+        # The owner somehow has doordash stored (say access was revoked):
+        # the ask fails with the reason, not a simulation wearing the name.
+        board.store._suppliers[board.business_id] = {
+            "supplier": "doordash", "supplier_email": None}
+        answer = json.loads(self.call(
+            board, method="POST", action="ask",
+            body={"text": "order 2 tomatoes"})["body"])
+        assert answer["kind"] == "failed"
+        assert "waitlist" in answer["reason"].lower()
+        assert board.payments.charged == []
+
+
 class TestSimpleParse:
     """The no-model fallback: keyword-matched against the catalogue, refusing
     what it does not recognise — the same contract as order_intent."""

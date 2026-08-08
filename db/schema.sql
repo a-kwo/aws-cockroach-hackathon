@@ -824,3 +824,14 @@ CREATE TABLE IF NOT EXISTS supply_order (
   INDEX (business_id, status),
   INDEX (business_id, created_at DESC)
 );
+
+-- Which shop the Quartermaster talks to (2026-08-08): simulated by default,
+-- doordash when the waitlist clears, or the owner's supplier by email. One
+-- row per business; absence means simulated, so a fresh tenant can never
+-- accidentally send a real order anywhere.
+CREATE TABLE IF NOT EXISTS orders_setting (
+  business_id    UUID PRIMARY KEY REFERENCES business(id) ON DELETE CASCADE,
+  supplier       STRING NOT NULL DEFAULT 'simulated',
+  supplier_email STRING,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);

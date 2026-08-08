@@ -19870,6 +19870,192 @@
     }
   </style>
 
+  <style id="chat-canvas-v48">
+    /* v48: the Chat tab — a conversation beside a canvas, and the canvas is
+       the supplies board. The DoorDash tab is gone; this is where its board
+       lives now, driven by the thread on the left. */
+    body.chat-mode .view-inner.chat-inner {
+      width: min(1460px, calc(100% - 40px));
+      padding: 14px 0 28px;
+    }
+
+    .chat-shell {
+      display: grid;
+      grid-template-columns: minmax(330px, 410px) minmax(0, 1fr);
+      gap: 16px;
+      height: calc(100dvh - 120px);
+      min-height: 540px;
+    }
+
+    .chat-pane,
+    .chat-canvas {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border: 1px solid var(--owner-line);
+      border-radius: 20px;
+      overflow: hidden;
+      background: linear-gradient(150deg, rgba(17,22,44,.92), rgba(9,13,28,.94));
+      box-shadow: 0 22px 60px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.03);
+    }
+
+    .chat-pane-head,
+    .chat-canvas-head {
+      flex: none;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--owner-line);
+    }
+
+    .chat-pane-head h1 {
+      margin: 0;
+      font-size: 15.5px;
+      letter-spacing: -.01em;
+      color: var(--owner-ink);
+    }
+
+    .chat-pane-head span,
+    .chat-canvas-head span {
+      font-size: 11.5px;
+      color: var(--owner-muted);
+    }
+
+    .chat-canvas-head strong { color: var(--owner-ink); font-size: 13px; }
+
+    .chat-thread {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-msg {
+      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+
+    .chat-msg.owner {
+      align-self: flex-end;
+      background: var(--owner-gradient);
+      color: #fff;
+      border-bottom-right-radius: 6px;
+      box-shadow: 0 8px 22px rgba(141, 69, 255, .25);
+    }
+
+    .chat-msg.agent {
+      align-self: flex-start;
+      background: rgba(255,255,255,.055);
+      border: 1px solid var(--owner-line);
+      color: var(--owner-copy);
+      border-bottom-left-radius: 6px;
+    }
+
+    .chat-msg.is-loading { color: var(--owner-muted); font-style: italic; }
+    .chat-msg.is-error { border-color: rgba(255, 155, 172, .35); color: #ffb3c0; }
+
+    .chat-hints {
+      flex: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 14px 10px;
+    }
+
+    .chat-composer {
+      flex: none;
+      display: flex;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--owner-line);
+    }
+
+    .chat-composer input {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 14px;
+      border-radius: 13px;
+      border: 1px solid var(--owner-line-strong);
+      background: rgba(255,255,255,.05);
+      color: var(--owner-ink);
+      font: inherit;
+      font-size: 14px;
+    }
+
+    .chat-composer input::placeholder { color: rgba(127,135,159,.8); }
+
+    .chat-composer input:focus {
+      outline: none;
+      border-color: rgba(196, 160, 255, .5);
+      box-shadow: 0 0 0 3px rgba(141, 69, 255, .18);
+    }
+
+    #chatCanvasBody {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 18px;
+    }
+
+    /* The board narrows itself for its own tab; inside the canvas it fills. */
+    body.chat-mode #chatCanvasBody .view-inner.orders-inner {
+      width: 100%;
+      padding: 2px 0 40px;
+    }
+
+    body.chat-mode #chatCanvasBody .orders-zone-command {
+      background: linear-gradient(rgba(13,17,35,.96), rgba(13,17,35,.9));
+    }
+
+    /* The supplier switch in the board's app bar. */
+    .orders-supplier {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .orders-supplier-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--owner-muted);
+    }
+
+    .orders-supplier select,
+    .orders-supplier input {
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--owner-line-strong);
+      background: rgba(255,255,255,.05);
+      color: var(--owner-ink);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    body.orders-mode .orders-supplier select option { background: #12162b; color: var(--owner-ink); }
+
+    @media (max-width: 960px) {
+      .chat-shell {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .chat-pane { max-height: 440px; }
+      .chat-canvas { min-height: 480px; }
+    }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -19904,12 +20090,12 @@
           </svg>
           <span>Growth</span>
         </button>
-        <button class="view-tab" type="button" data-view="orders">
+        <button class="view-tab" type="button" data-view="chat">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-            <path d="M4 7h16l-1.4 11.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8z" />
-            <path d="M9 7V5.6A3 3 0 0 1 12 3a3 3 0 0 1 3 2.6V7" />
+            <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 4v-4H6a2 2 0 0 1-2-2z" />
+            <path d="M8 9h8M8 12.5h5" />
           </svg>
-          <span>DoorDash</span>
+          <span>Chat</span>
         </button>
         <button class="view-tab" type="button" data-view="admin">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -20051,6 +20237,47 @@
         of its simulated job pipeline is reproduced here, because none of it is real.
       -->
       <!--
+        Chat — one conversation, one canvas. The thread on the left talks to
+        the agents (the Quartermaster first; anything that isn't an order
+        falls through to Ask). The canvas on the right IS the supplies board:
+        chatScreen() moves #ordersBoard in wholesale at startup, ids and
+        listeners intact, so the orders module never learns it moved. The
+        DoorDash tab died for this — four tabs confused the owner, and the
+        board belongs beside the conversation that drives it.
+      -->
+      <section class="view" id="view-chat" aria-labelledby="chatHeading">
+        <div class="view-inner chat-inner">
+          <div class="chat-shell">
+            <aside class="chat-pane" aria-labelledby="chatHeading">
+              <header class="chat-pane-head">
+                <h1 id="chatHeading">Chat</h1>
+                <span>Order supplies, ask about your business</span>
+              </header>
+              <div class="chat-thread" id="chatThread" aria-live="polite"></div>
+              <div class="chat-hints" id="chatHints">
+                <button type="button" class="orders-example" data-chat-hint="order 2 cases of tomatoes">order 2 cases of tomatoes</button>
+                <button type="button" class="orders-example" data-chat-hint="what is waiting for my approval?">what's waiting for me?</button>
+                <button type="button" class="orders-example" data-chat-hint="how did we do last month?">how did we do last month?</button>
+              </div>
+              <form class="chat-composer" id="chatComposer">
+                <input type="text" id="chatInput" autocomplete="off"
+                       placeholder="Order supplies, or ask anything&hellip;"
+                       aria-label="Message your agents" />
+                <button type="submit" class="orders-btn primary">Send</button>
+              </form>
+            </aside>
+            <section class="chat-canvas" aria-label="Supplies canvas">
+              <header class="chat-canvas-head">
+                <strong>Supplies &middot; autopilot</strong>
+                <span id="chatCanvasStatus">The Quartermaster's board</span>
+              </header>
+              <div id="chatCanvasBody"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!--
         DoorDash — the Quartermaster's screen. Two modes, honest in both.
 
         LIVE, when the deployment injected an /orders endpoint and the visitor
@@ -20070,9 +20297,16 @@
         approval, and a cart whose price moved after approval refuses itself.
       -->
       <section class="view" id="view-orders" aria-labelledby="ordersHeading">
-        <div class="view-inner orders-inner">
+        <div class="view-inner orders-inner" id="ordersBoard">
           <header class="orders-appbar" data-enter>
-            <h1 id="ordersHeading">DoorDash</h1>
+            <h1 id="ordersHeading" class="sr-only">Supplies</h1>
+            <div class="orders-supplier" id="ordersSupplierBox" hidden>
+              <label class="orders-supplier-label" for="ordersSupplierSelect">Supplier</label>
+              <select id="ordersSupplierSelect" aria-label="Which supplier the agent orders from"></select>
+              <input type="email" id="ordersSupplierEmail" placeholder="orders@your-supplier.com" hidden
+                     aria-label="Your supplier's email address" />
+              <button type="button" class="orders-btn primary small" id="ordersSupplierSave" hidden>Save</button>
+            </div>
             <div class="orders-pills">
               <div class="orders-connection" id="ordersConnection">
                 <span class="orders-conn-dot" aria-hidden="true"></span>
@@ -21320,7 +21554,7 @@
 
     (function gateViewsToTheAudience() {
       const hidden = OPERATOR_SESSION
-        ? ["autopilot", "growth", "orders"]
+        ? ["autopilot", "growth", "chat"]
         : ["admin"];
       hidden.forEach(name => {
         //  The TAB goes; the view stays in the document.
@@ -21357,7 +21591,8 @@
       //  The topbar is a sibling of the views, so the console's dark treatment
       //  is driven from body. Same classes switchView manages.
       document.body.classList.add("console-mode");
-      document.body.classList.remove("autopilot-mode", "growth-mode", "orders-mode");
+      document.body.classList.remove("autopilot-mode", "growth-mode",
+                                     "orders-mode", "chat-mode");
     })();
 
     //  Sign out, and show who is signed in. The board is one tenant's, and
@@ -22317,9 +22552,11 @@
       document.body.classList.toggle("console-mode", viewName === "admin");
       document.body.classList.toggle("autopilot-mode", viewName === "autopilot");
       document.body.classList.toggle("growth-mode", viewName === "growth");
-      // DoorDash is an owner screen, so it wears the same midnight system as
-      // For You and Growth rather than the light default.
-      document.body.classList.toggle("orders-mode", viewName === "orders");
+      // Chat hosts the supplies board in its canvas, so it wears the orders
+      // styling on top of its own — one midnight system throughout.
+      document.body.classList.toggle("orders-mode",
+        viewName === "orders" || viewName === "chat");
+      document.body.classList.toggle("chat-mode", viewName === "chat");
       // Cards measure as zero-height while their view is hidden, so any fit
       // that was skipped is settled here, on the way in.
       if (viewName === "autopilot") fitFeedCards();
@@ -29641,7 +29878,9 @@ ledger_entry · artifact · agent_run`,
        fixtures below become reads.
        ------------------------------------------------------------------ */
     (function ordersScreen() {
-      const screen = document.getElementById("view-orders");
+      // The board's root is the inner shell, not the view section: chatScreen
+      // moves it into the chat canvas, and listeners bound here travel with it.
+      const screen = document.getElementById("ordersBoard");
       if (!screen) return;
 
       /* Live when the deployment injected an orders endpoint and the visitor
@@ -29752,6 +29991,59 @@ ledger_entry · artifact · agent_run`,
           }
           const addStock = el("ordersAddStock");
           if (addStock) addStock.hidden = false;
+
+          // The supplier switch: simulated today, DoorDash when the waitlist
+          // clears, or the owner's supplier by email. Options the deployment
+          // cannot honour are visible but disabled, with the reason.
+          const box = el("ordersSupplierBox");
+          const select = el("ordersSupplierSelect");
+          if (box && select && state?.supplier) {
+            box.hidden = false;
+            const active = state.supplier.active;
+            select.innerHTML = (state.supplier.options || []).map(option => `
+              <option value="${escapeHtml(option.id)}"
+                      ${option.id === active ? "selected" : ""}
+                      ${option.available || option.id === active ? "" : "disabled"}>
+                ${escapeHtml(option.label)}${option.available || option.id === active ? "" : " (waiting)"}
+              </option>`).join("");
+            select.title = (state.supplier.options || [])
+              .map(option => `${option.label}: ${option.note}`).join("\n");
+            const emailInput = el("ordersSupplierEmail");
+            if (emailInput && !emailInput.value && state.supplier.email) {
+              emailInput.value = state.supplier.email;
+            }
+            const conn = el("ordersConnection");
+            if (conn) {
+              const labels = {
+                simulated: "Simulated store &middot; memory live",
+                doordash: "DoorDash &middot; connected",
+                email: `Email &rarr; ${escapeHtml(state.supplier.email || "your supplier")}`,
+              };
+              conn.innerHTML = `<span class="orders-conn-dot" aria-hidden="true"></span><span>${labels[active] || escapeHtml(active)}</span>`;
+            }
+          }
+        }
+
+        async function saveSupplier(choice) {
+          const emailInput = el("ordersSupplierEmail");
+          const save = el("ordersSupplierSave");
+          if (choice === "email") {
+            const address = String(emailInput?.value || "").trim();
+            if (!address || !address.includes("@")) {
+              if (emailInput) { emailInput.hidden = false; emailInput.focus(); }
+              if (save) save.hidden = false;
+              note("Tell me your supplier's email address, then press Save.", false);
+              return;
+            }
+            await act("supplier", { supplier: "email", email: address }, save);
+            if (emailInput) emailInput.hidden = true;
+            if (save) save.hidden = true;
+            note("Approved orders now go to your supplier by email. The card is never charged in this mode — they invoice you directly.");
+            return;
+          }
+          await act("supplier", { supplier: choice });
+          if (emailInput) emailInput.hidden = true;
+          if (save) save.hidden = true;
         }
 
         async function refresh() {
@@ -29969,6 +30261,26 @@ ledger_entry · artifact · agent_run`,
           if (threshold) threshold.hidden = event.target.value !== "ask_if_over";
         });
 
+        el("ordersSupplierSelect")?.addEventListener("change", event => {
+          const choice = event.target.value;
+          const emailInput = el("ordersSupplierEmail");
+          const save = el("ordersSupplierSave");
+          if (choice === "email") {
+            if (emailInput) emailInput.hidden = false;
+            if (save) save.hidden = false;
+            if (emailInput && emailInput.value.includes("@")) saveSupplier("email");
+            else emailInput?.focus();
+          } else {
+            saveSupplier(choice);
+          }
+        });
+        el("ordersSupplierSave")?.addEventListener("click", () => saveSupplier("email"));
+
+        // The chat pane drives this board from outside: after a chat order,
+        // it hands the fresh state straight in rather than re-fetching.
+        window.__btOrdersApplyState = fresh => { state = fresh; renderAll(); };
+        window.__btOrdersRefresh = refresh;
+
         el("ordersStandingForm")?.addEventListener("submit", async event => {
           event.preventDefault();
           const form = event.target;
@@ -30048,7 +30360,7 @@ ledger_entry · artifact · agent_run`,
       }
 
       function ordersPreview() {
-      const view = document.getElementById("view-orders");
+      const view = document.getElementById("ordersBoard");
       if (!view) return;
 
       const CATALOGUE = { "tomatoes": 450, "olive oil": 1200, "flour": 325, "saffron": 4200 };
@@ -30348,6 +30660,148 @@ ledger_entry · artifact · agent_run`,
 
       renderAll();
       }
+    })();
+
+    /* ------------------------------------------------------------------
+       Chat — one conversation, one canvas.
+
+       The thread routes each message through a cascade: the Quartermaster
+       reads it first (an order gets priced, placed or queued, and the fresh
+       board state lands in the canvas without a refetch); anything it calls
+       not-an-order falls through to the Ask agent, which answers from the
+       business's CockroachDB memory. Preview builds get an honest greeting
+       and a working sample board instead of pretend answers.
+       ------------------------------------------------------------------ */
+    (function chatScreen() {
+      const view = document.getElementById("view-chat");
+      if (!view) return;
+
+      // The supplies board lives in the canvas. Moving the node preserves
+      // its ids and every listener the orders module bound.
+      const board = document.getElementById("ordersBoard");
+      const canvasBody = document.getElementById("chatCanvasBody");
+      if (board && canvasBody) canvasBody.appendChild(board);
+
+      const thread = document.getElementById("chatThread");
+      const composer = document.getElementById("chatComposer");
+      const input = document.getElementById("chatInput");
+      if (!thread || !composer || !input) return;
+
+      const chatOrdersEndpoint = String(btData.api?.ordersEndpoint || "").trim().replace(/\/$/, "");
+      const chatAskEndpoint = String(btData.api?.askEndpoint || "").trim();
+      const chatLive = Boolean(chatOrdersEndpoint && readSession());
+
+      const messages = [];
+
+      function chatHeaders(extra) {
+        const session = readSession();
+        return session
+          ? { ...(extra || {}), Authorization: `Bearer ${session.token}` }
+          : { ...(extra || {}) };
+      }
+
+      function push(role, text, options) {
+        messages.push({ role, text, ...(options || {}) });
+        renderThread();
+      }
+
+      function renderThread() {
+        thread.innerHTML = messages.map(message => `
+          <div class="chat-msg ${message.role}${message.error ? " is-error" : ""}${message.loading ? " is-loading" : ""}">
+            ${escapeHtml(message.text)}
+          </div>`).join("");
+        thread.scrollTop = thread.scrollHeight;
+      }
+
+      function replaceLoading(text, options) {
+        const index = messages.findIndex(message => message.loading);
+        if (index >= 0) messages.splice(index, 1);
+        push("agent", text, options);
+      }
+
+      push("agent", chatLive
+        ? ("Hi — I run your supplies. Tell me what to order in plain words, "
+           + "or ask anything about your business. The board on the right is "
+           + "live from your memory in CockroachDB.")
+        : ("This build isn't connected to the agents, so I can't act — but "
+           + "the supplies board on the right is a working sample. When the "
+           + "deployed site loads this screen, everything here is live."));
+
+      async function routeMessage(text) {
+        if (!chatLive) {
+          replaceLoading("I can't act in this preview. On the deployed site "
+            + "I'd price that, check your limits, and either place it or ask "
+            + "you first.");
+          return;
+        }
+
+        // 1. The Quartermaster reads it first.
+        try {
+          const response = await fetch(`${chatOrdersEndpoint}/ask`, {
+            method: "POST",
+            headers: chatHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ text }),
+          });
+          const answer = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            replaceLoading(answer.error || `That didn't work (${response.status}).`, { error: true });
+            return;
+          }
+          if (answer.kind && answer.kind !== "not_an_order") {
+            if (answer.state && window.__btOrdersApplyState) {
+              window.__btOrdersApplyState(answer.state);
+            }
+            if (answer.kind === "placed") {
+              replaceLoading(`Done — ${answer.reason} It's on the board under Activity.`);
+            } else if (answer.kind === "needs_approval") {
+              replaceLoading("I priced it, and it needs your OK — it's waiting "
+                + `on the board under Needs you. ${answer.reason}`);
+            } else {
+              replaceLoading(`That didn't go through: ${answer.reason}`, { error: true });
+            }
+            return;
+          }
+        } catch (_) {
+          replaceLoading("I couldn't reach the ordering agent — try again in a moment.", { error: true });
+          return;
+        }
+
+        // 2. Not an order — the Ask agent answers from memory.
+        if (!chatAskEndpoint) {
+          replaceLoading("That didn't read as an order, and this deployment "
+            + "has no Ask agent configured for questions.");
+          return;
+        }
+        try {
+          const response = await fetch(chatAskEndpoint, {
+            method: "POST",
+            headers: chatHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
+            body: JSON.stringify({ question: text }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || `Ask could not answer (${response.status})`);
+          replaceLoading(payload.answer || "No answer came back.");
+        } catch (error) {
+          replaceLoading(String(error.message || error), { error: true });
+        }
+      }
+
+      composer.addEventListener("submit", event => {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+        push("owner", text);
+        input.value = "";
+        push("agent", "Thinking…", { loading: true });
+        routeMessage(text);
+      });
+
+      view.addEventListener("click", event => {
+        const hint = event.target.closest("[data-chat-hint]");
+        if (!hint) return;
+        input.value = hint.dataset.chatHint;
+        input.focus();
+      });
     })();
   </script>
 </body>

@@ -456,6 +456,15 @@ catalogue this section describes; payment is a real Stripe test-mode
 PaymentIntent when `STRIPE_SECRET_KEY` and `STRIPE_PAYMENT_METHOD` exist in SSM
 under `/brasstacks/`, and the fake otherwise. The screen labels which.
 
+**2026-08-08, later: the supplier is a per-tenant switch.** `orders_setting`
+holds one of `simulated` / `doordash` / `email`. Email sends approved orders
+to the owner's supplier through the Maker's verified SES identity
+(`EmailOrderingTool` — no card charge; the supplier invoices directly).
+DoorDash is a visible, waitlisted slot (`UnavailableOrderingTool`) that the
+real adapter replaces when access lands, changing nothing above the seam.
+The DoorDash tab itself is gone: the board lives in the Chat tab's canvas,
+driven by a thread that routes messages Quartermaster-first, Ask-second.
+
 ### Phase 1 — real `dd-cli`, read-only
 
 Live rival pricing into Radar, on the owner's Mac. No checkout. Needs waitlist access.
