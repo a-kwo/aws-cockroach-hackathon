@@ -27,6 +27,7 @@ from brasstacks.ordering import (
     OrderingTool,
     Receipt,
 )
+from brasstacks.payments import Charge, PaymentError, PaymentTool
 from brasstacks.purchase_authority import (
     Authorization,
     Decision,
@@ -76,6 +77,10 @@ class OrderPlan:
     cart: Cart | None = None
     receipt: Receipt | None = None
     authorization: Authorization | None = None
+    #: The money side of the receipt. Set only when a payment tool was in play
+    #: and the charge succeeded — including a charge that was later refunded
+    #: because the order failed, since the owner's statement will show both.
+    charge: Charge | None = None
 
     @property
     def placed(self) -> bool:
@@ -130,8 +135,14 @@ def plan_order(
     spent_in_period_cents: int = 0,
     near: str | None = None,
     idempotency_key: str | None = None,
+    payment_tool: PaymentTool | None = None,
 ) -> OrderPlan:
-    """Price the request, decide whether it may be placed, and place it if so."""
+    """Price the request, decide whether it may be placed, and place it if so.
+
+    When a ``payment_tool`` is present the card is charged immediately before
+    the order is placed — never earlier, so nothing the authority rules stop
+    can cost a cent — and a failed order refunds its charge.
+    """
     _validate(request)
 
     try:
@@ -160,7 +171,7 @@ def plan_order(
 
     key = idempotency_key or f"auto:{cart.fingerprint}"
     return _place(tool=tool, cart=cart, idempotency_key=key,
-                  authorization=verdict)
+                  authorization=verdict, payment_tool=payment_tool)
 
 
 def place_approved_order(
@@ -170,6 +181,7 @@ def place_approved_order(
     approved_fingerprint: str,
     idempotency_key: str,
     near: str | None = None,
+    payment_tool: PaymentTool | None = None,
 ) -> OrderPlan:
     """Buy the cart the owner approved — and only that cart.
 
@@ -201,7 +213,8 @@ def place_approved_order(
             cart=cart,
         )
 
-    return _place(tool=tool, cart=cart, idempotency_key=idempotency_key)
+    return _place(tool=tool, cart=cart, idempotency_key=idempotency_key,
+                  payment_tool=payment_tool)
 
 
 def requests_from_standing_orders(orders, *, today) -> list[OrderRequest]:
@@ -250,20 +263,73 @@ def requests_from_stock(items, *, today) -> list[OrderRequest]:
     return requests
 
 
+def _money(cents: int) -> str:
+    return f"${cents // 100}.{cents % 100:02d}"
+
+
 def _place(*, tool: OrderingTool, cart: Cart, idempotency_key: str,
-           authorization: Authorization | None = None) -> OrderPlan:
+           authorization: Authorization | None = None,
+           payment_tool: PaymentTool | None = None) -> OrderPlan:
+    # Charge first: a provider will not hand over goods unpaid, and the charge
+    # is the easier of the two to undo. Both legs share the order's idempotency
+    # key (namespaced apart), so a retried invocation replays rather than
+    # re-spends.
+    charge: Charge | None = None
+    if payment_tool is not None:
+        try:
+            charge = payment_tool.charge(
+                amount_cents=cart.total_cents,
+                description=f"{cart.store_name} — Brass Tacks order",
+                idempotency_key=f"pay:{idempotency_key}",
+            )
+        except PaymentError as exc:
+            return OrderPlan(
+                status=Status.FAILED,
+                reason=f"Payment failed, so nothing was ordered: {exc}",
+                cart=cart,
+                authorization=authorization,
+            )
+
     try:
         receipt = tool.place(cart=cart, idempotency_key=idempotency_key)
     except OrderingError as exc:
-        return OrderPlan(status=Status.FAILED, reason=str(exc), cart=cart,
-                         authorization=authorization)
+        if charge is None:
+            return OrderPlan(status=Status.FAILED, reason=str(exc), cart=cart,
+                             authorization=authorization)
+        # The money moved and then the shop said no. Undo the charge, and say
+        # both things happened — the owner's card statement will.
+        try:
+            payment_tool.refund(charge_reference=charge.external_reference,
+                                idempotency_key=f"refund:{idempotency_key}")
+        except PaymentError as refund_exc:
+            return OrderPlan(
+                status=Status.FAILED,
+                reason=(f"The order failed ({exc}) after your card was "
+                        f"charged {_money(charge.amount_cents)}, and the "
+                        f"charge could not be refunded ({refund_exc}). It "
+                        "needs attention."),
+                cart=cart,
+                authorization=authorization,
+                charge=charge,
+            )
+        return OrderPlan(
+            status=Status.FAILED,
+            reason=(f"The order failed ({exc}), so the "
+                    f"{_money(charge.amount_cents)} charge to your card was "
+                    "refunded."),
+            cart=cart,
+            authorization=authorization,
+            charge=charge,
+        )
+
     return OrderPlan(
         status=Status.PLACED,
-        reason=f"Placed for ${receipt.total_cents // 100}."
-               f"{receipt.total_cents % 100:02d}.",
+        reason=f"Placed for {_money(receipt.total_cents)}."
+               + (" Paid by card." if charge is not None else ""),
         cart=cart,
         receipt=receipt,
         authorization=authorization,
+        charge=charge,
     )
 
 

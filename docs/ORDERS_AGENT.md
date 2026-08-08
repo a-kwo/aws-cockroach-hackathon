@@ -396,6 +396,17 @@ fails loudly.
    existing UI honesty rules apply unchanged.
 7. **Only Brass-Tacks-initiated orders are ours to reason from.** Orders the owner placed
    by other means are not receipts this system may treat as evidence of anything (§7a).
+8. **The card is charged only at the moment an order places.** The payment seam
+   (`payments.py`, added 2026-08-07) mirrors the ordering seam: two verbs, `charge` and
+   `refund`, behind a `PaymentTool` protocol with a deterministic fake and a Stripe
+   adapter speaking form-encoded HTTPS directly. `_place` charges immediately before
+   `place_order` — never earlier, so nothing the authority rules stop can cost a cent —
+   and both legs derive from the order's idempotency key (namespaced `pay:` /
+   `refund:`), so a retried invocation replays instead of re-spending. An order that
+   fails after a successful charge is refunded automatically and the plan's reason says
+   both things happened; a refund that itself fails is reported as a charge that stands
+   and needs attention, never silently dropped. Covered by `test_payments.py` and
+   `test_quartermaster_payments.py`.
 
 ---
 
