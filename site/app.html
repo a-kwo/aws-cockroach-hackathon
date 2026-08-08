@@ -20201,6 +20201,38 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
     }
 
+    /* The details document, docked. The drawer element re-homes into this
+       panel at startup; these overrides strip its popup costume — fixed
+       position, slide transform, shadow — so it reads as a page on the
+       canvas. The scrim served the popup, and the popup is gone. */
+    #drawerScrim { display: none !important; }
+
+    .chat-canvas-details {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chat-canvas-details #detailDrawer {
+      position: static !important;
+      inset: auto !important;
+      transform: none !important;
+      transition: none !important;
+      width: 100% !important;
+      max-width: none !important;
+      height: 100% !important;
+      max-height: none !important;
+      border-radius: 0 !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
     /* The default canvas: a glance, not a board. */
     .chat-canvas-overview {
       flex: 1;
@@ -20617,12 +20649,14 @@
               <header class="chat-canvas-head">
                 <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
                   <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
+                  <button type="button" data-canvas="details" id="chatCanvasDetailsTab" hidden>Details</button>
                   <button type="button" data-canvas="overview" id="chatCanvasOverviewTab" hidden>Overview</button>
                   <button type="button" data-canvas="supplies" class="active">Supplies</button>
                 </nav>
                 <span id="chatCanvasStatus">Live from your memory</span>
               </header>
               <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
+              <div class="chat-canvas-details" id="chatCanvasDetails" hidden></div>
               <div class="chat-canvas-overview" id="chatCanvasOverview" hidden></div>
               <div id="chatCanvasBody"></div>
             </section>
@@ -31069,6 +31103,36 @@ ledger_entry · artifact · agent_run`,
       const canvasBody = document.getElementById("chatCanvasBody");
       if (board && canvasBody) canvasBody.appendChild(board);
 
+      // The details drawer stops being a popup: the whole element re-homes
+      // into a Details canvas panel, ids and handlers intact, and every
+      // openDrawer() call anywhere in the app now lands there. Nothing pops
+      // over this app; the canvas is where documents appear.
+      const drawerNode = document.getElementById("detailDrawer");
+      const detailsPanel = document.getElementById("chatCanvasDetails");
+      if (drawerNode && detailsPanel && typeof openDrawer === "function") {
+        detailsPanel.appendChild(drawerNode);
+        const originalOpenDrawer = openDrawer;
+        openDrawer = function(postId) {
+          // View first, then open: switchView closes the drawer as part of
+          // changing views, so the other order strips .open immediately.
+          if (!document.body.classList.contains("chat-mode")
+              && typeof switchView === "function") {
+            switchView("chat");
+          }
+          originalOpenDrawer(postId);
+          const tab = document.getElementById("chatCanvasDetailsTab");
+          if (tab) tab.hidden = false;
+          setCanvas("details");
+        };
+        // The drawer's × now means "put the document away", not "close a
+        // popup": back to whichever canvas the conversation wants.
+        document.getElementById("closeDrawer")?.addEventListener("click", () => {
+          const tab = document.getElementById("chatCanvasDetailsTab");
+          if (tab) tab.hidden = true;
+          setCanvas(chatContext ? "move" : (chatLive ? "overview" : "supplies"));
+        });
+      }
+
       const thread = document.getElementById("chatThread");
       const composer = document.getElementById("chatComposer");
       const input = document.getElementById("chatInput");
@@ -31088,11 +31152,13 @@ ledger_entry · artifact · agent_run`,
 
       function setCanvas(mode) {
         const movePanel = document.getElementById("chatCanvasMove");
+        const detailsPanel = document.getElementById("chatCanvasDetails");
         const overviewPanel = document.getElementById("chatCanvasOverview");
         const suppliesPanel = document.getElementById("chatCanvasBody");
         const tabs = document.getElementById("chatCanvasTabs");
         if (!movePanel || !suppliesPanel) return;
         movePanel.hidden = mode !== "move";
+        if (detailsPanel) detailsPanel.hidden = mode !== "details";
         if (overviewPanel) overviewPanel.hidden = mode !== "overview";
         suppliesPanel.hidden = mode !== "supplies";
         tabs?.querySelectorAll("[data-canvas]").forEach(button => {
