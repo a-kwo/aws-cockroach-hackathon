@@ -19935,34 +19935,110 @@
       gap: 10px;
     }
 
+    /* Turns, not boxes: agent messages group under one mark with an author
+       line, owner messages ride the gradient. Every message rises in. */
+    .chat-turn {
+      display: flex;
+      gap: 10px;
+      animation: chat-rise .28s cubic-bezier(.2, .7, .3, 1) both;
+    }
+
+    .chat-turn.owner { justify-content: flex-end; }
+    .chat-turn.agent { align-items: flex-start; }
+    .chat-turn.agent > div { min-width: 0; max-width: 88%; }
+
+    @keyframes chat-rise {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .chat-avatar {
+      flex: none;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--owner-gradient-soft);
+      border: 1px solid rgba(196, 160, 255, .3);
+      color: #c99aff;
+      margin-top: 2px;
+    }
+
+    .chat-avatar.ghost { background: transparent; border-color: transparent; }
+
+    .chat-author {
+      display: block;
+      margin: 2px 0 5px 2px;
+      font-size: 10.5px;
+      font-weight: 750;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--owner-muted);
+    }
+
     .chat-msg {
-      max-width: 88%;
-      padding: 10px 14px;
+      padding: 11px 15px;
       border-radius: 16px;
-      font-size: 13.5px;
-      line-height: 1.55;
+      font-size: 14px;
+      line-height: 1.6;
+      letter-spacing: .003em;
       white-space: pre-wrap;
       overflow-wrap: break-word;
     }
 
     .chat-msg.owner {
-      align-self: flex-end;
+      max-width: 88%;
       background: var(--owner-gradient);
       color: #fff;
       border-bottom-right-radius: 6px;
-      box-shadow: 0 8px 22px rgba(141, 69, 255, .25);
+      box-shadow: 0 10px 26px rgba(141, 69, 255, .28);
     }
 
     .chat-msg.agent {
-      align-self: flex-start;
-      background: rgba(255,255,255,.055);
-      border: 1px solid var(--owner-line);
-      color: var(--owner-copy);
-      border-bottom-left-radius: 6px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(198, 204, 255, .13);
+      color: #d6dbea;
+      border-top-left-radius: 6px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
     }
 
-    .chat-msg.is-loading { color: var(--owner-muted); font-style: italic; }
+    .chat-msg.is-loading { color: var(--owner-muted); }
+    .chat-msg.is-loading::after {
+      content: "";
+      display: inline-block;
+      width: 1.2em;
+      animation: chat-ellipsis 1.2s steps(4) infinite;
+      overflow: hidden;
+      vertical-align: bottom;
+    }
+
+    @keyframes chat-ellipsis {
+      0% { content: ""; }
+      25% { content: "."; }
+      50% { content: ".."; }
+      75% { content: "..."; }
+    }
+
     .chat-msg.is-error { border-color: rgba(255, 155, 172, .35); color: #ffb3c0; }
+
+    .chat-send {
+      flex: none;
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 14px;
+      background: var(--owner-gradient);
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 10px 26px rgba(141, 69, 255, .3);
+      transition: filter .15s ease, transform .15s ease;
+    }
+
+    .chat-send:hover { filter: brightness(1.08); }
+    .chat-send:active { transform: scale(.95); }
 
     .chat-hints {
       flex: none;
@@ -20414,7 +20490,11 @@
                 <input type="text" id="chatInput" autocomplete="off"
                        placeholder="Order supplies, or ask anything&hellip;"
                        aria-label="Message your agents" />
-                <button type="submit" class="orders-btn primary">Send</button>
+                <button type="submit" class="chat-send" aria-label="Send">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M5 12h13M13 6l6 6-6 6" />
+                  </svg>
+                </button>
               </form>
             </aside>
             <section class="chat-canvas" aria-label="Canvas">
@@ -20834,7 +20914,7 @@
           <button class="icon-button" type="button" id="closeDrawer" aria-label="Close details">×</button>
         </header>
         <div class="drawer-body" id="drawerBody"></div>
-        <form class="drawer-composer" id="drawerForm">
+        <form class="drawer-composer" id="drawerForm" hidden>
           <div class="drawer-composer-destination" id="drawerComposerDestination" hidden aria-label="Current draft destination">
             <span>Draft for</span>
             <strong id="drawerComposerDestinationLabel" data-maker-destination-label></strong>
@@ -27913,20 +27993,12 @@ ledger_entry · artifact · agent_run`,
           <strong>${formatMoney(post.amount)}</strong>
         </div>
 
-        <section class="drawer-chat-panel" aria-label="Conversation with Brass Tacks">
-          <header class="drawer-chat-head">
-            <div><strong>Ask Brass Tacks</strong><span>Ask one question or request one change at a time. Replies are concise and saved with this business.</span></div>
-            <button class="drawer-open-chat" type="button" data-open-chat-tab data-post-id="${post.id}"
-                    title="Continue this conversation in the Chat tab, with this move on the canvas">
-              Open in Chat &rarr;
-            </button>
-          </header>
-          ${makerChatDestinationHtml(post)}
-          ${makerChatContextHtml(post)}
-          <div class="drawer-chat-thread" id="drawerChatThread" aria-live="polite">
-            <p class="chat-empty">Loading conversation memory…</p>
-          </div>
-          ${status === "rejected" ? `
+        <!-- The conversation lives in the Chat tab — one chat for the whole
+             app. This drawer is the evidence room; the only input that ever
+             appears here is the Maker's guided answer form, which is a form
+             with a progress count, not a chat. -->
+        ${status === "rejected" ? `
+          <section class="drawer-chat-panel" aria-label="Change your mind">
             <div class="drawer-chat-action">
               <div class="drawer-chat-action-copy">
                 <strong>Changed your mind?</strong>
@@ -27936,8 +28008,12 @@ ledger_entry · artifact · agent_run`,
                 ${icons.approved}<span>Undo Pass</span>
               </button>
             </div>
-          ` : ""}
-        </section>
+          </section>
+        ` : ""}
+        <button class="drawer-open-chat" type="button" data-open-chat-tab data-post-id="${post.id}"
+                title="One conversation for the whole app, with this move on the canvas">
+          Discuss this move in Chat &rarr;
+        </button>
 
         ${status === "pending" ? `
           <div class="drawer-actions">
@@ -28172,6 +28248,9 @@ ledger_entry · artifact · agent_run`,
       const progress = document.getElementById("drawerComposerProgress");
       const contextText = document.getElementById("drawerComposerContextText");
       const use = document.getElementById("drawerComposerUse");
+      // Guided answers were the composer's only remaining job; leaving guided
+      // mode puts it away again.
+      if (form) form.hidden = true;
       const back = document.getElementById("drawerComposerBack");
       const hint = document.getElementById("drawerComposerHint");
       const send = document.getElementById("drawerSendButton");
@@ -28231,18 +28310,16 @@ ledger_entry · artifact · agent_run`,
         makerGuidedReply.revision = activeState.revision;
         makerGuidedReply.placement = makerPlacementInfo(post, activeState.task, activeState.artifact);
         renderMakerGuidedComposer({ focus: false });
+        const guidedForm = document.getElementById("drawerForm");
+        if (guidedForm) guidedForm.hidden = false;
         return;
       }
 
       clearMakerAnswerMode();
-      const input = document.getElementById("drawerInput");
-      if (!input) return;
-      const placement = makerPlacementInfo(post);
-      if (activeState) {
-        input.placeholder = `Maker needs ${activeState.questions.length} ${activeState.questions.length === 1 ? "answer" : "answers"} — start the guided reply above`;
-      } else if (placement.taskId) {
-        input.placeholder = `Ask about this ${placement.label} draft…`;
-      }
+      // The composer only exists for the Maker's guided answers now — the
+      // conversation itself lives in the Chat tab. Hidden otherwise.
+      const idleForm = document.getElementById("drawerForm");
+      if (idleForm) idleForm.hidden = true;
     }
 
     function activateMakerAnswerMode(postId) {
@@ -28262,6 +28339,8 @@ ledger_entry · artifact · agent_run`,
         placement: makerPlacementInfo(post, state.task, state.artifact),
       };
       renderMakerGuidedComposer();
+      const form = document.getElementById("drawerForm");
+      if (form) form.hidden = false;
       requestDrawerChatFollow(post.id, 12000);
       scrollDrawerChatToLatest({ behavior: "smooth" });
     }
@@ -30954,11 +31033,32 @@ ledger_entry · artifact · agent_run`,
         renderThread();
       }
 
+      const AGENT_MARK = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M7 7h10v10H7z" /><path d="M4 12h3M17 12h3M12 4v3M12 17v3" />
+        </svg>`;
+
       function renderThread() {
-        thread.innerHTML = messages.map(message => `
-          <div class="chat-msg ${message.role}${message.error ? " is-error" : ""}${message.loading ? " is-loading" : ""}">
-            ${escapeHtml(message.text)}
-          </div>`).join("");
+        thread.innerHTML = messages.map((message, index) => {
+          if (message.role === "owner") {
+            return `<div class="chat-turn owner"><div class="chat-msg owner">${escapeHtml(message.text)}</div></div>`;
+          }
+          // Consecutive agent messages group under one mark, like any chat
+          // app the owner already knows.
+          const first = messages[index - 1]?.role !== "agent";
+          const classes = `chat-msg agent${message.error ? " is-error" : ""}${message.loading ? " is-loading" : ""}`;
+          return `
+            <div class="chat-turn agent">
+              <span class="chat-avatar${first ? "" : " ghost"}" aria-hidden="true">${first ? AGENT_MARK : ""}</span>
+              <div>
+                ${first ? `<span class="chat-author">Brass Tacks</span>` : ""}
+                <div class="${classes}">${escapeHtml(message.text)}</div>
+              </div>
+            </div>`;
+        }).join("");
+        // Suggestions earn their space only until the owner has spoken.
+        const hints = document.getElementById("chatHints");
+        if (hints) hints.hidden = messages.some(message => message.role === "owner");
         thread.scrollTop = thread.scrollHeight;
       }
 
@@ -31107,10 +31207,15 @@ ledger_entry · artifact · agent_run`,
          own module reaches it through the notify hook. */
       window.__btOpenChatAbout = post => {
         if (!post) return;
+        // Reopening the same move must not stack identical greetings.
+        const sameMove = chatContext
+          && chatContext.id === (post.databaseId || post.id);
         applyContext(post);
-        push("agent", `We're looking at “${post.title || "this move"}”. Ask me `
-          + "anything about it — the evidence, the number, what happens next — "
-          + "or decide right there on the canvas.");
+        if (!sameMove) {
+          push("agent", `We're looking at “${post.title || "this move"}”. Ask me `
+            + "anything about it — the evidence, the number, what happens next — "
+            + "or decide right there on the canvas.");
+        }
         if (typeof switchView === "function") switchView("chat");
       };
 
