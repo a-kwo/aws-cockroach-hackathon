@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from brasstacks.auth import token_fingerprint
 from brasstacks.handlers.ask import (
+    _embed_with_retry,
     answer_question,
     build_context_question,
     read_chat_history,
@@ -251,6 +252,42 @@ def test_completed_answer_is_returned_if_assistant_memory_write_temporarily_fail
     assert body["memory"]["storedThisTurn"] == 1
     assert "conversation write unavailable" in body["memory"]["storageError"]
     assert repo.count_chat_messages(business_id) == 1
+
+
+class FlakyEmbedder:
+    """Fails its first N calls, then works — a transient blip."""
+
+    def __init__(self, *, fail_first=1):
+        self.fail_first = fail_first
+        self.calls = 0
+
+    def embed(self, texts):
+        self.calls += 1
+        if self.calls <= self.fail_first:
+            raise RuntimeError("Titan blip")
+        return [list(VECTOR) for _ in texts]
+
+
+def test_embed_retry_clears_a_single_transient_failure():
+    embedder = FlakyEmbedder(fail_first=1)
+    vector = _embed_with_retry(embedder, "hello")
+    assert vector is not None
+    assert embedder.calls == 2  # first failed, retry succeeded
+
+
+def test_embed_retry_gives_up_after_its_attempts():
+    embedder = FlakyEmbedder(fail_first=5)
+    assert _embed_with_retry(embedder, "hello", attempts=2) is None
+
+
+def test_a_truncated_answer_is_flagged_in_the_response():
+    repo, _, token = owner_repo()
+    asker = FakeAsker([Answer(text="The first part of a long answer …",
+                              tool_calls=(), truncated=True)])
+    response = answer_question(event(token, "Explain everything"), repo=repo,
+                              asker=asker, embedder=Embedder(),
+                              settings=Settings(), now=NOW)
+    assert response_body(response)["truncated"] is True
 
 
 def test_recommendation_context_is_tenant_scoped_and_enters_the_compact_prompt():

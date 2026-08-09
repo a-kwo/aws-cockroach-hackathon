@@ -225,6 +225,23 @@ def parse_question(event: Any) -> str:
     return parse_request(event)[0]
 
 
+def _embed_with_retry(embedder: Any, text: str,
+                      *, attempts: int = 2) -> list[float] | None:
+    """Embed one string, retrying once on a transient failure.
+
+    Returns the vector, or ``None`` when every attempt failed so the caller
+    degrades to recent-only memory rather than dying. A single immediate retry
+    costs little and clears most network blips; there is deliberately no sleep,
+    to stay well inside the request's time budget.
+    """
+    for _ in range(max(1, attempts)):
+        try:
+            return list(embedder.embed([text])[0])
+        except Exception:
+            continue
+    return None
+
+
 def _business_for_event(
     event: Any,
     *,
@@ -1073,17 +1090,20 @@ def answer_question(
     # Prefer semantic retrieval. A temporary embedding failure must not turn the
     # chat box into a dead control: recent durable memory plus live MCP queries
     # still produce a useful answer, and the new turn is stored without a vector.
-    question_embedding = None
+    # One immediate retry catches a transient network blip before degrading.
     relevant: list[Any] = []
     embedding_fallback = False
     embedding_calls = 0
-    try:
-        [question_embedding] = embedder.embed([question])
+    question_embedding = _embed_with_retry(embedder, question)
+    if question_embedding is not None:
         embedding_calls = 1
-        relevant = repo.search_chat_messages(
-            business_id, question_embedding, limit=RELEVANT_MESSAGES_LIMIT
-        )
-    except Exception:
+        try:
+            relevant = repo.search_chat_messages(
+                business_id, question_embedding, limit=RELEVANT_MESSAGES_LIMIT
+            )
+        except Exception:
+            embedding_fallback = True
+    else:
         embedding_fallback = True
 
     # Continuity belongs to the owner, not only to the recommendation drawer
@@ -1174,6 +1194,10 @@ def answer_question(
             },
         })
 
+    # The answer is stored without a vector on purpose: semantic retrieval
+    # searches owner messages only, so the agent never echoes its own prior
+    # prose back to itself as "memory". See
+    # test_semantic_chat_retrieval_searches_owner_messages_only.
     assistant_message_id = None
     storage_error = None
     try:
@@ -1199,6 +1223,7 @@ def answer_question(
     )
     return respond(200, {
         "answer": result.answer.text,
+        "truncated": bool(getattr(result.answer, "truncated", False)),
         "queried_the_cluster": result.answer.queried_the_cluster,
         "trail": trail_lines(result.answer),
         "run_id": result.run_id,

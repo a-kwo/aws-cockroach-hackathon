@@ -147,6 +147,10 @@ class Answer:
 
     text: str
     tool_calls: tuple[ToolCall, ...] = ()
+    #: True when the model ran into its token ceiling mid-answer. The text is
+    #: real and worth showing, but it is a fragment — callers must flag it as
+    #: truncated rather than present it as the whole answer.
+    truncated: bool = False
 
     @property
     def queried_the_cluster(self) -> bool:
@@ -581,16 +585,27 @@ class McpAsker:
         blocks = list(getattr(message, "content", None) or [])
         tool_calls = _tool_trail(blocks)
 
-        if stop_reason == "max_tokens":
-            raise ReasoningError(
-                f"answer hit max_tokens ({max_tokens}) and is truncated. "
-                "Raise max_tokens or ask a narrower question."
-            )
-
         parts = [
             b.text for b in blocks
             if getattr(b, "type", None) == "text" and getattr(b, "text", "")
         ]
+
+        if stop_reason == "max_tokens":
+            # A truncated answer is a fragment, but the fragment is usually most
+            # of what the owner wanted. Return it, clearly marked, instead of
+            # replacing it with an error — as long as there is any text to
+            # salvage. With none, there is nothing to show and it stays an error.
+            if parts:
+                return Answer(
+                    text="\n\n".join(parts).rstrip() + " …",
+                    tool_calls=tool_calls,
+                    truncated=True,
+                )
+            raise ReasoningError(
+                f"answer hit max_tokens ({max_tokens}) before producing any "
+                "text. Raise max_tokens or ask a narrower question."
+            )
+
         if not parts:
             raise ReasoningError(
                 "response contained no text block "

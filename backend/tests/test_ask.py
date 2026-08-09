@@ -261,10 +261,20 @@ class TestFailureModes:
         with pytest.raises(ModelRefusedError, match="cyber"):
             asker.ask(system="s", question="q")
 
-    def test_max_tokens_is_named_rather_than_returning_a_stub_answer(self):
+    def test_max_tokens_returns_the_partial_answer_flagged_truncated(self):
+        # The fragment is worth showing, but it must not masquerade as the whole
+        # answer: it comes back marked truncated, with a visible ellipsis.
         asker, _ = an_asker(
             StubMessage([text_block("partial")], stop_reason="max_tokens"))
 
+        answer = asker.ask(system="s", question="q")
+        assert answer.truncated is True
+        assert answer.text.startswith("partial")
+        assert answer.text.rstrip().endswith("…")
+
+    def test_max_tokens_with_no_text_is_still_an_error(self):
+        # Nothing to salvage — an empty truncation stays a named error.
+        asker, _ = an_asker(StubMessage([], stop_reason="max_tokens"))
         with pytest.raises(ReasoningError, match="max_tokens"):
             asker.ask(system="s", question="q")
 
