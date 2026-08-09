@@ -13835,6 +13835,7 @@
     body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button,
     body.growth-mode .profile-menu-button,
+    body.orders-mode .profile-menu-button,
     body.autopilot-mode .queue-pill,
     body.growth-mode .queue-pill,
     body.autopilot-mode .restart-button,
@@ -13847,7 +13848,8 @@
 
     body.chat-mode .profile-menu-button span,
     body.autopilot-mode .profile-menu-button span,
-    body.growth-mode .profile-menu-button span { background: #cbd0e3 !important; }
+    body.growth-mode .profile-menu-button span,
+    body.orders-mode .profile-menu-button span { background: #cbd0e3 !important; }
 
     body.autopilot-mode .view-switcher,
     body.growth-mode .view-switcher {
@@ -15786,7 +15788,8 @@
     /* Business profile: same midnight system, scoped away from Memory Engine. */
     body.chat-mode .profile-scrim,
     body.autopilot-mode .profile-scrim,
-    body.growth-mode .profile-scrim {
+    body.growth-mode .profile-scrim,
+    body.orders-mode .profile-scrim {
       background: rgba(2,4,12,.76) !important;
       backdrop-filter: blur(8px) !important;
       -webkit-backdrop-filter: blur(8px) !important;
@@ -15794,7 +15797,8 @@
 
     body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel,
-    body.growth-mode .profile-panel {
+    body.growth-mode .profile-panel,
+    body.orders-mode .profile-panel {
       --ink: var(--owner-text);
       --muted: var(--owner-text-muted);
       --line: var(--owner-border);
@@ -15807,16 +15811,19 @@
     body.chat-mode .profile-panel-head,
     body.autopilot-mode .profile-panel-head,
     body.growth-mode .profile-panel-head,
+    body.orders-mode .profile-panel-head,
     body.chat-mode .profile-panel-foot,
     body.autopilot-mode .profile-panel-foot,
-    body.growth-mode .profile-panel-foot {
+    body.growth-mode .profile-panel-foot,
+    body.orders-mode .profile-panel-foot {
       border-color: var(--owner-border) !important;
       background: rgba(13,18,37,.96) !important;
     }
 
     body.chat-mode .profile-panel-mark,
     body.autopilot-mode .profile-panel-mark,
-    body.growth-mode .profile-panel-mark {
+    body.growth-mode .profile-panel-mark,
+    body.orders-mode .profile-panel-mark {
       border: 1px solid rgba(226,190,255,.20) !important;
       background: linear-gradient(135deg, #682bd7 0%, #882ddf 52%, #bd288a 100%) !important;
       color: #fff !important;
@@ -15825,7 +15832,8 @@
 
     body.chat-mode .profile-panel-title strong,
     body.autopilot-mode .profile-panel-title strong,
-    body.growth-mode .profile-panel-title strong {
+    body.growth-mode .profile-panel-title strong,
+    body.orders-mode .profile-panel-title strong {
       color: var(--owner-text) !important;
       font-size: 17px !important;
       font-weight: 780 !important;
@@ -15833,14 +15841,16 @@
 
     body.chat-mode .profile-panel-title span,
     body.autopilot-mode .profile-panel-title span,
-    body.growth-mode .profile-panel-title span {
+    body.growth-mode .profile-panel-title span,
+    body.orders-mode .profile-panel-title span {
       color: var(--owner-text-muted) !important;
       font-size: 11px !important;
     }
 
     body.chat-mode .profile-close,
     body.autopilot-mode .profile-close,
-    body.growth-mode .profile-close {
+    body.growth-mode .profile-close,
+    body.orders-mode .profile-close {
       border-color: var(--owner-border) !important;
       background: rgba(255,255,255,.045) !important;
       color: #b7bfd4 !important;
@@ -15848,7 +15858,8 @@
 
     body.chat-mode .profile-close:hover,
     body.autopilot-mode .profile-close:hover,
-    body.growth-mode .profile-close:hover {
+    body.growth-mode .profile-close:hover,
+    body.orders-mode .profile-close:hover {
       border-color: var(--owner-border-strong) !important;
       background: rgba(255,255,255,.08) !important;
       color: #fff !important;
@@ -15856,7 +15867,8 @@
 
     body.chat-mode .profile-panel-body,
     body.autopilot-mode .profile-panel-body,
-    body.growth-mode .profile-panel-body {
+    body.growth-mode .profile-panel-body,
+    body.orders-mode .profile-panel-body {
       scrollbar-color: rgba(181,109,255,.44) transparent !important;
       scrollbar-width: thin !important;
     }
@@ -15864,15 +15876,18 @@
     body.chat-mode .profile-loading,
     body.autopilot-mode .profile-loading,
     body.growth-mode .profile-loading,
+    body.orders-mode .profile-loading,
     body.chat-mode .profile-empty,
     body.autopilot-mode .profile-empty,
-    body.growth-mode .profile-empty {
+    body.growth-mode .profile-empty,
+    body.orders-mode .profile-empty {
       color: var(--owner-text-muted) !important;
     }
 
     body.chat-mode .profile-loading::before,
     body.autopilot-mode .profile-loading::before,
-    body.growth-mode .profile-loading::before {
+    body.growth-mode .profile-loading::before,
+    body.orders-mode .profile-loading::before {
       border-color: rgba(255,255,255,.12) !important;
       border-top-color: var(--owner-accent) !important;
     }
@@ -15880,15 +15895,19 @@
     body.chat-mode .profile-identity-card,
     body.autopilot-mode .profile-identity-card,
     body.growth-mode .profile-identity-card,
+    body.orders-mode .profile-identity-card,
     body.chat-mode .profile-section,
     body.autopilot-mode .profile-section,
     body.growth-mode .profile-section,
+    body.orders-mode .profile-section,
     body.chat-mode .profile-portfolio-summary article,
     body.autopilot-mode .profile-portfolio-summary article,
     body.growth-mode .profile-portfolio-summary article,
+    body.orders-mode .profile-portfolio-summary article,
     body.chat-mode .profile-account-card,
     body.autopilot-mode .profile-account-card,
-    body.growth-mode .profile-account-card {
+    body.growth-mode .profile-account-card,
+    body.orders-mode .profile-account-card {
       border-color: var(--owner-border) !important;
       background: rgba(255,255,255,.03) !important;
       color: var(--owner-text) !important;
@@ -15898,9 +15917,11 @@
     body.chat-mode .profile-identity-card .profile-identity-avatar,
     body.autopilot-mode .profile-identity-card .profile-identity-avatar,
     body.growth-mode .profile-identity-card .profile-identity-avatar,
+    body.orders-mode .profile-identity-card .profile-identity-avatar,
     body.chat-mode .profile-account-card .profile-account-avatar,
     body.autopilot-mode .profile-account-card .profile-account-avatar,
-    body.growth-mode .profile-account-card .profile-account-avatar {
+    body.growth-mode .profile-account-card .profile-account-avatar,
+    body.orders-mode .profile-account-card .profile-account-avatar {
       display: grid !important;
       place-items: center !important;
       margin: 0 !important;
@@ -15913,42 +15934,52 @@
     body.chat-mode .profile-identity-card strong,
     body.autopilot-mode .profile-identity-card strong,
     body.growth-mode .profile-identity-card strong,
+    body.orders-mode .profile-identity-card strong,
     body.chat-mode .profile-section-head strong,
     body.autopilot-mode .profile-section-head strong,
     body.growth-mode .profile-section-head strong,
+    body.orders-mode .profile-section-head strong,
     body.chat-mode .profile-account-card strong,
     body.autopilot-mode .profile-account-card strong,
     body.growth-mode .profile-account-card strong,
+    body.orders-mode .profile-account-card strong,
     body.chat-mode .profile-portfolio-summary b,
     body.autopilot-mode .profile-portfolio-summary b,
-    body.growth-mode .profile-portfolio-summary b {
+    body.growth-mode .profile-portfolio-summary b,
+    body.orders-mode .profile-portfolio-summary b {
       color: var(--owner-text) !important;
     }
 
     body.chat-mode .profile-identity-card span,
     body.autopilot-mode .profile-identity-card span,
     body.growth-mode .profile-identity-card span,
+    body.orders-mode .profile-identity-card span,
     body.chat-mode .profile-section-head span,
     body.autopilot-mode .profile-section-head span,
     body.growth-mode .profile-section-head span,
+    body.orders-mode .profile-section-head span,
     body.chat-mode .profile-account-card small,
     body.autopilot-mode .profile-account-card small,
     body.growth-mode .profile-account-card small,
+    body.orders-mode .profile-account-card small,
     body.chat-mode .profile-portfolio-summary span,
     body.autopilot-mode .profile-portfolio-summary span,
-    body.growth-mode .profile-portfolio-summary span {
+    body.growth-mode .profile-portfolio-summary span,
+    body.orders-mode .profile-portfolio-summary span {
       color: var(--owner-text-muted) !important;
     }
 
     body.chat-mode .profile-account-card .profile-email,
     body.autopilot-mode .profile-account-card .profile-email,
-    body.growth-mode .profile-account-card .profile-email {
+    body.growth-mode .profile-account-card .profile-email,
+    body.orders-mode .profile-account-card .profile-email {
       color: #c99bff !important;
     }
 
     body.chat-mode .profile-field label,
     body.autopilot-mode .profile-field label,
-    body.growth-mode .profile-field label {
+    body.growth-mode .profile-field label,
+    body.orders-mode .profile-field label {
       color: #c5ccdf !important;
       font-size: 10.5px !important;
       font-weight: 760 !important;
@@ -15957,12 +15988,15 @@
     body.chat-mode .profile-field input,
     body.autopilot-mode .profile-field input,
     body.growth-mode .profile-field input,
+    body.orders-mode .profile-field input,
     body.chat-mode .profile-field select,
     body.autopilot-mode .profile-field select,
     body.growth-mode .profile-field select,
+    body.orders-mode .profile-field select,
     body.chat-mode .profile-field textarea,
     body.autopilot-mode .profile-field textarea,
-    body.growth-mode .profile-field textarea {
+    body.growth-mode .profile-field textarea,
+    body.orders-mode .profile-field textarea {
       min-height: 44px !important;
       border: 1px solid var(--owner-border) !important;
       background: var(--owner-surface-input) !important;
@@ -15976,9 +16010,11 @@
     body.chat-mode .profile-field input::placeholder,
     body.autopilot-mode .profile-field input::placeholder,
     body.growth-mode .profile-field input::placeholder,
+    body.orders-mode .profile-field input::placeholder,
     body.chat-mode .profile-field textarea::placeholder,
     body.autopilot-mode .profile-field textarea::placeholder,
-    body.growth-mode .profile-field textarea::placeholder {
+    body.growth-mode .profile-field textarea::placeholder,
+    body.orders-mode .profile-field textarea::placeholder {
       color: #737e99 !important;
       opacity: 1 !important;
     }
@@ -15986,12 +16022,15 @@
     body.chat-mode .profile-field input:focus,
     body.autopilot-mode .profile-field input:focus,
     body.growth-mode .profile-field input:focus,
+    body.orders-mode .profile-field input:focus,
     body.chat-mode .profile-field select:focus,
     body.autopilot-mode .profile-field select:focus,
     body.growth-mode .profile-field select:focus,
+    body.orders-mode .profile-field select:focus,
     body.chat-mode .profile-field textarea:focus,
     body.autopilot-mode .profile-field textarea:focus,
-    body.growth-mode .profile-field textarea:focus {
+    body.growth-mode .profile-field textarea:focus,
+    body.orders-mode .profile-field textarea:focus {
       border-color: rgba(190,124,255,.62) !important;
       background: #0c1327 !important;
       box-shadow: 0 0 0 3px rgba(181,109,255,.14) !important;
@@ -16000,22 +16039,27 @@
     body.chat-mode .profile-field small,
     body.autopilot-mode .profile-field small,
     body.growth-mode .profile-field small,
+    body.orders-mode .profile-field small,
     body.chat-mode .profile-save-note,
     body.autopilot-mode .profile-save-note,
-    body.growth-mode .profile-save-note {
+    body.growth-mode .profile-save-note,
+    body.orders-mode .profile-save-note {
       color: var(--owner-text-muted) !important;
     }
 
     body.chat-mode .profile-save-note.is-error,
     body.autopilot-mode .profile-save-note.is-error,
-    body.growth-mode .profile-save-note.is-error { color: #ffb0bd !important; }
+    body.growth-mode .profile-save-note.is-error,
+    body.orders-mode .profile-save-note.is-error { color: #ffb0bd !important; }
     body.chat-mode .profile-save-note.is-success,
     body.autopilot-mode .profile-save-note.is-success,
-    body.growth-mode .profile-save-note.is-success { color: #8ce7c6 !important; }
+    body.growth-mode .profile-save-note.is-success,
+    body.orders-mode .profile-save-note.is-success { color: #8ce7c6 !important; }
 
     body.chat-mode .profile-save,
     body.autopilot-mode .profile-save,
-    body.growth-mode .profile-save {
+    body.growth-mode .profile-save,
+    body.orders-mode .profile-save {
       min-width: 136px !important;
       height: 44px !important;
       border: 1px solid rgba(226,190,255,.20) !important;
@@ -16036,15 +16080,19 @@
     body.chat-mode .profile-panel button:focus-visible,
     body.autopilot-mode .profile-panel button:focus-visible,
     body.growth-mode .profile-panel button:focus-visible,
+    body.orders-mode .profile-panel button:focus-visible,
     body.chat-mode .profile-panel input:focus-visible,
     body.autopilot-mode .profile-panel input:focus-visible,
     body.growth-mode .profile-panel input:focus-visible,
+    body.orders-mode .profile-panel input:focus-visible,
     body.chat-mode .profile-panel select:focus-visible,
     body.autopilot-mode .profile-panel select:focus-visible,
     body.growth-mode .profile-panel select:focus-visible,
+    body.orders-mode .profile-panel select:focus-visible,
     body.chat-mode .profile-panel textarea:focus-visible,
     body.autopilot-mode .profile-panel textarea:focus-visible,
-    body.growth-mode .profile-panel textarea:focus-visible {
+    body.growth-mode .profile-panel textarea:focus-visible,
+    body.orders-mode .profile-panel textarea:focus-visible {
       outline: 3px solid rgba(181,109,255,.22) !important;
       outline-offset: 2px !important;
     }
@@ -16094,7 +16142,8 @@
 
       body.chat-mode .profile-panel,
     body.autopilot-mode .profile-panel,
-      body.growth-mode .profile-panel { width: 100vw !important; }
+      body.growth-mode .profile-panel,
+    body.orders-mode .profile-panel { width: 100vw !important; }
     }
 
     @media (max-width: 430px) {
@@ -16152,7 +16201,8 @@
     body.growth-mode .brand-mark,
     body.chat-mode .profile-panel-mark,
     body.autopilot-mode .profile-panel-mark,
-    body.growth-mode .profile-panel-mark {
+    body.growth-mode .profile-panel-mark,
+    body.orders-mode .profile-panel-mark {
       border: 1px solid rgba(231, 213, 255, .24) !important;
       background: var(--owner-brand-gradient) !important;
       color: #ffffff !important;
@@ -16174,7 +16224,8 @@
 
     body.chat-mode .profile-menu-button,
     body.autopilot-mode .profile-menu-button,
-    body.growth-mode .profile-menu-button {
+    body.growth-mode .profile-menu-button,
+    body.orders-mode .profile-menu-button {
       border-color: var(--owner-border) !important;
       background: #0d1427 !important;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
@@ -16182,14 +16233,16 @@
 
     body.chat-mode .profile-menu-button:hover,
     body.autopilot-mode .profile-menu-button:hover,
-    body.growth-mode .profile-menu-button:hover {
+    body.growth-mode .profile-menu-button:hover,
+    body.orders-mode .profile-menu-button:hover {
       border-color: var(--owner-accent-border) !important;
       background: #151d33 !important;
     }
 
     body.chat-mode .profile-menu-button span,
     body.autopilot-mode .profile-menu-button span,
-    body.growth-mode .profile-menu-button span {
+    body.growth-mode .profile-menu-button span,
+    body.orders-mode .profile-menu-button span {
       background: #d8c3ff !important;
     }
 
@@ -16758,7 +16811,8 @@
     body.growth-mode #detailDrawer .reconsider-fields select option,
     body.chat-mode .profile-field select option,
     body.autopilot-mode .profile-field select option,
-    body.growth-mode .profile-field select option {
+    body.growth-mode .profile-field select option,
+    body.orders-mode .profile-field select option {
       background: #0b1121 !important;
       color: #f4f6ff !important;
     }
@@ -16793,7 +16847,8 @@
     body.growth-mode #detailDrawer .undo-pass-button,
     body.chat-mode .profile-save,
     body.autopilot-mode .profile-save,
-    body.growth-mode .profile-save {
+    body.growth-mode .profile-save,
+    body.orders-mode .profile-save {
       border: 1px solid rgba(231,213,255,.22) !important;
       background: var(--owner-brand-gradient) !important;
       color: #ffffff !important;
@@ -16836,7 +16891,8 @@
     /* Profile selects use the same dark native menu as the drawer. */
     body.chat-mode .profile-field select,
     body.autopilot-mode .profile-field select,
-    body.growth-mode .profile-field select {
+    body.growth-mode .profile-field select,
+    body.orders-mode .profile-field select {
       appearance: none !important;
       -webkit-appearance: none !important;
       padding-right: 40px !important;
@@ -21859,6 +21915,62 @@
       -webkit-background-clip: text !important;
       background-clip: text !important;
     }
+
+    /* Business profile drawer: the owner-mode rules paint it midnight; in day
+       mode it becomes the same light paper as the board behind it. */
+    body.day-mode .profile-scrim { background: rgba(20, 22, 28, .38) !important; }
+    body.day-mode .profile-panel {
+      border-right-color: rgba(16, 17, 20, .10) !important;
+      background: linear-gradient(180deg, #ffffff, #f6f6f8) !important;
+      color: #101114 !important;
+      box-shadow: 32px 0 96px rgba(30, 34, 42, .18) !important;
+    }
+    body.day-mode .profile-panel-head,
+    body.day-mode .profile-panel-foot {
+      border-color: rgba(16, 17, 20, .10) !important;
+      background: rgba(245, 245, 247, .92) !important;
+    }
+    body.day-mode .profile-panel-title strong { color: #101114 !important; }
+    body.day-mode .profile-panel-title span,
+    body.day-mode .profile-loading,
+    body.day-mode .profile-empty { color: #77787e !important; }
+    body.day-mode .profile-close {
+      border-color: rgba(16, 17, 20, .12) !important;
+      background: rgba(16, 17, 20, .04) !important;
+      color: #3f4149 !important;
+    }
+    body.day-mode .profile-identity-card,
+    body.day-mode .profile-section,
+    body.day-mode .profile-portfolio-summary article,
+    body.day-mode .profile-account-card {
+      border-color: rgba(16, 17, 20, .10) !important;
+      background: #ffffff !important;
+      color: #101114 !important;
+      box-shadow: 0 1px 2px rgba(30, 34, 42, .05) !important;
+    }
+    body.day-mode .profile-identity-card strong,
+    body.day-mode .profile-section-head strong,
+    body.day-mode .profile-account-card strong,
+    body.day-mode .profile-portfolio-summary b { color: #101114 !important; }
+    body.day-mode .profile-identity-card span,
+    body.day-mode .profile-section-head span,
+    body.day-mode .profile-account-card small,
+    body.day-mode .profile-portfolio-summary span { color: #77787e !important; }
+    body.day-mode .profile-field label { color: #52606a !important; }
+    body.day-mode .profile-field input,
+    body.day-mode .profile-field select,
+    body.day-mode .profile-field textarea {
+      border-color: rgba(16, 17, 20, .16) !important;
+      background: #ffffff !important;
+      color: #101114 !important;
+    }
+    body.day-mode .profile-identity-card .profile-identity-avatar,
+    body.day-mode .profile-account-card .profile-account-avatar {
+      border-color: rgba(170, 125, 42, .35) !important;
+      background: rgba(170, 125, 42, .10) !important;
+      color: #8a6420 !important;
+    }
+    body.day-mode .profile-account-card .profile-email { color: #8a6420 !important; }
   </style>
 
 </head>
