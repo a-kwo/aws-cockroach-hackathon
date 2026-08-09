@@ -2084,6 +2084,54 @@ def test_chat_and_supplies_share_the_midnight_shell_without_sharing_the_board():
     assert "body.chat-mode .view-inner.orders-inner" not in html
 
 
+def test_the_live_supplies_board_can_speak_on_its_own_screen():
+    """A refusal must appear where the owner is looking.
+
+    The board's note() routed every message to the chat thread, which was
+    right while the board sat inside the chat canvas — the two were one
+    screen. Since the board moved to its own tab, an approval that fails on
+    limits, a price that moved, or an expired session all announced
+    themselves on a tab the owner is not on, while the button quietly
+    re-enabled. Nothing visible happened, so the owner clicks again.
+
+    The inline note has to survive live mode for that reason, which means
+    hiding the ask *input* rather than the whole command zone that contains
+    it.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    speak = html.split("function note(text, warn)", 1)[1].split("\n        }", 1)[0]
+    # The inline note is written first and unconditionally — no early return
+    # that depends on the chat module being present.
+    assert speak.index('el("ordersAskNote")') < speak.index("__btChatNotify")
+    assert "return;\n          }\n          const target" not in speak
+
+    # Live mode must not hide the element that carries it.
+    chrome = html.split("function applyChrome()", 1)[1].split("\n        }", 1)[0]
+    assert 'querySelector(".orders-zone-command")' not in chrome
+    assert 'el("ordersAskForm")' in chrome
+
+
+def test_the_projection_caption_uses_the_count_the_build_computed():
+    """The chart's caption is a claim about which finds the forecast rests on.
+
+    build_model already writes that sentence into the projected month's
+    `note`, naming one find or N. The page ignored it and hardcoded "One move
+    is still being measured", so a projection resting on three pending finds
+    told the owner it rested on one — a false statement about their money on
+    the one chart that forecasts it.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "One move is still being measured" not in html
+    # Two blocks read #chartNote: the empty-history one, then the real chart.
+    # The second is the one that draws a projection.
+    caption = html.split('const note = document.getElementById("chartNote");')[2]
+    caption = caption.split("note.hidden = true;", 1)[0]
+    assert "projected.note" in caption
+    assert "escapeHtml(rests)" in caption
+
+
 def test_the_doordash_screen_admits_it_is_a_preview():
     """The static build's DoorDash screen is sample data, and must say so.
 

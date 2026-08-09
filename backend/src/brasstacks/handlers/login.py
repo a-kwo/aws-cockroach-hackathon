@@ -94,8 +94,15 @@ def login(event: Any, *, repo: Any, now: datetime | None = None) -> dict[str, An
     # by Sign in with Google, where `password_hash` is NULL. `verify_password`
     # already refuses a null hash, but it refuses it *instantly*, which would
     # make "this username signs in with Google" measurable from outside.
+    #
+    # The decoy buys constant work and NOTHING ELSE. It is a real hash of a
+    # string literal in a public repo, so a passwordless account must be
+    # refused on the absence of a password rather than on the comparison —
+    # otherwise anyone who can read this file and guess a username owns that
+    # tenant, and the token they get is the whole tenant boundary.
     stored = (account or {}).get("password_hash") or _DECOY_HASH
-    if not verify_password(password, stored) or account is None:
+    verified = verify_password(password, stored)
+    if account is None or not account.get("password_hash") or not verified:
         return respond(401, dict(REFUSAL))
 
     token, fingerprint, expires_at = issue_session_token(now=moment)
