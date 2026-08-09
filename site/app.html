@@ -22814,7 +22814,11 @@
       //  ordering is exactly what this fix cannot depend on.
       let session = null;
       try {
-        session = JSON.parse(localStorage.getItem("brass-tacks-session-v1") || "null");
+        //  Slot-aware even here, before SESSION_KEY exists: an admin window
+        //  reads the admin token so snapshot scrubbing matches the window.
+        const slot = new URLSearchParams(window.location.search).get("workspace") === "admin"
+          ? "brass-tacks-admin-session-v1" : "brass-tacks-session-v1";
+        session = JSON.parse(localStorage.getItem(slot) || "null");
       } catch (_) { /* no session, or unreadable — treat the snapshot as public */ }
 
       const signedInAs = session && session.businessId ? String(session.businessId) : "";
@@ -22835,6 +22839,13 @@
     const ONBOARDING_PROFILE_KEY = "brass-tacks-onboarding-profile-v1";
     const appQuery = new URLSearchParams(window.location.search);
     const sampleWorkspaceMode = appQuery.get("demo") === "1";
+    //  An operator can hold both an owner session and an admin session in the
+    //  same browser at once — one per window. ?workspace=admin points this
+    //  window at the admin slot; without it the window is the owner's board.
+    //  Everything downstream keys off SESSION_KEY, so this one flag routes the
+    //  whole window to the right session, and signing out of one leaves the
+    //  other untouched.
+    const ADMIN_VIEW = appQuery.get("workspace") === "admin";
     // SES review emails link to a specific durable task. The first live
     // /workflow read resolves that task inside the authenticated tenant and
     // opens its exact recommendation/draft; the URL never carries credentials.
@@ -23545,7 +23556,12 @@
     //  session -- the static snapshot is the public demo, and the README leads
     //  with "see it in 30 seconds with no credentials" -- but a session is what
     //  makes the live overlay and any write belong to a specific business.
-    const SESSION_KEY = "brass-tacks-session-v1";
+    //  Two slots, one per role, so an owner window and an admin window never
+    //  clobber each other's token. SESSION_KEY resolves to whichever this
+    //  window is — the rest of the file reads and clears it without caring.
+    const OWNER_SESSION_KEY = "brass-tacks-session-v1";
+    const ADMIN_SESSION_KEY = "brass-tacks-admin-session-v1";
+    const SESSION_KEY = ADMIN_VIEW ? ADMIN_SESSION_KEY : OWNER_SESSION_KEY;
 
     function readSession() {
       try {
@@ -23720,7 +23736,9 @@
     //  themselves up, because the snapshot is one specific business and every
     //  visitor saw it as theirs. No session, no board.
     if (!readSession()) {
-      window.location.replace("../login/");
+      //  Send an admin window back to the login preselected on Operator, so a
+      //  re-sign lands in the admin slot and this same window again.
+      window.location.replace(ADMIN_VIEW ? "../login/?role=operator" : "../login/");
     }
 
     const decisionApiConfigured = Boolean(String(btData.api?.decisionEndpoint || "").trim());

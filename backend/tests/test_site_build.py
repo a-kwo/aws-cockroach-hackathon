@@ -1463,6 +1463,31 @@ def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
     assert "SQL-only CockroachDB read" in APP
 
 
+def test_login_offers_owner_and_operator_roles_with_separate_sessions():
+    """An operator holds an owner session and an admin session at once, one per
+    window. The login page is where the role is chosen, and each role lands in
+    its own localStorage slot so neither login evicts the other."""
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+
+    assert 'data-role="owner"' in html
+    assert 'data-role="operator"' in html
+    assert 'ADMIN_SESSION_KEY = "brass-tacks-admin-session-v1"' in html
+    # Operator lands in the admin slot and opens the admin window; owner keeps
+    # the original slot and the plain board.
+    assert "operator ? ADMIN_SESSION_KEY : SESSION_KEY" in html
+    assert '"../app/?workspace=admin"' in html
+
+
+def test_app_routes_each_window_to_its_own_session_slot():
+    """?workspace=admin points a window at the admin slot; without it the window
+    is the owner's board. Everything downstream keys off SESSION_KEY, so a
+    single flag routes the whole window and signing out of one leaves the
+    other's token in place."""
+    assert 'ADMIN_SESSION_KEY = "brass-tacks-admin-session-v1"' in APP
+    assert 'appQuery.get("workspace") === "admin"' in APP
+    assert "SESSION_KEY = ADMIN_VIEW ? ADMIN_SESSION_KEY : OWNER_SESSION_KEY" in APP
+
+
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
@@ -1527,7 +1552,9 @@ def test_the_login_page_posts_to_the_login_endpoint():
 
 def test_the_login_page_stores_only_the_session():
     html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
-    stored = html.split("localStorage.setItem(SESSION_KEY", 1)[1][:220]
+    stored = html.split(
+        "localStorage.setItem(operator ? ADMIN_SESSION_KEY : SESSION_KEY,", 1
+    )[1][:220]
 
     assert "token:" in stored
     assert "businessId:" in stored
@@ -1753,7 +1780,9 @@ def test_the_board_requires_a_session():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "if (!readSession()) {" in html
-    assert 'window.location.replace("../login/")' in html
+    # An owner window goes to the plain login; an admin window is sent back
+    # preselected on Operator. Either way, no session means the login page.
+    assert 'window.location.replace(ADMIN_VIEW ? "../login/?role=operator" : "../login/")' in html
 
 
 def test_a_business_with_no_night_is_not_told_it_is_caught_up():
@@ -2276,7 +2305,10 @@ def test_the_snapshot_is_scrubbed_when_it_is_not_the_signed_in_tenants():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     block = html.split("const btData = (() => {", 1)[1].split("})();", 1)[0]
 
-    assert 'localStorage.getItem("brass-tacks-session-v1")' in block
+    # The read is slot-aware now (an admin window scrubs against its own token),
+    # but it still reads a session to decide whose snapshot this is.
+    assert '"brass-tacks-session-v1"' in block
+    assert 'get("workspace") === "admin"' in block
     assert "signedInAs === snapshotOf" in block
     assert 'const KEEP = new Set(["api", "backdrop"]);' in block
 

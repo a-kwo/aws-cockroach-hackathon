@@ -68,7 +68,39 @@ main { display: grid; place-items: center; padding: 60px 24px 80px; }
 .kicker { display: inline-flex; align-items: center; gap: 8px; color: var(--teal); font-size: 11px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
 .kicker i { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 6px var(--teal-soft); }
 h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04em; font-weight: 720; }
-.lede { margin: 12px 0 26px; color: var(--soft); font-size: 14px; line-height: 1.5; }
+.lede { margin: 12px 0 22px; color: var(--soft); font-size: 14px; line-height: 1.5; }
+
+/* Role choice: sign in as the business owner or as an operator. The operator
+   session is a separate slot, so both can be open at once in two windows. */
+.role-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(53,61,66,.05);
+}
+.role-option {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--soft);
+  font-size: 13px;
+  font-weight: 720;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.role-option:hover { color: var(--ink); }
+.role-option.is-active {
+  border-color: rgba(43,129,114,.30);
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(37,43,47,.08);
+}
+.role-hint { margin: 0 0 20px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
 
 .field { margin-bottom: 16px; }
 .field label { display: block; margin: 0 0 8px; color: var(--ink-2); font-size: 12px; font-weight: 760; }
@@ -173,6 +205,12 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
     <h1>Your morning board.</h1>
     <p class="lede">The agents worked overnight. Sign in to see what they found.</p>
 
+    <div class="role-choice" role="tablist" aria-label="Sign in as">
+      <button type="button" class="role-option is-active" data-role="owner" role="tab" aria-selected="true">Business owner</button>
+      <button type="button" class="role-option" data-role="operator" role="tab" aria-selected="false">Operator</button>
+    </div>
+    <p class="role-hint" id="roleHint">Opens your board. You can be signed in as both at once — each in its own window.</p>
+
     <form id="loginForm" novalidate>
       <div class="field">
         <label for="username">Username</label>
@@ -212,11 +250,38 @@ const endpoint = String(DATA.api?.loginEndpoint || "").trim();
 //  Where the board looks for a session. Only the token, the business it opens,
 //  and when it stops working -- never the password, which is sent once and
 //  never stored anywhere in the browser.
+//
+//  Two slots, one per role: an operator can sign into their board and the
+//  Memory Engine at the same time, in two windows, without one login evicting
+//  the other. The role chosen here decides which slot the session lands in and
+//  which window the sign-in opens.
 const SESSION_KEY = "brass-tacks-session-v1";
+const ADMIN_SESSION_KEY = "brass-tacks-admin-session-v1";
 
 const form = document.getElementById("loginForm");
 const button = document.getElementById("submit");
 const error = document.getElementById("error");
+
+//  Role choice. Owner is the default; the admin gate can preselect Operator by
+//  sending the person back here with ?role=operator.
+let selectedRole = "owner";
+const roleButtons = Array.from(document.querySelectorAll(".role-option"));
+const roleHint = document.getElementById("roleHint");
+function setRole(role) {
+  selectedRole = role === "operator" ? "operator" : "owner";
+  roleButtons.forEach(b => {
+    const on = b.dataset.role === selectedRole;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-selected", String(on));
+  });
+  if (roleHint) {
+    roleHint.textContent = selectedRole === "operator"
+      ? "Opens the Memory Engine. It stays separate from any owner session you already have open."
+      : "Opens your board. You can be signed in as both at once — each in its own window.";
+  }
+}
+roleButtons.forEach(b => b.addEventListener("click", () => setRole(b.dataset.role)));
+if (new URLSearchParams(window.location.search).get("role") === "operator") setRole("operator");
 
 function fail(message) {
   error.textContent = message;
@@ -256,7 +321,8 @@ form.addEventListener("submit", async event => {
       return;
     }
 
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
+    const operator = selectedRole === "operator";
+    localStorage.setItem(operator ? ADMIN_SESSION_KEY : SESSION_KEY, JSON.stringify({
       token: payload.token,
       businessId: payload.business_id,
       expiresAt: payload.expires_at,
@@ -265,7 +331,9 @@ form.addEventListener("submit", async event => {
       //  request, so editing this in devtools buys a 403.
       isAdmin: Boolean(payload.is_admin),
     }));
-    window.location.href = "../app/";
+    //  Operator opens the admin window; owner opens the board. The window flag
+    //  is what points the app at the matching session slot.
+    window.location.href = operator ? "../app/?workspace=admin" : "../app/";
   } catch (e) {
     fail("Could not reach the server. Check your connection and try again.");
   } finally {
