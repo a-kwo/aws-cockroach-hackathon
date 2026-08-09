@@ -83,3 +83,11 @@ v8-analyst-trace-focus.png
 # transient headless-screenshot chrome profiles
 .prof*/
 .shots/
+
+# transient headless-browser scratch profiles
+.n/
+.d/
+.n2/
+.d2/
+.pf/
+.pfd/

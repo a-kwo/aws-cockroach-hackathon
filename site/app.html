@@ -21539,10 +21539,13 @@
     body.autopilot-mode .feed-plan > summary::-webkit-details-marker,
     body.autopilot-mode .feed-more > summary::-webkit-details-marker { display: none; }
 
+    /* The row's own text is the label now (the bold left labels were removed),
+       so it is the prominent, larger text. */
     body.autopilot-mode .feed-plan > summary small,
-    body.autopilot-mode .feed-more > summary small {
-      color: #7f88a1;
-      font-size: 10.5px;
+    body.autopilot-mode .feed-more > summary small,
+    body.autopilot-mode .feed-detail-evidence small {
+      color: #d3d0ec;
+      font-size: 14px;
       font-weight: 600;
     }
 
@@ -21569,8 +21572,9 @@
 
     body.autopilot-mode .feed-more-body .feed-glance-heading { margin-top: 14px; }
 
-    /* Evidence lives at the foot of KEY DETAILS now — the sources behind the
-       brief, one tap from the numbers they support. */
+    /* Evidence reads exactly like the two disclosures above it: same faint
+       surface, label + count, and a chevron — one consistent set of rows,
+       same size and weight. */
     body.autopilot-mode .feed-detail-evidence {
       width: 100%;
       margin-top: 12px;
@@ -21578,32 +21582,35 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 12px 14px;
-      border: 1px solid rgba(196, 160, 255, .26);
+      padding: 11px 14px;
+      border: 1px solid rgba(205, 214, 255, .12);
       border-radius: 13px;
-      background: rgba(141, 69, 255, .08);
-      color: var(--owner-copy);
+      background: rgba(255, 255, 255, .022);
+      color: #cbb6f4;
       font: inherit;
+      font-size: 12.5px;
+      font-weight: 700;
       cursor: pointer;
       transition: border-color .15s ease, background .15s ease;
     }
 
     body.autopilot-mode .feed-detail-evidence:hover {
-      border-color: rgba(196, 160, 255, .5);
-      background: rgba(141, 69, 255, .13);
+      border-color: rgba(205, 214, 255, .22);
+      background: rgba(255, 255, 255, .045);
     }
 
-    body.autopilot-mode .feed-detail-evidence-copy {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      font-size: 13px;
-    }
 
-    body.autopilot-mode .feed-detail-evidence-copy i { color: #c9a9ff; display: inline-flex; }
-    body.autopilot-mode .feed-detail-evidence-copy i svg { width: 18px; height: 18px; }
-    body.autopilot-mode .feed-detail-evidence-copy strong { color: var(--owner-ink); }
-    body.autopilot-mode .feed-detail-evidence-cta { color: #c9a9ff; font-size: 12px; font-weight: 700; }
+    body.autopilot-mode .feed-detail-evidence::after {
+      content: "";
+      flex: none;
+      width: 7px;
+      height: 7px;
+      border-right: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor;
+      transform: rotate(-45deg);
+      opacity: .7;
+      margin-left: 4px;
+    }
   </style>
 
   <!--
@@ -22285,22 +22292,19 @@
     body.day-mode.autopilot-mode .feed-card .impact-summary b,
     body.day-mode.autopilot-mode .feed-card .impact-summary span small,
     body.day-mode.autopilot-mode .feed-card .feed-next-heading span,
-    body.day-mode.autopilot-mode .feed-card .feed-plan > summary small,
-    body.day-mode.autopilot-mode .feed-card .feed-more > summary small,
     body.day-mode.autopilot-mode .feed-card .feed-detail-heading > span,
     body.day-mode.autopilot-mode .feed-card .feed-glance-heading > span,
     body.day-mode.autopilot-mode .feed-card .feed-detail-row dt,
     body.day-mode.autopilot-mode .feed-card .feed-proof-item span,
     body.day-mode.autopilot-mode .feed-card .feed-read-time { color: #6a6b72 !important; }
 
-    /* Section-toggle titles ("More detail", "Then N more steps"). */
-    body.day-mode.autopilot-mode .feed-card .feed-plan > summary > span,
-    body.day-mode.autopilot-mode .feed-card .feed-more > summary > span,
-    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence-copy strong { color: #101114 !important; }
+    /* The three panel rows now carry only their own text (the bold left labels
+       were removed), so that text is the prominent one and reads dark in day. */
+    body.day-mode.autopilot-mode .feed-card .feed-plan > summary small,
+    body.day-mode.autopilot-mode .feed-card .feed-more > summary small,
+    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence small { color: #101114 !important; }
 
-    /* Gold links / evidence CTA and the proof-strip figure. */
-    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence-copy i,
-    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence-cta,
+    /* Proof-strip figure. */
     body.day-mode.autopilot-mode .feed-card .feed-proof-button strong { color: #8a6420 !important; }
 
     /* The info button top-right of the card. */
@@ -23857,7 +23861,6 @@
             </div>
             <details class="feed-plan">
               <summary>
-                <span>${restCount ? `Then ${restCount} more step${restCount === 1 ? "" : "s"}` : "Execution plan"}</span>
                 <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
               </summary>
               <div class="feed-plan-body">${renderSteps(post)}</div>
@@ -23865,7 +23868,7 @@
           </div>
 
           <details class="feed-more">
-            <summary><span>More detail</span><small>Costs, category &amp; goals</small></summary>
+            <summary><small>Costs, category &amp; goals</small></summary>
             <div class="feed-more-body">
               <dl class="feed-detail-list">
                 ${moreRows.map(rowHtml).join("")}
@@ -23892,12 +23895,8 @@
 
           <button class="feed-detail-evidence" type="button" data-open-evidence="${escapeHtml(post.id)}"
                   aria-haspopup="dialog"
-                  aria-label="Open ${escapeHtml(String(evidenceCount))} evidence rows for ${escapeHtml(post.title)}">
-            <span class="feed-detail-evidence-copy">
-              <i>${feedDetailIcon("evidence")}</i>
-              <span><strong>${escapeHtml(String(evidenceCount))}</strong> ${evidenceCount === 1 ? "evidence row" : "evidence rows"}</span>
-            </span>
-            <span class="feed-detail-evidence-cta">View sources ›</span>
+                  aria-label="View evidence — ${escapeHtml(String(evidenceCount))} ${evidenceCount === 1 ? "source" : "sources"} for ${escapeHtml(post.title)}">
+            <small>${escapeHtml(String(evidenceCount))} evidence</small>
           </button>
         </aside>`;
     }
