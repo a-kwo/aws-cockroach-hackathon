@@ -20319,10 +20319,14 @@
 
     .chat-shell {
       display: grid;
-      grid-template-columns: minmax(330px, 410px) minmax(0, 1fr);
+      /* One part conversation to two parts canvas. The chat was capped at a
+         fixed 410px while the canvas took everything left over, which read
+         as roughly 1:2.5 on a wide screen — the thread looked like a
+         sidebar next to the document rather than half the product. */
+      grid-template-columns: minmax(330px, 1fr) minmax(0, 2fr);
       gap: 16px;
-      /* The stat cards moved into the right column, so the chat now owns the
-         full height beside the topbar — nothing sits above it. */
+      /* The stat bar moved out to Supplies, so the chat owns the full height
+         beside the topbar — nothing sits above it. */
       height: calc(100dvh - 96px);
       min-height: 540px;
     }
