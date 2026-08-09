@@ -66,7 +66,7 @@ class TestStandingOrders:
 class TestAuthorities:
     def test_an_added_authority_comes_back(self, store):
         store.add_authority(BIZ, scope="produce", level="auto",
-                            per_order_cap_cents=120_00)
+                            per_order_cap_cents=120_00, period_cap_cents=300_00)
         rows = store.list_authorities(BIZ)
         assert rows[0]["scope"] == "produce"
         assert rows[0]["per_order_cap_cents"] == 120_00
@@ -86,9 +86,27 @@ class TestAuthorities:
             store.add_authority(BIZ, scope="flour", level="ask_if_over",
                                 per_order_cap_cents=80_00)
 
+    def test_auto_requires_a_weekly_cap(self, store):
+        # "Buy on its own" without a rolling ceiling is a runaway-spend hole:
+        # a per-order cap alone lets the agent place that amount every day.
+        with pytest.raises(ValueError):
+            store.add_authority(BIZ, scope="produce", level="auto",
+                                per_order_cap_cents=120_00)
+
+    def test_auto_with_a_weekly_cap_is_allowed(self, store):
+        store.add_authority(BIZ, scope="produce", level="auto",
+                            per_order_cap_cents=120_00, period_cap_cents=300_00)
+        assert store.list_authorities(BIZ)[0]["period_cap_cents"] == 300_00
+
+    def test_ask_levels_do_not_require_a_weekly_cap(self, store):
+        # Only auto spends unattended, so only auto needs the ceiling.
+        store.add_authority(BIZ, scope="saffron", level="ask_always",
+                            per_order_cap_cents=500_00)
+        assert store.list_authorities(BIZ)[0]["scope"] == "saffron"
+
     def test_tenant_scoped(self, store):
         store.add_authority(BIZ, scope="produce", level="auto",
-                            per_order_cap_cents=100)
+                            per_order_cap_cents=100, period_cap_cents=500)
         assert store.list_authorities(OTHER) == []
 
 

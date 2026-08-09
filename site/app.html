@@ -21631,7 +21631,7 @@
                 </label>
                 <label>Per-order cap ($)<input type="text" name="per_order" inputmode="decimal" placeholder="120.00" required /></label>
                 <label data-threshold-field hidden>Ask above ($)<input type="text" name="threshold" inputmode="decimal" placeholder="20.00" /></label>
-                <label>Weekly cap ($, optional)<input type="text" name="period_cap" inputmode="decimal" placeholder="200.00" /></label>
+                <label data-weekly-field>Weekly cap ($)<span class="orders-req" hidden> · required for auto</span><input type="text" name="period_cap" inputmode="decimal" placeholder="200.00" /></label>
                 <div class="orders-form-actions">
                   <button type="submit" class="orders-btn primary small">Save</button>
                   <button type="button" class="orders-btn ghost small" data-form-cancel>Cancel</button>
@@ -31538,8 +31538,15 @@ ledger_entry · artifact · agent_run`,
         });
 
         el("ordersLimitsForm")?.querySelector('[name="level"]')?.addEventListener("change", event => {
-          const threshold = el("ordersLimitsForm").querySelector("[data-threshold-field]");
+          const form = el("ordersLimitsForm");
+          const threshold = form.querySelector("[data-threshold-field]");
           if (threshold) threshold.hidden = event.target.value !== "ask_if_over";
+          // "Buy on its own" must carry a weekly ceiling — surface it as
+          // required the moment auto is chosen.
+          const weekly = form.querySelector("[data-weekly-field] input");
+          if (weekly) weekly.required = event.target.value === "auto";
+          const weeklyLabel = form.querySelector("[data-weekly-field] .orders-req");
+          if (weeklyLabel) weeklyLabel.hidden = event.target.value !== "auto";
         });
 
         el("ordersSupplierSelect")?.addEventListener("change", event => {
@@ -31586,6 +31593,10 @@ ledger_entry · artifact · agent_run`,
           if (threshold === undefined) return;
           const periodCap = parseDollars(form.period_cap.value, "The weekly cap");
           if (periodCap === undefined) return;
+          if (form.level.value === "auto" && !periodCap) {
+            note("An auto-buy limit needs a weekly cap — otherwise it could place that amount every day.", true);
+            return;
+          }
           const answer = await act("limits", {
             scope: form.scope.value.trim(),
             level: form.level.value,

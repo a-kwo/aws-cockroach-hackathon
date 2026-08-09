@@ -107,7 +107,8 @@ class TestState:
         board.store.add_standing(board.business_id, name="Produce",
                                  items=[["tomatoes", 8]], weekday=1)
         board.store.add_authority(board.business_id, scope="produce",
-                                  level="auto", per_order_cap_cents=120_00)
+                                  level="auto", per_order_cap_cents=120_00,
+                                  period_cap_cents=300_00)
         board.store.add_stock(board.business_id, name="tomatoes", reorder_at=7,
                               usage_per_week=7,
                               last_purchased_on=TODAY - timedelta(days=9),
@@ -122,7 +123,8 @@ class TestState:
 class TestAsk:
     def test_a_covered_ask_places_pays_and_records(self, board):
         board.store.add_authority(board.business_id, scope="tomatoes",
-                                  level="auto", per_order_cap_cents=100_00)
+                                  level="auto", per_order_cap_cents=100_00,
+                                  period_cap_cents=300_00)
         response = board.call(method="POST", action="ask",
                               body={"text": "order 2 tomatoes"})
         answer = board.body(response)
@@ -149,7 +151,8 @@ class TestAsk:
         board.store.add_stock(board.business_id, name="tomatoes", reorder_at=7,
                               usage_per_week=7)
         board.store.add_authority(board.business_id, scope="tomatoes",
-                                  level="auto", per_order_cap_cents=100_00)
+                                  level="auto", per_order_cap_cents=100_00,
+                                  period_cap_cents=300_00)
         board.call(method="POST", action="ask",
                    body={"text": "order 2 tomatoes"})
         row = board.store.list_stock(board.business_id)[0]
@@ -278,7 +281,8 @@ class TestStanding:
 
     def test_run_now_prices_against_the_limits(self, board):
         board.store.add_authority(board.business_id, scope="produce",
-                                  level="auto", per_order_cap_cents=200_00)
+                                  level="auto", per_order_cap_cents=200_00,
+                                  period_cap_cents=500_00)
         sid = board.store.add_standing(board.business_id, name="Produce",
                                        items=[["tomatoes", 8]], weekday=1,
                                        category="produce")
@@ -329,7 +333,8 @@ class TestStock:
     def test_a_draft_always_stops_for_approval(self, board):
         # However generous the limits: a depletion figure is an estimate.
         board.store.add_authority(board.business_id, scope="tomatoes",
-                                  level="auto", per_order_cap_cents=999_00)
+                                  level="auto", per_order_cap_cents=999_00,
+                                  period_cap_cents=9999_00)
         sid = board.store.add_stock(board.business_id, name="tomatoes",
                                     reorder_at=7, usage_per_week=7,
                                     reorder_quantity=12)
@@ -420,7 +425,8 @@ class TestSupplierSwitch:
         board.store.set_supplier(board.business_id, supplier="email",
                                  supplier_email="orders@wholesaler.example")
         board.store.add_authority(board.business_id, scope="tomatoes",
-                                  level="auto", per_order_cap_cents=100_00)
+                                  level="auto", per_order_cap_cents=100_00,
+                                  period_cap_cents=300_00)
         answer = json.loads(self.call(
             board, method="POST", action="ask",
             body={"text": "order 2 tomatoes"})["body"])
@@ -472,3 +478,25 @@ class TestSimpleParse:
 
     def test_unknown_words_read_as_nothing(self):
         assert simple_parse("how did we do last month?", CATALOGUE) == []
+
+    def test_a_substring_is_not_a_match(self):
+        # "price" must not order rice; "milkshake" must not order milk. The old
+        # substring match did exactly that.
+        cat = {"rice": 6_50, "milk": 4_49}
+        assert simple_parse("what's the price today?", cat) == []
+        assert simple_parse("do we sell a milkshake?", cat) == []
+
+    def test_a_real_word_still_matches(self):
+        cat = {"rice": 6_50}
+        assert ("rice", 1) in simple_parse("order rice", cat)
+
+    def test_compound_items_match_on_full_name(self):
+        cat = {"coffee beans": 14_00}
+        assert ("coffee beans", 2) in simple_parse(
+            "order 2 bags of coffee beans", cat)
+
+    def test_a_plural_is_accepted(self):
+        cat = {"milk": 4_49, "egg": 5_75}
+        items = simple_parse("order 3 milks and some eggs", cat)
+        assert ("milk", 3) in items
+        assert ("egg", 1) in items

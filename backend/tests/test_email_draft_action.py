@@ -22,9 +22,9 @@ class FakeSes:
     def __init__(self):
         self.sent = []
 
-    def __call__(self, *, source, recipient, subject, body):
+    def __call__(self, *, source, recipient, subject, body, html=None):
         self.sent.append({"source": source, "recipient": recipient,
-                          "subject": subject, "body": body})
+                          "subject": subject, "body": body, "html": html})
         return f"ses-{len(self.sent)}"
 
 
@@ -130,6 +130,20 @@ class TestConfirmingTheProfileEmailFirst:
         ses = FakeSes()
         call(repo, token, find_id=find_id, confirmed=True, ses=ses)
         assert "anyone else" in ses.sent[0]["body"]
+
+    def test_the_email_is_styled_html_not_just_text(self):
+        # The reported gripe: plain text looked unprofessional. The send now
+        # carries a review-ready HTML part with the draft framed inside it.
+        repo, business_id, _, token = owner()
+        find_id = a_find(repo, business_id,
+                         move="Ask your host to switch checkout back on.")
+        ses = FakeSes()
+        call(repo, token, find_id=find_id, confirmed=True, ses=ses)
+        html = ses.sent[0]["html"]
+        assert html and "<html" in html.lower()
+        assert "BRASS TACKS" in html
+        assert "switch checkout back on" in html
+        assert ses.sent[0]["subject"].startswith("Review-ready draft:")
 
     def test_the_maker_artifact_body_wins_over_the_raw_move(self):
         repo, business_id, _, token = owner()

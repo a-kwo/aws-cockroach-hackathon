@@ -6,7 +6,11 @@ import json
 from datetime import date, datetime, timedelta, timezone
 
 from brasstacks.artifacts import FakeArtifactStore
-from brasstacks.handlers.ask import is_revision_request, perform_revision
+from brasstacks.handlers.ask import (
+    MAX_REVISIONS,
+    is_revision_request,
+    perform_revision,
+)
 from brasstacks.handlers.maker import process_task
 from brasstacks.handlers.maker_email import notify
 from brasstacks.handlers.ses_event import process_event
@@ -374,6 +378,28 @@ def test_chat_revision_keeps_history_and_creates_one_new_current_version():
     assert [event.event_type for event in repo.task_events(task.task_id)].count(
         "task.revision_requested"
     ) == 1
+
+
+def test_revision_is_capped_to_stop_an_endless_loop():
+    # Past the ceiling, another pass is rarely the answer. The agent stops
+    # queuing, spends no tokens, and nudges toward accept-or-rethink.
+    repo, business_id, account_id, find_id, task = setup_task()
+    repo.insert_artifact(
+        find_id=find_id, kind="general_draft", title="converged",
+        body="the sixth version", review_state="ready_for_review",
+        revision=MAX_REVISIONS)
+    queue = FakeQueue()
+
+    response = perform_revision(
+        repo=repo, business_id=business_id, find_id=find_id,
+        request_text="revise again", timestamp=NOW + timedelta(minutes=9),
+        queue_client=queue, maker_queue_url="https://sqs.example/maker.fifo",
+        requested_by_account_id=account_id, model_id="claude-opus-5")
+
+    payload = json.loads(response["body"])
+    assert payload["action"]["status"] == "revision_limit"
+    assert payload["action"]["revision"] == MAX_REVISIONS
+    assert len(queue.calls) == 0  # nothing queued past the ceiling
 
 
 def test_common_owner_commands_are_recognised_as_draft_revisions():

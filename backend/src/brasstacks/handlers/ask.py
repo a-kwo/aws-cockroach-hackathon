@@ -35,6 +35,11 @@ CONTEXT_CHAR_BUDGET = 3600
 UNDO_PASS_ACTION = "undo_pass"
 RECONSIDER_ACTION = "reconsider"
 REVISE_DRAFT_ACTION = "revise_draft"
+#: A soft ceiling on Maker revisions of one draft. Past this, another pass is
+#: rarely the answer — the draft has either converged or the recommendation
+#: itself needs rethinking — so the agent stops queuing and says so rather than
+#: spending tokens on an endless revise loop.
+MAX_REVISIONS = 6
 #: Email the owner *their own* draft — delivering a document to them, not
 #: executing the move on the world. Safe by construction: it goes only to the
 #: owner's confirmed address and nowhere else.
@@ -223,6 +228,23 @@ def is_revision_request(question: str) -> bool:
 def parse_question(event: Any) -> str:
     """Backward-compatible helper used by existing tests and callers."""
     return parse_request(event)[0]
+
+
+def _embed_with_retry(embedder: Any, text: str,
+                      *, attempts: int = 2) -> list[float] | None:
+    """Embed one string, retrying once on a transient failure.
+
+    Returns the vector, or ``None`` when every attempt failed so the caller
+    degrades to recent-only memory rather than dying. A single immediate retry
+    costs little and clears most network blips; there is deliberately no sleep,
+    to stay well inside the request's time budget.
+    """
+    for _ in range(max(1, attempts)):
+        try:
+            return list(embedder.embed([text])[0])
+        except Exception:
+            continue
+    return None
 
 
 def _business_for_event(
@@ -780,6 +802,24 @@ def perform_revision(
         return respond(404, {"error": "recommendation is no longer available"})
     if context.status != "accepted":
         return respond(409, {"error": "approve this recommendation before revising its draft"})
+
+    # Soft revision ceiling: stop the endless "revise again" loop before it
+    # burns tokens on a draft that has stopped improving.
+    existing = repo.get_artifacts(find_id) if hasattr(repo, "get_artifacts") else []
+    current_revision = max(
+        (int(getattr(a, "revision", 1) or 1) for a in existing), default=0)
+    if current_revision >= MAX_REVISIONS:
+        return respond(200, {
+            "answer": (f"This draft has already been through {current_revision} "
+                       "revisions and looks to have converged. Accept it as it "
+                       "stands, or if it still isn't right the recommendation "
+                       "itself may need rethinking rather than another pass — I "
+                       "haven't queued one."),
+            "action": {"type": REVISE_DRAFT_ACTION, "status": "revision_limit",
+                       "revision": current_revision},
+            "find_id": find_id,
+        })
+
     try:
         task = repo.request_maker_revision(
             business_id=business_id,
@@ -1073,17 +1113,20 @@ def answer_question(
     # Prefer semantic retrieval. A temporary embedding failure must not turn the
     # chat box into a dead control: recent durable memory plus live MCP queries
     # still produce a useful answer, and the new turn is stored without a vector.
-    question_embedding = None
+    # One immediate retry catches a transient network blip before degrading.
     relevant: list[Any] = []
     embedding_fallback = False
     embedding_calls = 0
-    try:
-        [question_embedding] = embedder.embed([question])
+    question_embedding = _embed_with_retry(embedder, question)
+    if question_embedding is not None:
         embedding_calls = 1
-        relevant = repo.search_chat_messages(
-            business_id, question_embedding, limit=RELEVANT_MESSAGES_LIMIT
-        )
-    except Exception:
+        try:
+            relevant = repo.search_chat_messages(
+                business_id, question_embedding, limit=RELEVANT_MESSAGES_LIMIT
+            )
+        except Exception:
+            embedding_fallback = True
+    else:
         embedding_fallback = True
 
     # Continuity belongs to the owner, not only to the recommendation drawer
@@ -1174,6 +1217,10 @@ def answer_question(
             },
         })
 
+    # The answer is stored without a vector on purpose: semantic retrieval
+    # searches owner messages only, so the agent never echoes its own prior
+    # prose back to itself as "memory". See
+    # test_semantic_chat_retrieval_searches_owner_messages_only.
     assistant_message_id = None
     storage_error = None
     try:
@@ -1199,6 +1246,7 @@ def answer_question(
     )
     return respond(200, {
         "answer": result.answer.text,
+        "truncated": bool(getattr(result.answer, "truncated", False)),
         "queried_the_cluster": result.answer.queried_the_cluster,
         "trail": trail_lines(result.answer),
         "run_id": result.run_id,
@@ -1248,6 +1296,63 @@ def _draft_for_find(repo: Any, find_id: str) -> tuple[str | None, str | None]:
     ))
     body = getattr(artifact, "body", None) or getattr(artifact, "preview", None)
     return getattr(artifact, "title", None), (body or None)
+
+
+def render_draft_email(title: str, body_text: str, *,
+                       business_name: str = "") -> dict[str, str]:
+    """A review-ready draft email, in the Maker's visual language.
+
+    Plain text carries the same content for clients that refuse HTML; the HTML
+    part is the styled version the owner actually reads — a cream page, a white
+    card, the draft body in its own framed block, and the standing promise that
+    nothing was sent on their behalf.
+    """
+    import html as _html
+
+    safe_title = _html.escape(title)
+    who = (business_name or "").strip()
+    intro = (f"Here is the draft for \"{title}\""
+             + (f" from {who}'s Brass Tacks board" if who
+                else " from your Brass Tacks board")
+             + ", ready for you to use.")
+
+    blocks = [block for block in
+              str(body_text or "").replace("\r\n", "\n").split("\n\n")
+              if block.strip()]
+    body_html = "".join(
+        '<p style="font-size:15px;line-height:1.65;color:#20282d;margin:0 0 14px">'
+        + _html.escape(block).replace("\n", "<br>")
+        + "</p>"
+        for block in blocks
+    ) or '<p style="color:#56636a">No wording yet.</p>'
+
+    subject = f"Review-ready draft: {title}"
+    plain = (
+        f"YOUR DRAFT — {title}\n\n"
+        f"{intro}\n\n"
+        "----------------------------------------\n"
+        f"{body_text}\n"
+        "----------------------------------------\n\n"
+        "This is a draft for you to send or apply yourself. Nothing has been "
+        "published, posted, or emailed to anyone else on your behalf.\n"
+    )
+    html_body = f"""<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#20282d">
+  <div style="max-width:620px;margin:0 auto;padding:28px 16px">
+    <div style="background:#ffffff;border:1px solid #e4ded5;border-radius:20px;padding:32px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.12em;color:#2d7e72">BRASS TACKS · YOUR DRAFT</div>
+      <h1 style="font-size:25px;line-height:1.2;margin:16px 0 8px">Your draft is ready</h1>
+      <h2 style="font-size:19px;line-height:1.35;margin:0 0 12px">{safe_title}</h2>
+      <p style="font-size:15px;line-height:1.6;color:#56636a;margin:0 0 22px">{_html.escape(intro)}</p>
+      <div style="margin:0 0 24px;padding:22px 24px;border:1px solid #e4ded5;border-radius:14px;background:#faf8f4">
+        {body_html}
+      </div>
+      <p style="font-size:13px;line-height:1.55;color:#778188;margin:0">This is a draft for you to send or apply yourself. Nothing has been published, posted, or emailed to anyone else on your behalf.</p>
+    </div>
+  </div>
+</body></html>"""
+    return {"subject": subject, "plain": plain, "html": html_body}
 
 
 def email_draft_action(
@@ -1345,20 +1450,12 @@ def email_draft_action(
             "find_id": find_id,
         })
 
-    subject = f"Your draft: {title}"
-    email_body = (
-        f"Hi,\n\nHere is the draft for \"{title}\" from your Brass Tacks "
-        "board, ready for you to use.\n\n"
-        "----------------------------------------\n"
-        f"{body_text}\n"
-        "----------------------------------------\n\n"
-        "This is a draft for you to send or apply yourself. Nothing has been "
-        "published, posted, or emailed to anyone else on your behalf.\n"
-    )
+    rendered = render_draft_email(title, body_text)
     try:
         message_id = email_sender(
             source=email_source, recipient=recipient,
-            subject=subject, body=email_body)
+            subject=rendered["subject"], body=rendered["plain"],
+            html=rendered["html"])
     except Exception as exc:
         return respond(200, {
             "answer": (f"I tried to email it but the send failed ({exc}). Try "
@@ -1391,13 +1488,16 @@ def _build_email_sender(settings: Any):
     import boto3
     ses = boto3.client("ses", region_name=settings.aws_region)
 
-    def send(*, source, recipient, subject, body):
+    def send(*, source, recipient, subject, body, html=None):
+        message_body = {"Text": {"Data": body, "Charset": "UTF-8"}}
+        if html:
+            message_body["Html"] = {"Data": html, "Charset": "UTF-8"}
         response = ses.send_email(
             Source=source,
             Destination={"ToAddresses": [recipient]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+                "Body": message_body,
             })
         return str(response.get("MessageId") or "")
 
@@ -1485,7 +1585,9 @@ __all__ = [
     "reconsider_action",
     "revise_draft_action",
     "email_draft_action",
+    "render_draft_email",
     "EMAIL_DRAFT_ACTION",
+    "MAX_REVISIONS",
     "perform_undo_pass",
     "perform_reconsider",
     "perform_revision",

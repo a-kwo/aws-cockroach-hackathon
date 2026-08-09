@@ -217,7 +217,8 @@ def place_approved_order(
                   payment_tool=payment_tool)
 
 
-def requests_from_standing_orders(orders, *, today) -> list[OrderRequest]:
+def requests_from_standing_orders(orders, *, today, on_skip=None
+                                  ) -> list[OrderRequest]:
     """Turn today's due schedules into order requests.
 
     Nothing is placed here. A standing order says *what* and *when*; it says
@@ -225,6 +226,11 @@ def requests_from_standing_orders(orders, *, today) -> list[OrderRequest]:
     against the owner's spend limits like any other. A Tuesday basket whose
     price has doubled stops and asks rather than being bought because it is
     Tuesday.
+
+    A malformed row is skipped rather than aborting the whole batch, but the
+    skip is not silent: ``on_skip`` receives ``(order, reason)`` so the caller
+    can log it or raise it to the owner. "Nothing was due" and "your Tuesday
+    order is broken" must never look the same.
     """
     from brasstacks.standing_orders import due_orders
 
@@ -235,7 +241,7 @@ def requests_from_standing_orders(orders, *, today) -> list[OrderRequest]:
             category=order.category,
             note=f"Standing order: {order.name}.",
         )
-        for order in due_orders(orders, today=today)
+        for order in due_orders(orders, today=today, on_error=on_skip)
     ]
 
 

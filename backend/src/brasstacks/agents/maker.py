@@ -10,6 +10,7 @@ constrained tools after deterministic approval checks.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
@@ -200,8 +201,21 @@ def build_prompt(
         f"Action promised: {find.move}",
     ]
     if facts:
+        # When there are more facts than fit, keep the ones that share
+        # vocabulary with this recommendation rather than the first eight in
+        # storage order — a lexical rank, stable on ties, no new dependency.
+        # Rules are deliberately NOT ranked/dropped: a guardrail must apply
+        # whether or not it looks relevant to today's draft.
+        query_words = set(re.findall(
+            r"[a-z]{4,}", f"{find.title} {find.move}".lower()))
+
+        def _fact_relevance(fact: Any) -> int:
+            return len(set(re.findall(r"[a-z]{4,}", str(fact).lower()))
+                       & query_words)
+
+        ranked_facts = sorted(facts, key=_fact_relevance, reverse=True)
         lines.extend(["", "RELEVANT BUSINESS FACTS"])
-        lines.extend(f"- {_compact(fact, 280)}" for fact in list(facts)[:8])
+        lines.extend(f"- {_compact(fact, 280)}" for fact in ranked_facts[:8])
     if rules:
         lines.extend(["", "OWNER GUARDRAILS"])
         lines.extend(

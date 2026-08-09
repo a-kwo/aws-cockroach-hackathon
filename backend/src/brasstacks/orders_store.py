@@ -93,6 +93,13 @@ def _validate_authority(scope: str, level: str, per_order_cap_cents: int,
     if level == "ask_if_over" and auto_threshold_cents is None:
         raise ValueError(
             "ask_if_over needs auto_threshold_cents — the number it asks above")
+    if level == "auto" and period_cap_cents is None:
+        # A per-order cap alone lets an auto-buy place that amount every day.
+        # "Buy on its own" only gets a runaway-proof ceiling with a rolling
+        # weekly cap, so it is required here rather than optional.
+        raise ValueError(
+            "an auto-buy limit needs a weekly cap so it can't spend without "
+            "a ceiling")
 
 
 class InMemoryOrdersStore:

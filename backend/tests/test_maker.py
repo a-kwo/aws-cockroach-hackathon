@@ -337,6 +337,21 @@ def test_drafts_needing_owner_input_are_never_executable():
     assert artifact.metadata["sections"] == []
 
 
+def test_facts_are_relevance_ranked_so_the_pertinent_one_survives_the_cap():
+    # Twelve facts, only the last shares vocabulary with the recommendation.
+    # Blind first-eight would drop it; the lexical rank keeps it.
+    find = type("Find", (), {
+        "title": "Add a weekend brunch service",
+        "move": "Launch a weekend brunch menu on Saturday and Sunday.",
+    })()
+    facts = [f"Unrelated operational note number {i}" for i in range(11)]
+    facts.append("Weekend brunch demand is strong on Saturday mornings.")
+
+    prompt = build_prompt(find, facts=facts)
+
+    assert "Weekend brunch demand is strong" in prompt
+
+
 def test_revision_prompt_pairs_compact_owner_answers_with_the_current_questions():
     find = type("Find", (), {
         "title": "Publish the lunch set",
