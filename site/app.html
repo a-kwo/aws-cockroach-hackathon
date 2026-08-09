@@ -20993,6 +20993,110 @@
     }
   </style>
 
+  <style id="for-you-simplify-v49">
+    /* v49: the For You detail panel takes the reference mock's calm — four
+       decisions in KEY DETAILS, one Next step, and everything else true but
+       one tap away. The honesty content (modelled costs, at-a-glance,
+       execution plan) still ships in the DOM inside these disclosures. */
+    body.autopilot-mode .feed-next-step {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(205, 214, 255, .11);
+    }
+
+    body.autopilot-mode .feed-next-heading span {
+      font-size: 10.5px;
+      font-weight: 820;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: #8a93ad;
+    }
+
+    body.autopilot-mode .feed-next-first {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 11px;
+    }
+
+    body.autopilot-mode .feed-next-num {
+      flex: none;
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(var(--accent-rgb), .95), rgba(218, 48, 174, .82));
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 6px 16px rgba(var(--accent-rgb), .28);
+    }
+
+    body.autopilot-mode .feed-next-first p {
+      margin: 2px 0 0;
+      color: #e7eaf6;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* The two disclosures share one quiet, tappable summary voice. */
+    body.autopilot-mode .feed-plan,
+    body.autopilot-mode .feed-more {
+      margin-top: 12px;
+      border: 1px solid rgba(205, 214, 255, .12);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .022);
+    }
+
+    body.autopilot-mode .feed-plan > summary,
+    body.autopilot-mode .feed-more > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 14px;
+      cursor: pointer;
+      list-style: none;
+      color: #cbb6f4;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    body.autopilot-mode .feed-plan > summary::-webkit-details-marker,
+    body.autopilot-mode .feed-more > summary::-webkit-details-marker { display: none; }
+
+    body.autopilot-mode .feed-plan > summary small,
+    body.autopilot-mode .feed-more > summary small {
+      color: #7f88a1;
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+
+    body.autopilot-mode .feed-plan > summary::after,
+    body.autopilot-mode .feed-more > summary::after {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform .15s ease;
+      opacity: .7;
+      margin-left: 4px;
+    }
+
+    body.autopilot-mode .feed-plan[open] > summary::after,
+    body.autopilot-mode .feed-more[open] > summary::after { transform: rotate(-135deg); }
+
+    body.autopilot-mode .feed-plan-body,
+    body.autopilot-mode .feed-more-body {
+      padding: 4px 14px 14px;
+    }
+
+    body.autopilot-mode .feed-more-body .feed-glance-heading { margin-top: 14px; }
+  </style>
+
 </head>
 <body>
   <main class="app" id="app">
@@ -21333,9 +21437,19 @@
           </section>
 
           <!-- The approval gate: the only zone that ever needs a decision. -->
-          <!-- What happened, with both references on every receipt.
-               Activity leads: the owner opens the board to see what the agent
-               did, and the exceptions that need them sit right beneath it. -->
+          <section class="orders-zone" aria-labelledby="ordersPendingHeading" data-enter>
+            <header class="orders-zone-head">
+              <div class="orders-zone-title">
+                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 20a2 2 0 0 0 4 0" /></svg></span>
+                <h2 id="ordersPendingHeading">Needs you</h2>
+              </div>
+              <span class="orders-count" id="ordersPendingCount">0</span>
+            </header>
+            <div id="ordersPendingList" class="orders-list"></div>
+            <p class="orders-empty" id="ordersPendingEmpty">All clear — orders inside your limits handle themselves.</p>
+          </section>
+
+          <!-- What happened, with both references on every receipt. -->
           <section class="orders-zone" aria-labelledby="ordersHistoryHeading" data-enter>
             <header class="orders-zone-head">
               <div class="orders-zone-title">
@@ -21347,18 +21461,6 @@
             </header>
             <div id="ordersHistoryList" class="orders-list"></div>
             <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
-          </section>
-
-          <section class="orders-zone" aria-labelledby="ordersPendingHeading" data-enter>
-            <header class="orders-zone-head">
-              <div class="orders-zone-title">
-                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 20a2 2 0 0 0 4 0" /></svg></span>
-                <h2 id="ordersPendingHeading">Needs you</h2>
-              </div>
-              <span class="orders-count" id="ordersPendingCount">0</span>
-            </header>
-            <div id="ordersPendingList" class="orders-list"></div>
-            <p class="orders-empty" id="ordersPendingEmpty">All clear — orders inside your limits handle themselves.</p>
           </section>
 
           <!-- The rules that make it automatic, one pane at a time. -->
@@ -22351,7 +22453,34 @@
         { icon: "people", label: "Who benefits", value: brief.beneficiary },
         { icon: "signal", label: "Success signal", value: brief.successSignal },
       ];
-      const stepCount = (post.steps || []).filter(Boolean).length || 1;
+      const steps = (post.steps || []).filter(Boolean);
+      const stepCount = steps.length || 1;
+      const firstStep = steps[0] || cleanOwnerCopy(post.recommendation || "") || "Review this move.";
+      const restCount = Math.max(0, stepCount - 1);
+
+      // The four the owner decides on, shown plainly — the mock's KEY DETAILS.
+      const coreRows = [
+        { icon: "impact", label: "Impact", value: `${formatMoney(post.amount)} / month`, tone: "impact" },
+        { icon: "effort", label: "Effort", value: titleCaseLabel(brief.effort), tone: `effort-${brief.effort}` },
+        { icon: "type", label: "Type", value: brief.moveType },
+        { icon: "approval", label: "Owner approval", value: "Required" },
+      ];
+      // Everything true but secondary rests one tap away, not deleted: the
+      // modelled costs, the finer classification, and the goal/benefit/signal
+      // at-a-glance grid the honesty rules require to remain on the page.
+      const moreRows = [
+        ...costRows,
+        { icon: "category", label: "Category", value: brief.category },
+        { icon: "price", label: "Price point", value: brief.pricePoint },
+      ];
+
+      const rowHtml = row => `
+        <div class="feed-detail-row ${row.tone ? `is-${row.tone}` : ""}">
+          <dt><i>${feedDetailIcon(row.icon)}</i><span>${escapeHtml(row.label)}</span></dt>
+          <dd>${row.label === "Effort"
+            ? `<span class="feed-effort-pill is-${escapeHtml(brief.effort)}">${escapeHtml(row.value)}</span>`
+            : escapeHtml(row.value || "Not specified")}</dd>
+        </div>`;
 
       return `
         <aside class="feed-detail-panel" aria-label="Recommendation details">
@@ -22360,37 +22489,48 @@
             <small>Projected · not earned</small>
           </div>
           <dl class="feed-detail-list">
-            ${detailRows.map(row => `
-              <div class="feed-detail-row ${row.tone ? `is-${row.tone}` : ""}">
-                <dt><i>${feedDetailIcon(row.icon)}</i><span>${escapeHtml(row.label)}</span></dt>
-                <dd>${row.label === "Effort"
-                  ? `<span class="feed-effort-pill is-${escapeHtml(brief.effort)}">${escapeHtml(row.value)}</span>`
-                  : escapeHtml(row.value || "Not specified")}</dd>
-              </div>`).join("")}
+            ${coreRows.map(rowHtml).join("")}
           </dl>
-          ${cost && cost.hasEstimate ? `
-            <p class="feed-cost-note">
-              <b>Costs are modelled, not measured.</b>
-              ${escapeHtml(cost.basis || "")}
-              ${cost.paysBackWithinWindow === false
-                ? "This is checked before it breaks even, so the first verdict measures the lift rather than the payback."
-                : ""}
-            </p>` : ""}
-          <div class="feed-glance-heading"><span>At a glance</span></div>
-          <div class="feed-glance-grid">
-            ${glance.map(item => `
-              <section class="feed-glance-item">
-                <i>${feedDetailIcon(item.icon)}</i>
-                <strong>${escapeHtml(item.label)}</strong>
-                <p>${escapeHtml(item.value)}</p>
-              </section>`).join("")}
+
+          <div class="feed-next-step">
+            <div class="feed-next-heading"><span>Next step</span></div>
+            <div class="feed-next-first">
+              <span class="feed-next-num">1</span>
+              <p>${escapeHtml(firstStep)}</p>
+            </div>
+            <details class="feed-plan">
+              <summary>
+                <span>${restCount ? `Then ${restCount} more step${restCount === 1 ? "" : "s"}` : "Execution plan"}</span>
+                <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
+              </summary>
+              <div class="feed-plan-body">${renderSteps(post)}</div>
+            </details>
           </div>
-          <details class="feed-plan">
-            <summary>
-              <span><i>${feedDetailIcon("signal")}</i><b>Execution plan</b></span>
-              <small>${stepCount} step${stepCount === 1 ? "" : "s"}</small>
-            </summary>
-            <div class="feed-plan-body">${renderSteps(post)}</div>
+
+          <details class="feed-more">
+            <summary><span>More detail</span><small>Costs, category &amp; goals</small></summary>
+            <div class="feed-more-body">
+              <dl class="feed-detail-list">
+                ${moreRows.map(rowHtml).join("")}
+              </dl>
+              ${cost && cost.hasEstimate ? `
+                <p class="feed-cost-note">
+                  <b>Costs are modelled, not measured.</b>
+                  ${escapeHtml(cost.basis || "")}
+                  ${cost.paysBackWithinWindow === false
+                    ? "This is checked before it breaks even, so the first verdict measures the lift rather than the payback."
+                    : ""}
+                </p>` : ""}
+              <div class="feed-glance-heading"><span>At a glance</span></div>
+              <div class="feed-glance-grid">
+                ${glance.map(item => `
+                  <section class="feed-glance-item">
+                    <i>${feedDetailIcon(item.icon)}</i>
+                    <strong>${escapeHtml(item.label)}</strong>
+                    <p>${escapeHtml(item.value)}</p>
+                  </section>`).join("")}
+              </div>
+            </div>
           </details>
         </aside>`;
     }
