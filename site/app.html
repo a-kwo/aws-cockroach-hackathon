@@ -22112,6 +22112,116 @@
     }
   </style>
 
+  <style id="owner-day-theme-surfaces-v53">
+    /* Day mode, part two. Part one flipped the owner text tokens to dark, but
+       Growth and Chat hardcode a midnight background on their panels, so the
+       result was dark text on a dark panel. These bring the surfaces into the
+       light and fix the few places that hardcode a light-on-dark text colour. */
+
+    /* The second owner variable set (surfaces, inputs, accents) drives Growth
+       cards, Chat panels and profile fields; part one only remapped the first
+       set. */
+    body.day-mode.autopilot-mode,
+    body.day-mode.growth-mode,
+    body.day-mode.chat-mode,
+    body.day-mode.orders-mode {
+      --owner-surface-base: #f5f5f7;
+      --owner-surface: #ffffff;
+      --owner-surface-raised: #ffffff;
+      --owner-surface-input: #ffffff;
+      --owner-control-hover: #f0efe9;
+      --owner-border: rgba(16, 17, 20, .10);
+      --owner-border-strong: rgba(16, 17, 20, .17);
+      --owner-text: #101114;
+      --owner-text-secondary: #3f4149;
+      --owner-text-muted: #77787e;
+      --owner-accent: #aa7d2a;
+      --owner-accent-soft: rgba(170, 125, 42, .10);
+      --owner-accent-border: rgba(170, 125, 42, .30);
+      --owner-positive: #238a55;
+      --owner-success: #238a55;
+      --owner-warning: #9a6b29;
+      --owner-danger: #b23a4a;
+      --owner-brand-gradient: linear-gradient(135deg, #b7862f, #d2ad61);
+    }
+
+    /* For You — the card is light already; its title/signal were hardcoded
+       near-white and its footer bar stayed dark. */
+    body.day-mode.autopilot-mode .post-title,
+    body.day-mode.autopilot-mode .feed-card .post-copy h2.post-title { color: #101114 !important; }
+    body.day-mode.autopilot-mode .signal-text { color: #3f4149 !important; }
+    body.day-mode.autopilot-mode .post-footer,
+    body.day-mode.autopilot-mode .post-footer-summary {
+      background: transparent !important;
+      border-color: rgba(16, 17, 20, .08) !important;
+    }
+    body.day-mode.autopilot-mode .feed-read-time { color: #77787e !important; }
+
+    /* Growth — hero, progress card and both list panels were midnight gradients. */
+    body.day-mode.growth-mode .growth-slide,
+    body.day-mode.growth-mode .growth-slide-summary,
+    body.day-mode.growth-mode .growth-slide-progress,
+    body.day-mode.growth-mode .growth-overview,
+    body.day-mode.growth-mode .growth-chart {
+      background: #ffffff !important;
+      border-color: rgba(16, 17, 20, .08) !important;
+      color: #101114 !important;
+    }
+    body.day-mode.growth-mode .growth-slide-summary::before,
+    body.day-mode.growth-mode .growth-slide-summary::after,
+    body.day-mode.growth-mode .growth-slide-progress::before,
+    body.day-mode.growth-mode .growth-slide-progress::after { display: none !important; }
+    body.day-mode.growth-mode .growth-header h1 { color: #101114 !important; }
+    body.day-mode.growth-mode .list-panel {
+      background: #ffffff !important;
+      border-color: rgba(16, 17, 20, .08) !important;
+      box-shadow: 0 14px 34px rgba(30, 34, 42, .07) !important;
+    }
+    body.day-mode.growth-mode .list-panel-header { border-color: rgba(16, 17, 20, .08) !important; }
+    body.day-mode.growth-mode .list-panel-title h2 { color: #101114 !important; }
+    body.day-mode.growth-mode .list-panel-title p,
+    body.day-mode.growth-mode .list-count { color: #77787e !important; }
+    /* The move rows inside each list, so they read on the white panel. */
+    body.day-mode.growth-mode .decision-list > * {
+      background: #ffffff !important;
+      border-color: rgba(16, 17, 20, .08) !important;
+      color: #101114 !important;
+    }
+
+    /* Chat — both panels, the hint cards and the composer were dark. */
+    body.day-mode.chat-mode .chat-pane,
+    body.day-mode.chat-mode .chat-canvas {
+      background: #ffffff !important;
+      border-color: rgba(16, 17, 20, .10) !important;
+      box-shadow: 0 16px 40px rgba(30, 34, 42, .08) !important;
+    }
+    body.day-mode.chat-mode .chat-pane-head,
+    body.day-mode.chat-mode .chat-canvas-head { border-color: rgba(16, 17, 20, .08) !important; }
+    body.day-mode.chat-mode .chat-pane-head h1,
+    body.day-mode.chat-mode .chat-canvas-head strong { color: #101114 !important; }
+    body.day-mode.chat-mode .chat-pane-head span,
+    body.day-mode.chat-mode .chat-canvas-head span,
+    body.day-mode.chat-mode .chat-hints-label,
+    body.day-mode.chat-mode .chat-composer-hint { color: #77787e !important; }
+    body.day-mode.chat-mode .chat-hint {
+      background: rgba(16, 17, 20, .02) !important;
+      border-color: rgba(16, 17, 20, .10) !important;
+      color: #101114 !important;
+    }
+    body.day-mode.chat-mode .chat-hint:hover { background: rgba(170, 125, 42, .08) !important; }
+    body.day-mode.chat-mode .chat-composer {
+      background: #ffffff !important;
+      border-color: rgba(16, 17, 20, .10) !important;
+    }
+    body.day-mode.chat-mode .chat-composer textarea {
+      background: #ffffff !important;
+      color: #101114 !important;
+    }
+    body.day-mode.chat-mode .chat-canvas-overview,
+    body.day-mode.chat-mode .chat-canvas-overview p { color: #3f4149 !important; }
+    body.day-mode.chat-mode .chat-canvas-empty-mark { color: #a0a1a6 !important; }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
