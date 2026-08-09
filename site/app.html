@@ -9456,6 +9456,29 @@
 
     .memory-engine .stage-detail-list b { color: var(--engine-text); }
 
+    /* The last Radar scan is the freshness fact the operator scans for first,
+       so it is pulled out of the row list into a small highlighted band. */
+    .memory-engine .stage-detail-list li.is-key {
+      align-items: center;
+      margin-bottom: 4px;
+      padding: 8px 10px;
+      border: 1px solid var(--engine-teal);
+      border-radius: 9px;
+      background: var(--engine-teal-soft);
+    }
+    .memory-engine .stage-detail-list li.is-key span {
+      color: var(--engine-text);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .memory-engine .stage-detail-list li.is-key b {
+      color: var(--engine-teal);
+      font-size: 12.5px;
+      font-weight: 750;
+    }
+
     /* Owner decision audit trail: compact at first glance, exact on expand. */
     .memory-engine .owner-decision-log {
       display: grid;
@@ -10625,6 +10648,37 @@
     .memory-engine .detail-section-content { padding: 0 13px 13px; border-top: 1px solid var(--engine-line); }
     .memory-engine .detail-section-body > *:first-child,
     .memory-engine .detail-section-content > *:first-child { margin-top: 12px; }
+
+    /* The technical modal's body was still wearing the old dark HUD theme —
+       dark navy rows and light-on-dark code that vanished on the engine's
+       paper ground. Re-skin every .detail-* piece to the light engine vars so
+       the modal reads as one surface. */
+    .memory-engine .detail-lede { color: var(--engine-text); }
+    .memory-engine .detail-note { color: var(--engine-copy); }
+    .memory-engine .detail-note code,
+    .memory-engine .detail-rows code,
+    .memory-engine .detail-code b,
+    .memory-engine .detail-row dd b { color: var(--engine-amber); }
+    .memory-engine .detail-rows {
+      background: var(--engine-line);
+      border: 1px solid var(--engine-line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .memory-engine .detail-row { background: var(--engine-panel); }
+    .memory-engine .detail-row dt { color: var(--engine-muted); }
+    .memory-engine .detail-row dd { color: var(--engine-text); }
+    .memory-engine .detail-list li { color: var(--engine-copy); }
+    .memory-engine .detail-list li::marker { color: var(--engine-teal); }
+    .memory-engine .detail-code {
+      border: 1px solid var(--engine-line);
+      border-left: 2px solid var(--engine-teal);
+      background: var(--engine-panel-muted);
+      color: var(--engine-text);
+    }
+    .memory-engine .detail-where { color: var(--engine-muted); }
+    .memory-engine .detail-fig b { color: var(--engine-text); }
+    .memory-engine .detail-fig span { color: var(--engine-muted); }
 
     @media (max-width: 1050px) {
       .memory-engine .engine-header { align-items: flex-start; }
@@ -20254,6 +20308,11 @@
     body.orders-mode .orders-ask-examples { margin-top: 9px; gap: 6px; }
     body.orders-mode .orders-example { padding: 4px 10px; font-size: 11.5px; }
     body.orders-mode .orders-example-label { font-size: 11.5px; }
+    /* On a phone the example chips cost a whole row for little; the input's
+       own placeholder already shows how to ask, so drop them there. */
+    @media (max-width: 900px) {
+      body.orders-mode .orders-ask-examples { display: none !important; }
+    }
 
     /* First run: the three moves, then gone. */
     .orders-firstrun {
@@ -23112,7 +23171,6 @@
             <div>
               <span class="evidence-sheet-eyebrow">Analyst evidence</span>
               <h2 class="evidence-sheet-title" id="evidenceSheetTitle">${escapeHtml(post?.title || "Recommendation evidence")}</h2>
-              <p class="evidence-sheet-subtitle">${escapeHtml(String(evidence.length))} cited ${evidence.length === 1 ? "row" : "rows"} stored with this recommendation. Sources are shown in retrieval order.</p>
             </div>
             <button class="evidence-sheet-close" type="button" data-close-evidence aria-label="Close evidence">×</button>
           </header>
@@ -26527,7 +26585,7 @@
     function memoryRows(items) {
       if (!items.length) return `<p class="stage-note">Nothing is queued in this stage.</p>`;
       return `<ul class="stage-detail-list">${items.map(item => `
-        <li><span>${item.label}</span>${item.value == null ? "" : `<b>${item.value}</b>`}</li>`).join("")}</ul>`;
+        <li${item.emphasis ? ' class="is-key"' : ""}><span>${item.label}</span>${item.value == null ? "" : `<b>${item.value}</b>`}</li>`).join("")}</ul>`;
     }
 
     function memoryDetailSection(title, body) {
@@ -27077,7 +27135,7 @@
         memoryRadarSummary(model, radarChannels),
         memoryDetailSection("Freshness and run receipt", radarRun
           ? memoryRows([
-              { label: "Last Radar scan", value: escapeHtml(memoryDateTime(radarRun.startedAt)) },
+              { label: "Last Radar scan", value: escapeHtml(memoryDateTime(radarRun.startedAt)), emphasis: true },
               { label: "Scan duration", value: escapeHtml(memoryDuration(radarRun)) },
               { label: "Newest stored signal", value: escapeHtml(shortDate(model.corpus?.latest)) },
               { label: escapeHtml(clampText(radarRun.note || "No run note stored.", 72)), value: escapeHtml(radarRun.status || "—") },
@@ -31189,7 +31247,6 @@ ledger_entry · artifact · agent_run`,
         { icon: "memory", className: "", iconClass: "memory", value: memories.toLocaleString("en-US"), label: "Persistent memories", note: "all owner accounts", tooltip: "The total searchable market observations stored in CockroachDB across all owner accounts. These memories remain available between agent runs instead of being resent or recreated each time." },
         { icon: "filter", className: "is-efficiency", value: efficiency.reductionDisplay, label: "Context kept out", note: "All owners", tooltip: "The portfolio-wide share of stored memory excluded before the Analyst model prompt. CockroachDB retrieves only relevant rows. The ≥ symbol means this is a conservative lower bound based on configured retrieval limits until exact live run receipts are available." },
         { icon: "tokens", className: "is-token", value: tokenValue, label: "Analyst model tokens", note: tokenNote, tooltip: "Actual input plus output tokens recorded by Analyst model runs for all owners. Pending means this snapshot has no linked live token receipt; it does not mean zero tokens were used." },
-        { icon: "zero", className: "is-zero-token", value: "0", label: "Refresh model tokens", note: "SQL-only · no model call", tooltip: "Refreshing Memory Engine reads operational state directly from CockroachDB through the /workflow endpoint. It does not invoke a model, so each dashboard refresh consumes zero LLM tokens." },
       ].map(item => `
         <article class="engine-kpi ${escapeHtml(item.className || "")}">
           <button class="metric-help" type="button" aria-label="Explain ${escapeHtml(item.label)}" data-tooltip="${escapeHtml(item.tooltip)}">?</button>

@@ -1456,9 +1456,9 @@ def test_visual_memory_view_has_an_owner_scoped_token_efficiency_chart():
 
 
 def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
+    # The dedicated KPI card was removed at the owner's request, but the claim
+    # it made still has to be stated plainly — it lives in the footer note.
     assert "0 LLM tokens" in APP
-    assert 'label: "Refresh model tokens"' in APP
-    assert 'note: "SQL-only · no model call"' in APP
     assert "/workflow" in APP
     assert "SQL-only CockroachDB read" in APP
 
@@ -3552,7 +3552,6 @@ def test_feed_evidence_sheet_renders_source_metadata_and_mobile_bottom_sheet():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert 'item.sourceName || item.source || item.kind || "Stored memory"' in html
-    assert 'Sources are shown in retrieval order.' in html
     assert 'title="Vector similarity"' in html
     assert '.evidence-sheet-panel { width:100%; max-height:88dvh;' in html
     assert 'border-radius:22px 22px 0 0' in html
