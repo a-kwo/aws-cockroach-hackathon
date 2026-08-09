@@ -25,6 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
+    # SAM pushes each Lambda container image through the Python Docker SDK,
+    # whose default socket read timeout is 60s. A ~44MB image push on a slow
+    # runner blows past that and SAM reports "Unable to upload artifact ...
+    # UnixHTTPConnectionPool(host='localhost'): Read timed out" even though the
+    # layer finished pushing. docker-py honours these two env vars, so raising
+    # them gives the push room without changing anything about the images.
+    env:
+      DOCKER_CLIENT_TIMEOUT: "600"
+      COMPOSE_HTTP_TIMEOUT: "600"
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
