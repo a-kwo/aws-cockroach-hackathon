@@ -20223,12 +20223,13 @@
       padding: 14px 0 28px;
     }
 
-    /* The dashboard row: four numbers across the top, the mock's opening move. */
+    /* Four numbers, now across the top of the right column — the chat runs
+       full height on the left, the stats sit above the canvas on the right. */
     .chat-stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
-      margin: 0 0 14px;
+      margin: 0;
     }
 
     .chat-stat {
@@ -20283,10 +20284,23 @@
       display: grid;
       grid-template-columns: minmax(330px, 410px) minmax(0, 1fr);
       gap: 16px;
-      /* Greeting gone; only topbar + the stat row sit above, so the chat and
-         canvas take nearly the whole viewport. */
-      height: calc(100dvh - 168px);
-      min-height: 520px;
+      /* The stat cards moved into the right column, so the chat now owns the
+         full height beside the topbar — nothing sits above it. */
+      height: calc(100dvh - 96px);
+      min-height: 540px;
+    }
+
+    /* Right column: the four stat cards on top, the canvas filling the rest. */
+    .chat-right {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .chat-right .chat-canvas {
+      flex: 1;
+      min-height: 0;
     }
 
     .chat-pane,
@@ -21274,7 +21288,6 @@
       -->
       <section class="view" id="view-chat" aria-labelledby="chatHeading">
         <div class="view-inner chat-inner">
-          <section class="chat-stats" id="chatStats" aria-label="Today at a glance" data-enter hidden></section>
           <div class="chat-shell">
             <aside class="chat-pane" aria-labelledby="chatHeading">
               <header class="chat-pane-head">
@@ -21312,19 +21325,22 @@
               </form>
               <p class="chat-composer-hint">Enter to send &middot; Shift+Enter for a new line</p>
             </aside>
-            <section class="chat-canvas" aria-label="Canvas">
-              <header class="chat-canvas-head">
-                <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
-                  <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
-                  <button type="button" data-canvas="details" id="chatCanvasDetailsTab" hidden>Details</button>
-                  <button type="button" data-canvas="supplies" class="active">Supplies</button>
-                </nav>
-                <span id="chatCanvasStatus">Live from your memory</span>
-              </header>
-              <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
-              <div class="chat-canvas-details" id="chatCanvasDetails" hidden></div>
-              <div id="chatCanvasBody"></div>
-            </section>
+            <div class="chat-right">
+              <section class="chat-stats" id="chatStats" aria-label="Today at a glance" data-enter hidden></section>
+              <section class="chat-canvas" aria-label="Canvas">
+                <header class="chat-canvas-head">
+                  <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
+                    <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
+                    <button type="button" data-canvas="details" id="chatCanvasDetailsTab" hidden>Details</button>
+                    <button type="button" data-canvas="supplies" class="active">Supplies</button>
+                  </nav>
+                  <span id="chatCanvasStatus">Live from your memory</span>
+                </header>
+                <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
+                <div class="chat-canvas-details" id="chatCanvasDetails" hidden></div>
+                <div id="chatCanvasBody"></div>
+              </section>
+            </div>
           </div>
         </div>
       </section>
@@ -32222,27 +32238,37 @@ ledger_entry · artifact · agent_run`,
           || (/\bsend\b/.test(t) && /\b(draft|script|wording|copy)\b/.test(t));
       }
 
-      async function performEmailDraft(findId, email) {
+      // The backend is authoritative for the profile email — it reads
+      // CockroachDB, not a stale client field. Every step is one POST; the
+      // reply's action.status drives what the chat says next.
+      async function requestEmailDraft(findId, extra) {
         if (!chatAskEndpoint) {
           replaceLoading("Email isn't available in this build.", { error: true });
-          return;
+          return null;
         }
         try {
           const response = await fetch(chatAskEndpoint, {
             method: "POST",
             headers: chatHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
-            body: JSON.stringify({ action: "email_draft", find_id: findId, email: email || undefined }),
+            body: JSON.stringify({ action: "email_draft", find_id: findId, ...(extra || {}) }),
           });
           const payload = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            replaceLoading(payload.error || `That didn't work (${response.status}).`, { error: true });
-            return;
-          }
-          const failed = payload.action?.status && payload.action.status !== "sent";
-          replaceLoading(payload.answer || "Done.", failed ? { error: true } : undefined);
+          return { ok: response.ok, status: response.status, payload };
         } catch (_) {
           replaceLoading("I couldn't reach the mail agent — try again.", { error: true });
+          return null;
         }
+      }
+
+      function showEmailResult(result) {
+        if (!result) return;
+        if (!result.ok) {
+          replaceLoading(result.payload.error || `That didn't work (${result.status}).`, { error: true });
+          return;
+        }
+        const status = result.payload.action?.status;
+        replaceLoading(result.payload.answer || "Done.",
+          status && status !== "sent" ? { error: true } : undefined);
       }
 
       async function handleEmailDraft(text) {
@@ -32251,7 +32277,7 @@ ledger_entry · artifact · agent_run`,
           if (CONFIRM_ONLY.test(text)) {
             const { findId, email } = pendingEmail;
             pendingEmail = null;
-            await performEmailDraft(findId, email);
+            showEmailResult(await requestEmailDraft(findId, { email, confirmed: true }));
             return true;
           }
           if (CANCEL_WORDS.test(text)) {
@@ -32259,23 +32285,23 @@ ledger_entry · artifact · agent_run`,
             replaceLoading("No problem — I won't send it. The draft stays on the recommendation.");
             return true;
           }
-          // Anything else: drop the pending send and let it re-parse below.
-          pendingEmail = null;
+          pendingEmail = null; // anything else: drop it and re-parse below
         }
         if (pendingEmail?.stage === "address") {
+          if (CANCEL_WORDS.test(text)) {
+            pendingEmail = null;
+            replaceLoading("Cancelled — nothing sent.");
+            return true;
+          }
           const addr = text.trim();
           if (!EMAIL_ADDRESS.test(addr)) {
-            if (CANCEL_WORDS.test(text)) {
-              pendingEmail = null;
-              replaceLoading("Cancelled — nothing sent.");
-              return true;
-            }
             replaceLoading("That doesn't look like an email address — try again, or say cancel.");
             return true;
           }
           const { findId } = pendingEmail;
           pendingEmail = null;
-          await performEmailDraft(findId, addr);
+          // A typed address is its own confirmation — send directly.
+          showEmailResult(await requestEmailDraft(findId, { email: addr }));
           return true;
         }
 
@@ -32285,14 +32311,20 @@ ledger_entry · artifact · agent_run`,
             + "You or Growth — then ask me again, and I'll send its draft to you.");
           return true;
         }
+        // Resolve step: the backend checks the profile and either offers its
+        // email to confirm, or says none is on file and asks for one.
         const findId = chatContext.id;
-        const known = String(btData.owner?.email || "").trim();
-        if (EMAIL_ADDRESS.test(known)) {
-          pendingEmail = { stage: "confirm", findId, email: known };
-          replaceLoading(`I'll email the draft for “${chatContext.title}” to ${known}. Send it? Reply “yes”.`);
-        } else {
+        const result = await requestEmailDraft(findId, {});
+        if (!result) return true;
+        const action = result.ok ? result.payload.action : null;
+        if (action?.status === "confirm") {
+          pendingEmail = { stage: "confirm", findId, email: action.recipient };
+          replaceLoading(result.payload.answer);
+        } else if (action?.status === "needs_email") {
           pendingEmail = { stage: "address", findId };
-          replaceLoading("Happy to — what email address should I send the draft to?");
+          replaceLoading(result.payload.answer);
+        } else {
+          showEmailResult(result);
         }
         return true;
       }
