@@ -21794,16 +21794,6 @@
                      aria-label="Your supplier's email address" />
               <button type="button" class="orders-btn primary small" id="ordersSupplierSave" hidden>Save</button>
             </div>
-            <div class="orders-pills">
-              <div class="orders-connection" id="ordersConnection">
-                <span class="orders-conn-dot" aria-hidden="true"></span>
-                <span>DoorDash &middot; Not connected</span>
-              </div>
-              <div class="orders-connection is-test" id="ordersStripeStatus">
-                <span class="orders-conn-dot test" aria-hidden="true"></span>
-                <span>Stripe &middot; Test mode</span>
-              </div>
-            </div>
           </header>
 
           <!-- One honest line, expandable. The full text keeps the exact
@@ -21953,7 +21943,7 @@
 
             <div class="orders-pane" data-opane="limits" hidden>
               <div class="orders-pane-bar">
-                <p class="orders-pane-hint" id="ordersLimitsHeading">What it may buy without asking. Enforced in code.</p>
+                <p class="orders-pane-hint" id="ordersLimitsHeading">What it may buy without asking.</p>
                 <button type="button" class="orders-btn ghost small" id="ordersAddLimit">Add</button>
               </div>
               <form class="orders-form" id="ordersLimitsForm" hidden>
@@ -22878,7 +22868,7 @@
 
       // The four the owner decides on, shown plainly — the mock's KEY DETAILS.
       const coreRows = [
-        { icon: "impact", label: "Impact", value: `${formatMoney(post.amount)} / month`, tone: "impact" },
+        { icon: "impact", label: "Impact", value: post.amount > 0 ? `${formatMoney(post.amount)} / month` : "Not yet estimated", tone: "impact" },
         { icon: "effort", label: "Effort", value: titleCaseLabel(brief.effort), tone: `effort-${brief.effort}` },
         { icon: "type", label: "Type", value: brief.moveType },
         { icon: "approval", label: "Owner approval", value: "Required" },
@@ -24677,7 +24667,6 @@
               <div class="post-copy">
                 <div class="post-meta-row">
                   <div class="feed-meta-cluster">
-                    <span class="feed-for-you-chip">For you</span>
                     <div class="social-context">
                       <span class="context-avatar" aria-hidden="true">${icons[post.featureKey]}</span>
                       <span class="context-copy"><strong>${escapeHtml(post.feature)}</strong><small>${escapeHtml(post.sourceTime)}</small></span>
@@ -24698,11 +24687,11 @@
 
             <footer class="post-footer">
               <div class="post-footer-summary">
-                <div class="impact-summary">
-                  <strong>${formatMoney(post.amount)}</strong>
+                <div class="impact-summary${post.amount > 0 ? "" : " is-qualitative"}">
+                  ${post.amount > 0 ? `<strong>${formatMoney(post.amount)}</strong>` : ""}
                   <span>
-                    <b>Monthly potential</b>
-                    <small>${decisionSyncPending ? "Checking latest decision status…" : "Nothing changes until approved"}</small>
+                    <b>${post.amount > 0 ? "Monthly potential" : "Opportunity"}</b>
+                    <small>${decisionSyncPending ? "Checking latest decision status…" : post.amount > 0 ? "Nothing changes until approved" : "Value confirmed once you measure it"}</small>
                   </span>
                 </div>
                 <span class="feed-read-time">${feedDetailIcon("clock")} ${post.readMinutes} min read</span>
@@ -28315,9 +28304,12 @@ ledger_entry · artifact · agent_run`,
       const headline = reported
         ? `You reported ${escapeHtml(reported.amountTxt)} ${escapeHtml(reported.basisLabel)}`
         : "Add what this move earned";
+      //  The un-scored caption ("Scored on … against what the agents
+      //  predicted") is dropped to keep the list clean; the reported case
+      //  keeps its "when it gets scored" line, which is genuinely useful.
       const caption = reported
         ? (when ? `The Meter scores it on ${when}.` : "The Meter scores it when the window closes.")
-        : (when ? `Scored on ${when}, against what the agents predicted.` : "Scored when the measurement window closes.");
+        : "";
 
       return `
         <details class="outcome-panel" data-outcome-panel="${escapeHtml(post.id)}"${openOutcomePanels.has(post.id) ? " open" : ""}>
@@ -28325,7 +28317,7 @@ ledger_entry · artifact · agent_run`,
             <span class="outcome-summary-icon" aria-hidden="true">${reported ? "✓" : "＋"}</span>
             <span class="outcome-summary-copy">
               <strong>${headline}</strong>
-              <small>${caption}</small>
+              ${caption ? `<small>${caption}</small>` : ""}
             </span>
             <span class="outcome-summary-chevron" aria-hidden="true">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
@@ -31870,14 +31862,11 @@ ledger_entry · artifact · agent_run`,
             </article>`).join("");
         }
 
-        /* What the simulated store sells doubles as the example chips, so the
-           owner is never guessing at a catalogue. */
+        /* The catalogue chip row was removed to keep the board clean — the
+           input's own placeholder shows how to ask. */
         function renderExamples() {
           const holder = screen.querySelector(".orders-ask-examples");
-          if (!holder || !state.store) return;
-          const chips = (state.store.catalogue || []).map(entry =>
-            `<button type="button" class="orders-example" data-example="order 2 ${escapeHtml(entry.name)}">${escapeHtml(entry.name)} ${money(entry.unit_cents)}</button>`).join("");
-          holder.innerHTML = `<span class="orders-example-label">The simulated store sells:</span>${chips}`;
+          if (holder) { holder.innerHTML = ""; holder.hidden = true; }
         }
 
         function renderAll() {

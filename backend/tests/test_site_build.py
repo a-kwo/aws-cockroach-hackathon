@@ -3473,7 +3473,8 @@ def test_for_you_feed_renders_a_structured_analyst_brief():
     )[0]
 
     assert "renderFeedDetailPanel(post)" in card
-    assert 'class="feed-for-you-chip"' in card
+    # The "For you" chip was removed to declutter the card — the tab already
+    # says which surface this is. The structured brief below is what matters.
     assert 'class="feed-tag-list"' in card
     assert 'class="feed-proof-strip"' in card
     assert 'class="feed-detail-panel"' in html
