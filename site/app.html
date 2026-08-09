@@ -22228,6 +22228,88 @@
     body.day-mode.chat-mode .chat-canvas-overview,
     body.day-mode.chat-mode .chat-canvas-overview p { color: #3f4149 !important; }
     body.day-mode.chat-mode .chat-canvas-empty-mark { color: #a0a1a6 !important; }
+
+    /* Supplies command bar (the "What do you need?" box) was a dark sticky
+       band; in day mode it becomes light paper with a readable input. */
+    body.day-mode.orders-mode .orders-zone-command {
+      background: linear-gradient(rgba(245,245,247,.94), rgba(245,245,247,.86)) !important;
+    }
+    body.day-mode.orders-mode .orders-ask input {
+      background: #ffffff !important;
+      border-color: rgba(16,17,20,.16) !important;
+      color: #101114 !important;
+    }
+    body.day-mode.orders-mode .orders-ask input::placeholder { color: #9a9ba1 !important; }
+  </style>
+
+  <style id="orders-mobile-no-hscroll-v54">
+    /* Supplies must not scroll sideways on a phone. The command bar bleeds
+       2px past its container with a negative margin (fine on desktop, an
+       overflow on a narrow screen), and a couple of grids/inputs need to be
+       told they may shrink. overflow-x: clip is the belt to that braces —
+       it stops any stray sideways scroll without a scroll container, so
+       sticky and fixed chrome keep working and the layout is untouched. */
+    @media (max-width: 760px) {
+      html, body { overflow-x: clip; }
+      body.orders-mode .orders-zone-command { margin-inline: 0 !important; }
+      body.orders-mode .orders-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+      body.orders-mode .orders-stat { min-width: 0 !important; }
+      body.orders-mode .orders-ask { flex-direction: column !important; }
+      body.orders-mode .orders-ask input { min-width: 0 !important; width: 100% !important; }
+      body.orders-mode .orders-catalogue-grid { grid-template-columns: 1fr !important; }
+    }
+  </style>
+
+  <style id="owner-day-foryou-text-v55">
+    /* For You card text. The dark theme paints most feed copy near-white, which
+       vanished on the light day card. Force the card's copy to ink; the accent
+       chrome (tags, effort pill, the money figure, the gold links) is re-stated
+       below so only unreadable text changes. */
+    body.day-mode.autopilot-mode .feed-card h2,
+    body.day-mode.autopilot-mode .feed-card h3,
+    body.day-mode.autopilot-mode .feed-card .post-title,
+    body.day-mode.autopilot-mode .feed-card .post-copy h2,
+    body.day-mode.autopilot-mode .feed-card .signal-text,
+    body.day-mode.autopilot-mode .feed-card .recommendation-copy strong,
+    body.day-mode.autopilot-mode .feed-card .recommendation-steps,
+    body.day-mode.autopilot-mode .feed-card .feed-next-first p,
+    body.day-mode.autopilot-mode .feed-card .feed-plan-body,
+    body.day-mode.autopilot-mode .feed-card .feed-plan-body *,
+    body.day-mode.autopilot-mode .feed-card .feed-glance-item strong,
+    body.day-mode.autopilot-mode .feed-card .feed-glance-item p,
+    body.day-mode.autopilot-mode .feed-card .feed-detail-row dd,
+    body.day-mode.autopilot-mode .feed-card .feed-cost-note { color: #26272e !important; }
+
+    /* Uppercase eyebrows and muted labels → a readable grey, not near-white. */
+    body.day-mode.autopilot-mode .feed-card .recommendation-copy > span,
+    body.day-mode.autopilot-mode .feed-card .impact-summary b,
+    body.day-mode.autopilot-mode .feed-card .impact-summary span small,
+    body.day-mode.autopilot-mode .feed-card .feed-next-heading span,
+    body.day-mode.autopilot-mode .feed-card .feed-plan > summary small,
+    body.day-mode.autopilot-mode .feed-card .feed-more > summary small,
+    body.day-mode.autopilot-mode .feed-card .feed-detail-heading > span,
+    body.day-mode.autopilot-mode .feed-card .feed-glance-heading > span,
+    body.day-mode.autopilot-mode .feed-card .feed-detail-row dt,
+    body.day-mode.autopilot-mode .feed-card .feed-proof-item span,
+    body.day-mode.autopilot-mode .feed-card .feed-read-time { color: #6a6b72 !important; }
+
+    /* Section-toggle titles ("More detail", "Then N more steps"). */
+    body.day-mode.autopilot-mode .feed-card .feed-plan > summary > span,
+    body.day-mode.autopilot-mode .feed-card .feed-more > summary > span,
+    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence-copy strong { color: #101114 !important; }
+
+    /* Gold links / evidence CTA and the proof-strip figure. */
+    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence-copy i,
+    body.day-mode.autopilot-mode .feed-card .feed-detail-evidence-cta,
+    body.day-mode.autopilot-mode .feed-card .feed-proof-button strong { color: #8a6420 !important; }
+
+    /* The info button top-right of the card. */
+    body.day-mode.autopilot-mode .feed-card .details-button,
+    body.day-mode.autopilot-mode .feed-card .top-details-button {
+      color: #6a6b72 !important;
+      background: rgba(16,17,20,.03) !important;
+      border-color: rgba(16,17,20,.12) !important;
+    }
   </style>
 
 </head>
