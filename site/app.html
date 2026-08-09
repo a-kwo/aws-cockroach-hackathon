@@ -17436,13 +17436,6 @@
     }
     body.autopilot-mode .feed-detail-inner { margin-top: 4px; }
 
-    /* Collapsed by default on every screen. When it is closed the card is a
-       single column so the brief takes the full width and the "Key details"
-       line sits under it; opening it brings the two-column layout back. */
-    body.autopilot-mode .post-body:has(.feed-detail-panel:not([open])) {
-      grid-template-columns: minmax(0, 1fr) !important;
-    }
-
     body.autopilot-mode .feed-detail-heading::after,
     body.autopilot-mode .feed-glance-heading::after {
       content: "";
@@ -20434,12 +20427,23 @@
       align-items: baseline;
       justify-content: space-between;
       gap: 10px;
+      width: 100%;
+      text-align: left;
       padding: 8px 11px;
       border: 1px solid var(--owner-line, rgba(188,198,255,.14));
       border-radius: 10px;
       background: var(--owner-panel-soft, rgba(255,255,255,.03));
+      font: inherit;
       font-size: 12.5px;
+      cursor: pointer;
+      transition: border-color .14s ease, background .14s ease, transform .14s ease;
     }
+    .orders-catalogue-item:hover {
+      border-color: var(--owner-accent-border, rgba(202,145,255,.34));
+      background: var(--owner-accent-soft, rgba(181,109,255,.13));
+      transform: translateY(-1px);
+    }
+    .orders-catalogue-item:active { transform: translateY(0); }
     .orders-catalogue-item b { color: var(--owner-ink, #f7f8ff); font-weight: 620; text-transform: capitalize; }
     .orders-catalogue-item span { color: var(--owner-muted, #7f879f); font-variant-numeric: tabular-nums; }
 
@@ -20454,6 +20458,10 @@
     body.day-mode .orders-catalogue-item {
       border-color: rgba(16,17,20,.10);
       background: #ffffff;
+    }
+    body.day-mode .orders-catalogue-item:hover {
+      border-color: rgba(170,125,42,.35);
+      background: rgba(170,125,42,.08);
     }
     body.day-mode .orders-catalogue-item b { color: #101114; }
     body.day-mode .orders-catalogue-item span { color: #77787e; }
@@ -23609,15 +23617,6 @@
         { icon: "clock", label: "Running cost", value: `${cost.dailyTxt} / day`, tone: "cost" },
         { icon: "calendar", label: "Pays back in", value: cost.paybackTxt, tone: "cost" }
       ] : [];
-      const detailRows = [
-        { icon: "impact", label: "Projected impact", value: `${formatMoney(post.amount)} / month`, tone: "impact" },
-        ...costRows,
-        { icon: "effort", label: "Effort", value: titleCaseLabel(brief.effort), tone: `effort-${brief.effort}` },
-        { icon: "category", label: "Category", value: brief.category },
-        { icon: "type", label: "Type", value: brief.moveType },
-        { icon: "price", label: "Price point", value: brief.pricePoint },
-        { icon: "approval", label: "Owner approval", value: "Required" },
-      ];
       const glance = [
         { icon: "goal", label: "Goal", value: brief.goal },
         { icon: "people", label: "Who benefits", value: brief.beneficiary },
@@ -23628,14 +23627,10 @@
       const firstStep = steps[0] || cleanOwnerCopy(post.recommendation || "") || "Review this move.";
       const restCount = Math.max(0, stepCount - 1);
 
-      // The four the owner decides on, shown plainly — the mock's KEY DETAILS.
-      const coreRows = [
-        { icon: "impact", label: "Impact", value: post.amount > 0 ? `${formatMoney(post.amount)} / month` : "Not yet estimated", tone: "impact" },
-        { icon: "effort", label: "Effort", value: titleCaseLabel(brief.effort), tone: `effort-${brief.effort}` },
-        { icon: "type", label: "Type", value: brief.moveType },
-        { icon: "approval", label: "Owner approval", value: "Required" },
-      ];
-      // Everything true but secondary rests one tap away, not deleted: the
+      // The Impact/Effort/Type/Owner-approval grid was removed from the card
+      // at the owner's request — too much to read at a glance, and the money
+      // already sits in the footer. The costing, classification and the
+      // goal/benefit/signal grid the honesty rules require stay in More detail.
       // modelled costs, the finer classification, and the goal/benefit/signal
       // at-a-glance grid the honesty rules require to remain on the page.
       const moreRows = [
@@ -23653,16 +23648,7 @@
         </div>`;
 
       return `
-        <details class="feed-detail-panel" aria-label="Recommendation details">
-          <summary class="feed-detail-heading feed-detail-summary">
-            <span>Key details</span>
-            <small>Projected · not earned</small>
-          </summary>
-          <div class="feed-detail-inner">
-          <dl class="feed-detail-list">
-            ${coreRows.map(rowHtml).join("")}
-          </dl>
-
+        <aside class="feed-detail-panel" aria-label="Recommendation details">
           <div class="feed-next-step">
             <div class="feed-next-heading"><span>Next step</span></div>
             <div class="feed-next-first">
@@ -23713,8 +23699,7 @@
             </span>
             <span class="feed-detail-evidence-cta">View sources ›</span>
           </button>
-          </div>
-        </details>`;
+        </aside>`;
     }
 
     function findToPost(find, { serverVerified = false } = {}) {
@@ -32717,8 +32702,8 @@ ledger_entry · artifact · agent_run`,
           grid.innerHTML = items
             .slice()
             .sort((a, b) => String(a.name).localeCompare(String(b.name)))
-            .map(it => `<span class="orders-catalogue-item"><b>${escapeHtml(it.name)}</b>${
-              it.unit_cents != null ? `<span>${money(it.unit_cents)}</span>` : ""}</span>`).join("");
+            .map(it => `<button type="button" class="orders-catalogue-item" data-order="${escapeHtml(it.name)}" title="Order ${escapeHtml(it.name)} in Chat"><b>${escapeHtml(it.name)}</b>${
+              it.unit_cents != null ? `<span>${money(it.unit_cents)}</span>` : ""}</button>`).join("");
         }
 
         function renderAll() {
@@ -32862,6 +32847,13 @@ ledger_entry · artifact · agent_run`,
         screen.addEventListener("click", async event => {
           const receiptBtn = event.target.closest("[data-receipt]");
           if (receiptBtn) { openReceipt((state.history || [])[Number(receiptBtn.dataset.receipt)]); return; }
+          // A price-list item orders itself, as a conversation, in Chat.
+          const orderItem = event.target.closest("[data-order]");
+          if (orderItem) {
+            if (window.__btChatOrder) window.__btChatOrder(orderItem.dataset.order);
+            else { el("ordersAskInput").value = `order 1 ${orderItem.dataset.order}`; el("ordersAskInput").focus(); }
+            return;
+          }
           const target = event.target.closest("[data-live-approve],[data-live-reject],[data-live-pause],[data-live-run],[data-live-restock],[data-example]");
           if (!target) return;
           if (target.dataset.example != null) {
@@ -33898,6 +33890,20 @@ ledger_entry · artifact · agent_run`,
 
       window.__btChatNotify = (text, warn) => {
         push("agent", text, warn ? { error: true } : undefined);
+      };
+
+      // Clicking an item in the Supplies price list orders it here, as a real
+      // conversation: it opens Chat and sends the order to the Quartermaster,
+      // which prices it and either places it inside the owner's limits or asks
+      // for approval — nothing is charged without it.
+      window.__btChatOrder = itemName => {
+        const name = String(itemName || "").trim();
+        if (!name) return;
+        const text = `order 1 ${name}`;
+        if (typeof switchView === "function") switchView("chat");
+        push("owner", text);
+        push("agent", "Thinking…", { loading: true });
+        routeMessage(text);
       };
 
       // The fixed "Try asking" rows are the design now; the catalogue still
