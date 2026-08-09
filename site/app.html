@@ -17105,7 +17105,7 @@
 
     body.autopilot-mode .feed-proof-strip {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0;
       margin-top: 2px;
       padding-top: 17px;
@@ -20928,6 +20928,60 @@
 
     .chat-move-actions .orders-btn.approve { min-width: 120px; }
 
+    /* The guide: open the real page, and the steps to follow there. */
+    .chat-move-guide {
+      margin-top: 4px;
+      padding-top: 16px;
+      border-top: 1px solid var(--owner-line);
+      display: grid;
+      gap: 12px;
+    }
+
+    .chat-move-guide-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--owner-muted);
+    }
+
+    .chat-move-open {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: var(--owner-gradient);
+      color: #fff;
+      font-size: 13.5px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 22px rgba(141, 69, 255, .3);
+      transition: filter .15s ease, transform .12s ease;
+    }
+
+    .chat-move-open:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+    .chat-move-steps {
+      margin: 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 7px;
+      color: var(--owner-copy);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chat-move-steps li::marker { color: #a985e6; font-weight: 700; }
+
+    .chat-move-guide-note {
+      margin: 0;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--owner-muted);
+    }
+
     /* The context pill above the composer. */
     .chat-context {
       display: flex;
@@ -21095,6 +21149,42 @@
     }
 
     body.autopilot-mode .feed-more-body .feed-glance-heading { margin-top: 14px; }
+
+    /* Evidence lives at the foot of KEY DETAILS now — the sources behind the
+       brief, one tap from the numbers they support. */
+    body.autopilot-mode .feed-detail-evidence {
+      width: 100%;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(196, 160, 255, .26);
+      border-radius: 13px;
+      background: rgba(141, 69, 255, .08);
+      color: var(--owner-copy);
+      font: inherit;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+    }
+
+    body.autopilot-mode .feed-detail-evidence:hover {
+      border-color: rgba(196, 160, 255, .5);
+      background: rgba(141, 69, 255, .13);
+    }
+
+    body.autopilot-mode .feed-detail-evidence-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+    }
+
+    body.autopilot-mode .feed-detail-evidence-copy i { color: #c9a9ff; display: inline-flex; }
+    body.autopilot-mode .feed-detail-evidence-copy i svg { width: 18px; height: 18px; }
+    body.autopilot-mode .feed-detail-evidence-copy strong { color: var(--owner-ink); }
+    body.autopilot-mode .feed-detail-evidence-cta { color: #c9a9ff; font-size: 12px; font-weight: 700; }
   </style>
 
 </head>
@@ -22334,23 +22424,17 @@
         ? Math.max(0, Math.min(100, Math.round(rawConfidence)))
         : 0;
       const confidenceLabel = `${confidence}% confidence`;
+      // Evidence moved to the KEY DETAILS panel (see renderFeedDetailPanel);
+      // the strip now carries the two read-only measures.
       const items = [
-        { icon: "evidence", value: String(evidenceCount), label: evidenceCount === 1 ? "Evidence row" : "Evidence rows" },
         { icon: "confidence", value: confidenceLabel, label: "Analyst confidence" },
         { icon: "calendar", value: post.measurementWindowLabel, label: "Measurement window" },
       ];
-      return items.map((item, index) => index === 0
-        ? `<span class="feed-proof-item">
-            <button class="feed-proof-button" type="button" data-open-evidence="${escapeHtml(post.id)}" aria-haspopup="dialog" aria-label="Open ${escapeHtml(item.value)} for ${escapeHtml(post.title)}">
-              <i>${feedDetailIcon(item.icon)}</i>
-              <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)} · View sources</small></span>
-              <span class="feed-proof-chevron" aria-hidden="true">›</span>
-            </button>
-          </span>`
-        : `<span class="feed-proof-item">
-            <i>${feedDetailIcon(item.icon)}</i>
-            <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>
-          </span>`).join("");
+      return items.map(item => `
+        <span class="feed-proof-item">
+          <i>${feedDetailIcon(item.icon)}</i>
+          <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>
+        </span>`).join("");
     }
 
     let evidenceSheetOpener = null;
@@ -22425,6 +22509,7 @@
 
     function renderFeedDetailPanel(post) {
       const brief = post.feedBrief;
+      const evidenceCount = Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0));
       // Priced by a second agent that was never shown what this move is
       // predicted to earn, so the two figures are independent. Absent whenever
       // nobody costed it — an older find, or a night the costing call failed —
@@ -22529,6 +22614,16 @@
               </div>
             </div>
           </details>
+
+          <button class="feed-detail-evidence" type="button" data-open-evidence="${escapeHtml(post.id)}"
+                  aria-haspopup="dialog"
+                  aria-label="Open ${escapeHtml(String(evidenceCount))} evidence rows for ${escapeHtml(post.title)}">
+            <span class="feed-detail-evidence-copy">
+              <i>${feedDetailIcon("evidence")}</i>
+              <span><strong>${escapeHtml(String(evidenceCount))}</strong> ${evidenceCount === 1 ? "evidence row" : "evidence rows"}</span>
+            </span>
+            <span class="feed-detail-evidence-cta">View sources ›</span>
+          </button>
         </aside>`;
     }
 
@@ -31976,6 +32071,30 @@ ledger_entry · artifact · agent_run`,
           </button>`;
       }
 
+      // The site a move points at: an explicit link in its wording wins;
+      // otherwise the business's own website. Null when neither exists — then
+      // the guide shows steps only and offers to take a URL.
+      function extractActionUrl(post) {
+        const text = [post?.recommendation, post?.fullSignal, post?.signal,
+                      ...((post?.steps) || [])].filter(Boolean).join("  ");
+        const match = text.match(/(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(\/[^\s)"']*)?/i);
+        let url = null;
+        if (match) {
+          const raw = match[0].replace(/[.,);:]+$/, "");
+          url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+        }
+        if (!url) {
+          const site = String(btData.business?.website || "").trim();
+          if (site) url = /^https?:\/\//i.test(site) ? site : `https://${site}`;
+        }
+        return url;
+      }
+
+      function siteLabel(url) {
+        try { return new URL(url).hostname.replace(/^www\./, ""); }
+        catch (_) { return "the website"; }
+      }
+
       function renderMoveCanvas(post) {
         const panel = document.getElementById("chatCanvasMove");
         if (!panel || !post) return;
@@ -31983,6 +32102,8 @@ ledger_entry · artifact · agent_run`,
         const pending = !decision;
         const status = decision?.status === "approved" ? "Approved"
           : decision?.status === "rejected" ? "Passed" : "Waiting for your decision";
+        const url = extractActionUrl(post);
+        const steps = ((post.steps) || []).filter(Boolean);
         panel.innerHTML = `
           <article class="chat-move-card">
             <header>
@@ -32001,6 +32122,16 @@ ledger_entry · artifact · agent_run`,
               ` : ""}
               <button type="button" class="orders-btn ghost small" data-chat-full-details data-post-id="${escapeHtml(post.id)}">Full details &amp; evidence</button>
             </div>
+            ${(url || steps.length) ? `
+              <div class="chat-move-guide">
+                <span class="chat-move-guide-label">Do it yourself</span>
+                ${url ? `<a class="chat-move-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+                  Open ${escapeHtml(siteLabel(url))}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
+                </a>` : ""}
+                ${steps.length ? `<ol class="chat-move-steps">${steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ol>` : ""}
+                <p class="chat-move-guide-note">This opens the real page in a new tab. I can't log in or click for you — your approval keeps every action yours.</p>
+              </div>` : ""}
           </article>`;
       }
 
@@ -32329,6 +32460,40 @@ ledger_entry · artifact · agent_run`,
         return true;
       }
 
+      /* "Open the website for me / walk me through it." The honest half of
+         "do it for me": the agent can't log in or click, but it can put the
+         real page one tap away and lay out the steps beside the conversation. */
+      function wantsSiteGuide(text) {
+        const t = String(text || "").toLowerCase();
+        return /\bopen\b.*\b(site|website|page|link|toast|it)\b/.test(t)
+          || /\b(take|walk) me\b/.test(t)
+          || /\bwalk me through\b/.test(t)
+          || /\b(guide|help) me (do|through|with)\b/.test(t)
+          || /\bhow do i (do|complete|finish)\b/.test(t);
+      }
+
+      function handleOpenSite(text) {
+        if (!wantsSiteGuide(text)) return false;
+        if (!chatContext?.post) {
+          replaceLoading("Open the recommendation you want to act on — from For "
+            + "You or Growth — and I'll take you to the page with the steps to follow.");
+          return true;
+        }
+        setCanvas("move");
+        const url = extractActionUrl(chatContext.post);
+        if (url) {
+          replaceLoading(`I've laid it out under “This move” on the canvas — an `
+            + `“Open ${siteLabel(url)}” button takes you straight there, with the `
+            + "steps beside it. I can't log in or click for you, but that's the "
+            + "page you need.");
+        } else {
+          replaceLoading("This move doesn't name a web link. The steps are on "
+            + "the canvas under “This move” — tell me the URL and I'll add an "
+            + "open button for it.");
+        }
+        return true;
+      }
+
       async function routeMessage(text) {
         if (!chatLive) {
           replaceLoading("I can't act in this preview. On the deployed site "
@@ -32341,6 +32506,11 @@ ledger_entry · artifact · agent_run`,
         //     own draft. Runs first so an in-flight confirmation ("yes") is
         //     not mistaken for a decision or an order.
         if (await handleEmailDraft(text)) return;
+
+        // 0a2. "Open the website / walk me through it" — the guide. The agent
+        //      can't log in or click, but it can take the owner to the page
+        //      and lay out the steps, on the canvas.
+        if (handleOpenSite(text)) return;
 
         // 0b. A decision outranks the rest — it is the owner acting.
         if (await handleDecision(text)) return;
