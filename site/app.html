@@ -20486,16 +20486,16 @@
 
     .chat-send {
       flex: none;
-      width: 46px;
-      height: 46px;
+      width: 44px;
+      height: 44px;
       display: grid;
       place-items: center;
       border: 0;
-      border-radius: 14px;
+      border-radius: 50%;
       background: var(--owner-gradient);
       color: #fff;
       cursor: pointer;
-      box-shadow: 0 10px 26px rgba(141, 69, 255, .3);
+      box-shadow: 0 8px 22px rgba(141, 69, 255, .34);
       transition: filter .15s ease, transform .15s ease;
     }
 
@@ -20508,12 +20508,56 @@
     .chat-context[hidden],
     #detailDrawer .drawer-composer[hidden] { display: none !important; }
 
+    /* "Try asking" — full-width suggestion rows with a leading icon, the
+       mock's cleanest element. Quieter than a bubble, clearly tappable. */
     .chat-hints {
       flex: none;
+      display: grid;
+      gap: 7px;
+      padding: 2px 14px 12px;
+    }
+
+    .chat-hints-label {
+      font-size: 10.5px;
+      font-weight: 750;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--owner-muted);
+      padding: 2px;
+    }
+
+    .chat-hint {
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 0 14px 10px;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid var(--owner-line);
+      border-radius: 13px;
+      background: rgba(255,255,255,.028);
+      color: var(--owner-copy);
+      font: inherit;
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .12s ease;
+    }
+
+    .chat-hint:hover {
+      border-color: rgba(196, 160, 255, .4);
+      background: rgba(141, 69, 255, .07);
+      transform: translateY(-1px);
+    }
+
+    .chat-hint svg {
+      flex: none;
+      width: 30px;
+      height: 30px;
+      padding: 6px;
+      border-radius: 9px;
+      background: var(--owner-gradient-soft);
+      border: 1px solid rgba(196, 160, 255, .24);
+      color: #c99aff;
     }
 
     .chat-composer {
@@ -20929,12 +20973,23 @@
     .drawer-open-chat:hover { background: rgba(141, 69, 255, .2); color: #fff; }
 
     @media (max-width: 960px) {
+      body.chat-mode .view-inner.chat-inner { width: calc(100% - 24px); }
       .chat-shell {
         grid-template-columns: 1fr;
         height: auto;
       }
-      .chat-pane { max-height: 440px; }
+      .chat-pane { max-height: 460px; }
       .chat-canvas { min-height: 480px; }
+      /* Two-up stat cards read better than a single wrapping row on a phone. */
+      .chat-stats { grid-template-columns: 1fr 1fr; }
+      .chat-hello h1 { font-size: 20px; }
+    }
+
+    @media (max-width: 460px) {
+      body.chat-mode .view-inner.chat-inner { width: calc(100% - 16px); padding: 8px 0 24px; }
+      .chat-stat { padding: 11px 13px; }
+      .chat-stat > strong { font-size: 19px; }
+      .chat-msg.owner, .chat-turn.agent > div { max-width: 92%; }
     }
   </style>
 
@@ -21142,9 +21197,19 @@
               </header>
               <div class="chat-thread" id="chatThread" aria-live="polite"></div>
               <div class="chat-hints" id="chatHints">
-                <button type="button" class="orders-example" data-chat-hint="order 2 cases of tomatoes">order 2 cases of tomatoes</button>
-                <button type="button" class="orders-example" data-chat-hint="what is waiting for my approval?">what's waiting for me?</button>
-                <button type="button" class="orders-example" data-chat-hint="how did we do last month?">how did we do last month?</button>
+                <span class="chat-hints-label">Try asking</span>
+                <button type="button" class="chat-hint" data-chat-hint="what is waiting for my approval?">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3 8-8" /><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" /></svg>
+                  <span>What needs my approval?</span>
+                </button>
+                <button type="button" class="chat-hint" data-chat-hint="order 2 cases of tomatoes">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6h15l-1.5 9h-13z" /><circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" /><path d="M6 6 5 3H2" /></svg>
+                  <span>Order supplies for me</span>
+                </button>
+                <button type="button" class="chat-hint" data-chat-hint="how did we do last month?">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-5M13 16V8M18 16v-3" /></svg>
+                  <span>How did we do last month?</span>
+                </button>
               </div>
               <div class="chat-context" id="chatContext" hidden>
                 <span>Discussing: <strong id="chatContextTitle"></strong></span>
@@ -21152,7 +21217,7 @@
               </div>
               <form class="chat-composer" id="chatComposer">
                 <textarea id="chatInput" rows="1" autocomplete="off"
-                          placeholder="Order supplies, or ask anything&hellip;"
+                          placeholder="Ask anything&hellip;"
                           aria-label="Message your agents"></textarea>
                 <button type="submit" class="chat-send" aria-label="Send">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -21268,6 +21333,22 @@
           </section>
 
           <!-- The approval gate: the only zone that ever needs a decision. -->
+          <!-- What happened, with both references on every receipt.
+               Activity leads: the owner opens the board to see what the agent
+               did, and the exceptions that need them sit right beneath it. -->
+          <section class="orders-zone" aria-labelledby="ordersHistoryHeading" data-enter>
+            <header class="orders-zone-head">
+              <div class="orders-zone-title">
+                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>
+                <h2 id="ordersHistoryHeading">Activity</h2>
+              </div>
+              <span class="orders-chip estimate" id="ordersPayChip"
+                    title="Charged only at the moment an order places. If an order fails after payment, the charge is refunded automatically. A price that moved after you approved is never charged.">Stripe &middot; Test card</span>
+            </header>
+            <div id="ordersHistoryList" class="orders-list"></div>
+            <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
+          </section>
+
           <section class="orders-zone" aria-labelledby="ordersPendingHeading" data-enter>
             <header class="orders-zone-head">
               <div class="orders-zone-title">
@@ -21370,20 +21451,6 @@
               <div id="ordersLimitsList" class="orders-list"></div>
               <p class="orders-empty" id="ordersLimitsEmpty" hidden>No limits yet &mdash; everything asks you first.</p>
             </div>
-          </section>
-
-          <!-- What happened, with both references on every receipt. -->
-          <section class="orders-zone" aria-labelledby="ordersHistoryHeading" data-enter>
-            <header class="orders-zone-head">
-              <div class="orders-zone-title">
-                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>
-                <h2 id="ordersHistoryHeading">Activity</h2>
-              </div>
-              <span class="orders-chip estimate" id="ordersPayChip"
-                    title="Charged only at the moment an order places. If an order fails after payment, the charge is refunded automatically. A price that moved after you approved is never charged.">Stripe &middot; Test card</span>
-            </header>
-            <div id="ordersHistoryList" class="orders-list"></div>
-            <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
           </section>
         </div>
       </section>
@@ -31827,7 +31894,7 @@ ledger_entry · artifact · agent_run`,
         if (input) {
           input.placeholder = chatContext
             ? `Ask about “${chatContext.title}”…`
-            : "Order supplies, or ask anything…";
+            : "Ask anything…";
         }
         if (chatContext) {
           renderMoveCanvas(chatContext.post);
@@ -32189,17 +32256,10 @@ ledger_entry · artifact · agent_run`,
       // The board keeps the dashboard row fresh on every state change.
       window.__btChatOverview = state => renderStats(state);
 
-      // The board's catalogue becomes chat suggestions, so removing the
-      // board's own input loses nothing.
-      window.__btChatCatalogue = catalogue => {
-        const hints = document.getElementById("chatHints");
-        if (!hints || !Array.isArray(catalogue) || !catalogue.length) return;
-        const items = catalogue.slice(0, 5).map(entry =>
-          `<button type="button" class="orders-example" data-chat-hint="order 2 ${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</button>`).join("");
-        hints.innerHTML = `${items}
-          <button type="button" class="orders-example" data-chat-hint="what's waiting for me?">what's waiting for me?</button>
-          <button type="button" class="orders-example" data-chat-hint="how did we do last month?">how did we do last month?</button>`;
-      };
+      // The fixed "Try asking" rows are the design now; the catalogue still
+      // powers the "not sold here" hint via __btOrdersLastState, so this
+      // override retires to a no-op rather than churning the markup.
+      window.__btChatCatalogue = () => {};
 
       document.addEventListener("click", event => {
         const opener = event.target.closest("[data-open-chat-tab]");
