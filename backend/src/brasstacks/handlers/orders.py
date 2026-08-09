@@ -97,9 +97,21 @@ def simple_parse(text: str, catalogue: dict[str, int]) -> list[tuple[str, int]]:
     items: list[tuple[str, int]] = []
     for name in catalogue:
         head = name.split(" ")[0]
-        if head not in lower:
+        # Whole-word match with an optional plural, trying the full name first
+        # then its head word. Word boundaries are the point: a substring match
+        # ordered "rice" from "what's the price?" and "milk" from "milkshake".
+        term = None
+        for candidate in (name, head):
+            if re.search(rf"\b{re.escape(candidate)}s?\b", lower):
+                term = re.escape(candidate)
+                break
+        if term is None:
             continue
-        near = re.search(rf"(\d+)[^.]{{0,18}}?{re.escape(head)}", lower)
+        # A quantity just before the item — "2 cases of tomatoes" — but never
+        # across an "and" or a comma, so "3 milks and some eggs" gives the 3 to
+        # milk and leaves eggs at one rather than bleeding the count over.
+        near = re.search(
+            rf"(\d+)(?:(?!\band\b)(?!,)\D){{0,18}}?{term}s?\b", lower)
         quantity = max(1, int(near.group(1))) if near else 1
         items.append((name, quantity))
     return items

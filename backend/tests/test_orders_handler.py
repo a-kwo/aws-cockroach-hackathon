@@ -478,3 +478,25 @@ class TestSimpleParse:
 
     def test_unknown_words_read_as_nothing(self):
         assert simple_parse("how did we do last month?", CATALOGUE) == []
+
+    def test_a_substring_is_not_a_match(self):
+        # "price" must not order rice; "milkshake" must not order milk. The old
+        # substring match did exactly that.
+        cat = {"rice": 6_50, "milk": 4_49}
+        assert simple_parse("what's the price today?", cat) == []
+        assert simple_parse("do we sell a milkshake?", cat) == []
+
+    def test_a_real_word_still_matches(self):
+        cat = {"rice": 6_50}
+        assert ("rice", 1) in simple_parse("order rice", cat)
+
+    def test_compound_items_match_on_full_name(self):
+        cat = {"coffee beans": 14_00}
+        assert ("coffee beans", 2) in simple_parse(
+            "order 2 bags of coffee beans", cat)
+
+    def test_a_plural_is_accepted(self):
+        cat = {"milk": 4_49, "egg": 5_75}
+        items = simple_parse("order 3 milks and some eggs", cat)
+        assert ("milk", 3) in items
+        assert ("egg", 1) in items

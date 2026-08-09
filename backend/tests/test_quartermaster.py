@@ -319,6 +319,20 @@ class TestRequestsFromStandingOrders:
             [schedule(category="produce")], today=TUESDAY)
         assert requests[0].category == "produce"
 
+    def test_a_malformed_order_is_skipped_but_not_silently(self):
+        # A broken row must not abort the batch, and must not vanish either:
+        # the caller hears about it so "nothing was due" and "your order is
+        # broken" never look the same.
+        broken = StandingOrder(name="Broken", items=(("tomatoes", 4),),
+                               weekday=None, interval_days=None)
+        skipped = []
+        requests = requests_from_standing_orders(
+            [broken, schedule()], today=TUESDAY,
+            on_skip=lambda pair: skipped.append(pair))
+        assert [r.items for r in requests] == [(("tomatoes", 4),)]
+        assert len(skipped) == 1
+        assert skipped[0][0].name == "Broken"
+
 
 class TestRequestsFromStock:
     """A low-stock estimate becomes a draft request, never a purchase."""
