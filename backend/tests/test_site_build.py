@@ -3316,7 +3316,14 @@ def test_desktop_feed_uses_the_full_card_and_scrolls_long_recommendations():
 
 
 def test_growth_process_and_empty_states_share_the_midnight_surface():
-    """Growth must not embed bright white cards inside the dark owner shell."""
+    """Growth must not embed a second card inside the dark owner shell.
+
+    The process preview used to carry its own filled, bordered box inside the
+    already-dark slide — a box in a box the owner flagged as "too many
+    backgrounds". It is flat now: no card gradient, so it inherits the one
+    surface. It still must not become a bright white card, which transparency
+    over the dark slide guarantees.
+    """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     block = html.split('<style id="owner-production-polish-v35">', 1)[1].split(
         "</style>", 1
@@ -3324,7 +3331,9 @@ def test_growth_process_and_empty_states_share_the_midnight_surface():
 
     assert ".growth-chart.is-process-preview" in block
     assert "height: 100% !important" in block
-    assert "linear-gradient(145deg, rgba(20,25,49,.90), rgba(10,14,30,.80))" in block
+    # No inner card fill any more — the preview shares the slide's background.
+    assert "linear-gradient(145deg, rgba(20,25,49,.90), rgba(10,14,30,.80))" not in block
+    assert "body.growth-mode .growth-projection" in block
     assert "body.growth-mode .list-empty" in block
     assert "rgba(255,255,255,.018) !important" in block
     assert "color: #e8ebf6 !important" in block
