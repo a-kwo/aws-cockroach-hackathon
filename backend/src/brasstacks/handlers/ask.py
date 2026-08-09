@@ -1287,15 +1287,15 @@ def email_draft_action(
             "find_id": find_id,
         })
 
-    # A confirmed address the owner just typed wins; otherwise their profile.
-    requested = str(payload.get("email") or "").strip()
-    recipient = requested or (repo.owner_email_for_business(
-        business_id, preferred_account_id=account.get("account_id")) or "")
-    if not recipient or "@" not in recipient:
+    title, body = _draft_for_find(repo, find_id)
+    title = title or find.title or "Your Brass Tacks draft"
+    body_text = (body or find.move or find.rationale or find.summary or "").strip()
+    if not body_text:
         return respond(200, {
-            "answer": ("I can email you the draft — what address should I send "
-                       "it to? I don't have one saved for you."),
-            "action": {"type": EMAIL_DRAFT_ACTION, "status": "needs_email"},
+            "answer": ("There's no drafted wording for this move yet — accept "
+                       "it so the Maker can draft it, then I'll email you the "
+                       "result."),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "no_draft"},
             "find_id": find_id,
         })
 
@@ -1309,15 +1309,39 @@ def email_draft_action(
             "find_id": find_id,
         })
 
-    title, body = _draft_for_find(repo, find_id)
-    title = title or find.title or "Your Brass Tacks draft"
-    body_text = (body or find.move or find.rationale or find.summary or "").strip()
-    if not body_text:
+    # Resolving the recipient in three honest steps:
+    #   1. an address the owner typed this turn wins, and is sent to directly;
+    #   2. otherwise the profile email is looked up here (the DB, not a stale
+    #      client field) and CONFIRMED before anything is sent;
+    #   3. if the profile has none, say so plainly and ask for one.
+    requested = str(payload.get("email") or "").strip()
+    confirmed = bool(payload.get("confirmed"))
+    if requested and "@" not in requested:
         return respond(200, {
-            "answer": ("There's no drafted wording for this move yet — accept "
-                       "it so the Maker can draft it, then I'll email you the "
-                       "result."),
-            "action": {"type": EMAIL_DRAFT_ACTION, "status": "no_draft"},
+            "answer": "That doesn't look like an email address — try again.",
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "needs_email"},
+            "find_id": find_id,
+        })
+
+    profile_email = repo.owner_email_for_business(
+        business_id, preferred_account_id=account.get("account_id")) or ""
+    recipient = requested or profile_email
+    if not recipient or "@" not in recipient:
+        return respond(200, {
+            "answer": ("No email found in your profile — what address should I "
+                       "send the draft to?"),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "needs_email"},
+            "find_id": find_id,
+        })
+
+    # The profile email must be confirmed before it is used. An address the
+    # owner just typed is itself the confirmation, so it skips this step.
+    if not requested and not confirmed:
+        return respond(200, {
+            "answer": (f"I found {recipient} on your profile. Shall I send the "
+                       f"draft for \"{title}\" there? Reply “yes” to send."),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "confirm",
+                       "recipient": recipient},
             "find_id": find_id,
         })
 

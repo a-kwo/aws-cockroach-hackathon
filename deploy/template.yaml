@@ -476,6 +476,13 @@ Resources:
               Effect: Allow
               Action: sqs:SendMessage
               Resource: !GetAtt MakerTaskQueue.Arn
+            # The "email me the draft" action sends through the same verified
+            # SES identity the Maker uses. Without this the send is denied —
+            # exactly the AccessDenied an owner hit on the first live try.
+            - Sid: SendDraftEmail
+              Effect: Allow
+              Action: ses:SendEmail
+              Resource: "*"
       Events:
         Ask:
           Type: HttpApi

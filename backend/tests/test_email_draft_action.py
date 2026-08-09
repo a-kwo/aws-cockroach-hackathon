@@ -52,10 +52,12 @@ def a_find(repo, business_id, *, move="Email your host to restore checkout."):
         evidence=[EvidenceRef(observation_id, .9)])
 
 
-def event(token, *, find_id, email=None):
+def event(token, *, find_id, email=None, confirmed=False):
     body = {"action": EMAIL_DRAFT_ACTION, "find_id": find_id}
     if email is not None:
         body["email"] = email
+    if confirmed:
+        body["confirmed"] = True
     return {
         "requestContext": {"http": {"method": "POST"}},
         "headers": {"Authorization": f"Bearer {token}"},
@@ -63,9 +65,10 @@ def event(token, *, find_id, email=None):
     }
 
 
-def call(repo, token, *, find_id, email=None, ses=None, source="agent@bt.example"):
+def call(repo, token, *, find_id, email=None, confirmed=False, ses=None,
+         source="agent@bt.example"):
     return email_draft_action(
-        event(token, find_id=find_id, email=email),
+        event(token, find_id=find_id, email=email, confirmed=confirmed),
         repo=repo, email_sender=ses, email_source=source if ses else None,
         now=NOW)
 
@@ -86,12 +89,25 @@ class TestAuth:
         assert response["statusCode"] == 401
 
 
-class TestSendingToTheProfileEmail:
-    def test_it_sends_to_the_owners_profile_address(self):
+class TestConfirmingTheProfileEmailFirst:
+    def test_my_email_is_resolved_from_the_profile_and_confirmed(self):
+        # "send to my email" with a profile email must confirm that address,
+        # not ask for one — the bug the owner reported.
         repo, business_id, _, token = owner(email="chef@asaka.example")
         find_id = a_find(repo, business_id)
         ses = FakeSes()
         answer = body_of(call(repo, token, find_id=find_id, ses=ses))
+        assert answer["action"]["status"] == "confirm"
+        assert answer["action"]["recipient"] == "chef@asaka.example"
+        assert "chef@asaka.example" in answer["answer"]
+        assert ses.sent == []  # nothing sent until confirmed
+
+    def test_confirming_sends_to_the_profile_address(self):
+        repo, business_id, _, token = owner(email="chef@asaka.example")
+        find_id = a_find(repo, business_id)
+        ses = FakeSes()
+        answer = body_of(call(repo, token, find_id=find_id, confirmed=True,
+                              ses=ses))
         assert answer["action"]["status"] == "sent"
         assert answer["action"]["recipient"] == "chef@asaka.example"
         assert len(ses.sent) == 1
@@ -102,7 +118,7 @@ class TestSendingToTheProfileEmail:
         find_id = a_find(repo, business_id,
                          move="Ask your host to switch checkout back on.")
         ses = FakeSes()
-        call(repo, token, find_id=find_id, ses=ses)
+        call(repo, token, find_id=find_id, confirmed=True, ses=ses)
         assert "switch checkout back on" in ses.sent[0]["body"]
         assert "Restore ordering" in ses.sent[0]["subject"]
 
@@ -112,7 +128,7 @@ class TestSendingToTheProfileEmail:
         repo, business_id, _, token = owner()
         find_id = a_find(repo, business_id)
         ses = FakeSes()
-        call(repo, token, find_id=find_id, ses=ses)
+        call(repo, token, find_id=find_id, confirmed=True, ses=ses)
         assert "anyone else" in ses.sent[0]["body"]
 
     def test_the_maker_artifact_body_wins_over_the_raw_move(self):
@@ -124,31 +140,33 @@ class TestSendingToTheProfileEmail:
             body="Dear host, please re-enable checkout on asakacatogo.com…",
             review_state="ready_for_review")
         ses = FakeSes()
-        call(repo, token, find_id=find_id, ses=ses)
+        call(repo, token, find_id=find_id, confirmed=True, ses=ses)
         assert "please re-enable checkout" in ses.sent[0]["body"]
         assert "restore checkout" in ses.sent[0]["subject"]
 
 
-class TestConfirmedAddressWins:
-    def test_an_explicit_address_overrides_the_profile(self):
+class TestTypedAddressWins:
+    def test_an_explicit_address_sends_directly_without_a_second_confirm(self):
         repo, business_id, _, token = owner(email="old@asaka.example")
         find_id = a_find(repo, business_id)
         ses = FakeSes()
         answer = body_of(call(repo, token, find_id=find_id,
                               email="new@asaka.example", ses=ses))
+        assert answer["action"]["status"] == "sent"
         assert answer["action"]["recipient"] == "new@asaka.example"
         assert ses.sent[0]["recipient"] == "new@asaka.example"
 
 
 class TestAskingForAnAddress:
-    def test_no_email_anywhere_asks_for_one_and_sends_nothing(self):
+    def test_no_profile_email_says_so_and_asks_for_one(self):
         repo, business_id, _, token = owner(email=None)
         find_id = a_find(repo, business_id)
         ses = FakeSes()
         answer = body_of(call(repo, token, find_id=find_id, ses=ses))
         assert answer["action"]["status"] == "needs_email"
         assert ses.sent == []
-        assert "address" in answer["answer"].lower()
+        # The owner's exact ask: say the profile has none, then ask.
+        assert "no email found in your profile" in answer["answer"].lower()
 
 
 class TestHonestFailureModes:
@@ -178,7 +196,7 @@ class TestHonestFailureModes:
             raise RuntimeError("SES throttled")
 
         answer = body_of(email_draft_action(
-            event(token, find_id=find_id), repo=repo,
+            event(token, find_id=find_id, confirmed=True), repo=repo,
             email_sender=boom, email_source="a@b.example", now=NOW))
         assert answer["action"]["status"] == "failed"
         assert "SES throttled" in answer["answer"]
