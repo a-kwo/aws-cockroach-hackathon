@@ -35,6 +35,10 @@ CONTEXT_CHAR_BUDGET = 3600
 UNDO_PASS_ACTION = "undo_pass"
 RECONSIDER_ACTION = "reconsider"
 REVISE_DRAFT_ACTION = "revise_draft"
+#: Email the owner *their own* draft — delivering a document to them, not
+#: executing the move on the world. Safe by construction: it goes only to the
+#: owner's confirmed address and nowhere else.
+EMAIL_DRAFT_ACTION = "email_draft"
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -92,7 +96,8 @@ def parse_action(event: Any) -> tuple[str, str, str | None] | None:
     action = str(payload.get("action") or "").strip().lower()
     if not action:
         return None
-    if action not in {UNDO_PASS_ACTION, RECONSIDER_ACTION, REVISE_DRAFT_ACTION}:
+    if action not in {UNDO_PASS_ACTION, RECONSIDER_ACTION, REVISE_DRAFT_ACTION,
+                      EMAIL_DRAFT_ACTION}:
         raise ValueError(f"unsupported action {action!r}")
     find_id = str(payload.get("find_id") or "").strip()
     if not find_id:
@@ -1220,6 +1225,161 @@ def answer_question(
     })
 
 
+def _draft_for_find(repo: Any, find_id: str) -> tuple[str | None, str | None]:
+    """The best available wording for a find, and its title.
+
+    The Maker's current (unsuperseded) artifact body is the real draft; when
+    none exists yet — an unaccepted find, or a night the Maker has not run —
+    the caller falls back to the find's own move so there is still something
+    to send.
+    """
+    if not hasattr(repo, "get_artifacts"):
+        return None, None
+    try:
+        artifacts = [a for a in repo.get_artifacts(find_id)
+                     if getattr(a, "superseded_at", None) is None]
+    except Exception:
+        return None, None
+    if not artifacts:
+        return None, None
+    artifact = max(artifacts, key=lambda a: (
+        int(getattr(a, "revision", 1) or 1),
+        str(getattr(a, "created_at", "") or ""),
+    ))
+    body = getattr(artifact, "body", None) or getattr(artifact, "preview", None)
+    return getattr(artifact, "title", None), (body or None)
+
+
+def email_draft_action(
+    event: Any,
+    *,
+    repo: Any,
+    email_sender: Any = None,
+    email_source: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Email the owner the draft for one recommendation.
+
+    The Ask agent is read-only about the world — it cannot touch a live site
+    or send anything to a third party. But it can hand the owner the draft it
+    wrote, by email, which is the help the owner actually asked for. The
+    recipient is an address the owner confirmed in chat or the one on their
+    profile, never anywhere else, and the body says plainly that this is the
+    owner's to send — nothing has been published on their behalf.
+    """
+    moment = now or datetime.now(timezone.utc)
+    account, error = _business_for_event(event, repo=repo, now=moment)
+    if error is not None:
+        return error
+    business_id = account["business_id"]
+
+    payload = _payload(event)
+    find_id = str(payload.get("find_id") or "").strip()
+    if not find_id:
+        return respond(400, {"error": "find_id is required to email a draft"})
+
+    find = repo.get_find_context(business_id, find_id)
+    if find is None:
+        # Do not confirm whether the id belongs to another tenant.
+        return respond(200, {
+            "answer": "I couldn't find that recommendation on your board.",
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "not_found"},
+            "find_id": find_id,
+        })
+
+    # A confirmed address the owner just typed wins; otherwise their profile.
+    requested = str(payload.get("email") or "").strip()
+    recipient = requested or (repo.owner_email_for_business(
+        business_id, preferred_account_id=account.get("account_id")) or "")
+    if not recipient or "@" not in recipient:
+        return respond(200, {
+            "answer": ("I can email you the draft — what address should I send "
+                       "it to? I don't have one saved for you."),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "needs_email"},
+            "find_id": find_id,
+        })
+
+    if not (email_sender and email_source):
+        return respond(200, {
+            "answer": ("Email isn't switched on for this deployment yet, so I "
+                       "can't send it. Open the recommendation and copy the "
+                       "draft into an email, or ask your admin to configure the "
+                       "mail sender."),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "unavailable"},
+            "find_id": find_id,
+        })
+
+    title, body = _draft_for_find(repo, find_id)
+    title = title or find.title or "Your Brass Tacks draft"
+    body_text = (body or find.move or find.rationale or find.summary or "").strip()
+    if not body_text:
+        return respond(200, {
+            "answer": ("There's no drafted wording for this move yet — accept "
+                       "it so the Maker can draft it, then I'll email you the "
+                       "result."),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "no_draft"},
+            "find_id": find_id,
+        })
+
+    subject = f"Your draft: {title}"
+    email_body = (
+        f"Hi,\n\nHere is the draft for \"{title}\" from your Brass Tacks "
+        "board, ready for you to use.\n\n"
+        "----------------------------------------\n"
+        f"{body_text}\n"
+        "----------------------------------------\n\n"
+        "This is a draft for you to send or apply yourself. Nothing has been "
+        "published, posted, or emailed to anyone else on your behalf.\n"
+    )
+    try:
+        message_id = email_sender(
+            source=email_source, recipient=recipient,
+            subject=subject, body=email_body)
+    except Exception as exc:
+        return respond(200, {
+            "answer": (f"I tried to email it but the send failed ({exc}). Try "
+                       "again in a moment, or copy the draft from the "
+                       "recommendation."),
+            "action": {"type": EMAIL_DRAFT_ACTION, "status": "failed"},
+            "find_id": find_id,
+        })
+
+    return respond(200, {
+        "answer": (f"Sent — the draft for \"{title}\" is on its way to "
+                   f"{recipient}. It's yours to send to your provider or "
+                   "apply; I haven't posted or emailed it to anyone else."),
+        "action": {"type": EMAIL_DRAFT_ACTION, "status": "sent",
+                   "recipient": recipient,
+                   "message_id": str(message_id or "")},
+        "find_id": find_id,
+    })
+
+
+def _build_email_sender(settings: Any):
+    """An SES send closure and its verified source, mirroring orders.py.
+
+    Returns (sender, source) or (None, None) when no verified sender is
+    configured — the action then answers honestly that email is unavailable.
+    """
+    source = os.environ.get("MAKER_EMAIL_FROM", "").strip() or None
+    if not source:
+        return None, None
+    import boto3
+    ses = boto3.client("ses", region_name=settings.aws_region)
+
+    def send(*, source, recipient, subject, body):
+        response = ses.send_email(
+            Source=source,
+            Destination={"ToAddresses": [recipient]},
+            Message={
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+            })
+        return str(response.get("MessageId") or "")
+
+    return send, source
+
+
 def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     method = _method(event)
     if method == "OPTIONS":
@@ -1260,6 +1420,12 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                         maker_queue_url=maker_queue_url,
                         model_id=getattr(settings, "anthropic_model_id", None),
                     )
+                if action[0] == EMAIL_DRAFT_ACTION:
+                    sender, source = _build_email_sender(settings)
+                    return email_draft_action(
+                        event, repo=repo,
+                        email_sender=sender, email_source=source,
+                    )
                 return undo_pass_action(
                     event,
                     repo=repo,
@@ -1294,6 +1460,8 @@ __all__ = [
     "undo_pass_action",
     "reconsider_action",
     "revise_draft_action",
+    "email_draft_action",
+    "EMAIL_DRAFT_ACTION",
     "perform_undo_pass",
     "perform_reconsider",
     "perform_revision",
