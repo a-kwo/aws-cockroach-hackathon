@@ -79,3 +79,7 @@ site-2/
 build_web.py
 v8-analyst-preview.png
 v8-analyst-trace-focus.png
+
+# transient headless-screenshot chrome profiles
+.prof*/
+.shots/
