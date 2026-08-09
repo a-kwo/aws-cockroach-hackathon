@@ -1250,6 +1250,63 @@ def _draft_for_find(repo: Any, find_id: str) -> tuple[str | None, str | None]:
     return getattr(artifact, "title", None), (body or None)
 
 
+def render_draft_email(title: str, body_text: str, *,
+                       business_name: str = "") -> dict[str, str]:
+    """A review-ready draft email, in the Maker's visual language.
+
+    Plain text carries the same content for clients that refuse HTML; the HTML
+    part is the styled version the owner actually reads — a cream page, a white
+    card, the draft body in its own framed block, and the standing promise that
+    nothing was sent on their behalf.
+    """
+    import html as _html
+
+    safe_title = _html.escape(title)
+    who = (business_name or "").strip()
+    intro = (f"Here is the draft for \"{title}\""
+             + (f" from {who}'s Brass Tacks board" if who
+                else " from your Brass Tacks board")
+             + ", ready for you to use.")
+
+    blocks = [block for block in
+              str(body_text or "").replace("\r\n", "\n").split("\n\n")
+              if block.strip()]
+    body_html = "".join(
+        '<p style="font-size:15px;line-height:1.65;color:#20282d;margin:0 0 14px">'
+        + _html.escape(block).replace("\n", "<br>")
+        + "</p>"
+        for block in blocks
+    ) or '<p style="color:#56636a">No wording yet.</p>'
+
+    subject = f"Review-ready draft: {title}"
+    plain = (
+        f"YOUR DRAFT — {title}\n\n"
+        f"{intro}\n\n"
+        "----------------------------------------\n"
+        f"{body_text}\n"
+        "----------------------------------------\n\n"
+        "This is a draft for you to send or apply yourself. Nothing has been "
+        "published, posted, or emailed to anyone else on your behalf.\n"
+    )
+    html_body = f"""<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#20282d">
+  <div style="max-width:620px;margin:0 auto;padding:28px 16px">
+    <div style="background:#ffffff;border:1px solid #e4ded5;border-radius:20px;padding:32px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.12em;color:#2d7e72">BRASS TACKS · YOUR DRAFT</div>
+      <h1 style="font-size:25px;line-height:1.2;margin:16px 0 8px">Your draft is ready</h1>
+      <h2 style="font-size:19px;line-height:1.35;margin:0 0 12px">{safe_title}</h2>
+      <p style="font-size:15px;line-height:1.6;color:#56636a;margin:0 0 22px">{_html.escape(intro)}</p>
+      <div style="margin:0 0 24px;padding:22px 24px;border:1px solid #e4ded5;border-radius:14px;background:#faf8f4">
+        {body_html}
+      </div>
+      <p style="font-size:13px;line-height:1.55;color:#778188;margin:0">This is a draft for you to send or apply yourself. Nothing has been published, posted, or emailed to anyone else on your behalf.</p>
+    </div>
+  </div>
+</body></html>"""
+    return {"subject": subject, "plain": plain, "html": html_body}
+
+
 def email_draft_action(
     event: Any,
     *,
@@ -1345,20 +1402,12 @@ def email_draft_action(
             "find_id": find_id,
         })
 
-    subject = f"Your draft: {title}"
-    email_body = (
-        f"Hi,\n\nHere is the draft for \"{title}\" from your Brass Tacks "
-        "board, ready for you to use.\n\n"
-        "----------------------------------------\n"
-        f"{body_text}\n"
-        "----------------------------------------\n\n"
-        "This is a draft for you to send or apply yourself. Nothing has been "
-        "published, posted, or emailed to anyone else on your behalf.\n"
-    )
+    rendered = render_draft_email(title, body_text)
     try:
         message_id = email_sender(
             source=email_source, recipient=recipient,
-            subject=subject, body=email_body)
+            subject=rendered["subject"], body=rendered["plain"],
+            html=rendered["html"])
     except Exception as exc:
         return respond(200, {
             "answer": (f"I tried to email it but the send failed ({exc}). Try "
@@ -1391,13 +1440,16 @@ def _build_email_sender(settings: Any):
     import boto3
     ses = boto3.client("ses", region_name=settings.aws_region)
 
-    def send(*, source, recipient, subject, body):
+    def send(*, source, recipient, subject, body, html=None):
+        message_body = {"Text": {"Data": body, "Charset": "UTF-8"}}
+        if html:
+            message_body["Html"] = {"Data": html, "Charset": "UTF-8"}
         response = ses.send_email(
             Source=source,
             Destination={"ToAddresses": [recipient]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+                "Body": message_body,
             })
         return str(response.get("MessageId") or "")
 
@@ -1485,6 +1537,7 @@ __all__ = [
     "reconsider_action",
     "revise_draft_action",
     "email_draft_action",
+    "render_draft_email",
     "EMAIL_DRAFT_ACTION",
     "perform_undo_pass",
     "perform_reconsider",
