@@ -17393,7 +17393,7 @@
 
     body.autopilot-mode .feed-detail-panel {
       min-width: 0;
-      align-self: start;
+      align-self: center;
       padding: 18px 19px 16px;
       border: 1px solid rgba(205,214,255,.13);
       border-radius: 22px;
@@ -22312,6 +22312,46 @@
     }
   </style>
 
+  <style id="supplies-in-agent-canvas-v56">
+    /* Supplies folded into the agent canvas as a tab. */
+
+    /* Ordering happens in the agent chat now, so the board's own ask/order
+       input is gone; the price list ("What the store sells") stays. */
+    #ordersBoard .orders-ask,
+    #ordersBoard .orders-ask-examples { display: none !important; }
+    /* With only the catalogue left, the command zone stops being a sticky dark
+       band and becomes a plain block. */
+    #ordersBoard .orders-zone-command {
+      position: static !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: transparent !important;
+      backdrop-filter: none !important;
+      border: 0 !important;
+    }
+
+    /* The Supplies canvas panel holds the board and scrolls within the canvas. */
+    #chatCanvasSupplies {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px 18px 20px;
+    }
+    #chatCanvasSupplies[hidden] { display: none; }
+    /* The board no longer centres itself in a 720px column — it fills the panel. */
+    #chatCanvasSupplies #ordersBoard {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    /* The board's own sr-only heading and any view chrome need no extra top gap. */
+    #chatCanvasSupplies .orders-appbar { padding-top: 0 !important; }
+
+    /* The Supplies tab sits with This move / Details. */
+    #chatCanvasSuppliesTab[hidden] { display: none; }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
@@ -22347,19 +22387,12 @@
           </svg>
           <span>Growth</span>
         </button>
-        <button class="view-tab" type="button" data-view="orders">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-            <path d="M5 6h15l-1.6 8.5H7.2z" /><path d="M5 6 4 3H2" />
-            <circle cx="9" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" />
-          </svg>
-          <span>Supplies</span>
-        </button>
         <button class="view-tab" type="button" data-view="chat">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 4v-4H6a2 2 0 0 1-2-2z" />
             <path d="M8 9h8M8 12.5h5" />
           </svg>
-          <span>Chat</span>
+          <span>My agent</span>
         </button>
         <button class="view-tab" type="button" data-view="admin">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -22525,7 +22558,7 @@
           <div class="chat-shell">
             <aside class="chat-pane" aria-labelledby="chatHeading">
               <header class="chat-pane-head">
-                <h1 id="chatHeading">Chat</h1>
+                <h1 id="chatHeading">My agent</h1>
               </header>
               <div class="chat-thread" id="chatThread" aria-live="polite"></div>
               <div class="chat-hints" id="chatHints">
@@ -22564,16 +22597,20 @@
                 <header class="chat-canvas-head">
                   <nav class="chat-canvas-tabs" id="chatCanvasTabs" aria-label="Canvas panels">
                     <button type="button" data-canvas="move" id="chatCanvasMoveTab" hidden>This move</button>
+                    <button type="button" data-canvas="supplies" id="chatCanvasSuppliesTab">Supplies</button>
                     <button type="button" data-canvas="details" id="chatCanvasDetailsTab" hidden>Details</button>
                   </nav>
                   <span id="chatCanvasStatus">Live from your memory</span>
                 </header>
                 <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
                 <div class="chat-canvas-details" id="chatCanvasDetails" hidden></div>
-                <!-- The resting state. The canvas is empty far more often
-                     than not, and an empty panel that says nothing reads as
-                     something failing to load. -->
-                <div class="chat-canvas-overview" id="chatCanvasEmpty">
+                <!-- The Supplies board is folded in here at runtime (see
+                     foldSuppliesIntoCanvas) so ordering and stock live under
+                     the same agent, as a canvas tab rather than a second page. -->
+                <div class="chat-canvas-supplies" id="chatCanvasSupplies" hidden></div>
+                <!-- The resting state, shown only before a move is opened and
+                     if the board has not taken over as the default panel. -->
+                <div class="chat-canvas-overview" id="chatCanvasEmpty" hidden>
                   <div class="chat-canvas-empty-mark" aria-hidden="true">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                       <path d="M5 5h14v14H5z" /><path d="M9 10h6M9 14h4" />
@@ -22584,8 +22621,8 @@
                     Open a recommendation from For You or Growth and it appears
                     here, with its evidence and whatever the Maker drafted.
                   </p>
-                  <button type="button" class="chat-canvas-empty-link" data-goto-view="orders">
-                    Ordering and stock live on Supplies
+                  <button type="button" class="chat-canvas-empty-link" data-canvas="supplies">
+                    Ordering and stock are on the Supplies tab
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
                   </button>
                 </div>
@@ -23686,7 +23723,9 @@
     // a single column (see CSS :has), so the panel never strands an empty
     // column on desktop.
     function renderFeedDetailPanel(post) {
-      const brief = post.feedBrief;
+      // A find without a normalised brief must not throw and take the whole
+      // app script down with it (it used to read brief.goal and crash init).
+      const brief = post.feedBrief || normaliseFeedBrief(post);
       const evidenceCount = Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0));
       // Priced by a second agent that was never shown what this move is
       // predicted to earn, so the two figures are independent. Absent whenever
@@ -24947,6 +24986,11 @@
       //  init and after a decision. Redirecting here is one guard instead of
       //  four, and it cannot be forgotten at a future fifth call site.
       if (OPERATOR_SESSION) viewName = "admin";
+      //  The Supplies board folded into the agent's canvas as a tab, so the old
+      //  "orders" view is now the agent with its Supplies tab open. Every call
+      //  site that asked for Supplies still works through this one redirect.
+      const wantSupplies = viewName === "orders";
+      if (wantSupplies) viewName = "chat";
       activeView = viewName;
       viewTabs.forEach(tab => tab.classList.toggle("active", tab.dataset.view === viewName));
       views.forEach(view => view.classList.toggle("active", view.id === `view-${viewName}`));
@@ -24956,9 +25000,10 @@
       document.body.classList.toggle("console-mode", viewName === "admin");
       document.body.classList.toggle("autopilot-mode", viewName === "autopilot");
       document.body.classList.toggle("growth-mode", viewName === "growth");
-      // The board has its own tab again, so orders styling belongs to that
-      // view alone. Chat wears chat-mode only.
-      document.body.classList.toggle("orders-mode", viewName === "orders");
+      // The Supplies board lives inside the agent canvas now, so its midnight
+      // theme (body.orders-mode .orders-*) has to ride along whenever the agent
+      // is open. chat-mode and orders-mode are sibling dark themes, so both on.
+      document.body.classList.toggle("orders-mode", viewName === "chat");
       document.body.classList.toggle("chat-mode", viewName === "chat");
       // Cards measure as zero-height while their view is hidden, so any fit
       // that was skipped is settled here, on the way in.
@@ -24976,6 +25021,7 @@
       } else {
         stopWorkflowRefresh();
       }
+      if (wantSupplies && window.__btShowSuppliesCanvas) window.__btShowSuppliesCanvas();
     }
 
     let entranceTimer;
@@ -25532,7 +25578,7 @@
                     <small>${decisionSyncPending ? "Checking latest decision status…" : post.amount > 0 ? "Nothing changes until approved" : "Value confirmed once you measure it"}</small>
                   </span>
                 </div>
-                <span class="feed-read-time">${feedDetailIcon("clock")} ${post.readMinutes} min read</span>
+                <span class="feed-read-time">${feedDetailIcon("clock")} ${post.readMinutes || 2} min read</span>
               </div>
 
               <div class="decision-actions" aria-label="Respond to this recommendation">
@@ -33329,7 +33375,7 @@ ledger_entry · artifact · agent_run`,
         document.getElementById("closeDrawer")?.addEventListener("click", () => {
           const tab = document.getElementById("chatCanvasDetailsTab");
           if (tab) tab.hidden = true;
-          setCanvas(chatContext ? "move" : "empty");
+          setCanvas(chatContext ? "move" : "supplies");
         });
       }
 
@@ -33357,10 +33403,12 @@ ledger_entry · artifact · agent_run`,
         const movePanel = document.getElementById("chatCanvasMove");
         const detailsPanel = document.getElementById("chatCanvasDetails");
         const emptyPanel = document.getElementById("chatCanvasEmpty");
+        const suppliesPanel = document.getElementById("chatCanvasSupplies");
         const tabs = document.getElementById("chatCanvasTabs");
         if (!movePanel || !emptyPanel) return;
         movePanel.hidden = mode !== "move";
         if (detailsPanel) detailsPanel.hidden = mode !== "details";
+        if (suppliesPanel) suppliesPanel.hidden = mode !== "supplies";
         emptyPanel.hidden = mode !== "empty";
         tabs?.querySelectorAll("[data-canvas]").forEach(button => {
           button.classList.toggle("active", button.dataset.canvas === mode);
@@ -33448,7 +33496,9 @@ ledger_entry · artifact · agent_run`,
           renderMoveCanvas(chatContext.post);
           setCanvas("move");
         } else {
-          setCanvas("empty");
+          //  With no move open, the Supplies board is the resting canvas — it
+          //  is the useful thing to see, and the old empty state is retired.
+          setCanvas("supplies");
         }
       }
 
@@ -34003,6 +34053,22 @@ ledger_entry · artifact · agent_run`,
         if (typeof closeDrawer === "function") closeDrawer();
         window.__btOpenChatAbout(post || { id, title: "this move" });
       });
+
+      //  Fold the Supplies board into this canvas as its resting tab, so
+      //  ordering and stock live under the same agent instead of a second page.
+      //  The board keeps its own id, so its module (which found it by id and
+      //  bound its listeners already) keeps working after the move.
+      (function foldSuppliesIntoCanvas() {
+        const board = document.getElementById("ordersBoard");
+        const host = document.getElementById("chatCanvasSupplies");
+        if (board && host && board.parentElement !== host) host.appendChild(board);
+        const oldView = document.getElementById("view-orders");
+        if (oldView && !oldView.contains(document.getElementById("ordersBoard"))) oldView.remove();
+      })();
+      //  switchView("orders") and any Supplies link route here.
+      window.__btShowSuppliesCanvas = () => setCanvas("supplies");
+      //  Show the board as the resting canvas from the start.
+      setCanvas("supplies");
     })();
   </script>
 </body>

@@ -1970,37 +1970,32 @@ def test_each_audience_sees_only_its_own_views():
     assert 'if (OPERATOR_SESSION) viewName = "admin";' in html
 
 
-def test_supplies_is_its_own_tab_and_not_a_panel_inside_chat():
-    """Supplies is a primary view, reached from the switcher like any other.
+def test_supplies_is_folded_into_the_agent_canvas():
+    """Supplies is a tab inside the agent's canvas, not a separate page.
 
-    It lived in the Chat canvas behind a "This move | Supplies" toggle, which
-    put two unrelated jobs — deciding a recommendation and running the pantry
-    — on one surface and made the owner switch between them. Ordering is a
-    place you go, not a mode the conversation happens to be in.
+    It was a primary view for a while, on the reasoning that ordering is a
+    place you go rather than a mode a conversation is in. The owner reversed
+    that: they want one agent that holds both the conversation and the board,
+    toggled like This move | Supplies, and the assistant renamed "My agent".
+    The earlier decision is preserved in git history; this is the current one.
 
-    The board must therefore stay in its own section: nothing may move
-    #ordersBoard into the chat canvas, and no canvas tab may offer supplies.
+    So there is no Supplies view-switcher tab, the canvas offers a supplies
+    panel, and the board is relocated into it at startup.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    # The tab exists, in the primary switcher, labelled for the owner.
+    # No Supplies tab in the primary switcher; the assistant is "My agent".
     switcher = html.split('<nav class="view-switcher"', 1)[1].split("</nav>", 1)[0]
-    assert 'data-view="orders"' in switcher
-    assert "<span>Supplies</span>" in switcher
-    # Between Growth and Chat: the three owner views run decide -> measure ->
-    # run, and the assistant sits after them.
-    assert (switcher.index('data-view="growth"')
-            < switcher.index('data-view="orders"')
-            < switcher.index('data-view="chat"'))
+    assert 'data-view="orders"' not in switcher
+    assert "<span>Supplies</span>" not in switcher
+    assert "<span>My agent</span>" in switcher
 
-    # The board is not relocated at startup any more.
-    assert "canvasBody.appendChild(board)" not in html
-    assert 'id="chatCanvasBody"' not in html
-
-    # And the canvas offers no supplies panel to switch to.
-    chat = html[html.index('id="view-chat"'):html.index('id="view-orders"')]
-    assert 'data-canvas="supplies"' not in chat
-    assert ">Supplies<" not in chat
+    # The canvas offers a Supplies tab and a panel to host the board.
+    assert 'data-canvas="supplies"' in html
+    assert 'id="chatCanvasSupplies"' in html
+    # And the board is folded into that panel at startup.
+    assert "host.appendChild(board)" in html
+    assert 'getElementById("chatCanvasSupplies")' in html
 
 
 def test_the_supplies_stat_bar_sits_on_the_supplies_screen():
@@ -2046,40 +2041,37 @@ def test_the_supplies_stat_bar_sits_on_the_supplies_screen():
     assert "renderOrdersStats(" in preview
 
 
-def test_chat_canvas_falls_back_to_a_pointer_at_supplies():
-    """With the board gone, an empty canvas must still say something.
+def test_the_agent_canvas_rests_on_the_supplies_board():
+    """With Supplies folded in, the board is the canvas's resting state.
 
-    The canvas only has content when a move or a document is open. The rest
-    of the time it explains itself and points at the screen that used to be
-    bolted onto it, so the removal reads as a move rather than a loss.
+    The canvas shows a move when one is open; otherwise it shows the Supplies
+    board, which is the useful default now that ordering and stock live here.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    chat = html[html.index('id="view-chat"'):html.index('id="view-orders"')]
-    assert 'id="chatCanvasEmpty"' in chat
-    assert 'data-goto-view="orders"' in chat
-
-    # setCanvas knows exactly three panels, and empty is the default.
+    # setCanvas knows the supplies panel.
     canvas = html.split("function setCanvas(mode)", 1)[1].split("\n      }", 1)[0]
-    assert '"supplies"' not in canvas
-    assert 'emptyPanel.hidden = mode !== "empty"' in canvas
-    assert 'setCanvas("empty")' in html
+    assert 'suppliesPanel.hidden = mode !== "supplies"' in canvas
+    # Resting default is the board, not the retired empty state.
+    assert 'setCanvas("supplies")' in html
+    assert 'setCanvas(chatContext ? "move" : "supplies")' in html
 
 
-def test_an_order_placed_in_chat_offers_the_supplies_screen():
-    """The Quartermaster still answers in chat; the receipt lives elsewhere.
+def test_an_order_placed_in_chat_reaches_the_supplies_canvas():
+    """The Quartermaster answers in chat; its receipt is on the Supplies tab.
 
-    Before, a placed order silently swung the canvas to the board. Now the
-    two surfaces are separate, so the thread has to offer the trip rather
-    than take it — the owner may be mid-conversation about something else.
+    A placed order offers the trip to Supplies, which now opens the board in
+    the agent's own canvas (switchView redirects the old "orders" target)
+    rather than a separate screen.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    assert 'setCanvas("supplies")' not in html
-    # The board still gets the fresh state even though it is off-screen.
+    # The board still gets the fresh state even while another canvas shows.
     assert "window.__btOrdersApplyState(answer.state)" in html
-    # And the message carries a way there.
+    # The message still carries a way there; switchView redirects it to the
+    # agent's Supplies canvas.
     assert 'action: { label: "Open Supplies", view: "orders" }' in html
+    assert "window.__btShowSuppliesCanvas" in html
     assert 'data-goto-view="${message.action.view}"' in html
     assert 'const goto = event.target.closest("[data-goto-view]")' in html
 
