@@ -22352,6 +22352,88 @@
     #chatCanvasSuppliesTab[hidden] { display: none; }
   </style>
 
+  <style id="owner-day-contrast-v57">
+    /* Day-mode contrast pass 2: elements the dark theme hardcodes near-white
+       that stayed faint on the light surfaces (feedback from a live look). */
+
+    /* --- For You card: eyebrow, avatar, tags, proof strip, reopened chip --- */
+    body.day-mode.autopilot-mode .context-copy strong { color: #101114 !important; }
+    body.day-mode.autopilot-mode .context-copy small { color: #77787e !important; }
+    body.day-mode.autopilot-mode .context-avatar {
+      color: #8a6420 !important;
+      border-color: rgba(170, 125, 42, .28) !important;
+      background: rgba(170, 125, 42, .10) !important;
+    }
+    body.day-mode.autopilot-mode .feed-tag-list span {
+      color: #4a3b6e !important;
+      border-color: rgba(139, 92, 246, .30) !important;
+      background: rgba(139, 92, 246, .08) !important;
+    }
+    body.day-mode.autopilot-mode .feed-tag-list span[data-tag-tone="2"] {
+      color: #2f3d78 !important;
+      border-color: rgba(85, 105, 230, .30) !important;
+      background: rgba(85, 105, 230, .08) !important;
+    }
+    body.day-mode.autopilot-mode .feed-tag-list span[data-tag-tone="3"] {
+      color: #8a2f66 !important;
+      border-color: rgba(201, 55, 160, .28) !important;
+      background: rgba(201, 55, 160, .07) !important;
+    }
+    body.day-mode.autopilot-mode .feed-proof-strip { border-top-color: rgba(16, 17, 20, .10) !important; }
+    body.day-mode.autopilot-mode .feed-proof-item { border-left-color: rgba(16, 17, 20, .10) !important; }
+    body.day-mode.autopilot-mode .feed-proof-item strong { color: #101114 !important; }
+    body.day-mode.autopilot-mode .feed-proof-item small { color: #77787e !important; }
+    body.day-mode.autopilot-mode .feed-proof-item > i { color: #8a6420 !important; }
+    body.day-mode.autopilot-mode .reopened-chip {
+      color: #8a6420 !important;
+      border-color: rgba(170, 125, 42, .30) !important;
+      background: rgba(170, 125, 42, .10) !important;
+    }
+
+    /* --- Growth: the process-preview journey graph and the money pills --- */
+    body.day-mode.growth-mode .growth-projection {
+      border-color: rgba(16, 17, 20, .10) !important;
+      background:
+        radial-gradient(circle at 84% 12%, rgba(35, 138, 85, .08), transparent 34%),
+        radial-gradient(circle at 12% 90%, rgba(170, 125, 42, .08), transparent 40%),
+        #ffffff !important;
+      box-shadow: 0 14px 34px rgba(30, 34, 42, .07) !important;
+    }
+    body.day-mode.growth-mode .growth-projection-badge {
+      border-color: rgba(35, 138, 85, .28) !important;
+      background: rgba(35, 138, 85, .10) !important;
+      color: #1f7a4b !important;
+    }
+    body.day-mode.growth-mode .growth-projection-node { fill: #ffffff !important; }
+    body.day-mode.growth-mode .growth-projection-labels { color: #77787e !important; }
+    body.day-mode.growth-mode .growth-projection-labels strong { color: #101114 !important; }
+    body.day-mode.growth-mode .growth-story-kicker { color: #6a4fb0 !important; }
+    body.day-mode.growth-mode .decision-row-value.forecast,
+    body.day-mode.growth-mode .decision-row-value.forecast:not(.rejected) {
+      border-color: rgba(139, 92, 246, .30) !important;
+      background: rgba(139, 92, 246, .10) !important;
+      color: #5b3ea6 !important;
+      box-shadow: none !important;
+    }
+
+    /* --- My agent: chat message copy, ANSWER label, canvas tabs --- */
+    body.day-mode .chat-thread,
+    body.day-mode .chat-thread .chat-turn.agent,
+    body.day-mode .chat-thread .chat-turn.agent > div,
+    body.day-mode .chat-thread .chat-answer,
+    body.day-mode .chat-thread .chat-answer-section,
+    body.day-mode .chat-thread .chat-answer-section p,
+    body.day-mode .chat-thread .chat-answer-section li,
+    body.day-mode .chat-thread .chat-answer-full { color: #26272e !important; }
+    body.day-mode .chat-thread .chat-answer-section h4,
+    body.day-mode .chat-thread .chat-turn.agent strong { color: #101114 !important; }
+    body.day-mode .chat-canvas-tabs button { color: #77787e !important; }
+    body.day-mode .chat-canvas-tabs button.active { color: #101114 !important; }
+    /* The Supplies board banner and the "Needs you" accent inside the canvas. */
+    body.day-mode .orders-mock-banner,
+    body.day-mode .orders-mock-banner * { color: #8a6420 !important; }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
