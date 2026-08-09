@@ -1921,24 +1921,167 @@ def test_the_welcome_screen_shows_once_not_forever():
 def test_each_audience_sees_only_its_own_views():
     """An owner and an operator are two products sharing one page.
 
-    The operator owns no business, so For You, Growth and Chat would be
-    empty for them — their session carries no tenant and the workflow endpoint
-    answers 401 by design. An owner must never see the Memory Engine, which
-    reads across tenants.
+    The operator owns no business, so For You, Growth, Supplies and Chat
+    would be empty for them — their session carries no tenant and the workflow
+    endpoint answers 401 by design. An owner must never see the Memory Engine,
+    which reads across tenants.
 
-    Chat replaced the DoorDash tab on the owner's side of that split: it
-    hosts the supplies board in its canvas, showing one tenant's standing
-    orders, spend limits and receipts, so it belongs wherever For You and
-    Growth belong and nowhere else.
+    Supplies is one of those owner views in its own right. It shows one
+    tenant's standing orders, spend limits and receipts, so it belongs
+    wherever For You and Growth belong and nowhere else.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "const OPERATOR_SESSION = Boolean(readSession()?.isAdmin);" in html
-    assert 'OPERATOR_SESSION\n        ? ["autopilot", "growth", "chat"]' in html
+    assert ('OPERATOR_SESSION\n        ? ["autopilot", "growth", "orders", "chat"]'
+            in html)
     assert ': ["admin"];' in html
     # Several call sites ask for "autopilot" by name; one guard inside
     # switchView beats four at the call sites, and cannot be forgotten at a fifth.
     assert 'if (OPERATOR_SESSION) viewName = "admin";' in html
+
+
+def test_supplies_is_its_own_tab_and_not_a_panel_inside_chat():
+    """Supplies is a primary view, reached from the switcher like any other.
+
+    It lived in the Chat canvas behind a "This move | Supplies" toggle, which
+    put two unrelated jobs — deciding a recommendation and running the pantry
+    — on one surface and made the owner switch between them. Ordering is a
+    place you go, not a mode the conversation happens to be in.
+
+    The board must therefore stay in its own section: nothing may move
+    #ordersBoard into the chat canvas, and no canvas tab may offer supplies.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    # The tab exists, in the primary switcher, labelled for the owner.
+    switcher = html.split('<nav class="view-switcher"', 1)[1].split("</nav>", 1)[0]
+    assert 'data-view="orders"' in switcher
+    assert "<span>Supplies</span>" in switcher
+    # Between Growth and Chat: the three owner views run decide -> measure ->
+    # run, and the assistant sits after them.
+    assert (switcher.index('data-view="growth"')
+            < switcher.index('data-view="orders"')
+            < switcher.index('data-view="chat"'))
+
+    # The board is not relocated at startup any more.
+    assert "canvasBody.appendChild(board)" not in html
+    assert 'id="chatCanvasBody"' not in html
+
+    # And the canvas offers no supplies panel to switch to.
+    chat = html[html.index('id="view-chat"'):html.index('id="view-orders"')]
+    assert 'data-canvas="supplies"' not in chat
+    assert ">Supplies<" not in chat
+
+
+def test_the_supplies_stat_bar_sits_on_the_supplies_screen():
+    """The four numbers head the screen they describe.
+
+    Spent this week and Low stock are facts about the pantry, so they belong
+    above the pantry, not above a conversation. They are also read-only
+    headers now rather than buttons: on their own screen there is nowhere
+    left for them to navigate to, and a control that does nothing is worse
+    than a label.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    orders = html[html.index('id="view-orders"'):html.index('id="view-admin"')]
+    assert 'id="ordersStats"' in orders
+    # Top of the screen, under the honesty banner — the disclosure qualifies
+    # the numbers, so it must not be pushed below them.
+    assert orders.index("orders-mock-banner") < orders.index('id="ordersStats"')
+    assert orders.index('id="ordersStats"') < orders.index('id="ordersAskForm"')
+
+    # The chat no longer carries them, and no longer owns the renderer: the
+    # cross-module hook ran before the chat defined it, so a preview build
+    # rendered the board with no bar above it.
+    assert 'id="chatStats"' not in html
+    assert "chat-stat" not in html
+    assert "__btChatOverview" not in html
+
+    stats = html.split("function renderOrdersStats(figures)", 1)[1].split(
+        "\n      }", 1)[0]
+    assert "Spent this week" in stats
+    assert "Low stock" in stats
+    assert "ordersStats" in stats
+    # Read-only: tiles, not buttons wired to a canvas that no longer exists.
+    assert "<button" not in stats
+    assert "data-canvas" not in stats
+
+    # Both modes fill it. The preview's numbers are sample data like the rest
+    # of that screen, and its banner already says so.
+    live = html.split("function ordersLive()", 1)[1].split(
+        "function ordersPreview()", 1)[0]
+    preview = html.split("function ordersPreview()", 1)[1]
+    assert "renderOrdersStats(" in live
+    assert "renderOrdersStats(" in preview
+
+
+def test_chat_canvas_falls_back_to_a_pointer_at_supplies():
+    """With the board gone, an empty canvas must still say something.
+
+    The canvas only has content when a move or a document is open. The rest
+    of the time it explains itself and points at the screen that used to be
+    bolted onto it, so the removal reads as a move rather than a loss.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    chat = html[html.index('id="view-chat"'):html.index('id="view-orders"')]
+    assert 'id="chatCanvasEmpty"' in chat
+    assert 'data-goto-view="orders"' in chat
+
+    # setCanvas knows exactly three panels, and empty is the default.
+    canvas = html.split("function setCanvas(mode)", 1)[1].split("\n      }", 1)[0]
+    assert '"supplies"' not in canvas
+    assert 'emptyPanel.hidden = mode !== "empty"' in canvas
+    assert 'setCanvas("empty")' in html
+
+
+def test_an_order_placed_in_chat_offers_the_supplies_screen():
+    """The Quartermaster still answers in chat; the receipt lives elsewhere.
+
+    Before, a placed order silently swung the canvas to the board. Now the
+    two surfaces are separate, so the thread has to offer the trip rather
+    than take it — the owner may be mid-conversation about something else.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'setCanvas("supplies")' not in html
+    # The board still gets the fresh state even though it is off-screen.
+    assert "window.__btOrdersApplyState(answer.state)" in html
+    # And the message carries a way there.
+    assert 'action: { label: "Open Supplies", view: "orders" }' in html
+    assert 'data-goto-view="${message.action.view}"' in html
+    assert 'const goto = event.target.closest("[data-goto-view]")' in html
+
+
+def test_chat_and_supplies_share_the_midnight_shell_without_sharing_the_board():
+    """Chat must not drop back to the light canvas.
+
+    Every owner screen wears one midnight surface. Chat used to get its by
+    borrowing body.orders-mode wholesale, which also dragged in the whole
+    .orders-* board treatment — fine while the board was literally inside the
+    chat canvas, wrong once it moved out. Splitting them left chat on the
+    light default, which read as a beige page among dark ones.
+
+    So the shell — tokens, background, topbar chrome — is written for both
+    modes, and the board rules stay on orders-mode alone.
+    """
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    # The token block and page background.
+    assert "body.orders-mode,\n    body.chat-mode {" in html
+    assert "body.orders-mode::before,\n    body.chat-mode::before {" in html
+
+    # The chrome that sits above every view, not inside one.
+    for selector in (".topbar", ".view-switcher", ".view-tab"):
+        assert (f"body.orders-mode {selector},\n    body.chat-mode {selector} "
+                in html), selector
+
+    # The board's own styling stays where the board is.
+    assert "body.chat-mode .orders-zone" not in html
+    assert "body.chat-mode .orders-row" not in html
+    assert "body.chat-mode .view-inner.orders-inner" not in html
 
 
 def test_the_doordash_screen_admits_it_is_a_preview():
