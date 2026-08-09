@@ -19337,6 +19337,97 @@
     .orders-row-title { font-weight: 650; font-size: 14.5px; color: var(--ink); }
     .orders-row-total { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 
+    /* Compact activity rows — the details move into a receipt on tap, so the
+       list itself stays a tight scannable ledger even when it runs long. */
+    .orders-arow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      text-align: left;
+      padding: 9px 12px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background .14s ease;
+    }
+    .orders-arow:last-child { border-bottom: 0; }
+    .orders-arow:hover { background: rgba(0,0,0,.03); }
+    .orders-arow-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .orders-arow-title {
+      font-weight: 650;
+      font-size: 14px;
+      color: var(--ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .orders-arow-side { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex: none; }
+    .orders-arow-total { font-weight: 700; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .orders-arow-date { font-size: 11px; color: var(--muted); }
+    .orders-arow.is-failed .orders-arow-title { color: #b23a4a; }
+
+    /* Receipt modal — the popup that carries the order #, payment and source. */
+    .rcpt-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(3,5,12,.62);
+      backdrop-filter: blur(6px);
+      animation: rcptFade .16s ease;
+    }
+    @keyframes rcptFade { from { opacity: 0; } to { opacity: 1; } }
+    .rcpt {
+      width: min(420px, 100%);
+      border: 1px solid var(--owner-line-strong, rgba(255,255,255,.14));
+      border-radius: 18px;
+      background: linear-gradient(150deg, #151b36, #0b0f22);
+      box-shadow: 0 30px 80px rgba(0,0,0,.5);
+      padding: 22px;
+      position: relative;
+      color: var(--owner-ink);
+    }
+    .rcpt .rcpt-head strong, .rcpt .rcpt-total strong, .rcpt-arow-title { color: var(--owner-ink); }
+    .rcpt-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,.04);
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .rcpt-head { display: flex; align-items: center; gap: 9px; margin: 2px 34px 16px 0; }
+    .rcpt-head strong { font-size: 17px; color: var(--ink); }
+    .rcpt-lines {
+      display: grid;
+      gap: 7px;
+      padding: 14px 0;
+      border-top: 1px dashed var(--line);
+      border-bottom: 1px dashed var(--line);
+    }
+    .rcpt-line { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink-soft, var(--ink)); }
+    .rcpt-line span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .rcpt-total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0 4px; }
+    .rcpt-total strong { font-size: 20px; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .rcpt-meta { display: grid; gap: 9px; margin: 12px 0 0; }
+    .rcpt-meta > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .rcpt-meta dt { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .rcpt-meta dd { margin: 0; font-size: 12.5px; color: var(--ink-soft, var(--ink)); text-align: right; overflow-wrap: anywhere; }
+
     .orders-lines {
       margin: 0;
       padding: 0;
@@ -31830,36 +31921,69 @@ ledger_entry · artifact · agent_run`,
             </article>`).join("");
         }
 
+        // The status pill, shared by the compact row and the receipt.
+        const historyPill = h => {
+          if (h.status === "failed") return `<span class="orders-pill p-bad">Failed</span>`;
+          if (h.status === "rejected") return `<span class="orders-pill p-mute">Passed</span>`;
+          if (String(h.external_reference || "").startsWith("email:")) return `<span class="orders-pill p-ok">Sent</span>`;
+          return `<span class="orders-pill p-ok">${h.payment_reference ? "Paid" : "Placed"}</span>`;
+        };
+
+        // The list stays tight — title, status, amount, date — and the
+        // references (order #, payment, source) live in a receipt that pops
+        // when a row is tapped, so a long list never sprawls.
         function renderHistory() {
           const rows = state.history || [];
-          // A reference is for chasing an order, not for reading: the tail
-          // identifies it, the title attribute holds the whole thing, and a
-          // simulated payment gets a label rather than fake-id soup.
-          const shortRef = value => {
-            const text = String(value || "");
-            return text.length > 14 ? `…${text.slice(-6)}` : text;
-          };
           el("ordersHistoryEmpty").hidden = rows.length > 0;
-          const pill = h => {
-            if (h.status === "failed") return `<span class="orders-pill p-bad">Failed</span>`;
-            if (h.status === "rejected") return `<span class="orders-pill p-mute">Passed</span>`;
-            if (String(h.external_reference || "").startsWith("email:")) return `<span class="orders-pill p-ok">Sent</span>`;
-            return `<span class="orders-pill p-ok">${h.payment_reference ? "Paid" : "Placed"}</span>`;
-          };
-          el("ordersHistoryList").innerHTML = rows.map(h => `
-            <article class="orders-row ${h.status === "failed" ? "blocked" : ""}">
-              <div class="orders-row-top">
-                <span class="orders-row-title">${escapeHtml(h.title)} ${pill(h)}</span>
-                <span class="orders-row-total">${h.total_cents != null ? money(h.total_cents) : ""}</span>
-              </div>
-              ${h.status === "failed" ? `<p class="orders-why">${escapeHtml(h.reason || "This order failed.")}</p>` : ""}
-              <div class="orders-meta">
-                <span>${escapeHtml(day(h.created_at))}</span><span>&middot;</span>
-                <span>${escapeHtml(h.status === "rejected" ? "you passed" : (TRIGGER_WORDS[h.trigger] || h.trigger))}</span>
-                ${h.external_reference ? `<span>&middot;</span><span title="${escapeHtml(h.external_reference)}">${h.external_reference.startsWith("email:") ? "Emailed" : "Order"} ${escapeHtml(shortRef(h.external_reference))}</span>` : ""}
-                ${h.payment_reference ? `<span>&middot;</span><span class="orders-paid" title="${escapeHtml(h.payment_reference)}">Paid &middot; ${h.payment_provider === "stripe" ? `Stripe ${escapeHtml(shortRef(h.payment_reference))}` : "Simulated"}</span>` : ""}
-              </div>
-            </article>`).join("");
+          el("ordersHistoryList").innerHTML = rows.map((h, i) => `
+            <button type="button" class="orders-arow${h.status === "failed" ? " is-failed" : ""}" data-receipt="${i}">
+              <span class="orders-arow-main">
+                <span class="orders-arow-title">${escapeHtml(h.title)}</span>
+                ${historyPill(h)}
+              </span>
+              <span class="orders-arow-side">
+                <span class="orders-arow-total">${h.total_cents != null ? money(h.total_cents) : ""}</span>
+                <span class="orders-arow-date">${escapeHtml(day(h.created_at))}</span>
+              </span>
+            </button>`).join("");
+        }
+
+        function openReceipt(h) {
+          if (!h) return;
+          const triggerLabel = h.status === "rejected"
+            ? "You passed"
+            : (TRIGGER_WORDS[h.trigger] || h.trigger || "");
+          const cart = h.cart;
+          const lines = ((cart && cart.lines) || []).map(l =>
+            `<div class="rcpt-line"><span>${escapeHtml(l.name)} &times;${l.quantity}</span><span>${money(l.total_cents)}</span></div>`).join("");
+          const feesHtml = cart && cart.fees_cents
+            ? `<div class="rcpt-line"><span>Delivery &amp; fees</span><span>${money(cart.fees_cents)}</span></div>` : "";
+          const payLine = h.payment_reference
+            ? `Paid &middot; ${h.payment_provider === "stripe" ? "Stripe" : "Simulated"}`
+            : (h.status === "failed" ? "Not charged" : "");
+          const overlay = document.createElement("div");
+          overlay.className = "rcpt-overlay";
+          overlay.innerHTML = `
+            <div class="rcpt" role="dialog" aria-modal="true" aria-label="Order receipt">
+              <button class="rcpt-close" type="button" aria-label="Close">&times;</button>
+              <div class="rcpt-head"><strong>${escapeHtml(h.title)}</strong>${historyPill(h)}</div>
+              ${lines || feesHtml ? `<div class="rcpt-lines">${lines}${feesHtml}</div>` : ""}
+              <div class="rcpt-total"><span>Total</span><strong>${h.total_cents != null ? money(h.total_cents) : "—"}</strong></div>
+              <dl class="rcpt-meta">
+                <div><dt>Ordered</dt><dd>${escapeHtml(day(h.created_at))}</dd></div>
+                ${triggerLabel ? `<div><dt>Source</dt><dd>${escapeHtml(triggerLabel)}</dd></div>` : ""}
+                ${h.external_reference ? `<div><dt>${h.external_reference.startsWith("email:") ? "Emailed" : "Order"}</dt><dd>${escapeHtml(h.external_reference)}</dd></div>` : ""}
+                ${payLine ? `<div><dt>Payment</dt><dd>${payLine}${h.payment_reference && h.payment_provider === "stripe" ? " &middot; " + escapeHtml(h.payment_reference) : ""}</dd></div>` : ""}
+                ${h.status === "failed" && h.reason ? `<div><dt>Note</dt><dd>${escapeHtml(h.reason)}</dd></div>` : ""}
+              </dl>
+            </div>`;
+          const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
+          function onKey(e) { if (e.key === "Escape") close(); }
+          overlay.addEventListener("click", e => {
+            if (e.target === overlay || e.target.closest(".rcpt-close")) close();
+          });
+          document.addEventListener("keydown", onKey);
+          document.body.appendChild(overlay);
         }
 
         /* The catalogue chip row was removed to keep the board clean — the
@@ -32008,6 +32132,8 @@ ledger_entry · artifact · agent_run`,
         });
 
         screen.addEventListener("click", async event => {
+          const receiptBtn = event.target.closest("[data-receipt]");
+          if (receiptBtn) { openReceipt((state.history || [])[Number(receiptBtn.dataset.receipt)]); return; }
           const target = event.target.closest("[data-live-approve],[data-live-reject],[data-live-pause],[data-live-run],[data-live-restock],[data-example]");
           if (!target) return;
           if (target.dataset.example != null) {
@@ -32201,18 +32327,16 @@ ledger_entry · artifact · agent_run`,
       function renderHistory() {
         el("ordersHistoryEmpty").hidden = history.length > 0;
         el("ordersHistoryList").innerHTML = history.map(h => `
-          <article class="orders-row">
-            <div class="orders-row-top">
-              <span class="orders-row-title">${escapeHtml(h.title)}</span>
-              <span class="orders-row-total">${money(h.total)}</span>
-            </div>
-            <div class="orders-meta">
-              <span>${escapeHtml(h.when)}</span><span>&middot;</span>
-              <span>${escapeHtml(h.tag)}</span><span>&middot;</span>
-              <span>Order ${escapeHtml(h.ref)}</span>
-              ${h.payRef ? `<span>&middot;</span><span class="orders-paid">Paid &middot; Stripe ${escapeHtml(h.payRef)}</span>` : ""}
-            </div>
-          </article>`).join("");
+          <div class="orders-arow">
+            <span class="orders-arow-main">
+              <span class="orders-arow-title">${escapeHtml(h.title)}</span>
+              <span class="orders-pill p-ok">${h.payRef ? "Paid" : "Placed"}</span>
+            </span>
+            <span class="orders-arow-side">
+              <span class="orders-arow-total">${money(h.total)}</span>
+              <span class="orders-arow-date">${escapeHtml(h.when)}</span>
+            </span>
+          </div>`).join("");
       }
 
       function renderAll() {

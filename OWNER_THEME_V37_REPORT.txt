@@ -1,0 +1,44 @@
+Brass Tacks owner-facing UI consistency update - v37
+
+Base used
+- aws-cockroach-hackathon-live-latest-maker-mobile-crisp-v36
+- Preserves the latest Maker durable task workflow, email receipt timeline,
+  revisions, and the mobile crisp-swipe fix.
+
+Changes
+1. Growth projected-value pill
+   - Replaced the high-contrast white pill with a dark violet forecast chip.
+   - Increased text size and weight.
+   - Added tabular numerals and responsive sizing.
+   - Preserves projected/not-measured semantics; it does not use verified green.
+
+2. Recommendation chat and details drawer
+   - Unified the drawer, recommendation details, chat thread, input, send button,
+     status cards, Maker review surfaces, and revision controls with the owner
+     midnight theme.
+   - Improved text hierarchy, focus rings, borders, spacing, and mobile sizing.
+   - Removed paper-white nested cards from owner chat.
+
+3. Business profile
+   - Converted the panel, cards, fields, footer, save button, and loading state
+     to the same owner midnight surfaces.
+   - Improved input contrast, labels, placeholders, focus states, and mobile layout.
+   - Fixed the identity avatar alignment.
+
+4. Scope
+   - Every new selector is scoped to body.autopilot-mode or body.growth-mode.
+   - Memory Engine / console mode is intentionally unchanged.
+
+Validation
+- 214 site-build tests passed.
+- 42 Maker, email, task, and reconciliation tests passed.
+- Production web build completed successfully.
+- Browser-computed checks confirmed dark profile fields, dark chat surfaces,
+  and the forecast chip at 12px/820 weight on tablet and 11px/820 on mobile.
+- The environment-wide pytest run additionally requires the optional psycopg
+  dependency for test_seed_data.py; this dependency was not installed here.
+
+Files changed
+- site/app.html
+- backend/tests/test_site_build.py
+- web/app/index.html (generated)
