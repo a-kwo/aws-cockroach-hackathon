@@ -3510,9 +3510,11 @@ def test_for_you_feed_renders_a_structured_analyst_brief():
     assert 'class="feed-tag-list"' in card
     assert 'class="feed-proof-strip"' in card
     assert 'class="feed-detail-panel"' in html
-    assert "Key details" in html
+    # The Impact/Effort/Type/Owner-approval grid was removed from the card at
+    # the owner's request (too dense; the money is in the footer). The panel now
+    # leads with the next step and keeps the modelled detail and at-a-glance grid
+    # the honesty rules require, one layer down under "More detail".
     assert "At a glance" in html
-    assert "Owner approval" in html
     assert "Execution plan" in html
     assert "post.feedBrief" in html
     assert "pricePoint" in html
