@@ -20319,10 +20319,14 @@
 
     .chat-shell {
       display: grid;
-      grid-template-columns: minmax(330px, 410px) minmax(0, 1fr);
+      /* One part conversation to two parts canvas. The chat was capped at a
+         fixed 410px while the canvas took everything left over, which read
+         as roughly 1:2.5 on a wide screen — the thread looked like a
+         sidebar next to the document rather than half the product. */
+      grid-template-columns: minmax(330px, 1fr) minmax(0, 2fr);
       gap: 16px;
-      /* The stat cards moved into the right column, so the chat now owns the
-         full height beside the topbar — nothing sits above it. */
+      /* The stat bar moved out to Supplies, so the chat owns the full height
+         beside the topbar — nothing sits above it. */
       height: calc(100dvh - 96px);
       min-height: 540px;
     }
@@ -25382,7 +25386,14 @@
 
       const note = document.getElementById("chartNote");
       if (projected) {
-        note.innerHTML = `<b>${escapeHtml(projected.label)} is a preview</b><span>One move is still being measured.</span>`;
+        // The count comes from the build, which knows how many finds are
+        // actually being measured (build_web.build_model writes it into
+        // `note`). Hardcoding "One move" told an owner whose projection
+        // rested on three pending finds that it rested on one.
+        const rests = projected.note
+          ? `Drawn ${projected.note}.`
+          : "It rests on finds still being measured.";
+        note.innerHTML = `<b>${escapeHtml(projected.label)} is a preview</b><span>${escapeHtml(rests)}</span>`;
         note.hidden = false;
       } else {
         note.hidden = true;
@@ -31351,17 +31362,20 @@ ledger_entry · artifact · agent_run`,
         }
 
         function note(text, warn) {
-          // The chat thread is the live board's voice. The inline note only
-          // exists for the preview, whose command bar is still visible.
-          if (window.__btChatNotify) {
-            window.__btChatNotify(text, Boolean(warn));
-            return;
-          }
+          // On this screen first, always. The board used to speak only
+          // through the chat thread, which was one surface with it; now that
+          // it has its own tab, a refusal delivered to Chat is a refusal the
+          // owner never sees — the button re-enables and nothing appears, so
+          // they click the failed approval again.
           const target = el("ordersAskNote");
-          if (!target) return;
-          target.textContent = text;
-          target.classList.toggle("warn", Boolean(warn));
-          target.hidden = false;
+          if (target) {
+            target.textContent = text;
+            target.classList.toggle("warn", Boolean(warn));
+            target.hidden = false;
+          }
+          // The thread still hears it, so a conversation that led here stays
+          // coherent — but it is the echo now, not the only voice.
+          if (window.__btChatNotify) window.__btChatNotify(text, Boolean(warn));
         }
 
         /* The banner and pills tell the live truth: the memory is real, the
@@ -31405,11 +31419,14 @@ ledger_entry · artifact · agent_run`,
           const addStock = el("ordersAddStock");
           if (addStock) addStock.hidden = false;
 
-          // Live, the chat thread is the only input — a second ask bar on
-          // the canvas was the same conversation twice. Its catalogue chips
-          // migrate to the chat's suggestion row.
-          const command = screen.querySelector(".orders-zone-command");
-          if (command) command.hidden = true;
+          // Live, the chat thread is the only input — a second ask bar here
+          // was the same conversation twice. Hide the input and its chips,
+          // NOT the zone: #ordersAskNote lives in it, and it is this
+          // screen's only way to tell the owner an approval was refused.
+          const askForm = el("ordersAskForm");
+          if (askForm) askForm.hidden = true;
+          const askExamples = screen.querySelector(".orders-ask-examples");
+          if (askExamples) askExamples.hidden = true;
           if (window.__btChatCatalogue && state?.store?.catalogue) {
             window.__btChatCatalogue(state.store.catalogue);
           }
