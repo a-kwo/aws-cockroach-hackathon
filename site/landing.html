@@ -325,9 +325,10 @@ header {
 .proof-main {
   padding: 32px;
   border-radius: 30px;
-  color: #fff;
-  background: var(--night);
-  box-shadow: 0 28px 70px rgba(18,21,27,.22);
+  color: var(--ink);
+  background: var(--paper-solid);
+  border: 1px solid rgba(16,17,20,.08);
+  box-shadow: 0 28px 70px rgba(30,34,42,.12), 0 2px 8px rgba(30,34,42,.05);
 }
 
 .proof-status {
@@ -370,7 +371,7 @@ header {
 .proof-status-copy span {
   display: block;
   margin-top: 3px;
-  color: rgba(255,255,255,.54);
+  color: var(--soft);
   font-size: 11px;
 }
 
@@ -389,8 +390,8 @@ header {
   gap: 15px;
   padding: 18px;
   border-radius: 20px;
-  background: rgba(82,190,124,.10);
-  border: 1px solid rgba(118,210,154,.12);
+  background: rgba(35,138,85,.08);
+  border: 1px solid rgba(35,138,85,.18);
 }
 
 .proof-result-arrow {
@@ -399,15 +400,15 @@ header {
   border-radius: 16px;
   display: grid;
   place-items: center;
-  color: #8cdfaa;
-  background: rgba(82,190,124,.14);
+  color: #fff;
+  background: var(--green);
   font-size: 30px;
   font-weight: 650;
 }
 
 .proof-result b {
   display: block;
-  color: #8cdfaa;
+  color: var(--green);
   font-size: 29px;
   line-height: 1;
   letter-spacing: -.035em;
@@ -416,7 +417,7 @@ header {
 .proof-result span {
   display: block;
   margin-top: 6px;
-  color: rgba(255,255,255,.58);
+  color: var(--soft);
   font-size: 10px;
   font-weight: 680;
   letter-spacing: .09em;
@@ -428,19 +429,19 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: rgba(255,255,255,.52);
+  color: var(--soft);
   font-size: 11px;
 }
 
 .proof-expected b {
-  color: rgba(255,255,255,.82);
+  color: var(--ink);
   font-size: 12px;
 }
 
 .proof-rule {
   height: 1px;
   margin: 24px 0 17px;
-  background: rgba(255,255,255,.11);
+  background: rgba(16,17,20,.10);
 }
 
 .proof-miss {
@@ -457,7 +458,7 @@ header {
 .proof-miss span {
   display: block;
   margin-bottom: 4px;
-  color: rgba(255,255,255,.42);
+  color: var(--muted);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .09em;
@@ -467,7 +468,7 @@ header {
 .proof-miss b {
   display: block;
   overflow: hidden;
-  color: rgba(255,255,255,.75);
+  color: var(--ink);
   font-size: 11px;
   font-weight: 620;
   text-overflow: ellipsis;
@@ -478,8 +479,8 @@ header {
   flex: 0 0 auto;
   padding: 6px 9px;
   border-radius: 999px;
-  color: #ff9b8f;
-  background: rgba(210,73,54,.12);
+  color: #b23a4a;
+  background: rgba(198,75,58,.10);
   font-size: 9px;
   font-style: normal;
   font-weight: 700;

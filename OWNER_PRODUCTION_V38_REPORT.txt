@@ -1,0 +1,68 @@
+BRASS TACKS OWNER PRODUCTION UI V38
+==================================
+
+Purpose
+-------
+This release completes the owner-facing visual system across Growth, the chat
+and Maker review workspace, business profile controls, and the Brass Tacks
+owner logo. The Memory Engine/operator console is intentionally excluded.
+
+Implemented changes
+-------------------
+1. Minimal Growth interface
+   - Removed "Projected - not yet measured" from the Approved panel header.
+   - Removed "Ideas you skipped" from the Passed panel header.
+   - Removed empty-state headings and explanatory paragraphs.
+   - Empty panels collapse to a compact title-and-count header.
+   - Projection meaning remains available in the decision row's accessible
+     label rather than being repeated visually.
+
+2. Production-grade chat and Maker review
+   - Replaced the light complete-draft sheet with a dark, bounded reading area.
+   - Added a maximum draft height and internal scrolling for long content.
+   - Unified review cards, action cards, email receipts, metadata, timelines,
+     and expandable messages under one midnight surface system.
+   - Tightened typography, spacing, border radii, and hierarchy.
+
+3. Readable semantic status controls
+   - Ready: dark violet surface with light violet text.
+   - Archived/cancelled: dark neutral surface with light neutral text.
+   - Delivered/opened/link clicked: dark teal surface with mint text.
+   - Running/delayed: dark amber surface with warm text.
+   - Failed/bounced/complaint: dark red surface with light red text.
+
+4. Dark dropdown and form contract
+   - Return-to-For-You reason select and optional note field are labeled.
+   - Closed selects and native option menus use dark backgrounds.
+   - Profile inputs, selects, and profile actions use the same control system.
+   - Focus and hover states remain visible without switching to white surfaces.
+
+5. Brand and action consistency
+   - Owner-facing Brass Tacks mark uses one violet/plum gradient.
+   - Chat Send, reconsider, Undo Pass, and profile Save use the same primary
+     action family.
+   - Secondary actions remain dark and visually quieter.
+
+Contrast checks (WCAG luminance calculation)
+---------------------------------------------
+- Complete draft text on draft background: 14.83:1
+- Select/option text on native-option background: 17.44:1
+- Ready pill text on its composited surface: 11.61:1
+- Archived pill text on its composited surface: 10.48:1
+- Link-clicked pill text on its composited surface: 11.14:1
+- White owner-logo glyph on the three gradient stops: 6.11:1 to 7.10:1
+
+Validation
+----------
+- 220 site-build/UI regression tests passed.
+- 270 combined site-build and Maker-focused tests passed.
+- scripts/build_web.py completed successfully.
+- Built source marker verified in both site/app.html and web/app/index.html.
+- Visual checks completed for desktop Growth, mobile Growth, complete draft,
+  archived/ready state, email receipt, and Return-to-For-You form.
+
+Scope protection
+----------------
+The v38 styling layer is scoped only to body.autopilot-mode and
+body.growth-mode. It contains no body.console-mode or .memory-engine selectors,
+so the operator Memory Engine keeps its existing visual language.

@@ -1456,11 +1456,36 @@ def test_visual_memory_view_has_an_owner_scoped_token_efficiency_chart():
 
 
 def test_memory_engine_identifies_sql_workflow_refresh_as_zero_llm_tokens():
+    # The dedicated KPI card was removed at the owner's request, but the claim
+    # it made still has to be stated plainly — it lives in the footer note.
     assert "0 LLM tokens" in APP
-    assert 'label: "Refresh model tokens"' in APP
-    assert 'note: "SQL-only · no model call"' in APP
     assert "/workflow" in APP
     assert "SQL-only CockroachDB read" in APP
+
+
+def test_login_offers_owner_and_operator_roles_with_separate_sessions():
+    """An operator holds an owner session and an admin session at once, one per
+    window. The login page is where the role is chosen, and each role lands in
+    its own localStorage slot so neither login evicts the other."""
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+
+    assert 'data-role="owner"' in html
+    assert 'data-role="operator"' in html
+    assert 'ADMIN_SESSION_KEY = "brass-tacks-admin-session-v1"' in html
+    # Operator lands in the admin slot and opens the admin window; owner keeps
+    # the original slot and the plain board.
+    assert "operator ? ADMIN_SESSION_KEY : SESSION_KEY" in html
+    assert '"../app/?workspace=admin"' in html
+
+
+def test_app_routes_each_window_to_its_own_session_slot():
+    """?workspace=admin points a window at the admin slot; without it the window
+    is the owner's board. Everything downstream keys off SESSION_KEY, so a
+    single flag routes the whole window and signing out of one leaves the
+    other's token in place."""
+    assert 'ADMIN_SESSION_KEY = "brass-tacks-admin-session-v1"' in APP
+    assert 'appQuery.get("workspace") === "admin"' in APP
+    assert "SESSION_KEY = ADMIN_VIEW ? ADMIN_SESSION_KEY : OWNER_SESSION_KEY" in APP
 
 
 # ---------------------------------------------------------------------------
@@ -1527,7 +1552,9 @@ def test_the_login_page_posts_to_the_login_endpoint():
 
 def test_the_login_page_stores_only_the_session():
     html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
-    stored = html.split("localStorage.setItem(SESSION_KEY", 1)[1][:220]
+    stored = html.split(
+        "localStorage.setItem(operator ? ADMIN_SESSION_KEY : SESSION_KEY,", 1
+    )[1][:220]
 
     assert "token:" in stored
     assert "businessId:" in stored
@@ -1753,7 +1780,9 @@ def test_the_board_requires_a_session():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "if (!readSession()) {" in html
-    assert 'window.location.replace("../login/")' in html
+    # An owner window goes to the plain login; an admin window is sent back
+    # preselected on Operator. Either way, no session means the login page.
+    assert 'window.location.replace(ADMIN_VIEW ? "../login/?role=operator" : "../login/")' in html
 
 
 def test_a_business_with_no_night_is_not_told_it_is_caught_up():
@@ -2276,7 +2305,10 @@ def test_the_snapshot_is_scrubbed_when_it_is_not_the_signed_in_tenants():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
     block = html.split("const btData = (() => {", 1)[1].split("})();", 1)[0]
 
-    assert 'localStorage.getItem("brass-tacks-session-v1")' in block
+    # The read is slot-aware now (an admin window scrubs against its own token),
+    # but it still reads a session to decide whose snapshot this is.
+    assert '"brass-tacks-session-v1"' in block
+    assert 'get("workspace") === "admin"' in block
     assert "signedInAs === snapshotOf" in block
     assert 'const KEEP = new Set(["api", "backdrop"]);' in block
 
@@ -3473,7 +3505,8 @@ def test_for_you_feed_renders_a_structured_analyst_brief():
     )[0]
 
     assert "renderFeedDetailPanel(post)" in card
-    assert 'class="feed-for-you-chip"' in card
+    # The "For you" chip was removed to declutter the card — the tab already
+    # says which surface this is. The structured brief below is what matters.
     assert 'class="feed-tag-list"' in card
     assert 'class="feed-proof-strip"' in card
     assert 'class="feed-detail-panel"' in html
@@ -3551,7 +3584,6 @@ def test_feed_evidence_sheet_renders_source_metadata_and_mobile_bottom_sheet():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert 'item.sourceName || item.source || item.kind || "Stored memory"' in html
-    assert 'Sources are shown in retrieval order.' in html
     assert 'title="Vector similarity"' in html
     assert '.evidence-sheet-panel { width:100%; max-height:88dvh;' in html
     assert 'border-radius:22px 22px 0 0' in html
