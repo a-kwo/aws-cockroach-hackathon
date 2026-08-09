@@ -22179,8 +22179,14 @@
     body.day-mode.growth-mode .growth-overview,
     body.day-mode.growth-mode .growth-chart {
       background: #ffffff !important;
-      border-color: rgba(16, 17, 20, .08) !important;
+      border: 0 !important;
       color: #101114 !important;
+    }
+    /* No border line around the card — a soft shadow defines it instead of the
+       heavy dark drop (and the 1px owner-line border) the night theme uses. */
+    body.day-mode.growth-mode .growth-swipe {
+      border: 0 !important;
+      box-shadow: 0 16px 40px rgba(30, 34, 42, .08) !important;
     }
     body.day-mode.growth-mode .growth-slide-summary::before,
     body.day-mode.growth-mode .growth-slide-summary::after,
