@@ -20223,27 +20223,12 @@
       padding: 14px 0 28px;
     }
 
-    /* The dashboard row: greeting plus four numbers, the mock's opening move. */
-    .chat-hello { padding: 2px 2px 0; }
-
-    .chat-hello h1 {
-      margin: 0;
-      font-size: 22px;
-      letter-spacing: -.02em;
-      color: var(--owner-ink);
-    }
-
-    .chat-hello p {
-      margin: 3px 0 0;
-      font-size: 12.5px;
-      color: var(--owner-muted);
-    }
-
+    /* The dashboard row: four numbers across the top, the mock's opening move. */
     .chat-stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 12px;
-      margin: 12px 0 14px;
+      margin: 0 0 14px;
     }
 
     .chat-stat {
@@ -20298,8 +20283,10 @@
       display: grid;
       grid-template-columns: minmax(330px, 410px) minmax(0, 1fr);
       gap: 16px;
-      height: calc(100dvh - 236px);
-      min-height: 480px;
+      /* Greeting gone; only topbar + the stat row sit above, so the chat and
+         canvas take nearly the whole viewport. */
+      height: calc(100dvh - 168px);
+      min-height: 520px;
     }
 
     .chat-pane,
@@ -20982,7 +20969,6 @@
       .chat-canvas { min-height: 480px; }
       /* Two-up stat cards read better than a single wrapping row on a phone. */
       .chat-stats { grid-template-columns: 1fr 1fr; }
-      .chat-hello h1 { font-size: 20px; }
     }
 
     @media (max-width: 460px) {
@@ -21288,16 +21274,11 @@
       -->
       <section class="view" id="view-chat" aria-labelledby="chatHeading">
         <div class="view-inner chat-inner">
-          <header class="chat-hello" data-enter>
-            <h1 id="chatHello">Good morning&thinsp;👋</h1>
-            <p id="chatHelloSub">Here's what's happening with your business today.</p>
-          </header>
           <section class="chat-stats" id="chatStats" aria-label="Today at a glance" data-enter hidden></section>
           <div class="chat-shell">
             <aside class="chat-pane" aria-labelledby="chatHeading">
               <header class="chat-pane-head">
                 <h1 id="chatHeading">Chat</h1>
-                <span>Order supplies, ask about your business</span>
               </header>
               <div class="chat-thread" id="chatThread" aria-live="polite"></div>
               <div class="chat-hints" id="chatHints">
@@ -31979,22 +31960,6 @@ ledger_entry · artifact · agent_run`,
           </button>`;
       }
 
-      // The greeting knows the hour and the owner.
-      (function helloLine() {
-        const hello = document.getElementById("chatHello");
-        if (!hello) return;
-        const hour = new Date().getHours();
-        const part = hour < 5 ? "Good evening" : hour < 12 ? "Good morning"
-          : hour < 18 ? "Good afternoon" : "Good evening";
-        // The generic placeholder is not a name to greet anyone by.
-        const raw = String(btData.owner?.name || "").trim();
-        const named = raw && raw.toLowerCase() !== "business owner"
-          ? raw : String(btData.business?.name || "").trim();
-        const first = named.split(" ")[0];
-        const name = first ? first.charAt(0).toUpperCase() + first.slice(1) : "";
-        hello.textContent = `${part}${name ? `, ${name}` : ""} 👋`;
-      })();
-
       function renderMoveCanvas(post) {
         const panel = document.getElementById("chatCanvasMove");
         if (!panel || !post) return;
@@ -32239,6 +32204,99 @@ ledger_entry · artifact · agent_run`,
         return true;
       }
 
+      /* ----------------------------------------------------------------
+         "Email me the draft." The Ask agent can't touch a live site, but it
+         can hand the owner the draft it wrote — by email, to the owner's own
+         confirmed address. Confirm before sending: use the profile email if
+         there is one, otherwise ask for an address.
+         ---------------------------------------------------------------- */
+      let pendingEmail = null; // { stage: "confirm"|"address", findId, email? }
+
+      const EMAIL_ADDRESS = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      const CANCEL_WORDS = /^\s*(no|nope|cancel|stop|never mind|nevermind)[.!]?\s*$/i;
+
+      function wantsEmailedDraft(text) {
+        const t = String(text || "").toLowerCase();
+        // "email me…", or "send …the draft/script/wording".
+        return /\be-?mail\b/.test(t)
+          || (/\bsend\b/.test(t) && /\b(draft|script|wording|copy)\b/.test(t));
+      }
+
+      async function performEmailDraft(findId, email) {
+        if (!chatAskEndpoint) {
+          replaceLoading("Email isn't available in this build.", { error: true });
+          return;
+        }
+        try {
+          const response = await fetch(chatAskEndpoint, {
+            method: "POST",
+            headers: chatHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
+            body: JSON.stringify({ action: "email_draft", find_id: findId, email: email || undefined }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            replaceLoading(payload.error || `That didn't work (${response.status}).`, { error: true });
+            return;
+          }
+          const failed = payload.action?.status && payload.action.status !== "sent";
+          replaceLoading(payload.answer || "Done.", failed ? { error: true } : undefined);
+        } catch (_) {
+          replaceLoading("I couldn't reach the mail agent — try again.", { error: true });
+        }
+      }
+
+      async function handleEmailDraft(text) {
+        // An outstanding confirmation or address request answers first.
+        if (pendingEmail?.stage === "confirm") {
+          if (CONFIRM_ONLY.test(text)) {
+            const { findId, email } = pendingEmail;
+            pendingEmail = null;
+            await performEmailDraft(findId, email);
+            return true;
+          }
+          if (CANCEL_WORDS.test(text)) {
+            pendingEmail = null;
+            replaceLoading("No problem — I won't send it. The draft stays on the recommendation.");
+            return true;
+          }
+          // Anything else: drop the pending send and let it re-parse below.
+          pendingEmail = null;
+        }
+        if (pendingEmail?.stage === "address") {
+          const addr = text.trim();
+          if (!EMAIL_ADDRESS.test(addr)) {
+            if (CANCEL_WORDS.test(text)) {
+              pendingEmail = null;
+              replaceLoading("Cancelled — nothing sent.");
+              return true;
+            }
+            replaceLoading("That doesn't look like an email address — try again, or say cancel.");
+            return true;
+          }
+          const { findId } = pendingEmail;
+          pendingEmail = null;
+          await performEmailDraft(findId, addr);
+          return true;
+        }
+
+        if (!wantsEmailedDraft(text)) return false;
+        if (!chatContext?.post) {
+          replaceLoading("Open the recommendation you'd like emailed — from For "
+            + "You or Growth — then ask me again, and I'll send its draft to you.");
+          return true;
+        }
+        const findId = chatContext.id;
+        const known = String(btData.owner?.email || "").trim();
+        if (EMAIL_ADDRESS.test(known)) {
+          pendingEmail = { stage: "confirm", findId, email: known };
+          replaceLoading(`I'll email the draft for “${chatContext.title}” to ${known}. Send it? Reply “yes”.`);
+        } else {
+          pendingEmail = { stage: "address", findId };
+          replaceLoading("Happy to — what email address should I send the draft to?");
+        }
+        return true;
+      }
+
       async function routeMessage(text) {
         if (!chatLive) {
           replaceLoading("I can't act in this preview. On the deployed site "
@@ -32247,7 +32305,12 @@ ledger_entry · artifact · agent_run`,
           return;
         }
 
-        // 0. A decision outranks everything — it is the owner acting.
+        // 0a. "Email me the draft" — the Ask agent handing the owner their
+        //     own draft. Runs first so an in-flight confirmation ("yes") is
+        //     not mistaken for a decision or an order.
+        if (await handleEmailDraft(text)) return;
+
+        // 0b. A decision outranks the rest — it is the owner acting.
         if (await handleDecision(text)) return;
 
         // 1. The Quartermaster reads it first — even mid-discussion of a
