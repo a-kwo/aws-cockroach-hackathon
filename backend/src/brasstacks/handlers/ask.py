@@ -35,6 +35,11 @@ CONTEXT_CHAR_BUDGET = 3600
 UNDO_PASS_ACTION = "undo_pass"
 RECONSIDER_ACTION = "reconsider"
 REVISE_DRAFT_ACTION = "revise_draft"
+#: A soft ceiling on Maker revisions of one draft. Past this, another pass is
+#: rarely the answer — the draft has either converged or the recommendation
+#: itself needs rethinking — so the agent stops queuing and says so rather than
+#: spending tokens on an endless revise loop.
+MAX_REVISIONS = 6
 #: Email the owner *their own* draft — delivering a document to them, not
 #: executing the move on the world. Safe by construction: it goes only to the
 #: owner's confirmed address and nowhere else.
@@ -797,6 +802,24 @@ def perform_revision(
         return respond(404, {"error": "recommendation is no longer available"})
     if context.status != "accepted":
         return respond(409, {"error": "approve this recommendation before revising its draft"})
+
+    # Soft revision ceiling: stop the endless "revise again" loop before it
+    # burns tokens on a draft that has stopped improving.
+    existing = repo.get_artifacts(find_id) if hasattr(repo, "get_artifacts") else []
+    current_revision = max(
+        (int(getattr(a, "revision", 1) or 1) for a in existing), default=0)
+    if current_revision >= MAX_REVISIONS:
+        return respond(200, {
+            "answer": (f"This draft has already been through {current_revision} "
+                       "revisions and looks to have converged. Accept it as it "
+                       "stands, or if it still isn't right the recommendation "
+                       "itself may need rethinking rather than another pass — I "
+                       "haven't queued one."),
+            "action": {"type": REVISE_DRAFT_ACTION, "status": "revision_limit",
+                       "revision": current_revision},
+            "find_id": find_id,
+        })
+
     try:
         task = repo.request_maker_revision(
             business_id=business_id,
@@ -1564,6 +1587,7 @@ __all__ = [
     "email_draft_action",
     "render_draft_email",
     "EMAIL_DRAFT_ACTION",
+    "MAX_REVISIONS",
     "perform_undo_pass",
     "perform_reconsider",
     "perform_revision",
