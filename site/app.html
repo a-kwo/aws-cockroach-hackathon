@@ -17278,6 +17278,38 @@
       min-height: 28px;
     }
 
+    /* The whole panel is one disclosure now: the card stays a clean brief and
+       every detail (and the honesty strings the tests require) rests one tap
+       away rather than filling the card. */
+    body.autopilot-mode .feed-detail-summary {
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+    body.autopilot-mode .feed-detail-summary::-webkit-details-marker { display: none; }
+    body.autopilot-mode .feed-detail-summary::before {
+      content: "";
+      order: 4;
+      width: 8px;
+      height: 8px;
+      border-right: 1.6px solid #9aa2bd;
+      border-bottom: 1.6px solid #9aa2bd;
+      transform: rotate(45deg);
+      transition: transform .18s ease;
+      flex: none;
+    }
+    body.autopilot-mode .feed-detail-panel[open] .feed-detail-summary::before {
+      transform: rotate(-135deg);
+    }
+    body.autopilot-mode .feed-detail-inner { margin-top: 4px; }
+
+    /* Wide screens keep the panel open in its own column, so the summary is
+       just the heading it always was — no pointer, no chevron. */
+    @media (min-width: 901px) {
+      body.autopilot-mode .feed-detail-summary { cursor: default; }
+      body.autopilot-mode .feed-detail-summary::before { display: none; }
+    }
+
     body.autopilot-mode .feed-detail-heading::after,
     body.autopilot-mode .feed-glance-heading::after {
       content: "";
@@ -22924,6 +22956,18 @@
       evidenceSheetOpener = null;
     }
 
+    // On a wide screen the details sit open in their own column — there is
+    // room, and it was never the clutter. On a phone the whole panel folds
+    // into one "Key details" line so the card reads clean, and a breakpoint
+    // change flips every panel to match without a re-render.
+    const FEED_PANEL_WIDE = window.matchMedia("(min-width: 901px)");
+    const syncFeedPanels = matches => {
+      document.querySelectorAll(".feed-detail-panel").forEach(panel => { panel.open = matches; });
+    };
+    if (FEED_PANEL_WIDE.addEventListener) {
+      FEED_PANEL_WIDE.addEventListener("change", event => syncFeedPanels(event.matches));
+    }
+
     function renderFeedDetailPanel(post) {
       const brief = post.feedBrief;
       const evidenceCount = Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0));
@@ -22982,11 +23026,12 @@
         </div>`;
 
       return `
-        <aside class="feed-detail-panel" aria-label="Recommendation details">
-          <div class="feed-detail-heading">
+        <details class="feed-detail-panel"${FEED_PANEL_WIDE.matches ? " open" : ""} aria-label="Recommendation details">
+          <summary class="feed-detail-heading feed-detail-summary">
             <span>Key details</span>
             <small>Projected · not earned</small>
-          </div>
+          </summary>
+          <div class="feed-detail-inner">
           <dl class="feed-detail-list">
             ${coreRows.map(rowHtml).join("")}
           </dl>
@@ -23041,7 +23086,8 @@
             </span>
             <span class="feed-detail-evidence-cta">View sources ›</span>
           </button>
-        </aside>`;
+          </div>
+        </details>`;
     }
 
     function findToPost(find, { serverVerified = false } = {}) {
