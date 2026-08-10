@@ -17394,6 +17394,9 @@
     body.autopilot-mode .feed-detail-panel {
       min-width: 0;
       align-self: start;
+      /* Drop the panel to the title's line rather than the source eyebrow's,
+         so the hierarchy reads title-first with the plan beside it. */
+      margin-top: 62px;
       padding: 20px 20px 18px;
       border: 1px solid rgba(205,214,255,.13);
       border-radius: 22px;
@@ -17862,6 +17865,9 @@
 
       body.autopilot-mode .feed-detail-panel {
         width: 100%;
+        /* Stacked under the brief here, so the desktop title-alignment margin
+           does not apply — the grid gap spaces it. */
+        margin-top: 0;
         padding: 17px 16px 15px;
         border-radius: 19px;
       }
@@ -21472,9 +21478,11 @@
        one tap away. The honesty content (modelled costs, at-a-glance,
        execution plan) still ships in the DOM inside these disclosures. */
     body.autopilot-mode .feed-next-step {
-      margin-top: 18px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(205, 214, 255, .11);
+      /* NEXT STEP is the first thing in the panel now, so no divider line
+         above it (the border-top separated it from the removed KEY DETAILS). */
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
     }
 
     body.autopilot-mode .feed-next-heading span {
