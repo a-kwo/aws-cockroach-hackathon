@@ -238,6 +238,9 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
       <p class="note">Signs you in to a workspace you already have. Creating a new one still takes an invite.</p>
     </div>
 
+    <button class="submit" id="playDemo" type="button" style="margin-top:16px;background:var(--teal);">&#9654;&nbsp; Play guided demo</button>
+    <p class="note" style="text-align:center;margin-top:10px;">A 45-second self-driving tour of the whole loop — no sign-in needed. Perfect for a first look.</p>
+
     <p class="foot">No workspace yet? <a href="../signup/">Create one</a>.</p>
     <p class="note">There is no password reset yet. If you lose it, the workspace cannot be recovered from this page.</p>
   </section>
@@ -377,6 +380,59 @@ if (returned === "cancelled") {
   fail("That Google account has no workspace here yet. Create one first — it takes an invite code.");
 }
 if (returned) history.replaceState(null, "", window.location.pathname);
+
+//  --- Guided demo tour ---------------------------------------------------
+//  Self-contained: seeds a local session and hands the app the tour, so nothing
+//  waits on the backend and a cold Lambda can never freeze the recording. Two
+//  phases -- owner, then (bounced back here with ?tour=console) operator -- so
+//  both sign-ins appear on camera. The board it opens reads the committed Rosa
+//  fixture; the README discloses that ledger as seeded, backdated history.
+function tourExpiry() { return new Date(Date.now() + 24 * 3600 * 1000).toISOString(); }
+function seedAndGo(key, isAdmin, dest) {
+  localStorage.setItem(key, JSON.stringify({
+    token: "guided-tour", businessId: null, isAdmin: isAdmin, expiresAt: tourExpiry(),
+  }));
+  window.location.href = dest;
+}
+function typeInto(el, text, done) {
+  el.value = "";
+  let i = 0;
+  (function tick() {
+    el.value = text.slice(0, ++i);
+    if (i < text.length) setTimeout(tick, 55);
+    else if (done) setTimeout(done, 480);
+  })();
+}
+function startOwnerTour() {
+  setRole("owner");
+  button.disabled = true;
+  button.textContent = "Signing in";
+  const pd = document.getElementById("playDemo");
+  if (pd) { pd.disabled = true; pd.textContent = "Starting the tour…"; }
+  document.getElementById("password").value = "";
+  typeInto(document.getElementById("username"), "rosa", () => {
+    typeInto(document.getElementById("password"), "••••••••••", () => {
+      seedAndGo(SESSION_KEY, false, "../app/?tour=owner");
+    });
+  });
+}
+const playDemoButton = document.getElementById("playDemo");
+if (playDemoButton) playDemoButton.addEventListener("click", startOwnerTour);
+
+//  The operator half runs itself when the owner tour hands back here, and the
+//  app's Replay button returns with ?tour=start to run the whole thing again.
+if (new URLSearchParams(window.location.search).get("tour") === "console") {
+  setRole("operator");
+  button.disabled = true;
+  button.textContent = "Signing in";
+  typeInto(document.getElementById("username"), "operator", () => {
+    typeInto(document.getElementById("password"), "••••••••••", () => {
+      seedAndGo(ADMIN_SESSION_KEY, true, "../app/?workspace=admin&tour=console");
+    });
+  });
+} else if (new URLSearchParams(window.location.search).get("tour") === "start") {
+  startOwnerTour();
+}
 </script>
 </body>
 </html>

@@ -22468,6 +22468,22 @@
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
+  <script id="bt-tour-seed">/* The guided demo is self-contained. If the page was opened with ?tour=, make
+     sure a session exists in the right slot BEFORE the board's "no session ->
+     login" guard runs, so the tour is never bounced away. The token is a
+     placeholder: live fetches 401 and degrade to the committed Rosa fixture,
+     which is exactly what the tour is meant to show. */
+  (function(){try{
+    var q=new URLSearchParams(location.search), tour=q.get("tour");
+    if(!tour) return;
+    var admin=q.get("workspace")==="admin";
+    var key=admin?"brass-tacks-admin-session-v1":"brass-tacks-session-v1";
+    if(!localStorage.getItem(key)){
+      var exp=new Date(Date.now()+24*3600*1000).toISOString();
+      localStorage.setItem(key,JSON.stringify({token:"guided-tour",businessId:null,isAdmin:admin,expiresAt:exp}));
+    }
+  }catch(e){}})();
+  </script>
   <main class="app" id="app">
     <header class="topbar">
       <div class="brand" aria-label="Brass Tacks home">
@@ -25131,6 +25147,9 @@
       }
       if (wantSupplies && window.__btShowSuppliesCanvas) window.__btShowSuppliesCanvas();
     }
+    //  The guided demo tour (bt-tour-run, end of body) drives navigation
+    //  through this. switchView lives in the module scope; this is its handle.
+    window.__btSwitchView = switchView;
 
     let entranceTimer;
     const ENTER_STEP = 70;      // ms between blocks
@@ -34179,6 +34198,137 @@ ledger_entry · artifact · agent_run`,
       //  Show the board as the resting canvas from the start.
       setCanvas("supplies");
     })();
+  </script>
+  <script id="bt-tour-run">
+  /* Self-contained guided demo. Launched from the login page's Play button
+     (or by opening ?tour=owner directly). It drives the app through the whole
+     loop on a timer so a judge can screen-record it with no backend, no
+     password, and no clicks. Every step is defensive: a missing element is
+     skipped, never thrown, so a fixture that differs can't freeze the take.
+     The data shown is the committed Rosa fixture -- seeded, backdated history,
+     disclosed as such in the README. */
+  (function(){
+    var q = new URLSearchParams(location.search);
+    var tour = q.get("tour");
+    if (tour !== "owner" && tour !== "console") return;
+
+    var style = document.createElement("style");
+    style.textContent =
+      '[data-bt-tour]{position:fixed;inset:auto 0 0 0;z-index:99999;display:flex;'
+      + 'flex-direction:column;align-items:center;gap:12px;pointer-events:none;'
+      + 'padding:0 18px 34px;}'
+      + '.bt-tour-badge{align-self:center;font:800 11px/1 -apple-system,BlinkMacSystemFont,'
+      + '"Segoe UI",Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;'
+      + 'color:#f4f2ec;background:rgba(14,16,22,.82);padding:7px 13px;border-radius:999px;'
+      + 'border:1px solid rgba(216,165,58,.5);}'
+      + '.bt-tour-badge b{color:#e8b94a;}'
+      + '#bt-tour-caption{max-width:720px;padding:16px 22px;border-radius:16px;'
+      + 'background:rgba(14,16,22,.93);color:#f4f2ec;border-left:4px solid #d8a53a;'
+      + 'font:600 17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'box-shadow:0 18px 50px rgba(0,0,0,.45);opacity:0;transform:translateY(10px);'
+      + 'transition:opacity .5s ease,transform .5s ease;-webkit-backdrop-filter:blur(8px);'
+      + 'backdrop-filter:blur(8px);text-align:center;}'
+      + '#bt-tour-caption.show{opacity:1;transform:none;}'
+      + '.bt-tour-replay{pointer-events:auto;margin-top:2px;font:700 13px -apple-system,'
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#e8b94a;background:none;'
+      + 'border:0;cursor:pointer;opacity:0;transition:opacity .5s ease;}'
+      + '.bt-tour-replay.show{opacity:.9;}'
+      + '.bt-tour-title{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;'
+      + 'align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;'
+      + 'background:radial-gradient(circle at 50% 38%,#171a22,#0b0d12);color:#f4f2ec;'
+      + 'opacity:0;transition:opacity .8s ease;}'
+      + '.bt-tour-title.show{opacity:1;}'
+      + '.bt-tour-title .tag{font:800 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,'
+      + 'sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#e8b94a;}'
+      + '.bt-tour-title h1{margin:0;font:800 clamp(44px,8vw,86px)/1 -apple-system,BlinkMacSystemFont,'
+      + '"Segoe UI",Inter,sans-serif;letter-spacing:-.035em;}'
+      + '.bt-tour-title p{margin:0;font:500 clamp(18px,3.4vw,26px)/1.4 -apple-system,'
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#c9c6bd;}';
+    document.head.appendChild(style);
+
+    var wrap = document.createElement("div");
+    wrap.setAttribute("data-bt-tour", tour);
+    wrap.innerHTML =
+      '<div class="bt-tour-badge"><b>&#9679;</b> Guided demo</div>'
+      + '<div id="bt-tour-caption" role="status" aria-live="polite"></div>'
+      + '<button type="button" class="bt-tour-replay">&#8635; Replay from the top</button>';
+    document.body.appendChild(wrap);
+
+    var cap = wrap.querySelector("#bt-tour-caption");
+    var replay = wrap.querySelector(".bt-tour-replay");
+    replay.addEventListener("click", function(){ location.href = "../login/?tour=start"; });
+
+    function say(t){ cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); }, 180); }
+    function scrollTo(sel){ try{ var el = document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){} }
+    function click(sel){ try{ var el = document.querySelector(sel); if(el) el.click(); }catch(e){} }
+
+    var OWNER_STEPS = [
+      { caption: "Rosa's morning board. Every night her agents read the market and write what they see into CockroachDB.",
+        run: function(){ window.__btSwitchView("autopilot"); scrollTo("#feedStage"); }, wait: 3800 },
+      { caption: "Each find cites its evidence — the exact rows a vector search returned, with real similarity scores.",
+        run: function(){ click(".feed-detail-evidence"); }, wait: 4400 },
+      { caption: "The agent does the work too — orders the supplies, drafts the copy.",
+        run: function(){ window.__btSwitchView("chat"); }, wait: 3600 },
+      { caption: "Now the proof. The Meter stored last night's prediction, waited for its window to close, then read it back and scored it.",
+        run: function(){ window.__btSwitchView("growth"); scrollTo("#growthChart"); }, wait: 4800 },
+      { caption: "Six verified moves — money measured, not promised. That is the memory layer doing what a stateless agent cannot.",
+        run: function(){ scrollTo("#growthChart"); }, wait: 4400 },
+      { caption: "How does it remember? Meet the Memory Engine…",
+        run: function(){}, wait: 2800 }
+    ];
+    var CONSOLE_STEPS = [
+      { caption: "The Memory Engine — the operator's window on the live cluster.",
+        run: function(){ window.__btSwitchView("admin"); }, wait: 3400 },
+      { caption: "Radar embeds every observation with Bedrock Titan into CockroachDB's distributed vector index.",
+        run: function(){ scrollTo("#view-admin"); }, wait: 3800 },
+      { caption: "The Analyst semantic-searches all of that accumulated memory before it proposes a single move.",
+        run: function(){ try{ window.scrollBy({top:440, behavior:"smooth"}); }catch(e){} }, wait: 3800 },
+      { caption: "Two CockroachDB tools, load-bearing at runtime: the vector index, and the read-only MCP the Ask agent queries.",
+        run: function(){ try{ window.scrollBy({top:440, behavior:"smooth"}); }catch(e){} }, wait: 4400 },
+      { caption: "An agent with a track record. Brass Tacks — found money, on autopilot.",
+        run: function(){}, wait: 4200 }
+    ];
+
+    //  A full-screen slide for a clean open and close, so the recording needs
+    //  no editor. Fades in, holds, fades out, then hands back.
+    function titleCard(tag, heading, sub, hold, done){
+      var card = document.createElement("div");
+      card.className = "bt-tour-title";
+      card.innerHTML = '<div class="tag">' + tag + '</div><h1>' + heading
+        + '</h1><p>' + sub + '</p>';
+      document.body.appendChild(card);
+      requestAnimationFrame(function(){ card.classList.add("show"); });
+      setTimeout(function(){
+        card.classList.remove("show");
+        setTimeout(function(){ card.remove(); if (done) done(); }, 850);
+      }, hold);
+    }
+
+    var steps = tour === "owner" ? OWNER_STEPS : CONSOLE_STEPS;
+    var i = 0;
+    function run(){
+      if (i >= steps.length){
+        if (tour === "owner"){ location.href = "../login/?role=operator&tour=console"; return; }
+        //  Console half is the finale: a clean outro slide, then a replay.
+        titleCard("An agent with a track record", "Brass Tacks",
+          "Found money, on autopilot.", 3800, function(){ replay.classList.add("show"); });
+        return;
+      }
+      var s = steps[i++];
+      if (s.caption) say(s.caption);
+      try { if (s.run) s.run(); } catch(e){}
+      setTimeout(run, s.wait || 3400);
+    }
+
+    //  The owner half opens the whole recording, so it gets the title card;
+    //  the operator half is a continuation and goes straight into its steps.
+    if (tour === "owner"){
+      titleCard("Guided demo", "Brass Tacks", "Found money, on autopilot.",
+        3400, function(){ setTimeout(run, 500); });
+    } else {
+      setTimeout(run, 900);
+    }
+  })();
   </script>
 </body>
 </html>

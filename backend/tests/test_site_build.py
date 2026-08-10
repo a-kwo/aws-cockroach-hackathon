@@ -4052,3 +4052,60 @@ def test_opening_the_result_panel_does_not_rebuild_the_list():
     assert "renderGrowth()" not in binding
     assert "openOutcomePanels.add" in binding
     assert "openOutcomePanels.delete" in binding
+
+
+# --- Guided demo tour -------------------------------------------------------
+#
+# A judge should be able to see the whole loop without a live backend or a
+# password: press one button, screen-record, and watch the tour drive itself
+# through For You, the ledger, and the Memory Engine. It is self-contained on
+# purpose -- it seeds a local session and reads the committed fixture, so a
+# slow or cold Lambda can never freeze the recording mid-take.
+
+def test_login_offers_a_self_contained_guided_demo():
+    """The login page carries a Play button that starts the tour without ever
+    calling the backend: it seeds a local owner session and hands off to the
+    app with ?tour=owner. Landing back here with ?tour=console auto-runs the
+    operator half, so both logins appear on camera."""
+    html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
+
+    assert 'id="playDemo"' in html
+    assert "Play guided demo" in html
+    # Seeds a session locally -- no fetch to the login endpoint -- and hands the
+    # owner tour to the app.
+    assert '"../app/?tour=owner"' in html
+    # The operator half runs itself when the tour bounces back through login.
+    assert 'tour") === "console"' in html or "tour\") == \"console\"" in html
+    assert '"../app/?workspace=admin&tour=console"' in html
+
+
+def test_the_app_runs_the_guided_tour_without_a_backend():
+    """The app reads the tour flag, guarantees a session so its own guard does
+    not bounce the tour to the login page, exposes switchView for the tour to
+    drive, and paints a caption overlay a muted judge can still follow."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    # switchView is inside the module; the tour needs a handle on it.
+    assert "window.__btSwitchView = switchView;" in html
+    # The tour engine and its caption overlay.
+    assert 'id="bt-tour-caption"' in html
+    assert 'data-bt-tour' in html
+    # A session is seeded before the "no session -> login" guard runs, so the
+    # tour is never redirected away.
+    assert "bt-tour-seed" in html
+    # A title card opens (and closes) the recording cleanly.
+    assert "bt-tour-title" in html
+    # It drives to the money shot and the Memory Engine by name.
+    assert '__btSwitchView("growth")' in html
+    assert '__btSwitchView("admin")' in html
+
+
+def test_the_guided_demo_ledger_is_disclosed_as_seeded():
+    """The README must say the ledger the tour shows is seeded, backdated
+    history with illustrative figures -- the mechanism real, the clock compressed."""
+    readme = (build_web.REPO / "README.md").read_text(encoding="utf-8")
+
+    assert "seeded, backdated history" in readme
+    assert "illustrative" in readme
+    # The honest half: what is compressed is the clock, not the mechanism.
+    assert "the clock, not the mechanism" in readme
