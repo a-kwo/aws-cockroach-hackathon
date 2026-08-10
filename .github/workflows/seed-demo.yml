@@ -1,0 +1,211 @@
+name: Seed & Publish Demo
+
+# One click to make the guided demo real, entirely in CI, using the secrets
+# already configured for deployment -- no local .env, no local AWS creds.
+#
+#   1. Seed the Rosa's Trattoria demo tenant (127 observations, 15 finds, a
+#      backdated ledger of 6 verified / 1 miss / 1 estimated) into the live
+#      CockroachDB cluster. Embeddings run on Bedrock Titan.
+#   2. Export that tenant to db/fixtures/demo.json -- the committed snapshot the
+#      site's first paint reads, which is what the ?tour= guided demo shows.
+#   3. Commit the refreshed fixture so every future build keeps the verified
+#      ledger (a later deploy off the old fixture would otherwise blank it).
+#   4. Build and publish the frontend, then invalidate CloudFront -- the same
+#      steps as deploy-frontend.yml.
+#
+# Rosa is fictional demo data (see the README's seeded-history disclosure), so
+# committing her fixture is by design. Seeding writes only the Rosa tenant;
+# --reset deletes her by name and nothing else, so a real tenant on the same
+# cluster is never touched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset:
+        description: "Replace Rosa if she already exists on the cluster"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # commit the refreshed fixture back
+
+concurrency:
+  group: brasstacks-frontend
+  cancel-in-progress: false
+
+jobs:
+  seed-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      AWS_REGION: us-east-1
+      MODEL_PROVIDER: anthropic
+      # Seed never calls Claude -- it only embeds on Bedrock -- but config
+      # validation requires a non-empty key when MODEL_PROVIDER=anthropic.
+      ANTHROPIC_API_KEY: unused-seed-embeds-on-bedrock
+      BEDROCK_EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
+      EMBEDDING_DIMENSIONS: "1024"
+      # Required non-blank by config; seed and export never touch S3.
+      S3_ARTIFACT_BUCKET: brasstacks-artifacts-placeholder
+      COCKROACH_DATABASE_URL: ${{ secrets.COCKROACH_DATABASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements-dev.txt ]; then
+            pip install -r backend/requirements-dev.txt
+          elif [ -f backend/pyproject.toml ]; then
+            pip install -e "backend[dev]"
+          else
+            pip install -r backend/requirements.txt
+          fi
+
+      - name: Seed the Rosa demo tenant
+        run: |
+          if [ "${{ inputs.reset }}" = "true" ]; then
+            python scripts/seed.py --reset
+          else
+            python scripts/seed.py
+          fi
+
+      - name: Export the demo fixture
+        run: python scripts/export_fixture.py
+
+      - name: Commit the refreshed fixture
+        id: commit
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Only the fixture. .env was created by the seed with placeholders and
+          # is gitignored regardless -- never commit it.
+          git add db/fixtures/demo.json
+          if git diff --cached --quiet; then
+            echo "Fixture unchanged."
+          else
+            git commit -m "Refresh demo fixture with seeded verified ledger"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Save the fixture as an artifact
+        # Fallback if the push was blocked (e.g. a protected branch): download
+        # this and commit it by hand so future builds keep the verified ledger.
+        if: steps.commit.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-fixture
+          path: db/fixtures/demo.json
+
+      - name: Read existing stack outputs
+        id: outputs
+        shell: bash
+        run: |
+          value() {
+            aws cloudformation describe-stacks \
+              --stack-name brasstacks \
+              --region us-east-1 \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue | [0]" \
+              --output text
+          }
+
+          SITE_BUCKET=$(value SiteBucketName)
+          SITE_URL=$(value SiteUrl)
+          DECISION_ENDPOINT=$(value DecisionEndpoint)
+          WORKFLOW_ENDPOINT=$(value WorkflowEndpoint)
+          LOGIN_ENDPOINT=$(value LoginEndpoint)
+          REGISTER_ENDPOINT=$(value RegisterEndpoint)
+          ONBOARDING_ENDPOINT=$(value OnboardingEndpoint)
+          RUN_ENDPOINT=$(value RunEndpoint)
+          ADMIN_ENDPOINT=$(value AdminWorkspacesEndpoint)
+          GOOGLE_START_ENDPOINT=$(value GoogleStartEndpoint)
+          GOOGLE_COMPLETE_ENDPOINT=$(value GoogleCompleteEndpoint)
+
+          if aws ssm get-parameter \
+               --name "/brasstacks/GOOGLE_OAUTH_CLIENT_ID" \
+               --region us-east-1 >/dev/null 2>&1; then
+            GOOGLE_OAUTH_ENABLED=1
+          else
+            GOOGLE_OAUTH_ENABLED=
+          fi
+
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${SITE_URL#https://}'].Id | [0]" \
+            --output text)
+
+          echo "site_bucket=$SITE_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"
+          echo "decision_endpoint=$DECISION_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "workflow_endpoint=$WORKFLOW_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "login_endpoint=$LOGIN_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "register_endpoint=$REGISTER_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "onboarding_endpoint=$ONBOARDING_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "run_endpoint=$RUN_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "admin_endpoint=$ADMIN_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "google_start_endpoint=$GOOGLE_START_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "google_complete_endpoint=$GOOGLE_COMPLETE_ENDPOINT" >> "$GITHUB_OUTPUT"
+          echo "google_oauth_enabled=$GOOGLE_OAUTH_ENABLED" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$DISTRIBUTION_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Validate deployment values
+        shell: bash
+        run: |
+          for value in \
+            "${{ steps.outputs.outputs.site_bucket }}" \
+            "${{ steps.outputs.outputs.site_url }}" \
+            "${{ steps.outputs.outputs.distribution_id }}"
+          do
+            if [ -z "$value" ] || [ "$value" = "None" ]; then
+              echo "A required stack output was not found."
+              exit 1
+            fi
+          done
+
+      - name: Build connected frontend
+        env:
+          DECISION_API_ENDPOINT: ${{ steps.outputs.outputs.decision_endpoint }}
+          WORKFLOW_API_ENDPOINT: ${{ steps.outputs.outputs.workflow_endpoint }}
+          LOGIN_API_ENDPOINT: ${{ steps.outputs.outputs.login_endpoint }}
+          REGISTER_API_ENDPOINT: ${{ steps.outputs.outputs.register_endpoint }}
+          ONBOARDING_API_ENDPOINT: ${{ steps.outputs.outputs.onboarding_endpoint }}
+          RUN_API_ENDPOINT: ${{ steps.outputs.outputs.run_endpoint }}
+          ADMIN_API_ENDPOINT: ${{ steps.outputs.outputs.admin_endpoint }}
+          GOOGLE_START_API_ENDPOINT: ${{ steps.outputs.outputs.google_start_endpoint }}
+          GOOGLE_COMPLETE_API_ENDPOINT: ${{ steps.outputs.outputs.google_complete_endpoint }}
+          GOOGLE_OAUTH_ENABLED: ${{ steps.outputs.outputs.google_oauth_enabled }}
+        run: python scripts/build_web.py
+
+      - name: Upload frontend to S3
+        run: |
+          aws s3 sync web/ \
+            "s3://${{ steps.outputs.outputs.site_bucket }}/" \
+            --delete \
+            --cache-control "no-cache"
+
+      - name: Refresh CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.outputs.outputs.distribution_id }}" \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "Demo seeded and published."
+          echo "Site: ${{ steps.outputs.outputs.site_url }}"
+          echo "Open <site>/app/?tour=owner or press Play guided demo on the login page."
