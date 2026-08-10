@@ -34276,6 +34276,56 @@ ledger_entry · artifact · agent_run`,
     function supplies(){ try{ if(window.__btShowSuppliesCanvas) window.__btShowSuppliesCanvas(); }catch(e){} }
     function owner(t){ try{ if(window.__btTourSay) window.__btTourSay("owner", t); if(window.__btTourSay) window.__btTourSay("agent", "", {loading:true}); }catch(e){} }
     function agent(t, opts){ try{ if(window.__btTourReplace) window.__btTourReplace(t, opts||{}); }catch(e){} }
+    // The Supplies board reads live cluster state; a fake tour session can't
+    // fetch it, so the tour injects a representative store so the real board
+    // (prices, standing orders, stock gauges, spend limits, paid history) has
+    // something to render. Illustrative demo data, under the Guided demo badge.
+    function orders(s){ try{
+      if(window.__btOrdersApplyState) window.__btOrdersApplyState(s);
+      var n=document.getElementById("ordersAskNote"); if(n){ n.textContent=""; n.hidden=true; }
+    }catch(e){} }
+    var TOUR_STORE = {
+      store: { catalogue: [
+        { name: "San Marzano tomatoes (case)", unit_cents: 2400 },
+        { name: "Fresh mozzarella (5kg)", unit_cents: 3800 },
+        { name: "Extra-virgin olive oil (5L)", unit_cents: 5200 },
+        { name: "00 flour (25kg)", unit_cents: 2900 },
+        { name: "Espresso beans (1kg)", unit_cents: 1800 },
+        { name: "Mascarpone (2kg)", unit_cents: 2600 },
+        { name: "Fresh basil (bunch)", unit_cents: 320 },
+        { name: "Parmigiano wedge", unit_cents: 4400 }
+      ]},
+      standing: [
+        { id:"s1", name:"Weekly tomatoes & mozzarella", enabled:true,
+          items:[["San Marzano tomatoes (case)",2],["Fresh mozzarella (5kg)",1]],
+          schedule:"Every Monday, 7am", next:"2026-08-11" },
+        { id:"s2", name:"Espresso beans", enabled:true,
+          items:[["Espresso beans (1kg)",3]], schedule:"Every 10 days", next:"2026-08-13" }
+      ],
+      stock: [
+        { id:"k1", name:"Fresh mozzarella", known:true, gauge_full:10, remaining:2, is_low:true,
+          basis:"Using about 1.6kg a day over the last two weeks", reorder_quantity:"2 tubs" },
+        { id:"k2", name:"San Marzano tomatoes", known:true, gauge_full:12, remaining:7, is_low:false,
+          basis:"Steady at about a case a day" },
+        { id:"k3", name:"Mascarpone", known:true, gauge_full:8, remaining:6, is_low:false,
+          basis:"Slower midweek" }
+      ],
+      limits: [
+        { scope:"Produce & dairy", level:"auto", per_order_cap_cents:8000,
+          period_cap_cents:20000, spent_in_period_cents:9600 },
+        { scope:"Everything else", level:"ask_if_over", per_order_cap_cents:15000,
+          auto_threshold_cents:5000 }
+      ],
+      history: [
+        { title:"Weekly tomatoes & mozzarella", status:"placed", total_cents:6200,
+          created_at:"2026-08-04", trigger:"standing", cart:{lines:[]} },
+        { title:"Espresso beans x3", status:"placed", total_cents:5400,
+          created_at:"2026-08-03", trigger:"standing", cart:{lines:[]} },
+        { title:"Olive oil x1", status:"placed", total_cents:5200,
+          created_at:"2026-07-30", trigger:"ask", cart:{lines:[]} }
+      ],
+      pending: []
+    };
 
     var OWNER_STEPS = [
       { caption: "Rosa's morning board. Every night her agents read the market and write what they see into CockroachDB.",
@@ -34296,10 +34346,18 @@ ledger_entry · artifact · agent_run`,
       { caption: "“Order supplies for me” — it can buy what a move needs, too.",
         run: function(){ owner("Order supplies for me"); }, wait: 2600 },
       { caption: "The Quartermaster charges the card only when an order actually places — and refunds automatically if it fails.",
-        run: function(){ agent("Here's the supply catalogue — pick anything and I'll place it with the vendor. I only charge the moment it ships, and refund automatically if it doesn't.", {action:{view:"orders", label:"Open Supplies"}}); supplies(); }, wait: 4600 },
-      { caption: "Same canvas, a Supplies tab — pick an item and it's staged for one-tap approval.",
-        run: function(){ supplies(); scrollTo("[data-order]"); }, wait: 3800 },
-      { caption: "One tap stages the order; nothing leaves without her.",
+        run: function(){ agent("Here's your supply board — the full price list, what's on standing order, what's running low, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); orders(TOUR_STORE); supplies(); }, wait: 4800 },
+      { caption: "The whole supply board on one tab. The price list first — every item, with its price.",
+        run: function(){ orders(TOUR_STORE); supplies(); click(".orders-catalogue > summary"); scrollTo("#ordersCatalogue"); }, wait: 4600 },
+      { caption: "Auto-stock: it reorders the essentials on a schedule — tomatoes and mozzarella every Monday, on its own.",
+        run: function(){ scrollTo("#ordersStandingList"); }, wait: 4600 },
+      { caption: "It infers what's running low from real usage and drafts the reorder before she runs out — mozzarella's down to two.",
+        run: function(){ scrollTo("#ordersStockList"); }, wait: 4600 },
+      { caption: "Under her weekly cap it buys on its own; above it, it stops and asks. She sets the leash.",
+        run: function(){ scrollTo("#ordersLimitsList"); }, wait: 4400 },
+      { caption: "And every order it placed, with exactly what it paid — $62 of produce, $54 of beans — each charged only when it shipped.",
+        run: function(){ scrollTo("#ordersHistoryList"); }, wait: 4800 },
+      { caption: "Any item is one tap to reorder — staged for her approval, nothing leaves without a yes.",
         run: function(){ click("[data-order]"); }, wait: 3600 },
 
       { caption: "Now the proof. The Meter stored last night's prediction, waited for its window to close, then read it back out of CockroachDB and scored it.",
