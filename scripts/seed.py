@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import secrets
 import sys
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -29,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from env_file import set_key  # noqa: E402
 
+from brasstacks.auth import hash_password  # noqa: E402
 from brasstacks.config import Settings  # noqa: E402
 from brasstacks.providers import build_embedder  # noqa: E402
 from brasstacks.repository import EvidenceRef, cosine_similarity  # noqa: E402
@@ -156,6 +159,11 @@ def main() -> int:
                         help="validate the seed files and exit")
     parser.add_argument("--as-of", default=None,
                         help="anchor date for backdating (YYYY-MM-DD, default today)")
+    parser.add_argument("--owner-username", default="rosa",
+                        help="username for the demo owner login (default 'rosa')")
+    parser.add_argument("--owner-password", default=None,
+                        help="password for the demo owner login; falls back to "
+                             "$DEMO_OWNER_PASSWORD, then a printed random one")
     args = parser.parse_args()
 
     profile = load("business.json")
@@ -182,6 +190,12 @@ def main() -> int:
         if args.reset:
             removed = delete_tenant(conn, business_name)
             print(f"reset: removed {removed} existing tenant(s)")
+            # The tenant delete cascades to its rows, but the demo login is
+            # keyed on username; drop it explicitly so a re-seed does not
+            # collide on "username already taken".
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM owner_account WHERE username = %s",
+                            (args.owner_username,))
         else:
             with conn.cursor() as cur:
                 cur.execute("SELECT count(*) FROM business WHERE name = %s",
@@ -199,6 +213,21 @@ def main() -> int:
             goal_monthly_cents=profile["business"].get("goal_monthly_cents"),
         )
         print(f"business {business_name!r} -> {business_id}")
+
+        # A real owner login, so the DEPLOYED board can be demonstrated live —
+        # signed in as this account, every figure is read from CockroachDB, not
+        # the committed snapshot. The password is never stored, only its scrypt
+        # hash. Rosa is fictional demo data, so a shared demo credential is fine.
+        owner_password = (args.owner_password
+                          or os.environ.get("DEMO_OWNER_PASSWORD")
+                          or secrets.token_urlsafe(9))
+        account_id = repo.create_account(
+            business_id,
+            username=args.owner_username,
+            password_hash=hash_password(owner_password),
+            display_name=profile["business"]["name"],
+        )
+        print(f"owner login {args.owner_username!r} -> account {account_id}")
 
         # --- profile ----------------------------------------------------
         fact_texts = [f["fact"] for f in profile["facts"]]
@@ -334,6 +363,11 @@ def main() -> int:
 
     set_key("BRASSTACKS_BUSINESS_ID", business_id)
     print(f"\nBRASSTACKS_BUSINESS_ID written to .env")
+    print("\n" + "=" * 52)
+    print("  LIVE DEMO LOGIN — sign in on the deployed /login/:")
+    print(f"    username: {args.owner_username}")
+    print(f"    password: {owner_password}")
+    print("=" * 52)
     return 0
 
 

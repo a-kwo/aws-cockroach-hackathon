@@ -25,6 +25,10 @@ on:
         description: "Replace Rosa if she already exists on the cluster"
         type: boolean
         default: true
+      owner_password:
+        description: "Password for the live demo login (username is 'rosa')"
+        type: string
+        default: "rosa-demo-2026"
 
 permissions:
   contents: write   # commit the refreshed fixture back
@@ -49,6 +53,9 @@ jobs:
       # Required non-blank by config; seed and export never touch S3.
       S3_ARTIFACT_BUCKET: brasstacks-artifacts-placeholder
       COCKROACH_DATABASE_URL: ${{ secrets.COCKROACH_DATABASE_URL }}
+      # The seed creates a real 'rosa' owner login with this password, so the
+      # deployed board can be signed into and demonstrated live.
+      DEMO_OWNER_PASSWORD: ${{ inputs.owner_password }}
 
     steps:
       - name: Check out repository
@@ -208,4 +215,9 @@ jobs:
         run: |
           echo "Demo seeded and published."
           echo "Site: ${{ steps.outputs.outputs.site_url }}"
-          echo "Open <site>/app/?tour=owner or press Play guided demo on the login page."
+          echo ""
+          echo "LIVE demo login (sign in on <site>/login/):"
+          echo "  username: rosa"
+          echo "  password: ${{ inputs.owner_password }}"
+          echo ""
+          echo "Or the narrated walkthrough: <site>/app/?tour=owner"
