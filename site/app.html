@@ -21052,14 +21052,18 @@
 
     body.orders-mode .orders-supplier select option { background: #12162b; color: var(--owner-ink); }
 
-    /* Canvas panel tabs: This move | Supplies. */
+    /* Canvas panel tabs: This move | Supplies. A distinct segmented control
+       that lifts off the header so it clearly reads as a toggle — same size and
+       place, just more visible: brighter inactive text and an accent-filled
+       selected tab. */
     .chat-canvas-tabs {
       display: inline-flex;
       gap: 2px;
       padding: 3px;
-      border: 1px solid var(--owner-line);
+      border: 1px solid var(--owner-line-strong);
       border-radius: 11px;
-      background: rgba(255,255,255,.04);
+      background: rgba(255,255,255,.07);
+      box-shadow: 0 6px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05);
     }
 
     .chat-canvas-tabs button {
@@ -21067,18 +21071,19 @@
       border-radius: 8px;
       padding: 5px 13px;
       background: transparent;
-      color: var(--owner-muted);
+      color: var(--owner-copy);
       font: inherit;
       font-size: 12px;
-      font-weight: 650;
+      font-weight: 700;
       cursor: pointer;
+      transition: background .15s ease, color .15s ease;
     }
 
-    .chat-canvas-tabs button:hover { color: var(--owner-ink); }
+    .chat-canvas-tabs button:hover { background: rgba(255,255,255,.06); color: var(--owner-ink); }
     .chat-canvas-tabs button.active {
-      background: rgba(255,255,255,.10);
+      background: var(--owner-accent, #b56dff);
       color: #fff;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+      box-shadow: 0 3px 12px rgba(141,69,255,.4);
     }
 
     /* The details document, docked. The drawer element re-homes into this
@@ -22442,8 +22447,19 @@
     body.day-mode .chat-thread .chat-answer-full { color: #26272e !important; }
     body.day-mode .chat-thread .chat-answer-section h4,
     body.day-mode .chat-thread .chat-turn.agent strong { color: #101114 !important; }
-    body.day-mode .chat-canvas-tabs button { color: #77787e !important; }
-    body.day-mode .chat-canvas-tabs button.active { color: #101114 !important; }
+    body.day-mode .chat-canvas-tabs {
+      border-color: rgba(16, 17, 20, .12) !important;
+      background: rgba(16, 17, 20, .04) !important;
+      box-shadow: 0 6px 16px rgba(30, 34, 42, .10), inset 0 1px 0 rgba(255, 255, 255, .5) !important;
+    }
+    body.day-mode .chat-canvas-tabs button { color: #52606a !important; }
+    body.day-mode .chat-canvas-tabs button:hover { background: rgba(16, 17, 20, .04) !important; color: #101114 !important; }
+    /* Selected tab keeps the accent fill (gold in day) with white text. */
+    body.day-mode .chat-canvas-tabs button.active {
+      background: var(--owner-accent, #aa7d2a) !important;
+      color: #fff !important;
+      box-shadow: 0 3px 12px rgba(170, 125, 42, .3) !important;
+    }
     /* The Supplies board banner and the "Needs you" accent inside the canvas. */
     body.day-mode .orders-mock-banner,
     body.day-mode .orders-mock-banner * { color: #8a6420 !important; }
