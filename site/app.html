@@ -34387,18 +34387,33 @@ ledger_entry · artifact · agent_run`,
     // uses its own timer instead.
     function speakThen(text, onEnd, floorMs){
       if(!voiceOn || !canSpeak || !text) return false;
-      var advanced=false;
-      var go=function(delay){ if(advanced) return; advanced=true; setTimeout(onEnd, delay||0); };
+      var advanced=false, everSpoke=false, waited=0, poll=null;
+      var finish=function(delay){
+        if(advanced) return; advanced=true;
+        try{ clearInterval(poll); }catch(e){}
+        setTimeout(onEnd, Math.max(0, delay||0));
+      };
       try{
         window.speechSynthesis.cancel();
         var u=makeUtterance(text);
-        var started=false;
-        u.onstart=function(){ started=true; };
-        u.onend=function(){ go(650); };      // finished speaking -> short beat, then advance
-        u.onerror=function(){ go(0); };
+        u.onstart=function(){ everSpoke=true; };
+        u.onend=function(){ finish(500); };                 // real end -> short beat, then advance
+        u.onerror=function(){ finish(everSpoke ? 200 : floorMs); };
         window.speechSynthesis.speak(u);
-        setTimeout(function(){ if(!started) go(floorMs); }, 500);   // blocked -> read at pace
-        setTimeout(function(){ go(0); }, floorMs + 9000);           // safety if onend is dropped
+        // Poll actual playback rather than trusting a single onstart event,
+        // which many natural/online voices fire late or not at all. As long as
+        // the engine is speaking, we wait for onend (never the reading timer).
+        var maxSpeak = text.split(/\s+/).filter(Boolean).length * 780 + 7000;
+        poll=setInterval(function(){
+          waited += 200;
+          if(window.speechSynthesis.speaking) everSpoke=true;
+          if(advanced) return;
+          if(everSpoke){
+            if(waited > maxSpeak) finish(0);                // safety: onend was dropped
+          } else if(waited >= 4000){
+            finish(floorMs);                                // it never started -> blocked, read at pace
+          }
+        }, 200);
         return true;
       }catch(e){ return false; }
     }
