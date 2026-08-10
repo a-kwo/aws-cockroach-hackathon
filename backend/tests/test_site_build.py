@@ -4098,6 +4098,8 @@ def test_the_app_runs_the_guided_tour_without_a_backend():
     # A voice on/off toggle narrates the captions via the browser speech engine.
     assert "bt-tour-voice" in html
     assert "SpeechSynthesisUtterance" in html
+    # A dropdown to choose the narration voice on camera.
+    assert "bt-tour-voice-pick" in html
     # It drives to the money shot and the Memory Engine by name.
     assert 'view("growth")' in html
     assert 'view("admin")' in html

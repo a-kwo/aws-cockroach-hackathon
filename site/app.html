@@ -34239,6 +34239,12 @@ ledger_entry · artifact · agent_run`,
       + 'border:1px solid rgba(216,165,58,.5);}'
       + '.bt-tour-voice svg{width:14px;height:14px;flex:none;}'
       + '.bt-tour-voice.off{color:#9aa0ad;border-color:rgba(255,255,255,.16);}'
+      + '.bt-tour-voice-pick{position:fixed;top:110px;right:16px;z-index:99999;pointer-events:auto;'
+      + 'max-width:172px;font:700 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'color:#f4f2ec;background:rgba(12,14,20,.8);border:1px solid rgba(216,165,58,.5);'
+      + 'border-radius:999px;padding:6px 12px;cursor:pointer;-webkit-appearance:none;appearance:none;}'
+      + '.bt-tour-voice-pick option{color:#101114;}'
+      + '.bt-tour-voice-pick.hidden{display:none;}'
       + '#bt-tour-caption{max-width:600px;padding:11px 17px;border-radius:13px;'
       + 'background:rgba(12,14,20,.9);color:#f4f2ec;border-left:3px solid #d8a53a;'
       + 'font:600 14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
@@ -34283,6 +34289,7 @@ ledger_entry · artifact · agent_run`,
       + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
       + '<path d="M11 5 6 9H3v6h3l5 4V5z"/><path class="bt-voice-wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'
       + '<span>Voice on</span></button>'
+      + '<select class="bt-tour-voice-pick hidden" aria-label="Narration voice"></select>'
       + '<div id="bt-tour-caption" role="status" aria-live="polite"></div>'
       + '<button type="button" class="bt-tour-replay">&#8635; Replay from the top</button>';
     document.body.appendChild(wrap);
@@ -34299,10 +34306,15 @@ ledger_entry · artifact · agent_run`,
     var voiceOn = (function(){ try{ return localStorage.getItem(VOICE_KEY) !== "off"; }catch(e){ return true; } })();
     // The default system voice is robotic. Prefer a natural, "online" voice
     // (Edge/Chrome ship these) so the narration sounds like a commercial demo.
+    var VOICE_NAME_KEY = "brasstacks-tour-voice-name";
+    function storedVoiceName(){ try{ return localStorage.getItem(VOICE_NAME_KEY) || ""; }catch(e){ return ""; } }
     var preferredVoice = null;
+    var voicePick = wrap.querySelector(".bt-tour-voice-pick");
     function pickVoice(){
       if(!canSpeak) return;
       var voices = window.speechSynthesis.getVoices() || [];
+      var stored = storedVoiceName();
+      if(stored){ var s = voices.filter(function(v){ return v.name === stored; })[0]; if(s){ preferredVoice = s; return; } }
       var prefer = [
         "Google US English",
         "Microsoft AvaMultilingual Online (Natural) - English (United States)",
@@ -34322,7 +34334,30 @@ ledger_entry · artifact · agent_run`,
         || voices.filter(function(v){ return /^en/i.test(v.lang); })[0]
         || voices[0] || null;
     }
-    if(canSpeak){ pickVoice(); try{ window.speechSynthesis.onvoiceschanged = pickVoice; }catch(e){} }
+    function voiceLabel(v){
+      return v.name.replace(/ Online \(Natural\)/, " (Natural)").replace(/^Microsoft /, "").replace(/ - English.*/, "");
+    }
+    function populateVoices(){
+      if(!canSpeak || !voicePick) return;
+      var voices = (window.speechSynthesis.getVoices() || []).filter(function(v){ return /^en/i.test(v.lang); });
+      if(!voices.length) return;
+      var cur = (preferredVoice && preferredVoice.name) || storedVoiceName();
+      voicePick.innerHTML = voices.map(function(v){
+        return '<option value="' + v.name.replace(/"/g, "&quot;") + '"' + (v.name === cur ? " selected" : "") + '>' + voiceLabel(v) + "</option>";
+      }).join("");
+      voicePick.classList.toggle("hidden", !voiceOn);
+    }
+    if(voicePick){
+      voicePick.addEventListener("change", function(){
+        var name = voicePick.value;
+        try{ localStorage.setItem(VOICE_NAME_KEY, name); }catch(e){}
+        var v = (window.speechSynthesis.getVoices() || []).filter(function(x){ return x.name === name; })[0];
+        if(v) preferredVoice = v;
+        if(voiceOn) speak(cap.textContent || "This is the narration voice.");   // preview + user gesture
+      });
+    }
+    function refreshVoices(){ pickVoice(); populateVoices(); }
+    if(canSpeak){ refreshVoices(); try{ window.speechSynthesis.onvoiceschanged = refreshVoices; }catch(e){} }
     function makeUtterance(t){
       var u = new SpeechSynthesisUtterance(t);
       if(preferredVoice) u.voice = preferredVoice;
@@ -34336,6 +34371,7 @@ ledger_entry · artifact · agent_run`,
       voiceBtn.setAttribute("aria-pressed", String(voiceOn));
       var label = voiceBtn.querySelector("span");
       if(label) label.textContent = voiceOn ? "Voice on" : "Voice off";
+      if(voicePick) voicePick.classList.toggle("hidden", !voiceOn || !voicePick.options.length);
     }
     function speak(t){
       if(!voiceOn || !canSpeak || !t) return;
