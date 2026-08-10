@@ -29,6 +29,14 @@ on:
         description: "Password for the live demo login (username is 'rosa')"
         type: string
         default: "rosa-demo-2026"
+      run_night:
+        description: "Run one real Analyst night so the token receipt is real, not Pending (needs an ANTHROPIC_API_KEY secret)"
+        type: boolean
+        default: false
+      skip_seed:
+        description: "Refresh only: skip seeding, just re-snapshot and publish the CURRENT cluster (use after triggering a live night)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # commit the refreshed fixture back
@@ -85,11 +93,47 @@ jobs:
           fi
 
       - name: Seed the Rosa demo tenant
+        if: ${{ !inputs.skip_seed }}
         run: |
           if [ "${{ inputs.reset }}" = "true" ]; then
             python scripts/seed.py --reset
           else
             python scripts/seed.py
+          fi
+
+      # Refresh-only mode never seeds, so BRASSTACKS_BUSINESS_ID is not in .env.
+      # Look Rosa up by name and hand it to the export step through the job env.
+      - name: Resolve the demo business id (refresh only)
+        if: ${{ inputs.skip_seed }}
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import psycopg
+          from brasstacks.config import Settings
+          s = Settings.load()
+          with psycopg.connect(s.cockroach_url, autocommit=True) as conn:
+              row = conn.execute(
+                  "SELECT id FROM business WHERE name = %s", ("Rosa's Trattoria",)
+              ).fetchone()
+          if not row:
+              raise SystemExit("Rosa's Trattoria not found — seed it first.")
+          print(f"BRASSTACKS_BUSINESS_ID={row[0]}")
+          PY
+
+      # A real Analyst night makes the token receipt real instead of Pending.
+      # It calls Claude, so it needs a real key; best-effort so a missing key or
+      # model mismatch never fails the publish -- the receipt just stays Pending
+      # until a night is triggered live on the deployed system.
+      - name: Run one real Analyst night (real token receipt)
+        if: ${{ inputs.run_night && !inputs.skip_seed }}
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "No ANTHROPIC_API_KEY secret set — skipping. Trigger a night live"
+            echo "as Rosa on the deployed site instead, then re-run with skip_seed."
+          else
+            python -m brasstacks.night --nights 1
           fi
 
       - name: Export the demo fixture
