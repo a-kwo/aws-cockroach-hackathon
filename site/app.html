@@ -34297,6 +34297,32 @@ ledger_entry · artifact · agent_run`,
       if(!voiceOn || !canSpeak || !t) return;
       try{ window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(t); u.rate=1; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){}
     }
+    // A comfortable reading time when the voice is off: ~185 wpm plus a base.
+    function readingMs(t){ var w=(t||"").split(/\s+/).filter(Boolean).length; return Math.max(3000, w*320 + 1400); }
+    // Speak a caption and call onEnd only when the sentence has actually
+    // finished (plus a short beat), so the next caption never cuts it off. If
+    // speech never starts (blocked without a user gesture, e.g. after the
+    // operator hand-off), fall back to the reading timer so the tour still
+    // advances. Returns false when there is nothing to speak, so the caller
+    // uses its own timer instead.
+    function speakThen(text, onEnd, floorMs){
+      if(!voiceOn || !canSpeak || !text) return false;
+      var advanced=false;
+      var go=function(delay){ if(advanced) return; advanced=true; setTimeout(onEnd, delay||0); };
+      try{
+        window.speechSynthesis.cancel();
+        var u=new SpeechSynthesisUtterance(text);
+        u.rate=1; u.pitch=1;
+        var started=false;
+        u.onstart=function(){ started=true; };
+        u.onend=function(){ go(650); };      // finished speaking -> short beat, then advance
+        u.onerror=function(){ go(0); };
+        window.speechSynthesis.speak(u);
+        setTimeout(function(){ if(!started) go(floorMs); }, 500);   // blocked -> read at pace
+        setTimeout(function(){ go(0); }, floorMs + 9000);           // safety if onend is dropped
+        return true;
+      }catch(e){ return false; }
+    }
     paintVoice();
     if(voiceBtn) voiceBtn.addEventListener("click", function(){
       voiceOn = !voiceOn;
@@ -34307,7 +34333,7 @@ ledger_entry · artifact · agent_run`,
     });
 
     // --- defensive drivers: a missing target is skipped, never thrown -------
-    function say(t){ if(!t) return; cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); speak(t); }, 180); }
+    function say(t){ if(!t) return; cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); }, 180); }
     function scrollTo(sel){ try{ var el = document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){} }
     function click(sel){ try{ var el = document.querySelector(sel); if(el) el.click(); }catch(e){} }
     function view(v){ try{ if(window.__btSwitchView) window.__btSwitchView(v); }catch(e){} }
@@ -34457,7 +34483,11 @@ ledger_entry · artifact · agent_run`,
       var s = steps[i++];
       if (s.caption) say(s.caption);
       try { if (s.run) s.run(); } catch(e){}
-      setTimeout(run, s.wait || 3400);
+      // Hold each caption long enough to read it, and — when the voice is on —
+      // until the narration has actually finished the sentence.
+      var floorMs = Math.max(s.wait || 3400, readingMs(s.caption));
+      if (speakThen(s.caption, run, floorMs)) return;
+      setTimeout(run, floorMs);
     }
 
     //  The owner half opens the whole recording, so it gets the title card;
