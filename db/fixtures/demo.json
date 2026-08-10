@@ -1,7 +1,7 @@
 {
   "_comment": "Exported from the live CockroachDB demo tenant by scripts/export_fixture.py. Used as the resilient first paint; the live workflow endpoint overlays current state using the same browser contract.",
   "business": {
-    "id": "680fff03-9db2-4f1c-a602-265a5971432d",
+    "id": "5737572a-8810-4b1d-a68e-847e307a0ffb",
     "name": "Rosa's Trattoria",
     "category": "restaurant",
     "city": "Columbus",
@@ -26,90 +26,8 @@
   },
   "finds": [
     {
-      "id": "79e66bef-f211-4117-859e-19f79fcf97fb",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
-      "emoji": "\ud83c\udf82",
-      "title": "Whole tiramisu to order, 48 hours ahead",
-      "summary": null,
-      "rationale": "A customer tried to order a whole tiramisu for a birthday, could not reach anyone, and gave up \u2014 that is a named lost sale, not an inference. Fourteen reviews single the dessert out as the best in the city, and local search for tiramisu peaks in the evening. Food cost is $2.10 a portion, so a whole cake sold at $48 carries an unusually high margin and uses prep and skill that already exist. Small, but it costs nothing to try.",
-      "move": "Offer whole tiramisu at $48 with 48 hours notice, taken by text, and add a line to the dessert card.",
-      "feed_brief": null,
-      "cost_estimate": null,
-      "predicted_daily_cents": 1400,
-      "confidence": 0.58,
-      "verify_after": "2026-08-30",
-      "status": "proposed",
-      "decided_at": "2026-08-09T08:00:00+00:00",
-      "decision_cycle": 1,
-      "reopened_at": null,
-      "reopen_reason_code": null,
-      "reopen_reason_note": null,
-      "created_at": "2026-08-09T02:00:00+00:00",
-      "verdict": null,
-      "actual_daily_cents": null,
-      "method": null,
-      "note": null,
-      "measured_at": null,
-      "period_start": null,
-      "period_end": null,
-      "evidence": [
-        {
-          "rank": 0,
-          "similarity": 0.4117447585357018,
-          "observation_id": "310cb850-29b5-4d66-9921-d7bfa39896bf",
-          "content": "Best dessert on the street by a mile. I would pay double for that tiramisu, honestly.",
-          "kind": "review",
-          "source_name": "review_site",
-          "subject": null,
-          "observed_at": "2026-06-30T19:00:00+00:00"
-        },
-        {
-          "rank": 1,
-          "similarity": 0.39870453147877977,
-          "observation_id": "83e5bf11-aafe-4133-9b2b-4eac14c79783",
-          "content": "Searches for Italian dessert and tiramisu near me peak locally between 7pm and 9pm on weekends.",
-          "kind": "trend",
-          "source_name": "trends",
-          "subject": null,
-          "observed_at": "2026-07-24T19:00:00+00:00"
-        },
-        {
-          "rank": 2,
-          "similarity": 0.3901592864521583,
-          "observation_id": "af815f43-33c4-4b0d-b65f-96ddebbda1db",
-          "content": "Wanted to order a whole tiramisu for a birthday. Could not reach anyone to ask. Gave up.",
-          "kind": "review",
-          "source_name": "review_site",
-          "subject": null,
-          "observed_at": "2026-07-28T19:00:00+00:00"
-        },
-        {
-          "rank": 3,
-          "similarity": 0.3017725616640092,
-          "observation_id": "4b74b9e0-3778-4034-ac50-a2b4644e9719",
-          "content": "The tiramisu here is genuinely the best I have had in this city, and I have tried a lot of them. Light, not soggy, actual espresso flavor.",
-          "kind": "review",
-          "source_name": "review_site",
-          "subject": null,
-          "observed_at": "2026-06-17T19:00:00+00:00"
-        },
-        {
-          "rank": 4,
-          "similarity": 0.22733166107577463,
-          "observation_id": "da67e11a-a09a-4128-9be8-1a2822319b6f",
-          "content": "Average dessert price among nearby comparable restaurants has risen about eight percent since spring.",
-          "kind": "rival_price",
-          "source_name": "competitor_site",
-          "subject": null,
-          "observed_at": "2026-08-05T19:00:00+00:00"
-        }
-      ],
-      "artifacts": [],
-      "decision_events": []
-    },
-    {
-      "id": "e632a78c-6968-4fae-b091-0aa0f71b391e",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "0493a99d-c8d1-4090-aa13-8d228871c692",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\u2b50",
       "title": "Ask regulars for reviews at the check",
       "summary": null,
@@ -138,7 +56,7 @@
         {
           "rank": 0,
           "similarity": 0.12855223854214032,
-          "observation_id": "77f61ad1-047a-473e-b6b0-3416de4d131e",
+          "observation_id": "47b4827b-b91a-468c-9700-89b184256dd6",
           "content": "Osteria Bianca sits at 4.1 stars, slightly below Rosa's 4.2, on roughly triple the review count.",
           "kind": "trend",
           "source_name": "review_site",
@@ -148,7 +66,7 @@
         {
           "rank": 1,
           "similarity": 0.10753804532835708,
-          "observation_id": "c91461f5-9d51-4a7d-8a93-4d6a0f45dbf2",
+          "observation_id": "01f97177-c31a-42ed-ae8b-142ca7f6f04f",
           "content": "Genuinely warm service. They treat regulars and first timers the same, which I notice.",
           "kind": "review",
           "source_name": "review_site",
@@ -158,7 +76,7 @@
         {
           "rank": 2,
           "similarity": 0.09097203121753815,
-          "observation_id": "feb09e2d-6f3a-4a95-b654-4e92e50cbd5a",
+          "observation_id": "a4fc52e7-cc44-42af-9d29-73e322d25729",
           "content": "Brought a group of eight and they handled it gracefully on a weeknight. Kitchen kept up.",
           "kind": "review",
           "source_name": "review_site",
@@ -168,7 +86,7 @@
         {
           "rank": 3,
           "similarity": 0.07891512846296476,
-          "observation_id": "2810db06-90d2-4f23-a0cc-e38549528fa1",
+          "observation_id": "259c80c1-7098-4424-9892-23b3c298cad7",
           "content": "The lasagna is the real deal. Layers you can count. Portion big enough for two.",
           "kind": "review",
           "source_name": "review_site",
@@ -178,7 +96,7 @@
         {
           "rank": 4,
           "similarity": 0.05911548845927574,
-          "observation_id": "f88b9bda-5d93-47c2-a833-5a41eb8746fd",
+          "observation_id": "a0c4a904-e1e4-4711-9b13-cdc2bbe3402a",
           "content": "They remembered us from a visit two months ago. That is not something you can fake.",
           "kind": "review",
           "source_name": "review_site",
@@ -190,8 +108,8 @@
       "decision_events": []
     },
     {
-      "id": "f6878e3e-9b76-4883-912c-679dbc604785",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "25c4eff1-a57a-4784-a60b-52e3c39a16e6",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83d\udcc5",
       "title": "Take reservations Thursday to Saturday",
       "summary": null,
@@ -220,7 +138,7 @@
         {
           "rank": 0,
           "similarity": 0.37201195149599386,
-          "observation_id": "4e0f41cd-83ee-47e4-a9b7-a186ffd0df89",
+          "observation_id": "7160019c-6ca7-42bb-8621-f599b2088e5a",
           "content": "Seven of eleven nearby comparable restaurants advertise either reservations or a text waitlist.",
           "kind": "trend",
           "source_name": "competitor_site",
@@ -230,7 +148,7 @@
         {
           "rank": 1,
           "similarity": 0.3369841259348165,
-          "observation_id": "9c96d34c-41ac-4c33-8ec3-8278874b9702",
+          "observation_id": "229ecbb4-4517-4e78-95b5-4b4d2934e0e5",
           "content": "Osteria Bianca takes reservations on all nights and posts a two week booking window.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -240,7 +158,7 @@
         {
           "rank": 2,
           "similarity": 0.2772148629782676,
-          "observation_id": "7ab6bda9-46ad-4a45-ada9-2c17861b5183",
+          "observation_id": "43f2f81c-e090-431f-adc2-6c551652ec08",
           "content": "Trattoria Nona uses a text-when-ready waitlist and advertises it on the door.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -250,7 +168,7 @@
         {
           "rank": 3,
           "similarity": 0.2535504645152779,
-          "observation_id": "da314938-5bc2-43a5-a45b-48c6f6e69662",
+          "observation_id": "8bb3d27c-ba5a-49eb-9a97-0fdc624543d3",
           "content": "Regional interest in text-ahead waitlists and reservation apps among independent restaurants is rising.",
           "kind": "trend",
           "source_name": "trends",
@@ -260,7 +178,7 @@
         {
           "rank": 4,
           "similarity": 0.14499236455670342,
-          "observation_id": "4097a690-2b4d-4653-aba8-3ea10e2df476",
+          "observation_id": "881fcbcd-ac12-47c6-a246-e569c4397e16",
           "content": "Tried to check if the patio was open before driving over. No answer. Drove over. Patio was closed.",
           "kind": "review",
           "source_name": "review_site",
@@ -272,25 +190,25 @@
       "decision_events": []
     },
     {
-      "id": "0d9b6660-a252-4e3b-929f-18a27cb1af7c",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
-      "emoji": "\ud83e\uddd1\u200d\ud83c\udf73",
-      "title": "Second server on Friday and Saturday peak",
+      "id": "71bc95a2-4ff2-425d-bd15-fe01158bf82d",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
+      "emoji": "\ud83c\udf82",
+      "title": "Whole tiramisu to order, 48 hours ahead",
       "summary": null,
-      "rationale": "Six reviews describe one server covering the entire floor, and the complaints are about pace rather than warmth \u2014 the same reviews praise the staff. Local diners increasingly abandon a restaurant over wait time. Saturday runs 110 covers against a kitchen that pushes fifteen per fifteen minutes, so the constraint is front of house, not the line. A second server for the 6pm to 9pm block costs roughly $51 a day averaged across the week; the prediction is net of that.",
-      "move": "Add a second floor server for the 6pm to 9pm block on Friday and Saturday.",
+      "rationale": "A customer tried to order a whole tiramisu for a birthday, could not reach anyone, and gave up \u2014 that is a named lost sale, not an inference. Fourteen reviews single the dessert out as the best in the city, and local search for tiramisu peaks in the evening. Food cost is $2.10 a portion, so a whole cake sold at $48 carries an unusually high margin and uses prep and skill that already exist. Small, but it costs nothing to try.",
+      "move": "Offer whole tiramisu at $48 with 48 hours notice, taken by text, and add a line to the dessert card.",
       "feed_brief": null,
       "cost_estimate": null,
-      "predicted_daily_cents": 2400,
-      "confidence": 0.62,
-      "verify_after": "2026-08-29",
+      "predicted_daily_cents": 1400,
+      "confidence": 0.58,
+      "verify_after": "2026-08-30",
       "status": "proposed",
-      "decided_at": "2026-08-08T08:00:00+00:00",
+      "decided_at": "2026-08-09T08:00:00+00:00",
       "decision_cycle": 1,
       "reopened_at": null,
       "reopen_reason_code": null,
       "reopen_reason_note": null,
-      "created_at": "2026-08-08T02:00:00+00:00",
+      "created_at": "2026-08-09T02:00:00+00:00",
       "verdict": null,
       "actual_daily_cents": null,
       "method": null,
@@ -301,71 +219,61 @@
       "evidence": [
         {
           "rank": 0,
-          "similarity": 0.43186749789644935,
-          "observation_id": "3c70eff3-ee58-4593-a452-21b35875469a",
-          "content": "One server for the whole floor on a Thursday. She was excellent but visibly underwater.",
+          "similarity": 0.4117447585357018,
+          "observation_id": "9466e4e8-c83f-468c-85d7-21050fe7951d",
+          "content": "Best dessert on the street by a mile. I would pay double for that tiramisu, honestly.",
           "kind": "review",
           "source_name": "review_site",
           "subject": null,
-          "observed_at": "2026-07-23T19:00:00+00:00"
+          "observed_at": "2026-06-30T19:00:00+00:00"
         },
         {
           "rank": 1,
-          "similarity": 0.2169455420046579,
-          "observation_id": "05c726a8-d74a-4c06-8454-9c2b59a6bb08",
-          "content": "Local diners increasingly cite wait time as the reason for abandoning a restaurant choice on weekends.",
+          "similarity": 0.39870453147877977,
+          "observation_id": "3afc3939-0176-4fc2-9452-aa1d9b5a9f56",
+          "content": "Searches for Italian dessert and tiramisu near me peak locally between 7pm and 9pm on weekends.",
           "kind": "trend",
           "source_name": "trends",
           "subject": null,
-          "observed_at": "2026-07-10T19:00:00+00:00"
+          "observed_at": "2026-07-24T19:00:00+00:00"
         },
         {
           "rank": 2,
-          "similarity": 0.20939268839485123,
-          "observation_id": "3dd13984-38df-4146-839f-7795cd7011d4",
-          "content": "Server was clearly covering the whole room alone. Did great, but should not have had to.",
+          "similarity": 0.3901592864521583,
+          "observation_id": "6e812743-7929-473c-a6b9-2463db7ed24c",
+          "content": "Wanted to order a whole tiramisu for a birthday. Could not reach anyone to ask. Gave up.",
           "kind": "review",
           "source_name": "review_site",
           "subject": null,
-          "observed_at": "2026-06-22T19:00:00+00:00"
+          "observed_at": "2026-07-28T19:00:00+00:00"
         },
         {
           "rank": 3,
-          "similarity": 0.19548194927613982,
-          "observation_id": "0b948916-fe72-4e79-bd99-eb9a4703b2f5",
-          "content": "Service is friendly but understaffed at peak. Worth the patience.",
+          "similarity": 0.3017725616640092,
+          "observation_id": "1ebf7183-675b-4d1d-aebe-eacbd727ebab",
+          "content": "The tiramisu here is genuinely the best I have had in this city, and I have tried a lot of them. Light, not soggy, actual espresso flavor.",
           "kind": "review",
           "source_name": "review_site",
           "subject": null,
-          "observed_at": "2026-08-08T19:00:00+00:00"
+          "observed_at": "2026-06-17T19:00:00+00:00"
         },
         {
           "rank": 4,
-          "similarity": 0.11964042067523743,
-          "observation_id": "c4e62685-6860-46a0-b9d4-99f0e639139d",
-          "content": "Slow between courses on a busy night, but everyone was kind about it.",
-          "kind": "review",
-          "source_name": "review_site",
+          "similarity": 0.22733166107577463,
+          "observation_id": "903a3720-a16a-41aa-8cb2-f667de22f4da",
+          "content": "Average dessert price among nearby comparable restaurants has risen about eight percent since spring.",
+          "kind": "rival_price",
+          "source_name": "competitor_site",
           "subject": null,
-          "observed_at": "2026-06-27T19:00:00+00:00"
-        },
-        {
-          "rank": 5,
-          "similarity": 0.045965191284686846,
-          "observation_id": "f642a35b-e33a-4343-ac08-a213ea2ea73a",
-          "content": "Took twenty minutes to get the check at the end. Front of house is stretched thin on weekends.",
-          "kind": "review",
-          "source_name": "review_site",
-          "subject": null,
-          "observed_at": "2026-07-10T19:00:00+00:00"
+          "observed_at": "2026-08-05T19:00:00+00:00"
         }
       ],
       "artifacts": [],
       "decision_events": []
     },
     {
-      "id": "cb55631b-0d7f-4340-956b-251906038828",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "0ad48719-6898-4b60-9a95-9984bb60841d",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83d\udcb5",
       "title": "Raise pasta mains by $2",
       "summary": null,
@@ -394,7 +302,7 @@
         {
           "rank": 0,
           "similarity": 0.742926888472112,
-          "observation_id": "6eef2d00-dc4f-4290-ae95-dfe495021866",
+          "observation_id": "ed1bfd62-cd6f-4f56-8731-86ca68515d11",
           "content": "Trattoria Nona raised pasta mains by two dollars across the board this month.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -404,7 +312,7 @@
         {
           "rank": 1,
           "similarity": 0.4094127737825429,
-          "observation_id": "49f2c1de-857a-4481-82ac-92a57d8bf5a9",
+          "observation_id": "fdb3ad14-575e-4640-9c11-3ae09a81e947",
           "content": "Osteria Bianca pasta mains range $24 to $32, notably above Rosa's $18 to $24 band.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -414,7 +322,7 @@
         {
           "rank": 2,
           "similarity": 0.26804643403008654,
-          "observation_id": "da67e11a-a09a-4128-9be8-1a2822319b6f",
+          "observation_id": "903a3720-a16a-41aa-8cb2-f667de22f4da",
           "content": "Average dessert price among nearby comparable restaurants has risen about eight percent since spring.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -424,7 +332,7 @@
         {
           "rank": 3,
           "similarity": 0.23944407461470013,
-          "observation_id": "9d82eb08-6bd6-4d7c-b2db-bdd10add8938",
+          "observation_id": "b0734785-2bca-41ba-8a15-68a7da5ee419",
           "content": "Rosa's is somehow still the cheapest good Italian downtown. Not sure how that math works for them.",
           "kind": "review",
           "source_name": "social",
@@ -434,7 +342,7 @@
         {
           "rank": 4,
           "similarity": 0.18691674839152683,
-          "observation_id": "3a24d8d1-fd5c-48bc-a42f-58fb45ea4e66",
+          "observation_id": "22c1a20a-81f5-48c6-8cf7-70c27e6bce9b",
           "content": "You could charge more for this and I would still come. Please do not, but you could.",
           "kind": "review",
           "source_name": "review_site",
@@ -444,7 +352,7 @@
         {
           "rank": 5,
           "similarity": 0.15947610674036597,
-          "observation_id": "a6573edf-107b-446c-9fbd-4589afa709d8",
+          "observation_id": "f7db763d-01a1-4e86-b1d6-e0a5ef902528",
           "content": "Great value. Two mains, a bottle, and dessert came in under ninety.",
           "kind": "review",
           "source_name": "review_site",
@@ -454,7 +362,7 @@
         {
           "rank": 6,
           "similarity": 0.1302513323317021,
-          "observation_id": "3fb9170e-781a-4d99-9d2d-8d04b22255fb",
+          "observation_id": "dcb07c86-9c4c-4aed-bcaa-e8797f831bc0",
           "content": "Fair prices, generous portions. We took half of it home.",
           "kind": "review",
           "source_name": "review_site",
@@ -464,7 +372,7 @@
         {
           "rank": 7,
           "similarity": 0.09252366210504304,
-          "observation_id": "f3202046-1ed1-4bc1-b568-862da359ddbd",
+          "observation_id": "3913e433-5d09-45a6-b105-10adb324cc72",
           "content": "Prices are more than fair for the quality. Cheaper than the place down the street for better food.",
           "kind": "review",
           "source_name": "review_site",
@@ -474,7 +382,7 @@
         {
           "rank": 8,
           "similarity": 0.030690631136712745,
-          "observation_id": "edb0cc4a-bbd9-490e-b125-89dbdd1161eb",
+          "observation_id": "03d42b6e-6988-44c8-a701-b9c163b5a191",
           "content": "Honestly underpriced. I keep expecting the bill to be higher than it is.",
           "kind": "review",
           "source_name": "review_site",
@@ -486,8 +394,100 @@
       "decision_events": []
     },
     {
-      "id": "22253023-80f6-4234-8e76-224b303a68f0",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "53a8df7a-60cc-4d22-b8f5-55c6b9bb467e",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
+      "emoji": "\ud83e\uddd1\u200d\ud83c\udf73",
+      "title": "Second server on Friday and Saturday peak",
+      "summary": null,
+      "rationale": "Six reviews describe one server covering the entire floor, and the complaints are about pace rather than warmth \u2014 the same reviews praise the staff. Local diners increasingly abandon a restaurant over wait time. Saturday runs 110 covers against a kitchen that pushes fifteen per fifteen minutes, so the constraint is front of house, not the line. A second server for the 6pm to 9pm block costs roughly $51 a day averaged across the week; the prediction is net of that.",
+      "move": "Add a second floor server for the 6pm to 9pm block on Friday and Saturday.",
+      "feed_brief": null,
+      "cost_estimate": null,
+      "predicted_daily_cents": 2400,
+      "confidence": 0.62,
+      "verify_after": "2026-08-29",
+      "status": "proposed",
+      "decided_at": "2026-08-08T08:00:00+00:00",
+      "decision_cycle": 1,
+      "reopened_at": null,
+      "reopen_reason_code": null,
+      "reopen_reason_note": null,
+      "created_at": "2026-08-08T02:00:00+00:00",
+      "verdict": null,
+      "actual_daily_cents": null,
+      "method": null,
+      "note": null,
+      "measured_at": null,
+      "period_start": null,
+      "period_end": null,
+      "evidence": [
+        {
+          "rank": 0,
+          "similarity": 0.43186749789644935,
+          "observation_id": "7d9f1c31-9f96-4036-ab51-adec321e02b4",
+          "content": "One server for the whole floor on a Thursday. She was excellent but visibly underwater.",
+          "kind": "review",
+          "source_name": "review_site",
+          "subject": null,
+          "observed_at": "2026-07-23T19:00:00+00:00"
+        },
+        {
+          "rank": 1,
+          "similarity": 0.2169455420046579,
+          "observation_id": "e4e8e22f-619d-4da4-bfb0-d8f69438e625",
+          "content": "Local diners increasingly cite wait time as the reason for abandoning a restaurant choice on weekends.",
+          "kind": "trend",
+          "source_name": "trends",
+          "subject": null,
+          "observed_at": "2026-07-10T19:00:00+00:00"
+        },
+        {
+          "rank": 2,
+          "similarity": 0.20939268839485123,
+          "observation_id": "15898655-ab8b-428a-b095-bf533695b9fa",
+          "content": "Server was clearly covering the whole room alone. Did great, but should not have had to.",
+          "kind": "review",
+          "source_name": "review_site",
+          "subject": null,
+          "observed_at": "2026-06-22T19:00:00+00:00"
+        },
+        {
+          "rank": 3,
+          "similarity": 0.19548194927613982,
+          "observation_id": "48d4e384-54d5-4898-895c-7785e6508160",
+          "content": "Service is friendly but understaffed at peak. Worth the patience.",
+          "kind": "review",
+          "source_name": "review_site",
+          "subject": null,
+          "observed_at": "2026-08-08T19:00:00+00:00"
+        },
+        {
+          "rank": 4,
+          "similarity": 0.11964042067523743,
+          "observation_id": "da2d6dc8-b2b8-4711-9f81-ce7beb6218a7",
+          "content": "Slow between courses on a busy night, but everyone was kind about it.",
+          "kind": "review",
+          "source_name": "review_site",
+          "subject": null,
+          "observed_at": "2026-06-27T19:00:00+00:00"
+        },
+        {
+          "rank": 5,
+          "similarity": 0.045965191284686846,
+          "observation_id": "61f2c0b9-ff51-4134-b8f8-2117e9bfbffd",
+          "content": "Took twenty minutes to get the check at the end. Front of house is stretched thin on weekends.",
+          "kind": "review",
+          "source_name": "review_site",
+          "subject": null,
+          "observed_at": "2026-07-10T19:00:00+00:00"
+        }
+      ],
+      "artifacts": [],
+      "decision_events": []
+    },
+    {
+      "id": "ca82ba8e-0f7e-45a8-95ec-1bf41c472ae5",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83c\udd7f\ufe0f",
       "title": "Validated parking at the nearby garage",
       "summary": null,
@@ -516,7 +516,7 @@
         {
           "rank": 0,
           "similarity": 0.5564839651613184,
-          "observation_id": "33543981-9c6b-40ba-bc00-de4e53b95764",
+          "observation_id": "da3998a9-e8a1-422b-84ba-0b9de8d1b49a",
           "content": "Second time we have circled for a spot. Consider a validated garage deal?",
           "kind": "review",
           "source_name": "review_site",
@@ -526,7 +526,7 @@
         {
           "rank": 1,
           "similarity": 0.27736692795847556,
-          "observation_id": "41856c76-507d-4108-adc0-ab32a44e81cf",
+          "observation_id": "8a8e65d4-9298-4572-ace9-f50ef267fcf4",
           "content": "Had to park four blocks away and walk in the rain. The garage nearby was full.",
           "kind": "review",
           "source_name": "review_site",
@@ -536,7 +536,7 @@
         {
           "rank": 2,
           "similarity": 0.18721183233769945,
-          "observation_id": "1c4f692a-8239-4bf4-a25f-fa025ed5dbb0",
+          "observation_id": "5fe15726-26dc-4347-9e6b-93285c963eaf",
           "content": "Would come more often if parking were easier. Not much they can do about it I suppose.",
           "kind": "review",
           "source_name": "review_site",
@@ -546,7 +546,7 @@
         {
           "rank": 3,
           "similarity": 0.17535677330185662,
-          "observation_id": "952d00b6-b444-4b9c-b5dd-40cf13a6ce14",
+          "observation_id": "e8312b08-68ee-45f0-9546-aaebdd358335",
           "content": "Downtown parking availability remains constrained; no new public capacity is planned this year.",
           "kind": "trend",
           "source_name": "trends",
@@ -556,7 +556,7 @@
         {
           "rank": 4,
           "similarity": 0.1626528262448946,
-          "observation_id": "d34bd472-4e55-4181-b896-b4f62da03846",
+          "observation_id": "da89f6cf-971b-4123-9b4a-c86d8d2fff61",
           "content": "Parking around here is impossible after six. Circled for fifteen minutes.",
           "kind": "review",
           "source_name": "review_site",
@@ -568,8 +568,8 @@
       "decision_events": []
     },
     {
-      "id": "e7a29851-53aa-4925-b7d1-2b49b73f28a8",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "cd781cc7-4f7e-4cf6-9f5a-8c445fa70f66",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83c\udf5d",
       "title": "Lunch service, Tuesday to Thursday",
       "summary": null,
@@ -598,7 +598,7 @@
         {
           "rank": 0,
           "similarity": 0.37156344405190417,
-          "observation_id": "6e9d312e-8ce8-4101-b6fe-8ffea1602fbe",
+          "observation_id": "2849c63d-d303-484c-b902-809a199de1fc",
           "content": "Of eleven nearby Italian restaurants, nine now offer a lunch service. Two do not, including Rosa's.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -608,7 +608,7 @@
         {
           "rank": 1,
           "similarity": 0.3561452349338749,
-          "observation_id": "bd9feb12-d7ad-4558-b205-92e3b9600856",
+          "observation_id": "0cea179a-8e73-48de-b8af-3934de115cfc",
           "content": "New office tower on the block means about four hundred more people needing lunch. Somebody should open earlier.",
           "kind": "social",
           "source_name": "local_forum",
@@ -618,7 +618,7 @@
         {
           "rank": 2,
           "similarity": 0.31830566158078005,
-          "observation_id": "03cf3b7a-0f92-4b29-bcb3-d6c57c7c4aaf",
+          "observation_id": "7962bac5-3ac2-4604-a673-e59096d7ed10",
           "content": "Where is everyone eating lunch near the courthouse? Options seem thin and I am tired of the sandwich place.",
           "kind": "social",
           "source_name": "local_forum",
@@ -628,7 +628,7 @@
         {
           "rank": 3,
           "similarity": 0.28250090552305096,
-          "observation_id": "3f10bbaa-ae7d-4062-968e-fe04576d753e",
+          "observation_id": "2c601ff8-7f3b-4aff-9829-bdc7c4dcb646",
           "content": "Only complaint: dinner only. A lunch pasta special would clean up with the office crowd around here.",
           "kind": "review",
           "source_name": "review_site",
@@ -638,7 +638,7 @@
         {
           "rank": 4,
           "similarity": 0.282050228610642,
-          "observation_id": "828d1908-d2e5-4845-8294-87b230a68204",
+          "observation_id": "704bc7c8-6dda-401e-9ec9-9c163bd5c116",
           "content": "Lucca's dropped their lunch special from $14 to $12 and added a soup option.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -648,7 +648,7 @@
         {
           "rank": 5,
           "similarity": 0.24970229336441208,
-          "observation_id": "9968ce82-ed44-4409-9962-73a2b62efdde",
+          "observation_id": "e43535c0-50e3-467a-9e12-c2b6de765788",
           "content": "Nine of us tried to find somewhere to sit down for lunch downtown today and ended up eating at desks again.",
           "kind": "social",
           "source_name": "local_forum",
@@ -658,7 +658,7 @@
         {
           "rank": 6,
           "similarity": 0.22614880921854327,
-          "observation_id": "c478ab11-11e5-4076-99b3-6af3850fbab8",
+          "observation_id": "27952564-5c90-458f-b1dd-debc1bf23f99",
           "content": "Searches for lunch near the courthouse district have climbed steadily for six consecutive weeks.",
           "kind": "trend",
           "source_name": "trends",
@@ -668,7 +668,7 @@
         {
           "rank": 7,
           "similarity": 0.21198913484514764,
-          "observation_id": "b7e15987-8789-4334-942d-d02bf11bc6c6",
+          "observation_id": "93a0797a-3713-4d47-928d-2bdaef509bb3",
           "content": "Lunch options near the courthouse are genuinely bad. The Italian place is dinner only which is a shame.",
           "kind": "social",
           "source_name": "local_forum",
@@ -678,7 +678,7 @@
         {
           "rank": 8,
           "similarity": 0.18866323236667332,
-          "observation_id": "0de86b76-35b8-42d4-8183-bfa4e9616060",
+          "observation_id": "777b1ae1-6de2-4b8a-9ce0-881949c27ae3",
           "content": "September office occupancy in the new development is now confirmed, per a filing with the city.",
           "kind": "trend",
           "source_name": "trends",
@@ -688,7 +688,7 @@
         {
           "rank": 9,
           "similarity": 0.15755428742366367,
-          "observation_id": "6f92a8e6-80a6-459a-811a-2aff2a4e8458",
+          "observation_id": "d00ff364-8eea-47f9-87c6-d9bf68906350",
           "content": "Building permit filed for a nine story office development on the same block, with occupancy targeted for September.",
           "kind": "trend",
           "source_name": "trends",
@@ -698,7 +698,7 @@
         {
           "rank": 10,
           "similarity": 0.14748138273621297,
-          "observation_id": "0fff9eaf-15d4-41ba-bb49-ccc53ccce16c",
+          "observation_id": "71a99850-afe6-46cd-ba80-3929c4475859",
           "content": "New office development is expected to add roughly four hundred daytime workers within two blocks.",
           "kind": "trend",
           "source_name": "trends",
@@ -710,8 +710,8 @@
       "decision_events": []
     },
     {
-      "id": "4b21df1e-d91d-472f-af30-6d7528eac835",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "84a84bda-3567-4e2a-975e-e0fbb04cef00",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83c\udf19",
       "title": "Late dessert window, 9pm to 10pm",
       "summary": null,
@@ -740,7 +740,7 @@
         {
           "rank": 0,
           "similarity": 0.45394513582624474,
-          "observation_id": "29d54059-8bd6-4ab1-9588-4b65d3841c6c",
+          "observation_id": "eb06c31c-4011-4f0d-bf5c-0f6af2eb822c",
           "content": "Dessert-only and late evening visits are a growing share of independent restaurant traffic locally.",
           "kind": "trend",
           "source_name": "trends",
@@ -750,7 +750,7 @@
         {
           "rank": 1,
           "similarity": 0.4286693190889655,
-          "observation_id": "83e5bf11-aafe-4133-9b2b-4eac14c79783",
+          "observation_id": "3afc3939-0176-4fc2-9452-aa1d9b5a9f56",
           "content": "Searches for Italian dessert and tiramisu near me peak locally between 7pm and 9pm on weekends.",
           "kind": "trend",
           "source_name": "trends",
@@ -760,7 +760,7 @@
         {
           "rank": 2,
           "similarity": 0.3225527622562046,
-          "observation_id": "6106b2b9-1016-4ae5-a523-723a04c08422",
+          "observation_id": "23fb2ef7-a8cf-45b6-9cab-9030f2deee4e",
           "content": "Weekend evening dining demand in the district peaks sharply between 7pm and 8:30pm.",
           "kind": "trend",
           "source_name": "trends",
@@ -770,7 +770,7 @@
         {
           "rank": 3,
           "similarity": 0.11469149846141677,
-          "observation_id": "fedd9ac1-1feb-438a-bb0d-62bbc18b9c46",
+          "observation_id": "15bc467a-8c4a-456a-b834-0e64e35079e4",
           "content": "I have started bringing out of town guests here specifically so they can try the tiramisu. Never misses.",
           "kind": "review",
           "source_name": "review_site",
@@ -782,8 +782,8 @@
       "decision_events": []
     },
     {
-      "id": "896543c8-d658-4e16-bc54-dc1e551ab6aa",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "2e59c5a0-dbdf-44ed-92da-7f4a7aa7872d",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83c\udf7d",
       "title": "Tuesday\u2013Thursday three-course set menu",
       "summary": null,
@@ -812,7 +812,7 @@
         {
           "rank": 0,
           "similarity": 0.4505110225067311,
-          "observation_id": "705b4b16-a7b7-4bb5-96f4-3b9d8fcf0957",
+          "observation_id": "3ecd6e37-2839-44e4-acb7-e016f0240f33",
           "content": "Osteria Bianca running a Tuesday and Wednesday prix fixe at $45 for three courses.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -822,7 +822,7 @@
         {
           "rank": 1,
           "similarity": 0.39238856057991117,
-          "observation_id": "1ebe7864-1958-4eb5-9aea-1887622bc9ce",
+          "observation_id": "995b16d9-8d97-4351-be8d-9f4458ddfac0",
           "content": "Midweek dining promotions are being advertised by four of the eleven nearby comparable restaurants.",
           "kind": "trend",
           "source_name": "trends",
@@ -832,7 +832,7 @@
         {
           "rank": 2,
           "similarity": 0.39230384032458737,
-          "observation_id": "12ca47c5-4158-4dd1-af9d-5bff393d4674",
+          "observation_id": "74561351-e396-4b03-a176-1cbefc0b04ef",
           "content": "Interest in prix fixe and set menu offerings among nearby diners is up modestly this quarter.",
           "kind": "trend",
           "source_name": "trends",
@@ -842,7 +842,7 @@
         {
           "rank": 3,
           "similarity": 0.3020863002141037,
-          "observation_id": "0021c1ba-cda9-411c-bfc2-fbf6ad0f4200",
+          "observation_id": "0002d5f2-7a2d-4af3-98ec-dc3f589553d2",
           "content": "Trattoria Nona lunch is $16 for two courses, served daily except Monday.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -852,7 +852,7 @@
         {
           "rank": 4,
           "similarity": 0.17181524758571717,
-          "observation_id": "65fcbe63-87f5-4a4c-a7ab-16c75e9061ba",
+          "observation_id": "4644ec42-2007-431d-a070-1625222573e3",
           "content": "Walked in on a Wednesday with no wait and had one of the best plates of pasta of my life.",
           "kind": "review",
           "source_name": "review_site",
@@ -864,8 +864,8 @@
       "decision_events": []
     },
     {
-      "id": "1fcf8e24-d1a3-4720-847d-fe3eeb42a6da",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "64ab90c3-e7a1-4cfe-8da1-328dc3d99c1c",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\u2b50",
       "title": "Reply to every recent low review",
       "summary": null,
@@ -894,7 +894,7 @@
         {
           "rank": 0,
           "similarity": 0.06416609406787734,
-          "observation_id": "6348a3b3-ea8d-4146-bd25-a11d70de3880",
+          "observation_id": "8e2cbcf0-ca34-4655-8b8f-b581fc307934",
           "content": "Called four times to ask about a large party and nobody picked up. Ended up booking somewhere else.",
           "kind": "review",
           "source_name": "review_site",
@@ -904,7 +904,7 @@
         {
           "rank": 1,
           "similarity": 0.052535474151179457,
-          "observation_id": "f642a35b-e33a-4343-ac08-a213ea2ea73a",
+          "observation_id": "61f2c0b9-ff51-4134-b8f8-2117e9bfbffd",
           "content": "Took twenty minutes to get the check at the end. Front of house is stretched thin on weekends.",
           "kind": "review",
           "source_name": "review_site",
@@ -914,7 +914,7 @@
         {
           "rank": 2,
           "similarity": 0.043784559740425485,
-          "observation_id": "8b682af4-5390-4fb6-b1cb-20ceaddd6195",
+          "observation_id": "f8a5f52a-80c3-436a-bb41-bd1c0950e72a",
           "content": "Second Saturday in a row we could not get a table and could not get a straight answer on the wait. Going elsewhere.",
           "kind": "review",
           "source_name": "review_site",
@@ -924,7 +924,7 @@
         {
           "rank": 3,
           "similarity": 0.03465577271578392,
-          "observation_id": "6ae6863c-2305-4d1c-b98e-8505f41d7c84",
+          "observation_id": "e5939e3f-6958-4978-9764-21218b77b799",
           "content": "Showed up at 7 on a Saturday, told it would be twenty minutes, left after forty five. No list, no updates, just standing by the door.",
           "kind": "review",
           "source_name": "review_site",
@@ -934,7 +934,7 @@
         {
           "rank": 4,
           "similarity": -0.00031740023625226175,
-          "observation_id": "96ebf15d-5c71-4d12-a3bd-c52cf934be78",
+          "observation_id": "09f5dd3b-c6df-4509-9e56-de349ffb5b63",
           "content": "Waited forty minutes past the quoted time on a Saturday. Nobody checked on us once while we stood there.",
           "kind": "review",
           "source_name": "review_site",
@@ -946,8 +946,8 @@
       "decision_events": []
     },
     {
-      "id": "c223a414-ded0-4123-82fc-87e0b09a321f",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "8556b387-69f2-44e8-a830-dd83464e7b4d",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83c\udf24",
       "title": "Open the patio every warm night",
       "summary": null,
@@ -976,7 +976,7 @@
         {
           "rank": 0,
           "similarity": 0.37271414022548816,
-          "observation_id": "4b05ee57-a2d2-4909-b265-0bc170640f6a",
+          "observation_id": "43e97008-c85c-47ba-b849-15ae313a1196",
           "content": "Asked for the patio and they said it was not set up that night. Would have made the evening.",
           "kind": "review",
           "source_name": "review_site",
@@ -986,7 +986,7 @@
         {
           "rank": 1,
           "similarity": 0.37242408365695956,
-          "observation_id": "55716c0f-79fb-4381-9277-80cdd3fba5d8",
+          "observation_id": "36dd3f98-aba0-40e7-983e-ae518f3507f0",
           "content": "The patio was closed on a beautiful seventy degree night, which seemed like a waste.",
           "kind": "review",
           "source_name": "review_site",
@@ -996,7 +996,7 @@
         {
           "rank": 2,
           "similarity": 0.2902798153383116,
-          "observation_id": "5719a44d-0b1d-449d-952c-02749a512983",
+          "observation_id": "1b5f2829-e356-41c2-99eb-fc63cb4aceb4",
           "content": "Searches combining patio and Italian in this metro have doubled since the start of summer.",
           "kind": "trend",
           "source_name": "trends",
@@ -1006,7 +1006,7 @@
         {
           "rank": 3,
           "similarity": 0.2672759474882648,
-          "observation_id": "3d0b4872-c58a-4c80-9d67-77b5fb086ae5",
+          "observation_id": "2bbfdcc3-df43-445b-86b2-a84a197ac8ad",
           "content": "Best patios downtown thread \u2014 Rosa's would be top three if they ever actually opened theirs.",
           "kind": "review",
           "source_name": "local_forum",
@@ -1016,7 +1016,7 @@
         {
           "rank": 4,
           "similarity": 0.23660807959854585,
-          "observation_id": "581f1bb6-1108-4b7c-90e0-04fcb68204ba",
+          "observation_id": "d4dd948c-f582-4b1c-9440-d76c4c2a11d8",
           "content": "Seasonal forecast shows twenty two consecutive evenings above sixty five degrees in the coming month.",
           "kind": "trend",
           "source_name": "trends",
@@ -1026,7 +1026,7 @@
         {
           "rank": 5,
           "similarity": 0.2091570643719456,
-          "observation_id": "f0bf890f-7484-4b64-bc2a-7da790b56bf8",
+          "observation_id": "7dac75f7-62ca-48d6-a7f2-7e047221abb2",
           "content": "Local search interest for outdoor dining and patio seating up thirty four percent month over month.",
           "kind": "trend",
           "source_name": "trends",
@@ -1036,7 +1036,7 @@
         {
           "rank": 6,
           "similarity": 0.15607907997744933,
-          "observation_id": "d5f5782c-41b5-4223-89b1-97cf8ac67355",
+          "observation_id": "ca4f6374-8eb4-403d-89a1-3d705b4e7fa9",
           "content": "Outdoor tables are the best seats in the house. String lights, quiet street.",
           "kind": "review",
           "source_name": "review_site",
@@ -1048,8 +1048,8 @@
       "decision_events": []
     },
     {
-      "id": "c9b99ce2-49d9-4c87-8d55-ab057f2b8a68",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "4210acc2-3150-4b47-a591-cba701e4cf52",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83d\udcf5",
       "title": "Voicemail with text callback",
       "summary": null,
@@ -1078,7 +1078,7 @@
         {
           "rank": 0,
           "similarity": 0.15692133491612947,
-          "observation_id": "868805cd-80df-474b-bb75-b8bb25d08b72",
+          "observation_id": "3ac542e3-26f5-416c-891f-b66d1eae7e77",
           "content": "Phone rings and rings during dinner service. Understandable but frustrating when you just want to ask one question.",
           "kind": "review",
           "source_name": "review_site",
@@ -1088,7 +1088,7 @@
         {
           "rank": 1,
           "similarity": 0.13286055397546523,
-          "observation_id": "6348a3b3-ea8d-4146-bd25-a11d70de3880",
+          "observation_id": "8e2cbcf0-ca34-4655-8b8f-b581fc307934",
           "content": "Called four times to ask about a large party and nobody picked up. Ended up booking somewhere else.",
           "kind": "review",
           "source_name": "review_site",
@@ -1098,7 +1098,7 @@
         {
           "rank": 2,
           "similarity": 0.11099084282453288,
-          "observation_id": "1b1fe38c-2dc3-47bc-8bc4-f5464f760afa",
+          "observation_id": "72b5c87a-a6f2-4428-8762-ce00bcbc5563",
           "content": "Lovely place but essentially unreachable by phone after 5pm.",
           "kind": "review",
           "source_name": "review_site",
@@ -1108,7 +1108,7 @@
         {
           "rank": 3,
           "similarity": 0.06226623333324706,
-          "observation_id": "99c2fd8a-af51-41cf-aed7-6e3d1393bfec",
+          "observation_id": "49189b21-ef73-47cf-b7de-dfa77d7eae9e",
           "content": "No answer on the phone, no online anything. If you want to know something you have to walk over.",
           "kind": "review",
           "source_name": "review_site",
@@ -1118,7 +1118,7 @@
         {
           "rank": 4,
           "similarity": 0.056725411036022313,
-          "observation_id": "af815f43-33c4-4b0d-b65f-96ddebbda1db",
+          "observation_id": "6e812743-7929-473c-a6b9-2463db7ed24c",
           "content": "Wanted to order a whole tiramisu for a birthday. Could not reach anyone to ask. Gave up.",
           "kind": "review",
           "source_name": "review_site",
@@ -1130,8 +1130,8 @@
       "decision_events": []
     },
     {
-      "id": "cfae57a9-fc98-49e4-ba78-7fbf6a5f339d",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "29275a64-aba3-40ad-a3f5-3533938f55b7",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\u2615",
       "title": "Espresso upsell after dessert",
       "summary": null,
@@ -1160,7 +1160,7 @@
         {
           "rank": 0,
           "similarity": 0.3147484631484208,
-          "observation_id": "29d54059-8bd6-4ab1-9588-4b65d3841c6c",
+          "observation_id": "eb06c31c-4011-4f0d-bf5c-0f6af2eb822c",
           "content": "Dessert-only and late evening visits are a growing share of independent restaurant traffic locally.",
           "kind": "trend",
           "source_name": "trends",
@@ -1170,7 +1170,7 @@
         {
           "rank": 1,
           "similarity": 0.11561173207220539,
-          "observation_id": "fb8b483d-19a9-4594-8888-3b0ea5c0cf46",
+          "observation_id": "ce601033-6180-4adb-a97d-1d1fbf507aca",
           "content": "Good wine list for a small place. The house red is a steal.",
           "kind": "review",
           "source_name": "review_site",
@@ -1182,8 +1182,8 @@
       "decision_events": []
     },
     {
-      "id": "7d6255f7-a2ab-448a-99a3-f1d342c29fdb",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "658d39eb-5dad-438f-a684-f70101becf21",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83d\udcac",
       "title": "Text-ahead waitlist for Saturdays",
       "summary": null,
@@ -1212,7 +1212,7 @@
         {
           "rank": 0,
           "similarity": 0.5332546355731023,
-          "observation_id": "7ab6bda9-46ad-4a45-ada9-2c17861b5183",
+          "observation_id": "43f2f81c-e090-431f-adc2-6c551652ec08",
           "content": "Trattoria Nona uses a text-when-ready waitlist and advertises it on the door.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -1222,7 +1222,7 @@
         {
           "rank": 1,
           "similarity": 0.43462534613658577,
-          "observation_id": "4e0f41cd-83ee-47e4-a9b7-a186ffd0df89",
+          "observation_id": "7160019c-6ca7-42bb-8621-f599b2088e5a",
           "content": "Seven of eleven nearby comparable restaurants advertise either reservations or a text waitlist.",
           "kind": "trend",
           "source_name": "competitor_site",
@@ -1232,7 +1232,7 @@
         {
           "rank": 2,
           "similarity": 0.36406179962538904,
-          "observation_id": "8046899d-0cca-46b5-b646-a93b1f305040",
+          "observation_id": "88fceb5e-1755-4f53-aa19-d0e7039062f1",
           "content": "Lucca's now advertising online reservations and a text-ahead waitlist on their homepage.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -1242,7 +1242,7 @@
         {
           "rank": 3,
           "similarity": 0.31305490162411653,
-          "observation_id": "8b682af4-5390-4fb6-b1cb-20ceaddd6195",
+          "observation_id": "f8a5f52a-80c3-436a-bb41-bd1c0950e72a",
           "content": "Second Saturday in a row we could not get a table and could not get a straight answer on the wait. Going elsewhere.",
           "kind": "review",
           "source_name": "review_site",
@@ -1252,7 +1252,7 @@
         {
           "rank": 4,
           "similarity": 0.30292610503868694,
-          "observation_id": "6ae6863c-2305-4d1c-b98e-8505f41d7c84",
+          "observation_id": "e5939e3f-6958-4978-9764-21218b77b799",
           "content": "Showed up at 7 on a Saturday, told it would be twenty minutes, left after forty five. No list, no updates, just standing by the door.",
           "kind": "review",
           "source_name": "review_site",
@@ -1262,7 +1262,7 @@
         {
           "rank": 5,
           "similarity": 0.2916999614159965,
-          "observation_id": "5ffaf6ac-3348-4ad7-85f6-545c743253e3",
+          "observation_id": "eb90f7ad-0432-478b-b21e-59fc6d9a8fbc",
           "content": "Saturday night is a scrum. If they took a phone number and texted you when a table opened this would be a five star review.",
           "kind": "review",
           "source_name": "review_site",
@@ -1272,7 +1272,7 @@
         {
           "rank": 6,
           "similarity": 0.2567086091305715,
-          "observation_id": "96ebf15d-5c71-4d12-a3bd-c52cf934be78",
+          "observation_id": "09f5dd3b-c6df-4509-9e56-de349ffb5b63",
           "content": "Waited forty minutes past the quoted time on a Saturday. Nobody checked on us once while we stood there.",
           "kind": "review",
           "source_name": "review_site",
@@ -1282,7 +1282,7 @@
         {
           "rank": 7,
           "similarity": 0.24695889937134416,
-          "observation_id": "05c726a8-d74a-4c06-8454-9c2b59a6bb08",
+          "observation_id": "e4e8e22f-619d-4da4-bfb0-d8f69438e625",
           "content": "Local diners increasingly cite wait time as the reason for abandoning a restaurant choice on weekends.",
           "kind": "trend",
           "source_name": "trends",
@@ -1292,7 +1292,7 @@
         {
           "rank": 8,
           "similarity": 0.23696177145783887,
-          "observation_id": "0a3d51f3-ab6c-4360-b969-f038dcca94c3",
+          "observation_id": "4e04b133-b301-4713-babf-8adbf572ed69",
           "content": "Turned away on Saturday at 8pm. They said an hour and a half. We ate at Lucca's instead, which was fine but not as good.",
           "kind": "review",
           "source_name": "review_site",
@@ -1304,8 +1304,8 @@
       "decision_events": []
     },
     {
-      "id": "4c454369-e8bc-41ed-86b2-9326b55f6d25",
-      "run_id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "636e2638-e58b-4106-89a6-dc1880d3449d",
+      "run_id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "emoji": "\ud83c\udf70",
       "title": "Tiramisu \u2192 $9",
       "summary": null,
@@ -1334,7 +1334,7 @@
         {
           "rank": 0,
           "similarity": 0.7016476544004664,
-          "observation_id": "82dcf471-a69d-4a30-90b5-bbc2c83a4de4",
+          "observation_id": "8a77310a-382a-4200-934a-097aed3753dc",
           "content": "Survey of eleven Italian restaurants within one mile: average tiramisu price $10.60, lowest $7.00, highest $13.00.",
           "kind": "rival_price",
           "source_name": "competitor_site",
@@ -1344,7 +1344,7 @@
         {
           "rank": 1,
           "similarity": 0.6275818321470517,
-          "observation_id": "a8b23bb2-10cd-40ff-9a93-29d6c6570477",
+          "observation_id": "dd01f685-7b76-4af6-b88a-d43715546f6f",
           "content": "Trattoria Nona dessert menu: tiramisu $10, budino $9. No dessert under $9.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -1354,7 +1354,7 @@
         {
           "rank": 2,
           "similarity": 0.5361913085052831,
-          "observation_id": "b7e052c1-0e26-47d2-b306-69bf437f3d94",
+          "observation_id": "82183d17-4e6c-474e-baa4-174a9a84f0c4",
           "content": "Lucca's dessert menu: tiramisu $11, panna cotta $10, gelato $8.",
           "kind": "rival_menu",
           "source_name": "competitor_site",
@@ -1364,7 +1364,7 @@
         {
           "rank": 3,
           "similarity": 0.3971800559480127,
-          "observation_id": "310cb850-29b5-4d66-9921-d7bfa39896bf",
+          "observation_id": "9466e4e8-c83f-468c-85d7-21050fe7951d",
           "content": "Best dessert on the street by a mile. I would pay double for that tiramisu, honestly.",
           "kind": "review",
           "source_name": "review_site",
@@ -1374,7 +1374,7 @@
         {
           "rank": 4,
           "similarity": 0.3861478934041134,
-          "observation_id": "88821a13-5389-42c9-a33b-a12d0768d7c9",
+          "observation_id": "e69f3bb5-6e2f-465d-8a34-8e1c12b46d2d",
           "content": "Still thinking about the tiramisu from last night. Criminally underpriced for what it is.",
           "kind": "review",
           "source_name": "social",
@@ -1384,7 +1384,7 @@
         {
           "rank": 5,
           "similarity": 0.3829880121814834,
-          "observation_id": "3f4c4ca2-1c1e-41fc-bf32-3e2892f3f97a",
+          "observation_id": "75fc26c7-3fbc-4845-afff-d7fc4328eec5",
           "content": "The tiramisu is the single best thing on the menu and it is somehow the cheapest dessert they offer.",
           "kind": "review",
           "source_name": "review_site",
@@ -1394,7 +1394,7 @@
         {
           "rank": 6,
           "similarity": 0.34594205648619086,
-          "observation_id": "fadae5c9-a4dd-4039-be35-404470499367",
+          "observation_id": "509ca31e-1b4e-4a49-8ffc-c4ab8816c191",
           "content": "Weekly tiramisu ranking thread: Rosa's still number one, still seven dollars, still confusing.",
           "kind": "review",
           "source_name": "local_forum",
@@ -1404,7 +1404,7 @@
         {
           "rank": 7,
           "similarity": 0.32598165349871866,
-          "observation_id": "87522ec2-60a2-4c48-bba8-19ae7d7c29f0",
+          "observation_id": "4effa8a5-ca76-41dd-b157-113e5bdc7387",
           "content": "The dessert prices in particular feel like they have not been updated in years.",
           "kind": "review",
           "source_name": "review_site",
@@ -1414,7 +1414,7 @@
         {
           "rank": 8,
           "similarity": 0.25808160487640264,
-          "observation_id": "4b74b9e0-3778-4034-ac50-a2b4644e9719",
+          "observation_id": "1ebf7183-675b-4d1d-aebe-eacbd727ebab",
           "content": "The tiramisu here is genuinely the best I have had in this city, and I have tried a lot of them. Light, not soggy, actual espresso flavor.",
           "kind": "review",
           "source_name": "review_site",
@@ -1428,11 +1428,11 @@
   ],
   "runs": [
     {
-      "id": "b67d88a2-df3c-4435-b0fa-f28b6f4f80d5",
+      "id": "cbbd3b5a-48b3-4dba-ad63-a1f93cbc3959",
       "agent": "radar",
       "status": "ok",
-      "started_at": "2026-08-10T02:32:41.940421+00:00",
-      "finished_at": "2026-08-10T02:34:00.623248+00:00",
+      "started_at": "2026-08-10T03:04:49.296351+00:00",
+      "finished_at": "2026-08-10T03:06:09.162651+00:00",
       "note": "seeded 127 observations",
       "input_tokens": null,
       "output_tokens": null,
