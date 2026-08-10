@@ -4093,6 +4093,8 @@ def test_the_app_runs_the_guided_tour_without_a_backend():
     # A session is seeded before the "no session -> login" guard runs, so the
     # tour is never redirected away.
     assert "bt-tour-seed" in html
+    # A title card opens (and closes) the recording cleanly.
+    assert "bt-tour-title" in html
     # It drives to the money shot and the Memory Engine by name.
     assert '__btSwitchView("growth")' in html
     assert '__btSwitchView("admin")' in html

@@ -34232,7 +34232,18 @@ ledger_entry · artifact · agent_run`,
       + '.bt-tour-replay{pointer-events:auto;margin-top:2px;font:700 13px -apple-system,'
       + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#e8b94a;background:none;'
       + 'border:0;cursor:pointer;opacity:0;transition:opacity .5s ease;}'
-      + '.bt-tour-replay.show{opacity:.9;}';
+      + '.bt-tour-replay.show{opacity:.9;}'
+      + '.bt-tour-title{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;'
+      + 'align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;'
+      + 'background:radial-gradient(circle at 50% 38%,#171a22,#0b0d12);color:#f4f2ec;'
+      + 'opacity:0;transition:opacity .8s ease;}'
+      + '.bt-tour-title.show{opacity:1;}'
+      + '.bt-tour-title .tag{font:800 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,'
+      + 'sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#e8b94a;}'
+      + '.bt-tour-title h1{margin:0;font:800 clamp(44px,8vw,86px)/1 -apple-system,BlinkMacSystemFont,'
+      + '"Segoe UI",Inter,sans-serif;letter-spacing:-.035em;}'
+      + '.bt-tour-title p{margin:0;font:500 clamp(18px,3.4vw,26px)/1.4 -apple-system,'
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#c9c6bd;}';
     document.head.appendChild(style);
 
     var wrap = document.createElement("div");
@@ -34252,10 +34263,8 @@ ledger_entry · artifact · agent_run`,
     function click(sel){ try{ var el = document.querySelector(sel); if(el) el.click(); }catch(e){} }
 
     var OWNER_STEPS = [
-      { caption: "Brass Tacks — found money, on autopilot.",
-        run: function(){ window.__btSwitchView("autopilot"); }, wait: 3200 },
-      { caption: "Every night the agents read the market and write what they see into CockroachDB.",
-        run: function(){ scrollTo("#feedStage"); }, wait: 3600 },
+      { caption: "Rosa's morning board. Every night her agents read the market and write what they see into CockroachDB.",
+        run: function(){ window.__btSwitchView("autopilot"); scrollTo("#feedStage"); }, wait: 3800 },
       { caption: "Each find cites its evidence — the exact rows a vector search returned, with real similarity scores.",
         run: function(){ click(".feed-detail-evidence"); }, wait: 4400 },
       { caption: "The agent does the work too — orders the supplies, drafts the copy.",
@@ -34280,12 +34289,29 @@ ledger_entry · artifact · agent_run`,
         run: function(){}, wait: 4200 }
     ];
 
+    //  A full-screen slide for a clean open and close, so the recording needs
+    //  no editor. Fades in, holds, fades out, then hands back.
+    function titleCard(tag, heading, sub, hold, done){
+      var card = document.createElement("div");
+      card.className = "bt-tour-title";
+      card.innerHTML = '<div class="tag">' + tag + '</div><h1>' + heading
+        + '</h1><p>' + sub + '</p>';
+      document.body.appendChild(card);
+      requestAnimationFrame(function(){ card.classList.add("show"); });
+      setTimeout(function(){
+        card.classList.remove("show");
+        setTimeout(function(){ card.remove(); if (done) done(); }, 850);
+      }, hold);
+    }
+
     var steps = tour === "owner" ? OWNER_STEPS : CONSOLE_STEPS;
     var i = 0;
     function run(){
       if (i >= steps.length){
         if (tour === "owner"){ location.href = "../login/?role=operator&tour=console"; return; }
-        replay.classList.add("show");   // console half is the end; offer a replay
+        //  Console half is the finale: a clean outro slide, then a replay.
+        titleCard("An agent with a track record", "Brass Tacks",
+          "Found money, on autopilot.", 3800, function(){ replay.classList.add("show"); });
         return;
       }
       var s = steps[i++];
@@ -34293,7 +34319,15 @@ ledger_entry · artifact · agent_run`,
       try { if (s.run) s.run(); } catch(e){}
       setTimeout(run, s.wait || 3400);
     }
-    setTimeout(run, 900);
+
+    //  The owner half opens the whole recording, so it gets the title card;
+    //  the operator half is a continuation and goes straight into its steps.
+    if (tour === "owner"){
+      titleCard("Guided demo", "Brass Tacks", "Found money, on autopilot.",
+        3400, function(){ setTimeout(run, 500); });
+    } else {
+      setTimeout(run, 900);
+    }
   })();
   </script>
 </body>
