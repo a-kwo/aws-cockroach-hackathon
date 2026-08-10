@@ -4096,8 +4096,8 @@ def test_the_app_runs_the_guided_tour_without_a_backend():
     # A title card opens (and closes) the recording cleanly.
     assert "bt-tour-title" in html
     # It drives to the money shot and the Memory Engine by name.
-    assert '__btSwitchView("growth")' in html
-    assert '__btSwitchView("admin")' in html
+    assert 'view("growth")' in html
+    assert 'view("admin")' in html
 
 
 def test_the_guided_demo_ledger_is_disclosed_as_seeded():
