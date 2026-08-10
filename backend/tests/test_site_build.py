@@ -4095,6 +4095,9 @@ def test_the_app_runs_the_guided_tour_without_a_backend():
     assert "bt-tour-seed" in html
     # A title card opens (and closes) the recording cleanly.
     assert "bt-tour-title" in html
+    # A voice on/off toggle narrates the captions via the browser speech engine.
+    assert "bt-tour-voice" in html
+    assert "SpeechSynthesisUtterance" in html
     # It drives to the money shot and the Memory Engine by name.
     assert 'view("growth")' in html
     assert 'view("admin")' in html

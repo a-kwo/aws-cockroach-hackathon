@@ -34231,6 +34231,14 @@ ledger_entry · artifact · agent_run`,
       + 'background:rgba(12,14,20,.8);padding:6px 11px;border-radius:999px;'
       + 'border:1px solid rgba(216,165,58,.5);}'
       + '.bt-tour-badge b{color:#e8b94a;}'
+      + '.bt-tour-voice{position:fixed;top:76px;right:16px;z-index:99999;pointer-events:auto;'
+      + 'display:inline-flex;align-items:center;gap:7px;cursor:pointer;'
+      + 'font:800 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'letter-spacing:.12em;text-transform:uppercase;color:#f4f2ec;'
+      + 'background:rgba(12,14,20,.8);padding:7px 12px;border-radius:999px;'
+      + 'border:1px solid rgba(216,165,58,.5);}'
+      + '.bt-tour-voice svg{width:14px;height:14px;flex:none;}'
+      + '.bt-tour-voice.off{color:#9aa0ad;border-color:rgba(255,255,255,.16);}'
       + '#bt-tour-caption{max-width:600px;padding:11px 17px;border-radius:13px;'
       + 'background:rgba(12,14,20,.9);color:#f4f2ec;border-left:3px solid #d8a53a;'
       + 'font:600 14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
@@ -34259,6 +34267,10 @@ ledger_entry · artifact · agent_run`,
     wrap.setAttribute("data-bt-tour", tour);
     wrap.innerHTML =
       '<div class="bt-tour-badge"><b>&#9679;</b> Guided demo</div>'
+      + '<button type="button" class="bt-tour-voice" aria-pressed="true">'
+      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
+      + '<path d="M11 5 6 9H3v6h3l5 4V5z"/><path class="bt-voice-wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'
+      + '<span>Voice on</span></button>'
       + '<div id="bt-tour-caption" role="status" aria-live="polite"></div>'
       + '<button type="button" class="bt-tour-replay">&#8635; Replay from the top</button>';
     document.body.appendChild(wrap);
@@ -34267,8 +34279,35 @@ ledger_entry · artifact · agent_run`,
     var replay = wrap.querySelector(".bt-tour-replay");
     replay.addEventListener("click", function(){ location.href = "../login/?tour=start"; });
 
+    // --- voice narration: speak each caption via the browser's speech engine.
+    // No backend, no audio files. The choice persists across the tour's phases
+    // so a single toggle covers both the owner and the operator half.
+    var VOICE_KEY = "brasstacks-tour-voice";
+    var canSpeak = typeof window.speechSynthesis !== "undefined";
+    var voiceOn = (function(){ try{ return localStorage.getItem(VOICE_KEY) !== "off"; }catch(e){ return true; } })();
+    var voiceBtn = wrap.querySelector(".bt-tour-voice");
+    function paintVoice(){
+      if(!voiceBtn) return;
+      voiceBtn.classList.toggle("off", !voiceOn);
+      voiceBtn.setAttribute("aria-pressed", String(voiceOn));
+      var label = voiceBtn.querySelector("span");
+      if(label) label.textContent = voiceOn ? "Voice on" : "Voice off";
+    }
+    function speak(t){
+      if(!voiceOn || !canSpeak || !t) return;
+      try{ window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(t); u.rate=1; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){}
+    }
+    paintVoice();
+    if(voiceBtn) voiceBtn.addEventListener("click", function(){
+      voiceOn = !voiceOn;
+      try{ localStorage.setItem(VOICE_KEY, voiceOn ? "on" : "off"); }catch(e){}
+      paintVoice();
+      if(!voiceOn){ if(canSpeak){ try{ window.speechSynthesis.cancel(); }catch(e){} } }
+      else { speak(cap.textContent); }   // a click is a user gesture, so this also unblocks speech
+    });
+
     // --- defensive drivers: a missing target is skipped, never thrown -------
-    function say(t){ if(!t) return; cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); }, 180); }
+    function say(t){ if(!t) return; cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); speak(t); }, 180); }
     function scrollTo(sel){ try{ var el = document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){} }
     function click(sel){ try{ var el = document.querySelector(sel); if(el) el.click(); }catch(e){} }
     function view(v){ try{ if(window.__btSwitchView) window.__btSwitchView(v); }catch(e){} }
@@ -34398,6 +34437,7 @@ ledger_entry · artifact · agent_run`,
         + '</h1><p>' + sub + '</p>';
       document.body.appendChild(card);
       requestAnimationFrame(function(){ card.classList.add("show"); });
+      speak(heading + ". " + sub);
       setTimeout(function(){
         card.classList.remove("show");
         setTimeout(function(){ card.remove(); if (done) done(); }, 850);
