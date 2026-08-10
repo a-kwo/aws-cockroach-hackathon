@@ -454,6 +454,17 @@ queried out of the cluster, not typed into the markup. There are no real custome
 testimonials, pricing, benchmarks, peer data or P&L, and `PRODUCT.md` records those
 absences so future work does not invent them.
 
+**Her ledger is seeded, backdated history, and the figures are illustrative.** A
+verified verdict takes real elapsed time — a prediction is stored on one night and
+only scored once its measurement window closes days later — which no live demo can
+wait out. So `scripts/seed.py` plants a completed history: finds dated weeks back,
+their windows already elapsed, with owner-measured outcomes. What is compressed is
+the clock, not the mechanism. The embeddings are real Titan vectors, the retrieval
+similarities are computed against them, and the Meter genuinely reads each prior
+prediction back out of CockroachDB and scores it — the demo shows the memory layer
+doing the one thing a stateless agent cannot, on real rows, with only the passage of
+time stood in for.
+
 ## Provenance
 
 `Product Demo/` held a pitch deck and a clickable front-end mock built **before this
