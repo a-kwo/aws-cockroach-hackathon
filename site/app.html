@@ -33695,6 +33695,12 @@ ledger_entry · artifact · agent_run`,
         push("agent", text, options);
       }
 
+      //  The guided demo (bt-tour-run) scripts an illustrative exchange here so
+      //  the chat's capability is visible without a live backend. push and
+      //  replaceLoading are module-scoped; these are their handles.
+      window.__btTourSay = push;
+      window.__btTourReplace = replaceLoading;
+
       push("agent", chatLive
         ? ("Hi — ask me anything about your business, and I'll answer from "
            + "your memory in CockroachDB. I can order supplies from here too; "
@@ -34214,22 +34220,25 @@ ledger_entry · artifact · agent_run`,
 
     var style = document.createElement("style");
     style.textContent =
-      '[data-bt-tour]{position:fixed;inset:auto 0 0 0;z-index:99999;display:flex;'
-      + 'flex-direction:column;align-items:center;gap:12px;pointer-events:none;'
-      + 'padding:0 18px 34px;}'
-      + '.bt-tour-badge{align-self:center;font:800 11px/1 -apple-system,BlinkMacSystemFont,'
-      + '"Segoe UI",Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;'
-      + 'color:#f4f2ec;background:rgba(14,16,22,.82);padding:7px 13px;border-radius:999px;'
+      // A slim caption bar pinned to the very bottom edge, so it never covers
+      // the content it is narrating. The badge is a separate corner pill.
+      '[data-bt-tour]{position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;'
+      + 'flex-direction:column;align-items:center;gap:8px;pointer-events:none;'
+      + 'padding:0 16px 18px;}'
+      + '.bt-tour-badge{position:fixed;top:78px;left:16px;z-index:99999;pointer-events:none;'
+      + 'font:800 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'letter-spacing:.14em;text-transform:uppercase;color:#f4f2ec;'
+      + 'background:rgba(12,14,20,.8);padding:6px 11px;border-radius:999px;'
       + 'border:1px solid rgba(216,165,58,.5);}'
       + '.bt-tour-badge b{color:#e8b94a;}'
-      + '#bt-tour-caption{max-width:720px;padding:16px 22px;border-radius:16px;'
-      + 'background:rgba(14,16,22,.93);color:#f4f2ec;border-left:4px solid #d8a53a;'
-      + 'font:600 17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
-      + 'box-shadow:0 18px 50px rgba(0,0,0,.45);opacity:0;transform:translateY(10px);'
-      + 'transition:opacity .5s ease,transform .5s ease;-webkit-backdrop-filter:blur(8px);'
-      + 'backdrop-filter:blur(8px);text-align:center;}'
+      + '#bt-tour-caption{max-width:600px;padding:11px 17px;border-radius:13px;'
+      + 'background:rgba(12,14,20,.9);color:#f4f2ec;border-left:3px solid #d8a53a;'
+      + 'font:600 14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'box-shadow:0 12px 34px rgba(0,0,0,.4);opacity:0;transform:translateY(8px);'
+      + 'transition:opacity .45s ease,transform .45s ease;-webkit-backdrop-filter:blur(7px);'
+      + 'backdrop-filter:blur(7px);text-align:center;}'
       + '#bt-tour-caption.show{opacity:1;transform:none;}'
-      + '.bt-tour-replay{pointer-events:auto;margin-top:2px;font:700 13px -apple-system,'
+      + '.bt-tour-replay{pointer-events:auto;font:700 13px -apple-system,'
       + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#e8b94a;background:none;'
       + 'border:0;cursor:pointer;opacity:0;transition:opacity .5s ease;}'
       + '.bt-tour-replay.show{opacity:.9;}'
@@ -34258,35 +34267,68 @@ ledger_entry · artifact · agent_run`,
     var replay = wrap.querySelector(".bt-tour-replay");
     replay.addEventListener("click", function(){ location.href = "../login/?tour=start"; });
 
-    function say(t){ cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); }, 180); }
+    // --- defensive drivers: a missing target is skipped, never thrown -------
+    function say(t){ if(!t) return; cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); }, 180); }
     function scrollTo(sel){ try{ var el = document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){} }
     function click(sel){ try{ var el = document.querySelector(sel); if(el) el.click(); }catch(e){} }
+    function view(v){ try{ if(window.__btSwitchView) window.__btSwitchView(v); }catch(e){} }
+    function closeEvidence(){ click("[data-close-evidence]"); try{ document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"})); }catch(e){} }
+    function supplies(){ try{ if(window.__btShowSuppliesCanvas) window.__btShowSuppliesCanvas(); }catch(e){} }
+    function owner(t){ try{ if(window.__btTourSay) window.__btTourSay("owner", t); if(window.__btTourSay) window.__btTourSay("agent", "", {loading:true}); }catch(e){} }
+    function agent(t, opts){ try{ if(window.__btTourReplace) window.__btTourReplace(t, opts||{}); }catch(e){} }
 
     var OWNER_STEPS = [
       { caption: "Rosa's morning board. Every night her agents read the market and write what they see into CockroachDB.",
-        run: function(){ window.__btSwitchView("autopilot"); scrollTo("#feedStage"); }, wait: 3800 },
-      { caption: "Each find cites its evidence — the exact rows a vector search returned, with real similarity scores.",
-        run: function(){ click(".feed-detail-evidence"); }, wait: 4400 },
-      { caption: "The agent does the work too — orders the supplies, drafts the copy.",
-        run: function(){ window.__btSwitchView("chat"); }, wait: 3600 },
-      { caption: "Now the proof. The Meter stored last night's prediction, waited for its window to close, then read it back and scored it.",
-        run: function(){ window.__btSwitchView("growth"); scrollTo("#growthChart"); }, wait: 4800 },
-      { caption: "Six verified moves — money measured, not promised. That is the memory layer doing what a stateless agent cannot.",
-        run: function(){ scrollTo("#growthChart"); }, wait: 4400 },
+        run: function(){ view("autopilot"); scrollTo("#feedStage"); }, wait: 4200 },
+      { caption: "A find isn't a hunch — it carries a full execution plan the agent will run for her.",
+        run: function(){ click(".feed-plan summary"); }, wait: 3800 },
+      { caption: "And its receipts: the exact rows a vector search over her whole memory returned — real similarity scores, not a black box.",
+        run: function(){ click(".feed-detail-evidence"); }, wait: 5000 },
+      { caption: "Retrieval drove the reasoning. That audit trail is stored on every find.",
+        run: function(){ closeEvidence(); }, wait: 3000 },
+
+      { caption: "This is the agent Rosa talks to. It answers from her business's own memory — and it can act.",
+        run: function(){ view("chat"); }, wait: 3800 },
+      { caption: "“What needs my approval?”",
+        run: function(){ owner("What needs my approval?"); }, wait: 2400 },
+      { caption: "It drafts every move and waits — it never spends or publishes without a yes.",
+        run: function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }, wait: 4600 },
+      { caption: "“Order supplies for me” — it can buy what a move needs, too.",
+        run: function(){ owner("Order supplies for me"); }, wait: 2600 },
+      { caption: "The Quartermaster charges the card only when an order actually places — and refunds automatically if it fails.",
+        run: function(){ agent("Here's the supply catalogue — pick anything and I'll place it with the vendor. I only charge the moment it ships, and refund automatically if it doesn't.", {action:{view:"orders", label:"Open Supplies"}}); supplies(); }, wait: 4600 },
+      { caption: "Same canvas, a Supplies tab — pick an item and it's staged for one-tap approval.",
+        run: function(){ supplies(); scrollTo("[data-order]"); }, wait: 3800 },
+      { caption: "One tap stages the order; nothing leaves without her.",
+        run: function(){ click("[data-order]"); }, wait: 3600 },
+
+      { caption: "Now the proof. The Meter stored last night's prediction, waited for its window to close, then read it back out of CockroachDB and scored it.",
+        run: function(){ view("growth"); scrollTo("#growthChart"); }, wait: 5200 },
+      { caption: "Six verified moves — money measured against what it predicted, not promised. The memory layer doing what a stateless agent cannot.",
+        run: function(){ scrollTo("#growthChart"); }, wait: 4800 },
       { caption: "How does it remember? Meet the Memory Engine…",
         run: function(){}, wait: 2800 }
     ];
+
     var CONSOLE_STEPS = [
-      { caption: "The Memory Engine — the operator's window on the live cluster.",
-        run: function(){ window.__btSwitchView("admin"); }, wait: 3400 },
-      { caption: "Radar embeds every observation with Bedrock Titan into CockroachDB's distributed vector index.",
-        run: function(){ scrollTo("#view-admin"); }, wait: 3800 },
-      { caption: "The Analyst semantic-searches all of that accumulated memory before it proposes a single move.",
-        run: function(){ try{ window.scrollBy({top:440, behavior:"smooth"}); }catch(e){} }, wait: 3800 },
-      { caption: "Two CockroachDB tools, load-bearing at runtime: the vector index, and the read-only MCP the Ask agent queries.",
-        run: function(){ try{ window.scrollBy({top:440, behavior:"smooth"}); }catch(e){} }, wait: 4400 },
-      { caption: "An agent with a track record. Brass Tacks — found money, on autopilot.",
-        run: function(){}, wait: 4200 }
+      { caption: "The Memory Engine — the operator's live window on every tenant in the cluster.",
+        run: function(){ view("admin"); scrollTo("#view-admin"); }, wait: 4000 },
+      { caption: "Every night runs as one pipeline: Radar, Analyst, Decision, Maker, Meter — five agents, in order.",
+        run: function(){ scrollTo("#memorySummary"); }, wait: 4400 },
+      { caption: "Radar observes rivals, reviews and trends, and embeds each one with Bedrock Titan into the vector index.",
+        run: function(){ scrollTo('[data-stage=\"radar\"]'); }, wait: 4200 },
+      { caption: "The Analyst runs several concrete hypothesis queries over that memory, then reasons across the union to propose a move.",
+        run: function(){ scrollTo('[data-stage=\"analyst\"]'); }, wait: 4400 },
+      { caption: "Decision gates it against Rosa's rules; Maker builds the deliverable; the Meter scores it once its window closes.",
+        run: function(){ scrollTo('[data-stage=\"meter\"]'); }, wait: 4600 },
+      { caption: "Switch to the visual view to watch each agent hand off to the next.",
+        run: function(){ click('[data-memory-view=\"visual\"]'); }, wait: 3800 },
+      { caption: "One graph per owner — the whole night, agent by agent, drawn from live CockroachDB rows.",
+        run: function(){ scrollTo("#memoryVisualPipeline"); }, wait: 4600 },
+      { caption: "And the point of it all — the memory isn't a cache beside the app. It IS the product.",
+        run: function(){ click('[data-memory-view=\"operations\"]'); scrollTo("#memoryEfficiencyHero"); }, wait: 4600 },
+      { caption: "Two CockroachDB tools, load-bearing at runtime: the distributed vector index, and the read-only MCP the Ask agent queries.",
+        run: function(){ scrollTo("#memorySystemDetails"); click(".memory-system-details summary"); }, wait: 5000 }
     ];
 
     //  A full-screen slide for a clean open and close, so the recording needs
