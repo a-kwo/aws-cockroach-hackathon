@@ -17362,10 +17362,10 @@
     body.autopilot-mode .feed-proof-button:hover .feed-proof-chevron { transform:translateX(2px); }
 
     .evidence-sheet[hidden] { display:none !important; }
-    .evidence-sheet { position:fixed; inset:0; z-index:2800; display:grid; align-items:end; justify-items:center; }
+    .evidence-sheet { position:fixed; inset:0; z-index:2800; display:grid; align-items:center; justify-items:center; }
     .evidence-sheet-scrim { position:absolute; inset:0; border:0; background:rgba(2,5,14,.72); backdrop-filter:blur(12px); cursor:default; }
     .evidence-sheet-panel {
-      position:relative; width:min(760px, calc(100vw - 32px)); max-height:min(78vh, 820px); margin:0 16px 18px;
+      position:relative; width:min(760px, calc(100vw - 32px)); max-height:min(78vh, 820px); margin:16px;
       display:flex; flex-direction:column; overflow:hidden; border:1px solid rgba(205,214,255,.17); border-radius:24px;
       background:radial-gradient(420px 260px at 100% 0%, rgba(var(--accent-rgb, 155,86,255),.13), transparent 72%), linear-gradient(155deg,#11182d,#080d1b 78%);
       box-shadow:0 32px 90px rgba(0,0,0,.56), inset 0 1px 0 rgba(255,255,255,.05);
@@ -34260,7 +34260,19 @@ ledger_entry · artifact · agent_run`,
       + '.bt-tour-title h1{margin:0;font:800 clamp(44px,8vw,86px)/1 -apple-system,BlinkMacSystemFont,'
       + '"Segoe UI",Inter,sans-serif;letter-spacing:-.035em;}'
       + '.bt-tour-title p{margin:0;font:500 clamp(18px,3.4vw,26px)/1.4 -apple-system,'
-      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#c9c6bd;}';
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#c9c6bd;}'
+      + '.bt-tour-chapter{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;'
+      + 'justify-content:center;background:rgba(8,10,16,.58);opacity:0;transition:opacity .55s ease;'
+      + 'pointer-events:none;}'
+      + '.bt-tour-chapter.show{opacity:1;}'
+      + '.bt-tour-chapter .box{text-align:center;padding:22px 36px;border-radius:18px;'
+      + 'background:rgba(12,14,20,.93);border:1px solid rgba(216,165,58,.42);'
+      + 'box-shadow:0 24px 70px rgba(0,0,0,.5);transform:translateY(8px);transition:transform .55s ease;}'
+      + '.bt-tour-chapter.show .box{transform:none;}'
+      + '.bt-tour-chapter .tag{font:800 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,'
+      + 'sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#e8b94a;}'
+      + '.bt-tour-chapter h2{margin:10px 0 0;font:800 clamp(28px,5vw,50px)/1.05 -apple-system,'
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;letter-spacing:-.03em;color:#f4f2ec;}';
     document.head.appendChild(style);
 
     var wrap = document.createElement("div");
@@ -34285,6 +34297,38 @@ ledger_entry · artifact · agent_run`,
     var VOICE_KEY = "brasstacks-tour-voice";
     var canSpeak = typeof window.speechSynthesis !== "undefined";
     var voiceOn = (function(){ try{ return localStorage.getItem(VOICE_KEY) !== "off"; }catch(e){ return true; } })();
+    // The default system voice is robotic. Prefer a natural, "online" voice
+    // (Edge/Chrome ship these) so the narration sounds like a commercial demo.
+    var preferredVoice = null;
+    function pickVoice(){
+      if(!canSpeak) return;
+      var voices = window.speechSynthesis.getVoices() || [];
+      var prefer = [
+        "Google US English",
+        "Microsoft AvaMultilingual Online (Natural) - English (United States)",
+        "Microsoft Ava Online (Natural) - English (United States)",
+        "Microsoft Emma Online (Natural) - English (United States)",
+        "Microsoft Aria Online (Natural) - English (United States)",
+        "Microsoft Jenny Online (Natural) - English (United States)",
+        "Samantha", "Google UK English Female"
+      ];
+      for (var i=0;i<prefer.length;i++){
+        var hit = voices.filter(function(v){ return v.name === prefer[i]; })[0];
+        if(hit){ preferredVoice = hit; return; }
+      }
+      preferredVoice =
+        voices.filter(function(v){ return /^en/i.test(v.lang) && /natural|google|aria|jenny|emma|ava/i.test(v.name); })[0]
+        || voices.filter(function(v){ return /en[-_]US/i.test(v.lang); })[0]
+        || voices.filter(function(v){ return /^en/i.test(v.lang); })[0]
+        || voices[0] || null;
+    }
+    if(canSpeak){ pickVoice(); try{ window.speechSynthesis.onvoiceschanged = pickVoice; }catch(e){} }
+    function makeUtterance(t){
+      var u = new SpeechSynthesisUtterance(t);
+      if(preferredVoice) u.voice = preferredVoice;
+      u.rate = 1; u.pitch = 1.06; u.volume = 1;   // same speed, a touch warmer
+      return u;
+    }
     var voiceBtn = wrap.querySelector(".bt-tour-voice");
     function paintVoice(){
       if(!voiceBtn) return;
@@ -34295,7 +34339,7 @@ ledger_entry · artifact · agent_run`,
     }
     function speak(t){
       if(!voiceOn || !canSpeak || !t) return;
-      try{ window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(t); u.rate=1; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){}
+      try{ window.speechSynthesis.cancel(); window.speechSynthesis.speak(makeUtterance(t)); }catch(e){}
     }
     // A comfortable reading time when the voice is off: ~185 wpm plus a base.
     function readingMs(t){ var w=(t||"").split(/\s+/).filter(Boolean).length; return Math.max(3000, w*320 + 1400); }
@@ -34311,8 +34355,7 @@ ledger_entry · artifact · agent_run`,
       var go=function(delay){ if(advanced) return; advanced=true; setTimeout(onEnd, delay||0); };
       try{
         window.speechSynthesis.cancel();
-        var u=new SpeechSynthesisUtterance(text);
-        u.rate=1; u.pitch=1;
+        var u=makeUtterance(text);
         var started=false;
         u.onstart=function(){ started=true; };
         u.onend=function(){ go(650); };      // finished speaking -> short beat, then advance
@@ -34392,62 +34435,65 @@ ledger_entry · artifact · agent_run`,
       pending: []
     };
 
+    // The tour is one story in four acts. Each `card` step is a chapter divider
+    // so a viewer always knows where they are; the captions between them are
+    // short, plain sentences that carry the narrative rather than list features.
     var OWNER_STEPS = [
-      { caption: "Rosa's morning board. Every night her agents read the market and write what they see into CockroachDB.",
-        run: function(){ view("autopilot"); scrollTo("#feedStage"); }, wait: 4200 },
-      { caption: "Each night surfaces several finds — she swipes through them like a feed: pricing, hours, reviews, supply.",
+      { card: { tag: "Chapter 1", heading: "The morning board" } },
+      { caption: "Rosa runs a restaurant. While she sleeps, her agents work the night shift.",
+        run: function(){ view("autopilot"); scrollTo("#feedStage"); }, wait: 4000 },
+      { caption: "By morning, the night's findings are waiting — she swipes through them like a feed.",
         run: function(){ click('[data-feed-index=\"1\"]'); }, wait: 3600 },
-      { caption: "Each one a different opportunity, ranked and ready.",
-        run: function(){ click('[data-feed-index=\"2\"]'); }, wait: 3200 },
-      { caption: "Back to the top find — and it's not a hunch: it carries a full execution plan the agent will run for her.",
-        run: function(){ click('[data-feed-index=\"0\"]'); click(".feed-plan summary"); }, wait: 4200 },
-      { caption: "And its receipts: the exact rows a vector search over her whole memory returned — real similarity scores, not a black box.",
-        run: function(){ click(".feed-detail-evidence"); }, wait: 5000 },
-      { caption: "Retrieval drove the reasoning. That audit trail is stored on every find.",
-        run: function(){ closeEvidence(); }, wait: 3000 },
+      { caption: "Pricing, hours, reviews, supply — each one a different way to make money.",
+        run: function(){ click('[data-feed-index=\"2\"]'); }, wait: 3400 },
+      { caption: "Open one. It isn't a hunch — it comes with a plan the agent will carry out.",
+        run: function(){ click('[data-feed-index=\"0\"]'); click(".feed-plan summary"); }, wait: 4000 },
+      { caption: "And the evidence behind it: the exact things it read, scored by how relevant they were.",
+        run: function(){ click(".feed-detail-evidence"); }, wait: 4600 },
+      { caption: "Retrieval you can audit — recorded on every find.",
+        run: function(){ closeEvidence(); }, wait: 2800 },
 
-      { caption: "This is the agent Rosa talks to. It answers from her business's own memory — and it can act.",
-        run: function(){ view("chat"); }, wait: 3800 },
+      { card: { tag: "Chapter 2", heading: "Your agent, at work" } },
+      { caption: "She doesn't click through menus. She just asks.",
+        run: function(){ view("chat"); }, wait: 2800 },
       { caption: "“What needs my approval?”",
-        run: function(){ owner("What needs my approval?"); }, wait: 2400 },
-      { caption: "It drafts every move and waits — it never spends or publishes without a yes.",
-        run: function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }, wait: 4600 },
-      { caption: "“Order supplies for me” — it can buy what a move needs, too.",
-        run: function(){ owner("Order supplies for me"); }, wait: 2600 },
-      { caption: "It runs the whole supply chain too — a priced catalogue, and it only charges the card when an order actually ships.",
-        run: function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); orders(TOUR_STORE); supplies(); click(".orders-catalogue > summary"); scrollTo("#ordersCatalogue"); }, wait: 4800 },
-      { caption: "Auto-stock: it reorders the essentials on a schedule, restocks what's running low, and stays under the weekly cap she sets.",
-        run: function(){ scrollTo("#ordersStandingList"); }, wait: 4800 },
-      { caption: "And every order it's placed, with exactly what it paid — each charged only when it shipped.",
-        run: function(){ scrollTo("#ordersHistoryList"); }, wait: 4400 },
+        run: function(){ owner("What needs my approval?"); }, wait: 2200 },
+      { caption: "It drafts every move and waits — it never spends or publishes without her yes.",
+        run: function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }, wait: 4200 },
+      { caption: "“Order supplies for me.”",
+        run: function(){ owner("Order supplies for me"); }, wait: 2200 },
+      { caption: "It runs the supply chain too — a priced catalogue, charged only when an order actually ships.",
+        run: function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); orders(TOUR_STORE); supplies(); click(".orders-catalogue > summary"); scrollTo("#ordersCatalogue"); }, wait: 4400 },
+      { caption: "Auto-stock keeps the essentials coming and reorders what's low — always under the cap she sets.",
+        run: function(){ scrollTo("#ordersStandingList"); }, wait: 4200 },
+      { caption: "And every order it's placed, with exactly what it paid.",
+        run: function(){ scrollTo("#ordersHistoryList"); }, wait: 3600 },
 
-      { caption: "Now the proof. The Meter stored last night's prediction, waited for its window to close, then read it back out of CockroachDB and scored it.",
-        run: function(){ view("growth"); scrollTo("#growthChart"); }, wait: 5200 },
-      { caption: "Six verified moves — money measured against what it predicted, not promised. The memory layer doing what a stateless agent cannot.",
+      { card: { tag: "Chapter 3", heading: "Did it work?" } },
+      { caption: "This is what makes it more than a chatbot. Last night it predicted what this move would earn — and saved that number.",
+        run: function(){ view("growth"); scrollTo("#growthChart"); }, wait: 4800 },
+      { caption: "Tonight it checked: it read its own prediction back out of CockroachDB and scored it against what really happened.",
         run: function(){ scrollTo("#growthChart"); }, wait: 4800 },
-      { caption: "How does it remember? Meet the Memory Engine…",
-        run: function(){}, wait: 2800 }
+      { caption: "Six verified wins. Real money, measured — not promised.",
+        run: function(){ scrollTo("#growthChart"); }, wait: 3400 },
+      { caption: "So how does an agent remember what it said last night?",
+        run: function(){}, wait: 3000 }
     ];
 
     var CONSOLE_STEPS = [
-      { caption: "The Memory Engine — the operator's live window on every tenant in the cluster.",
+      { card: { tag: "Chapter 4", heading: "The memory that makes it possible" } },
+      { caption: "This is the Memory Engine — every business, every night, live from the cluster.",
         run: function(){ view("admin"); scrollTo("#view-admin"); }, wait: 4000 },
-      { caption: "Every night runs as one pipeline: Radar, Analyst, Decision, Maker, Meter — five agents, in order.",
-        run: function(){ scrollTo("#memorySummary"); }, wait: 4400 },
-      { caption: "Radar observes rivals, reviews and trends, and embeds each one with Bedrock Titan into the vector index.",
-        run: function(){ scrollTo('[data-stage=\"radar\"]'); }, wait: 4200 },
-      { caption: "The Analyst runs several concrete hypothesis queries over that memory, then reasons across the union to propose a move.",
-        run: function(){ scrollTo('[data-stage=\"analyst\"]'); }, wait: 4400 },
-      { caption: "Decision gates it against Rosa's rules; Maker builds the deliverable; the Meter scores it once its window closes.",
-        run: function(){ scrollTo('[data-stage=\"meter\"]'); }, wait: 4600 },
-      { caption: "Switch to the visual view to watch each agent hand off to the next.",
-        run: function(){ click('[data-memory-view=\"visual\"]'); }, wait: 3800 },
-      { caption: "One graph per owner — the whole night, agent by agent, drawn from live CockroachDB rows.",
-        run: function(){ scrollTo("#memoryVisualPipeline"); }, wait: 4600 },
-      { caption: "And the point of it all — the memory isn't a cache beside the app. It IS the product.",
-        run: function(){ click('[data-memory-view=\"operations\"]'); scrollTo("#memoryEfficiencyHero"); }, wait: 4600 },
-      { caption: "Two CockroachDB tools, load-bearing at runtime: the distributed vector index, and the read-only MCP the Ask agent queries.",
-        run: function(){ scrollTo("#memorySystemDetails"); click(".memory-system-details summary"); }, wait: 5000 }
+      { caption: "Each night is one pipeline: Radar, Analyst, Decision, Maker, Meter.",
+        run: function(){ scrollTo("#memorySummary"); }, wait: 3800 },
+      { caption: "Radar watches rivals, reviews and trends — and embeds each one with Bedrock into CockroachDB's vector index.",
+        run: function(){ scrollTo('[data-stage=\"radar\"]'); }, wait: 4400 },
+      { caption: "The Analyst searches that memory, then reasons over it to propose the move.",
+        run: function(){ scrollTo('[data-stage=\"analyst\"]'); }, wait: 4000 },
+      { caption: "Watch each agent hand the work to the next.",
+        run: function(){ click('[data-memory-view=\"visual\"]'); scrollTo("#memoryVisualPipeline"); }, wait: 4400 },
+      { caption: "The memory isn't a cache beside the app. It IS the product — two CockroachDB tools, working live.",
+        run: function(){ click('[data-memory-view=\"operations\"]'); scrollTo("#memoryEfficiencyHero"); }, wait: 4600 }
     ];
 
     //  A full-screen slide for a clean open and close, so the recording needs
@@ -34466,6 +34512,21 @@ ledger_entry · artifact · agent_run`,
       }, hold);
     }
 
+    //  A lighter, dimmed chapter divider (the app stays visible behind it), so
+    //  the four acts are obvious without a hard cut to black each time.
+    function chapterCard(tag, heading, hold, done){
+      var el = document.createElement("div");
+      el.className = "bt-tour-chapter";
+      el.innerHTML = '<div class="box"><div class="tag">' + tag + '</div><h2>' + heading + '</h2></div>';
+      document.body.appendChild(el);
+      requestAnimationFrame(function(){ el.classList.add("show"); });
+      speak(heading);
+      setTimeout(function(){
+        el.classList.remove("show");
+        setTimeout(function(){ el.remove(); if (done) done(); }, 650);
+      }, hold);
+    }
+
     var steps = tour === "owner" ? OWNER_STEPS : CONSOLE_STEPS;
     var i = 0;
     function run(){
@@ -34477,6 +34538,7 @@ ledger_entry · artifact · agent_run`,
         return;
       }
       var s = steps[i++];
+      if (s.card){ chapterCard(s.card.tag, s.card.heading, s.wait || 2000, run); return; }
       if (s.caption) say(s.caption);
       try { if (s.run) s.run(); } catch(e){}
       // Hold each caption long enough to read it, and — when the voice is on —
