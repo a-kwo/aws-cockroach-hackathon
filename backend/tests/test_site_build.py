@@ -4193,3 +4193,9 @@ def test_the_card_detail_panel_is_three_uniform_rows():
     chevron = html.split("body.autopilot-mode .feed-detail-evidence::after", 1)[1].split(
         "}", 1)[0]
     assert "rotate(45deg)" in chevron
+
+    # And the panel is boxless: the rows are the shapes, the container is not.
+    # A bordered panel wrapping three bordered rows was a box in a box.
+    flat = html.split('<style id="feed-scroll-v66">', 1)[1].split("</style>", 1)[0]
+    assert "background: transparent !important" in flat
+    assert "box-shadow: none !important" in flat

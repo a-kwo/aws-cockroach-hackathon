@@ -22578,7 +22578,8 @@
        Three identical rows, vertically centred beside the copy — no row
        louder than another. */
     .feed-detail-panel,
-    body.autopilot-mode .feed-detail-panel {
+    body.autopilot-mode .feed-detail-panel,
+    body.day-mode .feed-detail-panel {
       flex: 0 0 292px;
       width: 292px;
       align-self: stretch !important;
@@ -22587,6 +22588,12 @@
       flex-direction: column;
       justify-content: center;
       gap: 10px;
+      /* Boxless: the three rows are the shapes. A bordered panel wrapping
+         three bordered rows was a box in a box. */
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 0 !important;
     }
     .feed-detail-panel > details,
     .feed-detail-panel > button,
