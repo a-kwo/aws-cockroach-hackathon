@@ -21620,7 +21620,9 @@
       height: 7px;
       border-right: 1.6px solid currentColor;
       border-bottom: 1.6px solid currentColor;
-      transform: rotate(-45deg);
+      /* Down, like the two disclosure rows above it — one set of rows, one
+         chevron direction. */
+      transform: rotate(45deg);
       opacity: .7;
       margin-left: 4px;
     }
@@ -22572,14 +22574,24 @@
     .feed-tag-list { margin-top: 12px; }
     .feed-proof-strip { margin-top: 12px; }
 
-    /* The detail panel rides shotgun on wide screens, stacks on narrow. */
+    /* The detail panel rides shotgun on wide screens, stacks on narrow.
+       Three identical rows, vertically centred beside the copy — no row
+       louder than another. */
     .feed-detail-panel,
     body.autopilot-mode .feed-detail-panel {
       flex: 0 0 292px;
       width: 292px;
       align-self: stretch !important;
       margin-top: 0 !important;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 10px;
     }
+    .feed-detail-panel > details,
+    .feed-detail-panel > button,
+    body.autopilot-mode .feed-detail-panel > details,
+    body.autopilot-mode .feed-detail-evidence { margin: 0 !important; }
     .post-footer,
     body.autopilot-mode .post-footer {
       padding: 12px 26px 16px !important;
@@ -24135,8 +24147,6 @@
       ];
       const steps = (post.steps || []).filter(Boolean);
       const stepCount = steps.length || 1;
-      const firstStep = steps[0] || cleanOwnerCopy(post.recommendation || "") || "Review this move.";
-      const restCount = Math.max(0, stepCount - 1);
 
       // The Impact/Effort/Type/Owner-approval grid was removed from the card
       // at the owner's request — too much to read at a glance, and the money
@@ -24158,21 +24168,18 @@
             : escapeHtml(row.value || "Not specified")}</dd>
         </div>`;
 
+      //  Three identical quiet rows — plan, costs, evidence — nothing louder
+      //  than anything else. The highlighted "step 1" block that used to lead
+      //  this panel repeated the plan's first bullet at ten times the size; the
+      //  full plan is one tap away behind the first row.
       return `
         <aside class="feed-detail-panel" aria-label="Recommendation details">
-          <div class="feed-next-step">
-            <div class="feed-next-heading"><span>Next step</span></div>
-            <div class="feed-next-first">
-              <span class="feed-next-num">1</span>
-              <p>${escapeHtml(firstStep)}</p>
-            </div>
-            <details class="feed-plan">
-              <summary>
-                <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
-              </summary>
-              <div class="feed-plan-body">${renderSteps(post)}</div>
-            </details>
-          </div>
+          <details class="feed-plan">
+            <summary>
+              <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
+            </summary>
+            <div class="feed-plan-body">${renderSteps(post)}</div>
+          </details>
 
           <details class="feed-more">
             <summary><small>Costs, category &amp; goals</small></summary>
