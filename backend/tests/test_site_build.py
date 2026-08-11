@@ -4147,3 +4147,28 @@ def test_the_guided_demo_ledger_is_disclosed_as_seeded():
     assert "illustrative" in readme
     # The honest half: what is compressed is the clock, not the mechanism.
     assert "the clock, not the mechanism" in readme
+
+
+def test_for_you_is_a_scrolling_feed_with_a_stats_rail():
+    """The deck showed one swipeable card at a time. Owners scroll a feed now:
+    cards grouped by day, newest first, beside a rail whose numbers are counted
+    from the same posts the feed renders -- real CockroachDB rows, never a
+    typed-in figure. The one-card chrome (arrows, dots) went with the deck."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'class="feed-group-label"' in html
+    assert "function feedGroupLabel" in html
+    assert "function renderFeedRail" in html
+    rail = html.split("function renderFeedRail", 1)[1][:2600]
+    # Evidence rows are summed from the posts, topics counted from their briefs.
+    assert "evidenceCount" in rail
+    assert "feedBrief?.tags" in rail
+    # The one-card navigation chrome is gone.
+    assert 'id="previousPost"' not in html
+    assert 'id="feedDots"' not in html
+
+    # The conversion CSS has the last word over every deck-era height and
+    # position rule, so cards flow at natural height in one scrolling column.
+    css = html.split('<style id="feed-scroll-v66">', 1)[1].split("</style>", 1)[0]
+    assert "flex-direction: column" in css
+    assert "position: static !important" in css
