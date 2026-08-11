@@ -4172,6 +4172,11 @@ def test_for_you_is_a_scrolling_feed_with_a_stats_rail():
     css = html.split('<style id="feed-scroll-v66">', 1)[1].split("</style>", 1)[0]
     assert "flex-direction: column" in css
     assert "position: static !important" in css
+    # The page owns the scroll on phones. The deck made each card its own
+    # inner scroller and locked touch to its gestures; every one of those
+    # traps must lose to the feed.
+    assert "touch-action: auto !important" in css
+    assert "overscroll-behavior: auto !important" in css
 
 
 def test_the_card_detail_panel_is_three_uniform_rows():
