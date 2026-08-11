@@ -22465,6 +22465,205 @@
     body.day-mode .orders-mock-banner * { color: #8a6420 !important; }
   </style>
 
+  <style id="feed-scroll-v66">
+    /* ==== For You: scrolling feed + summary rail =========================
+       The deck showed one full-viewport card at a time and asked for a swipe.
+       This converts it to a scanning feed: every move visible at natural
+       height, grouped under the day it arrived, with an at-a-glance rail.
+       Deliberately the last style block — it must beat every deck-era height,
+       position and per-slot visibility rule that came before it. */
+
+    .feed-scroll-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 292px;
+      gap: 26px;
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      align-items: start;
+    }
+    .feed-scroll-deck { display: block; height: auto !important; min-height: 0 !important; padding: 4px 0 90px; }
+
+    /* The stage flows; the cards are documents, not slides. */
+    .feed-stage,
+    body.autopilot-mode .feed-stage {
+      position: static !important;
+      display: flex !important;
+      flex-direction: column;
+      gap: 14px !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+      scroll-snap-type: none !important;
+      perspective: none !important;
+      touch-action: auto !important;
+    }
+    .feed-card,
+    body.autopilot-mode .feed-card,
+    body.autopilot-mode .feed-card.is-current,
+    body.autopilot-mode .feed-card.is-next,
+    body.autopilot-mode .feed-card.is-back,
+    body.autopilot-mode .feed-card.is-prev,
+    body.autopilot-mode .feed-card.is-hidden {
+      position: static !important;
+      inset: auto !important;
+      transform: none !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      filter: none !important;
+      flex: 0 0 auto !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      animation: none !important;
+      scroll-snap-align: none !important;
+      scroll-snap-stop: normal !important;
+      scroll-margin-top: 84px;
+    }
+    .swipe-cue { display: none !important; }
+
+    .feed-group-label {
+      margin: 16px 2px 0;
+      color: var(--owner-muted, #8b93ab);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+    .feed-stage .feed-group-label:first-child { margin-top: 0; }
+
+    /* Compact card: reading size, accent spine, natural height. */
+    .post-surface,
+    body.autopilot-mode .feed-card .post-surface {
+      height: auto !important;
+      min-height: 0 !important;
+      border-left: 3px solid var(--accent, #9b56ff);
+    }
+    .post-art { display: none !important; }
+    .post-body,
+    body.autopilot-mode .post-body {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: flex-start !important;
+      gap: 28px;
+      padding: 22px 26px 16px !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+    .post-copy { flex: 1 1 auto; min-width: 0; width: auto !important; }
+    .post-copy h2,
+    body.autopilot-mode .post-copy h2.post-title {
+      max-width: none;
+      font-size: clamp(19px, 2vw, 24px) !important;
+      line-height: 1.2 !important;
+      letter-spacing: -.022em;
+    }
+    .signal-text,
+    body.autopilot-mode .signal-text {
+      max-width: none;
+      margin-top: 8px;
+      font-size: 14px !important;
+      line-height: 1.55;
+      -webkit-line-clamp: 3;
+    }
+    .post-meta-row { margin-bottom: 10px; }
+    .feed-tag-list { margin-top: 12px; }
+    .feed-proof-strip { margin-top: 12px; }
+
+    /* The detail panel rides shotgun on wide screens, stacks on narrow. */
+    .feed-detail-panel,
+    body.autopilot-mode .feed-detail-panel {
+      flex: 0 0 292px;
+      width: 292px;
+      align-self: stretch !important;
+      margin-top: 0 !important;
+    }
+    .post-footer,
+    body.autopilot-mode .post-footer {
+      padding: 12px 26px 16px !important;
+      min-height: 0 !important;
+    }
+
+    /* The rail: real counts beside the stream, sticky while the feed scrolls. */
+    .feed-rail { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 14px; }
+    .feed-rail-card {
+      border: 1px solid var(--owner-line, rgba(205, 214, 255, .13));
+      border-radius: 16px;
+      padding: 16px 17px 14px;
+      background: var(--owner-panel, rgba(255, 255, 255, .028));
+    }
+    .feed-rail-card h3 {
+      margin: 0 0 12px;
+      color: var(--owner-ink, #eef0fa);
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: -.01em;
+    }
+    .feed-rail-stats { display: flex; flex-direction: column; gap: 10px; }
+    .feed-rail-stat { display: grid; grid-template-columns: 30px auto 1fr; gap: 10px; align-items: center; }
+    .feed-rail-stat i {
+      width: 30px; height: 30px; display: grid; place-items: center;
+      border-radius: 9px;
+      border: 1px solid var(--owner-line, rgba(205, 214, 255, .14));
+      background: rgba(255, 255, 255, .03);
+      color: var(--owner-muted, #97a0b8);
+    }
+    .feed-rail-stat i svg { width: 16px; height: 16px; }
+    .feed-rail-stat b { color: var(--owner-ink, #f2f3fb); font-size: 17px; font-weight: 780; font-variant-numeric: tabular-nums; }
+    .feed-rail-stat span { color: var(--owner-muted, #97a0b8); font-size: 12.5px; font-weight: 600; }
+    .feed-rail-note { margin: 12px 0 0; color: var(--owner-muted, #848daa); font-size: 11px; line-height: 1.5; }
+    .feed-rail-topics { display: flex; flex-direction: column; gap: 9px; }
+    .feed-rail-topic { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center; }
+    .feed-rail-topic i { width: 8px; height: 8px; border-radius: 50%; background: #8588ff; }
+    .feed-rail-topic i[data-tone="2"] { background: #58b98d; }
+    .feed-rail-topic i[data-tone="3"] { background: #d8a53a; }
+    .feed-rail-topic i[data-tone="4"] { background: #c76fae; }
+    .feed-rail-topic i[data-tone="5"] { background: #5fb4d8; }
+    .feed-rail-topic span { color: var(--owner-copy, #c9cee0); font-size: 13px; font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .feed-rail-topic b { color: var(--owner-muted, #97a0b8); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* Day theme: paper rail, ink text, same structure. */
+    body.day-mode .feed-group-label { color: #77787e; }
+    body.day-mode .feed-rail-card { border-color: #e4e2dc; background: #ffffff; box-shadow: 0 10px 30px rgba(37, 43, 47, .06); }
+    body.day-mode .feed-rail-card h3 { color: #101114; }
+    body.day-mode .feed-rail-stat i { border-color: #e4e2dc; background: #faf9f6; color: #77787e; }
+    body.day-mode .feed-rail-stat b { color: #101114; }
+    body.day-mode .feed-rail-stat span,
+    body.day-mode .feed-rail-note,
+    body.day-mode .feed-rail-topic b { color: #77787e; }
+    body.day-mode .feed-rail-topic span { color: #3f4149; }
+
+    /* One column when the rail would crowd the stream; the rail follows the
+       feed rather than floating beside it. */
+    @media (max-width: 1023px) {
+      .feed-scroll-layout { grid-template-columns: minmax(0, 1fr); }
+      .feed-rail { position: static; order: 2; }
+    }
+    @media (max-width: 900px) {
+      .post-body,
+      body.autopilot-mode .post-body { flex-direction: column !important; gap: 14px; }
+      .feed-detail-panel,
+      body.autopilot-mode .feed-detail-panel { flex: 1 1 auto; width: 100% !important; }
+    }
+
+    /* Phone: nothing inside a card may widen it past the screen. */
+    .feed-stream, .feed-scroll-layout { max-width: 100%; min-width: 0; }
+    .feed-card, .post-surface { max-width: 100% !important; }
+    @media (max-width: 640px) {
+      .feed-scroll-deck { padding: 4px 10px 80px; }
+      .post-body,
+      body.autopilot-mode .post-body { padding: 16px 16px 12px !important; }
+      .post-footer,
+      body.autopilot-mode .post-footer { padding: 10px 16px 14px !important; flex-wrap: wrap; gap: 10px; }
+      .feed-proof-strip,
+      body.autopilot-mode .feed-proof-strip { flex-wrap: wrap; gap: 8px 14px; }
+      .feed-proof-item { min-width: 0; }
+      .feed-rail { padding: 0 2px; }
+    }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
@@ -23778,6 +23977,68 @@
         </span>`).join("");
     }
 
+    //  The feed reads like a timeline, so each card sits under the day it
+    //  arrived. Buckets rather than exact dates: an owner scanning over coffee
+    //  wants "Today" and "Yesterday", not an ISO string.
+    function feedGroupLabel(post) {
+      const stamp = Date.parse(post?.createdAt || "");
+      if (!Number.isFinite(stamp)) return "New";
+      const days = Math.floor((Date.now() - stamp) / 86400000);
+      if (days <= 0) return "Today";
+      if (days === 1) return "Yesterday";
+      if (days < 7) return "This week";
+      return "Earlier";
+    }
+
+    //  The rail beside the feed. Every number here is counted from the same
+    //  posts the feed renders — rows out of CockroachDB — never typed in.
+    //  CLAUDE.md: nothing appears on the board that is not a row in the
+    //  cluster, and that includes the summary counts beside it.
+    function renderFeedRail(pending) {
+      const posts = Array.isArray(pending) ? pending : [];
+      if (!posts.length) return "";
+      const evidenceTotal = posts.reduce((sum, post) => sum + Math.max(0, Number(post.evidenceCount || 0)), 0);
+      const planTotal = posts.filter(post => (post.steps || []).length > 0).length;
+      const topics = new Map();
+      posts.forEach(post => (post.feedBrief?.tags || []).forEach(tag => {
+        const key = String(tag || "").trim();
+        if (key) topics.set(key, (topics.get(key) || 0) + 1);
+      }));
+      const topTopics = [...topics.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+      const stats = [
+        { icon: "signal", n: posts.length, label: posts.length === 1 ? "move waiting" : "moves waiting" },
+        { icon: "goal", n: planTotal, label: planTotal === 1 ? "execution plan" : "execution plans" },
+        { icon: "evidence", n: evidenceTotal, label: evidenceTotal === 1 ? "evidence row" : "evidence rows" },
+      ];
+      return `
+        <aside class="feed-rail" data-enter aria-label="Feed summary">
+          <section class="feed-rail-card">
+            <h3>At a glance</h3>
+            <div class="feed-rail-stats">
+              ${stats.map(stat => `
+                <div class="feed-rail-stat">
+                  <i>${feedDetailIcon(stat.icon)}</i>
+                  <b>${escapeHtml(String(stat.n))}</b>
+                  <span>${escapeHtml(stat.label)}</span>
+                </div>`).join("")}
+            </div>
+            <p class="feed-rail-note">Counted from the moves on this page — each one a row in CockroachDB.</p>
+          </section>
+          ${topTopics.length ? `
+          <section class="feed-rail-card">
+            <h3>Topics tonight</h3>
+            <div class="feed-rail-topics">
+              ${topTopics.map(([tag, n], index) => `
+                <div class="feed-rail-topic">
+                  <i data-tone="${(index % 5) + 1}"></i>
+                  <span>${escapeHtml(tag)}</span>
+                  <b>${escapeHtml(String(n))}</b>
+                </div>`).join("")}
+            </div>
+          </section>` : ""}
+        </aside>`;
+    }
+
     let evidenceSheetOpener = null;
 
     function evidenceSheetMarkup(post) {
@@ -23984,6 +24245,9 @@
         // "waiting" forever.
         verifyAfter: find.verifyAfter || null,
         sourceTime: relativeTime(find.createdAt),
+        // Raw timestamp too: the feed groups cards under Today / Yesterday /
+        // This week headings, which needs the date rather than its prose form.
+        createdAt: find.createdAt || null,
         highlightLabel: "Evidence used",
         highlightValue: `${find.evidenceCount || 0} memories`,
         confidence: find.confidence,
@@ -25545,33 +25809,36 @@
         return;
       }
 
-      queueContent.innerHTML = `
-        <div class="deck" aria-label="Autopilot review queue">
-          <div class="feed-stage" id="feedStage" data-enter tabindex="0" aria-label="Swipe left or right to browse posts">
-            ${pending.map((post, index) => renderFeedCard(post, index, pending.length)).join("")}
-          </div>
+      //  A scrolling stream rather than a one-card deck: every move visible,
+      //  grouped under the day it arrived, with a summary rail beside it. The
+      //  deck's gesture machinery stays defined for reference but is no longer
+      //  bound — the browser's own scroll is the navigation now.
+      const groups = [];
+      pending.forEach((post, index) => {
+        const label = feedGroupLabel(post);
+        const tail = groups[groups.length - 1];
+        if (!tail || tail.label !== label) groups.push({ label, cards: [] });
+        groups[groups.length - 1].cards.push({ post, index });
+      });
 
-          <nav class="feed-navigation" aria-label="Browse Autopilot posts" data-enter>
-            <button class="nav-arrow" type="button" id="previousPost" aria-label="Previous post">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            <div class="feed-dots" id="feedDots">
-              ${pending.map((post, index) => `<button class="feed-dot ${index === currentIndex ? "active" : ""}" type="button" data-feed-index="${index}" aria-label="Show post ${index + 1}"></button>`).join("")}
+      queueContent.innerHTML = `
+        <div class="deck feed-scroll-deck" aria-label="Autopilot review queue">
+          <div class="feed-scroll-layout">
+            <div class="feed-stream">
+              <div class="feed-stage" id="feedStage" data-enter tabindex="0" aria-label="Scroll to browse moves">
+                ${groups.map(group => `
+                  <div class="feed-group-label">${escapeHtml(group.label)}</div>
+                  ${group.cards.map(({ post, index }) => renderFeedCard(post, index, pending.length)).join("")}
+                `).join("")}
+              </div>
             </div>
-            <button class="nav-arrow" type="button" id="nextPost" aria-label="Next post">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-          </nav>
+            ${renderFeedRail(pending)}
+          </div>
         </div>
       `;
 
-      document.getElementById("previousPost").onclick = () => goToPost(currentIndex - 1);
-      document.getElementById("nextPost").onclick = () => goToPost(currentIndex + 1);
-      document.querySelectorAll("[data-feed-index]").forEach(button => {
-        button.onclick = () => goToPost(Number(button.dataset.feedIndex));
-      });
-
-      bindFeedGestures();
+      queueCount.textContent = pending.length === 1
+        ? "1 move to review" : `${pending.length} moves to review`;
       bindDynamicActions();
       fitFeedCards();
     }
@@ -25648,8 +25915,12 @@
     }
 
     function renderFeedCard(post, index, count) {
-      const offset = (index - currentIndex + count) % count;
-      const positionClass = positionFor(offset, count);
+      //  No deck-position class: in the scrolling feed every card is equally
+      //  visible and equally clickable. is-current/is-next dimmed the cards
+      //  below the fold and set pointer-events:none on their decision buttons,
+      //  which in a scroll layout means an owner could see a move they could
+      //  not approve. The guided tour still toggles `.is-current` itself, as a
+      //  scope for its spotlight — that is the class's only remaining job.
       const decisionSyncPending = decisionApiConfigured && workflowApiConfigured &&
         (workflowRefreshState !== "live" || !post.serverVerified);
       const decisionDisabled = decisionSyncPending
@@ -25658,12 +25929,11 @@
 
       return `
         <article
-          class="feed-card ${positionClass}"
+          class="feed-card"
           style="--accent:${post.accent};--accent-rgb:${post.accentRgb}"
           data-post-id="${escapeHtml(post.id)}"
           data-feature="${escapeHtml(post.featureKey)}"
           data-index="${index}"
-          aria-hidden="${index === currentIndex ? "false" : "true"}"
         >
           <span class="swipe-cue swipe-cue-prev" aria-hidden="true">Back</span>
           <span class="swipe-cue swipe-cue-next" aria-hidden="true">Next</span>
@@ -25778,33 +26048,16 @@
     }
 
     function goToPost(index) {
-      const pending = getPendingPosts();
-      if (!pending.length || isAnimating) return;
-      const next = (index + pending.length) % pending.length;
-      if (next === currentIndex) return;
-
-      const stage = document.getElementById("feedStage");
-      if (stage && usesNativeMobileFeed()) {
-        currentIndex = next;
-        syncNativeMobileCardStates(stage, next);
-        updateFeedChrome(pending.length);
-        stage.scrollTo({
-          left: next * Math.max(1, stage.clientWidth),
-          top: 0,
-          behavior: PREFERS_REDUCED_MOTION.matches ? "auto" : "smooth",
-        });
-        return;
-      }
-
-      const outgoing = getCurrentCard();
-      isAnimating = true;
-      stage?.classList.add("is-settling");
+      //  The feed scrolls now, so browsing to a post means bringing its card
+      //  into view rather than re-slotting a deck. Arrow keys and the guided
+      //  tour both come through here.
+      const cards = document.querySelectorAll(".feed-card");
+      if (!cards.length) return;
+      const next = Math.max(0, Math.min(cards.length - 1, Number(index) || 0));
       currentIndex = next;
-      applyCardPositions();
-
-      afterTransformTransition(outgoing, () => {
-        stage?.classList.remove("is-settling");
-        isAnimating = false;
+      cards[next].scrollIntoView({
+        behavior: PREFERS_REDUCED_MOTION.matches ? "auto" : "smooth",
+        block: "start",
       });
     }
 
@@ -34331,6 +34584,17 @@ ledger_entry · artifact · agent_run`,
     //  and the spotlight landed on it, off to the side of the deck. Scope
     //  anything card-shaped to the one actually on top.
     var CURRENT = ".feed-card.is-current ";
+    //  The feed scrolls now — there are no dots to click. Focusing a card means
+    //  scrolling it into view AND moving `.is-current` onto it, so the CURRENT
+    //  selector (and the spotlight) follows the card the caption talks about.
+    //  Absolute state, so Back re-running a step lands on the same card.
+    function focusCard(n){ try{
+      var cards = document.querySelectorAll(".feed-card");
+      if(!cards.length) return;
+      var i = Math.max(0, Math.min(cards.length - 1, n));
+      cards.forEach(function(card, k){ card.classList.toggle("is-current", k === i); });
+      cards[i].scrollIntoView({ behavior: "smooth", block: "center" });
+    }catch(e){} }
     //  The sheet is inserted into the DOM when it opens, so its presence IS its
     //  state -- no class to guess at.
     function evidenceIsOpen(){ return !!document.getElementById("evidenceSheet"); }
@@ -34415,13 +34679,13 @@ ledger_entry · artifact · agent_run`,
 
     var OWNER_STEPS = [
       { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, its agents work the night shift — and this is what the owner wakes up to.",
-        run:function(){ view("autopilot"); evidence(false); details(CURRENT + ".feed-plan", false); click('[data-feed-index="0"]'); scrollTo("#feedStage"); }, target:"#feedStage", settle:400 },
-      { ch:0, caption:"Each card is one finding from last night. Swipe or click through them — pricing, hours, reviews, supply.",
-        run:function(){ view("autopilot"); evidence(false); click('[data-feed-index="1"]'); }, target:"#feedStage", settle:300 },
+        run:function(){ view("autopilot"); evidence(false); details(CURRENT + ".feed-plan", false); focusCard(0); }, target:"#feedStage", settle:400 },
+      { ch:0, caption:"Each card is one finding from last night, grouped by the day it arrived. Scroll the feed — pricing, hours, reviews, supply.",
+        run:function(){ view("autopilot"); evidence(false); focusCard(1); }, target:CURRENT.trim(), settle:300 },
       { ch:0, caption:"Open it and it isn't a hunch. Weekend patio bookings: a specific move, $9 a day, and a date it gets checked.",
-        run:function(){ view("autopilot"); evidence(false); click('[data-feed-index="1"]'); details(CURRENT + ".feed-plan", true); }, target:CURRENT + ".feed-plan", settle:350 },
+        run:function(){ view("autopilot"); evidence(false); focusCard(1); details(CURRENT + ".feed-plan", true); }, target:CURRENT + ".feed-plan", settle:350 },
       { ch:0, caption:"And its evidence: the real reviews the vector search returned, each scored by how closely it matched. Guests naming the patio, and one warning about the wait.",
-        run:function(){ view("autopilot"); click('[data-feed-index="1"]'); details(CURRENT + ".feed-plan", true); evidence(true); }, settle:400 },
+        run:function(){ view("autopilot"); focusCard(1); details(CURRENT + ".feed-plan", true); evidence(true); }, settle:400 },
       { ch:0, caption:"That similarity score is stored with every recommendation. Retrieval you can audit, not a black box.",
         run:function(){ view("autopilot"); evidence(false); }, target:CURRENT + ".feed-plan", settle:300 },
 
