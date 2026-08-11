@@ -22795,6 +22795,23 @@
         inset: auto !important;
         z-index: auto !important;
       }
+      /* The PAGE owns the touch scroll. The deck locked touch to its own
+         gestures (touch-action:none, pan-x, overscroll containment,
+         unselectable text) so a finger inside a card fought the feed.
+         Every one of those traps loses here. */
+      body.autopilot-mode .feed-stage,
+      body.autopilot-mode .feed-card,
+      body.autopilot-mode .feed-card .post-surface,
+      body.autopilot-mode .feed-card .post-body,
+      body.autopilot-mode .feed-stage .feed-card .post-body,
+      body.autopilot-mode .feed-card .post-copy,
+      body.autopilot-mode .feed-card .feed-detail-panel {
+        touch-action: auto !important;
+        overscroll-behavior: auto !important;
+        -webkit-overflow-scrolling: auto !important;
+        -webkit-user-select: text !important;
+        user-select: text !important;
+      }
     }
   </style>
 
