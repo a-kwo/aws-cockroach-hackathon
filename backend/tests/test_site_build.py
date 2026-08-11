@@ -4172,3 +4172,24 @@ def test_for_you_is_a_scrolling_feed_with_a_stats_rail():
     css = html.split('<style id="feed-scroll-v66">', 1)[1].split("</style>", 1)[0]
     assert "flex-direction: column" in css
     assert "position: static !important" in css
+
+
+def test_the_card_detail_panel_is_three_uniform_rows():
+    """The panel led with a highlighted, numbered first step -- a paragraph tall
+    enough to dwarf the rows under it, saying what the Execution plan's first
+    bullet already says. It is now three identical quiet rows: plan, costs,
+    evidence. And the evidence chevron points down like the two disclosures
+    beside it, not sideways -- one set of rows, one direction."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
+        "function findToPost", 1)[0]
+    assert "feed-next-first" not in panel
+    assert "feed-next-heading" not in panel
+    assert 'class="feed-plan"' in panel
+    assert 'class="feed-more"' in panel
+    assert 'class="feed-detail-evidence"' in panel
+
+    chevron = html.split("body.autopilot-mode .feed-detail-evidence::after", 1)[1].split(
+        "}", 1)[0]
+    assert "rotate(45deg)" in chevron
