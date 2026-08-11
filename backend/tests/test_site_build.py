@@ -4199,3 +4199,28 @@ def test_the_card_detail_panel_is_three_uniform_rows():
     flat = html.split('<style id="feed-scroll-v66">', 1)[1].split("</style>", 1)[0]
     assert "background: transparent !important" in flat
     assert "box-shadow: none !important" in flat
+
+
+def test_the_demo_supplies_board_never_scolds_its_own_session():
+    """The guided demo runs on a placeholder session by design; the injected
+    sample store is the content. The board's refresh gets a 401 from /orders
+    and used to answer with "session expired -- sign out and back in", i.e.
+    the demo scolding itself on camera. The note is gated off when a tour is
+    running."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    before = html.split('note("Your session has expired', 1)[0][-500:]
+    assert '"tour"' in before
+
+
+def test_the_supplies_board_carries_the_clean_dashboard_pass():
+    """One visual system for the Quartermaster's board: icon chips, quiet
+    uniform zone rows, one accent -- and it must be the last word over the
+    accumulated orders-mode styling, in both themes and at phone width."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    css = html.split('<style id="supplies-clean-v67">', 1)[1].split("</style>", 1)[0]
+    assert ".orders-zone-ico" in css
+    assert ".orders-seg" in css
+    assert "body.day-mode" in css
+    assert "@media (max-width: 640px)" in css
