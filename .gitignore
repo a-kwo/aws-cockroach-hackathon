@@ -54,13 +54,12 @@ $RECYCLE.BIN/
 
 # --- Local agent/tool state ---
 .claude/settings.local.json
-# Design tooling, installed per machine: npx impeccable install
-# 2.9 MB of vendored skill files, regenerable in one command. PRODUCT.md and
-# DESIGN.md are its output and ARE tracked — they are the durable artifacts.
+# Vendored skill files, installed per machine and regenerable — never the repo's.
+# PRODUCT.md and DESIGN.md are tracked: they are the durable artifacts, and they
+# outlive whatever tool generated them.
 .claude/skills/
 # Nested checkouts created by EnterWorktree — never part of the repo.
 .claude/worktrees/
-.impeccable/live/
 *.log
 tmp/
 .DS_Store
@@ -91,3 +90,7 @@ v8-analyst-trace-focus.png
 .d2/
 .pf/
 .pfd/
+
+# Names the real business the demo fixture is built from. Never committed;
+# .anonymise-map.example.json documents the shape.
+.anonymise-map.json

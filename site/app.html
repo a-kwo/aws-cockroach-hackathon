@@ -22471,7 +22471,7 @@
   <script id="bt-tour-seed">/* The guided demo is self-contained. If the page was opened with ?tour=, make
      sure a session exists in the right slot BEFORE the board's "no session ->
      login" guard runs, so the tour is never bounced away. The token is a
-     placeholder: live fetches 401 and degrade to the committed Rosa fixture,
+     placeholder: live fetches 401 and degrade to the committed anonymised fixture,
      which is exactly what the tour is meant to show. */
   (function(){try{
     var q=new URLSearchParams(location.search), tour=q.get("tour");
@@ -34206,13 +34206,19 @@ ledger_entry · artifact · agent_run`,
     })();
   </script>
   <script id="bt-tour-run">
-  /* Self-contained guided demo. Launched from the login page's Play button
-     (or by opening ?tour=owner directly). It drives the app through the whole
-     loop on a timer so a judge can screen-record it with no backend, no
-     password, and no clicks. Every step is defensive: a missing element is
-     skipped, never thrown, so a fixture that differs can't freeze the take.
-     The data shown is the committed Rosa fixture -- seeded, backdated history,
-     disclosed as such in the README. */
+  /* The interactive demo. Opened from the landing page, or by visiting
+     ?tour=owner directly.
+
+     The viewer drives it. Nothing advances on a timer, the app underneath stays
+     fully clickable, and any step can be revisited. This replaced a self-driving
+     tour with synthesised voice narration: autoplay is the wrong shape for
+     someone who wants to stop and look at something, and a narration that cannot
+     be paused is worse than none.
+
+     Every step is defensive -- a missing element is skipped, never thrown -- so a
+     fixture that differs cannot strand the viewer mid-demo. The data shown is the
+     committed export of a real tenant, anonymised: see scripts/anonymise_fixture.py and the
+     README and on the closing card. */
   (function(){
     var q = new URLSearchParams(location.search);
     var tour = q.get("tour");
@@ -34220,229 +34226,135 @@ ledger_entry · artifact · agent_run`,
 
     var style = document.createElement("style");
     style.textContent =
-      // A slim caption bar pinned to the very bottom edge, so it never covers
-      // the content it is narrating. The badge is a separate corner pill.
-      '[data-bt-tour]{position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;'
-      + 'flex-direction:column;align-items:center;gap:8px;pointer-events:none;'
-      + 'padding:0 16px 18px;}'
-      + '.bt-tour-badge{position:fixed;top:78px;left:16px;z-index:99999;pointer-events:none;'
-      + 'font:800 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
-      + 'letter-spacing:.14em;text-transform:uppercase;color:#f4f2ec;'
-      + 'background:rgba(12,14,20,.8);padding:6px 11px;border-radius:999px;'
-      + 'border:1px solid rgba(216,165,58,.5);}'
-      + '.bt-tour-badge b{color:#e8b94a;}'
-      + '.bt-tour-voice{position:fixed;top:76px;right:16px;z-index:99999;pointer-events:auto;'
-      + 'display:inline-flex;align-items:center;gap:7px;cursor:pointer;'
-      + 'font:800 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
-      + 'letter-spacing:.12em;text-transform:uppercase;color:#f4f2ec;'
-      + 'background:rgba(12,14,20,.8);padding:7px 12px;border-radius:999px;'
-      + 'border:1px solid rgba(216,165,58,.5);}'
-      + '.bt-tour-voice svg{width:14px;height:14px;flex:none;}'
-      + '.bt-tour-voice.off{color:#9aa0ad;border-color:rgba(255,255,255,.16);}'
-      + '.bt-tour-voice-pick{position:fixed;top:110px;right:16px;z-index:99999;pointer-events:auto;'
-      + 'max-width:172px;font:700 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
-      + 'color:#f4f2ec;background:rgba(12,14,20,.8);border:1px solid rgba(216,165,58,.5);'
-      + 'border-radius:999px;padding:6px 12px;cursor:pointer;-webkit-appearance:none;appearance:none;}'
-      + '.bt-tour-voice-pick option{color:#101114;}'
-      + '.bt-tour-voice-pick.hidden{display:none;}'
-      + '#bt-tour-caption{max-width:600px;padding:11px 17px;border-radius:13px;'
-      + 'background:rgba(12,14,20,.9);color:#f4f2ec;border-left:3px solid #d8a53a;'
-      + 'font:600 14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
-      + 'box-shadow:0 12px 34px rgba(0,0,0,.4);opacity:0;transform:translateY(8px);'
-      + 'transition:opacity .45s ease,transform .45s ease;-webkit-backdrop-filter:blur(7px);'
-      + 'backdrop-filter:blur(7px);text-align:center;}'
-      + '#bt-tour-caption.show{opacity:1;transform:none;}'
-      + '.bt-tour-replay{pointer-events:auto;font:700 13px -apple-system,'
-      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#e8b94a;background:none;'
-      + 'border:0;cursor:pointer;opacity:0;transition:opacity .5s ease;}'
-      + '.bt-tour-replay.show{opacity:.9;}'
-      + '.bt-tour-title{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;'
-      + 'align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;'
-      + 'background:radial-gradient(circle at 50% 38%,#171a22,#0b0d12);color:#f4f2ec;'
-      + 'opacity:0;transition:opacity .8s ease;}'
-      + '.bt-tour-title.show{opacity:1;}'
-      + '.bt-tour-title .tag{font:800 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,'
-      + 'sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#e8b94a;}'
-      + '.bt-tour-title h1{margin:0;font:800 clamp(44px,8vw,86px)/1 -apple-system,BlinkMacSystemFont,'
-      + '"Segoe UI",Inter,sans-serif;letter-spacing:-.035em;}'
-      + '.bt-tour-title p{margin:0;font:500 clamp(18px,3.4vw,26px)/1.4 -apple-system,'
-      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#c9c6bd;}'
-      + '.bt-tour-chapter{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;'
-      + 'justify-content:center;background:rgba(8,10,16,.58);opacity:0;transition:opacity .55s ease;'
-      + 'pointer-events:none;}'
-      + '.bt-tour-chapter.show{opacity:1;}'
-      + '.bt-tour-chapter .box{text-align:center;padding:22px 36px;border-radius:18px;'
-      + 'background:rgba(12,14,20,.93);border:1px solid rgba(216,165,58,.42);'
-      + 'box-shadow:0 24px 70px rgba(0,0,0,.5);transform:translateY(8px);transition:transform .55s ease;}'
-      + '.bt-tour-chapter.show .box{transform:none;}'
-      + '.bt-tour-chapter .tag{font:800 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,'
-      + 'sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#e8b94a;}'
-      + '.bt-tour-chapter h2{margin:10px 0 0;font:800 clamp(28px,5vw,50px)/1.05 -apple-system,'
-      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;letter-spacing:-.03em;color:#f4f2ec;}';
+      // The control bar is docked at the bottom edge and is the ONLY thing that
+      // takes pointer events. The app has to stay clickable for this to be a
+      // demo rather than a video.
+      '.bt-demo-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);'
+      + 'z-index:99999;width:min(680px,calc(100vw - 32px));box-sizing:border-box;'
+      + 'padding:14px 18px 12px;border-radius:18px;background:rgba(12,14,20,.94);'
+      + 'color:#FBF9F4;border:1px solid rgba(216,165,58,.42);'
+      + 'box-shadow:0 18px 50px rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);'
+      + 'backdrop-filter:blur(8px);font-family:-apple-system,BlinkMacSystemFont,'
+      + '"Segoe UI",Inter,sans-serif;}'
+      + '.bt-demo-bar[hidden]{display:none;}'
+      + '.bt-demo-head{display:flex;align-items:center;justify-content:space-between;'
+      + 'gap:12px;margin-bottom:7px;}'
+      + '.bt-demo-chapter{font:800 10px/1;letter-spacing:.14em;text-transform:uppercase;'
+      + 'color:#e8b94a;display:flex;align-items:center;gap:7px;}'
+      + '.bt-demo-count{font:700 10px/1;letter-spacing:.1em;text-transform:uppercase;'
+      + 'color:#9aa0ad;}'
+      + '.bt-demo-caption{margin:0 0 12px;font:600 15px/1.45;color:#FBF9F4;}'
+      + '.bt-demo-controls{display:flex;align-items:center;gap:10px;}'
+      // Wide enough, and the caption sits beside the controls rather than above
+      // them. That halves the bar's height, which is height the board keeps.
+      + '@media (min-width:760px){'
+      + '.bt-demo-body{display:flex;align-items:center;gap:18px;}'
+      + '.bt-demo-caption{margin:0;flex:1;}'
+      + '.bt-demo-controls{flex:none;}'
+      + '.bt-demo-dots{margin:0 4px;}}'
+      + '.bt-demo-dots{display:flex;gap:6px;margin:0 auto;}'
+      + '.bt-demo-dots i{width:7px;height:7px;border-radius:50%;'
+      + 'background:rgba(244,242,236,.24);display:block;transition:background .3s ease;}'
+      + '.bt-demo-dots i.on{background:#e8b94a;}'
+      + '.bt-demo-bar button{font:700 13px -apple-system,BlinkMacSystemFont,"Segoe UI",'
+      + 'Inter,sans-serif;border-radius:999px;cursor:pointer;padding:8px 15px;'
+      + 'border:1px solid rgba(244,242,236,.22);background:transparent;color:#FBF9F4;'
+      + 'transition:background .2s ease,border-color .2s ease,opacity .2s ease;}'
+      + '.bt-demo-bar button:hover{background:rgba(244,242,236,.1);}'
+      + '.bt-demo-bar button:disabled{opacity:.32;cursor:default;}'
+      + '.bt-demo-bar button:disabled:hover{background:transparent;}'
+      + '.bt-demo-next{background:#D9A93F !important;border-color:#D9A93F !important;'
+      + 'color:#14161c !important;}'
+      + '.bt-demo-next:hover{background:#e8b94a !important;}'
+      + '.bt-demo-exit{border:0;color:#9aa0ad;padding:8px 4px;}'
+      // The spotlight is a ring, not a mask. A dimming overlay would have to
+      // swallow clicks to look right, and that is exactly what this demo is
+      // trying not to do.
+      + '.bt-demo-spot{position:fixed;z-index:99998;pointer-events:none;border-radius:14px;'
+      + 'border:2px solid #e8b94a;box-shadow:0 0 0 4px rgba(232,185,74,.18),'
+      + '0 0 26px rgba(232,185,74,.34);opacity:0;'
+      // Only opacity is animated. Transitioning top/left/width/height animated
+      // four layout properties on every scroll event, which both thrashes
+      // layout and leaves the ring trailing the element it is supposed to be
+      // pointing at. Geometry is now applied instantly and the ring crossfades
+      // between steps instead of sliding across the page.
+      + 'transition:opacity .22s ease;}'
+      + '.bt-demo-spot.on{opacity:1;}'
+      + '.bt-demo-card{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;'
+      + 'align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;'
+      + 'background:radial-gradient(circle at 50% 38%,#171a22,#0b0d12);color:#FBF9F4;'
+      + 'opacity:0;transition:opacity .5s ease;'
+      + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;}'
+      + '.bt-demo-card.show{opacity:1;}'
+      + '.bt-demo-card .tag{font:800 12px/1;letter-spacing:.22em;text-transform:uppercase;'
+      + 'color:#e8b94a;}'
+      + '.bt-demo-card h1{margin:0;font:800 clamp(40px,7.5vw,78px)/1;letter-spacing:-.035em;}'
+      + '.bt-demo-card p{margin:0;font:500 clamp(17px,3.2vw,24px)/1.4;color:#c9c6bd;'
+      + 'max-width:30ch;}'
+      + '.bt-demo-card .fine{font:500 13px/1.5;color:#8a8f99;max-width:44ch;}'
+      + '.bt-demo-card .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;'
+      + 'margin-top:8px;}'
+      + '.bt-demo-card button{font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",'
+      + 'Inter,sans-serif;padding:13px 26px;border-radius:999px;cursor:pointer;'
+      + 'border:1px solid rgba(244,242,236,.24);background:transparent;color:#FBF9F4;}'
+      + '.bt-demo-card button.go{background:#D9A93F;border-color:#D9A93F;color:#14161c;}'
+      // The bar reserves its own space rather than floating over the board. It
+      // was docked over the card's Pass / Do it buttons, which is exactly the
+      // controls a viewer wants to reach while the demo is talking about them.
+      // Give the board back the bar's height -- but only when the window has it
+      // to give. The board is a fixed-viewport app with a 650px floor; below
+      // that it is already clipping its own content, and taking another 120px
+      // would cut the card's Pass / Do it row off entirely. There, the bar
+      // floats over instead, which is the lesser of the two bad options.
+      + '@media (min-height:800px){'
+      + 'body.bt-demo-on .app{height:calc(100dvh - var(--bt-demo-inset,120px));min-height:0;}}'
+      + '@media (max-width:640px){'
+      + '.bt-demo-bar{bottom:auto;top:8px;width:calc(100vw - 16px);padding:11px 13px 10px;}'
+      + '.bt-demo-caption{font-size:14px;margin-bottom:10px;}'
+      + '.bt-demo-bar button{padding:7px 12px;font-size:12px;}'
+      + 'body.bt-demo-on .app{height:auto;padding-top:104px;}}';
     document.head.appendChild(style);
 
-    var wrap = document.createElement("div");
-    wrap.setAttribute("data-bt-tour", tour);
-    wrap.innerHTML =
-      '<div class="bt-tour-badge"><b>&#9679;</b> Guided demo</div>'
-      + '<button type="button" class="bt-tour-voice" aria-pressed="true">'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
-      + '<path d="M11 5 6 9H3v6h3l5 4V5z"/><path class="bt-voice-wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'
-      + '<span>Voice on</span></button>'
-      + '<select class="bt-tour-voice-pick hidden" aria-label="Narration voice"></select>'
-      + '<div id="bt-tour-caption" role="status" aria-live="polite"></div>'
-      + '<button type="button" class="bt-tour-replay">&#8635; Replay from the top</button>';
-    document.body.appendChild(wrap);
-
-    var cap = wrap.querySelector("#bt-tour-caption");
-    var replay = wrap.querySelector(".bt-tour-replay");
-    replay.addEventListener("click", function(){ location.href = "../login/?tour=start"; });
-
-    // --- voice narration: speak each caption via the browser's speech engine.
-    // No backend, no audio files. The choice persists across the tour's phases
-    // so a single toggle covers both the owner and the operator half.
-    var VOICE_KEY = "brasstacks-tour-voice";
-    var canSpeak = typeof window.speechSynthesis !== "undefined";
-    var voiceOn = (function(){ try{ return localStorage.getItem(VOICE_KEY) !== "off"; }catch(e){ return true; } })();
-    // The default system voice is robotic. Prefer a natural, "online" voice
-    // (Edge/Chrome ship these) so the narration sounds like a commercial demo.
-    var VOICE_NAME_KEY = "brasstacks-tour-voice-name";
-    function storedVoiceName(){ try{ return localStorage.getItem(VOICE_NAME_KEY) || ""; }catch(e){ return ""; } }
-    var preferredVoice = null;
-    var voicePick = wrap.querySelector(".bt-tour-voice-pick");
-    function pickVoice(){
-      if(!canSpeak) return;
-      var voices = window.speechSynthesis.getVoices() || [];
-      var stored = storedVoiceName();
-      if(stored){ var s = voices.filter(function(v){ return v.name === stored; })[0]; if(s){ preferredVoice = s; return; } }
-      var prefer = [
-        "Google US English",
-        "Microsoft AvaMultilingual Online (Natural) - English (United States)",
-        "Microsoft Ava Online (Natural) - English (United States)",
-        "Microsoft Emma Online (Natural) - English (United States)",
-        "Microsoft Aria Online (Natural) - English (United States)",
-        "Microsoft Jenny Online (Natural) - English (United States)",
-        "Samantha", "Google UK English Female"
-      ];
-      for (var i=0;i<prefer.length;i++){
-        var hit = voices.filter(function(v){ return v.name === prefer[i]; })[0];
-        if(hit){ preferredVoice = hit; return; }
-      }
-      preferredVoice =
-        voices.filter(function(v){ return /^en/i.test(v.lang) && /natural|google|aria|jenny|emma|ava/i.test(v.name); })[0]
-        || voices.filter(function(v){ return /en[-_]US/i.test(v.lang); })[0]
-        || voices.filter(function(v){ return /^en/i.test(v.lang); })[0]
-        || voices[0] || null;
-    }
-    function voiceLabel(v){
-      return v.name.replace(/ Online \(Natural\)/, " (Natural)").replace(/^Microsoft /, "").replace(/ - English.*/, "");
-    }
-    function populateVoices(){
-      if(!canSpeak || !voicePick) return;
-      var voices = (window.speechSynthesis.getVoices() || []).filter(function(v){ return /^en/i.test(v.lang); });
-      if(!voices.length) return;
-      var cur = (preferredVoice && preferredVoice.name) || storedVoiceName();
-      voicePick.innerHTML = voices.map(function(v){
-        return '<option value="' + v.name.replace(/"/g, "&quot;") + '"' + (v.name === cur ? " selected" : "") + '>' + voiceLabel(v) + "</option>";
-      }).join("");
-      voicePick.classList.toggle("hidden", !voiceOn);
-    }
-    if(voicePick){
-      voicePick.addEventListener("change", function(){
-        var name = voicePick.value;
-        try{ localStorage.setItem(VOICE_NAME_KEY, name); }catch(e){}
-        var v = (window.speechSynthesis.getVoices() || []).filter(function(x){ return x.name === name; })[0];
-        if(v) preferredVoice = v;
-        if(voiceOn) speak(cap.textContent || "This is the narration voice.");   // preview + user gesture
-      });
-    }
-    function refreshVoices(){ pickVoice(); populateVoices(); }
-    if(canSpeak){ refreshVoices(); try{ window.speechSynthesis.onvoiceschanged = refreshVoices; }catch(e){} }
-    function makeUtterance(t){
-      var u = new SpeechSynthesisUtterance(t);
-      if(preferredVoice) u.voice = preferredVoice;
-      u.rate = 1; u.pitch = 1.06; u.volume = 1;   // same speed, a touch warmer
-      return u;
-    }
-    var voiceBtn = wrap.querySelector(".bt-tour-voice");
-    function paintVoice(){
-      if(!voiceBtn) return;
-      voiceBtn.classList.toggle("off", !voiceOn);
-      voiceBtn.setAttribute("aria-pressed", String(voiceOn));
-      var label = voiceBtn.querySelector("span");
-      if(label) label.textContent = voiceOn ? "Voice on" : "Voice off";
-      if(voicePick) voicePick.classList.toggle("hidden", !voiceOn || !voicePick.options.length);
-    }
-    function speak(t){
-      if(!voiceOn || !canSpeak || !t) return;
-      try{ window.speechSynthesis.cancel(); window.speechSynthesis.speak(makeUtterance(t)); }catch(e){}
-    }
-    // A comfortable reading time when the voice is off: ~185 wpm plus a base.
-    function readingMs(t){ var w=(t||"").split(/\s+/).filter(Boolean).length; return Math.max(3000, w*320 + 1400); }
-    // Speak a caption and call onEnd only when the sentence has actually
-    // finished (plus a short beat), so the next caption never cuts it off. If
-    // speech never starts (blocked without a user gesture, e.g. after the
-    // operator hand-off), fall back to the reading timer so the tour still
-    // advances. Returns false when there is nothing to speak, so the caller
-    // uses its own timer instead.
-    function speakThen(text, onEnd, floorMs){
-      if(!voiceOn || !canSpeak || !text) return false;
-      var advanced=false, everSpoke=false, waited=0, poll=null;
-      var finish=function(delay){
-        if(advanced) return; advanced=true;
-        try{ clearInterval(poll); }catch(e){}
-        setTimeout(onEnd, Math.max(0, delay||0));
-      };
-      try{
-        window.speechSynthesis.cancel();
-        var u=makeUtterance(text);
-        u.onstart=function(){ everSpoke=true; };
-        u.onend=function(){ finish(500); };                 // real end -> short beat, then advance
-        u.onerror=function(){ finish(everSpoke ? 200 : floorMs); };
-        window.speechSynthesis.speak(u);
-        // Poll actual playback rather than trusting a single onstart event,
-        // which many natural/online voices fire late or not at all. As long as
-        // the engine is speaking, we wait for onend (never the reading timer).
-        var maxSpeak = text.split(/\s+/).filter(Boolean).length * 780 + 7000;
-        poll=setInterval(function(){
-          waited += 200;
-          if(window.speechSynthesis.speaking) everSpoke=true;
-          if(advanced) return;
-          if(everSpoke){
-            if(waited > maxSpeak) finish(0);                // safety: onend was dropped
-          } else if(waited >= 4000){
-            finish(floorMs);                                // it never started -> blocked, read at pace
-          }
-        }, 200);
-        return true;
-      }catch(e){ return false; }
-    }
-    paintVoice();
-    if(voiceBtn) voiceBtn.addEventListener("click", function(){
-      voiceOn = !voiceOn;
-      try{ localStorage.setItem(VOICE_KEY, voiceOn ? "on" : "off"); }catch(e){}
-      paintVoice();
-      if(!voiceOn){ if(canSpeak){ try{ window.speechSynthesis.cancel(); }catch(e){} } }
-      else { speak(cap.textContent); }   // a click is a user gesture, so this also unblocks speech
-    });
-
-    // --- defensive drivers: a missing target is skipped, never thrown -------
-    function say(t){ if(!t) return; cap.classList.remove("show"); setTimeout(function(){ cap.textContent = t; cap.classList.add("show"); }, 180); }
-    function scrollTo(sel){ try{ var el = document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }catch(e){} }
-    function click(sel){ try{ var el = document.querySelector(sel); if(el) el.click(); }catch(e){} }
+    // ---- defensive drivers: a missing target is skipped, never thrown --------
+    function scrollTo(sel){ try{ var el=document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }
+    function click(sel){ try{ var el=document.querySelector(sel); if(el) el.click(); }catch(e){} }
     function view(v){ try{ if(window.__btSwitchView) window.__btSwitchView(v); }catch(e){} }
     function closeEvidence(){ click("[data-close-evidence]"); try{ document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"})); }catch(e){} }
+    //  Back re-runs the step it lands on, so a step must SET state rather than
+    //  toggle it. `.feed-plan` is a <details> and the evidence control is a
+    //  toggle button: clicking them on the way back closed the very thing the
+    //  caption was pointing at, and the demo looked frozen on one slide.
+    function details(sel, open){ try{ var el=document.querySelector(sel); if(el) el.open = !!open; }catch(e){} }
+    //  The deck renders EVERY card, not just the visible one, so each carries
+    //  its own `.feed-plan` and its own evidence button. A bare querySelector
+    //  returns card 0's every time: the plan opened on a card nobody could see
+    //  and the spotlight landed on it, off to the side of the deck. Scope
+    //  anything card-shaped to the one actually on top.
+    var CURRENT = ".feed-card.is-current ";
+    //  The sheet is inserted into the DOM when it opens, so its presence IS its
+    //  state -- no class to guess at.
+    function evidenceIsOpen(){ return !!document.getElementById("evidenceSheet"); }
+    function evidence(open){
+      if(open && !evidenceIsOpen()) click(CURRENT + ".feed-detail-evidence");
+      else if(!open && evidenceIsOpen()) closeEvidence();
+    }
+    //  The chat thread is append-only, so replaying a line on the way back
+    //  would stack duplicates. The messages stay put; everything around them --
+    //  the view, the canvas, the scroll -- is re-asserted on every visit.
+    var said = {};
+    function sayOnce(key, fn){ if(said[key]) return; said[key] = true; fn(); }
     function supplies(){ try{ if(window.__btShowSuppliesCanvas) window.__btShowSuppliesCanvas(); }catch(e){} }
-    function owner(t){ try{ if(window.__btTourSay) window.__btTourSay("owner", t); if(window.__btTourSay) window.__btTourSay("agent", "", {loading:true}); }catch(e){} }
-    function agent(t, opts){ try{ if(window.__btTourReplace) window.__btTourReplace(t, opts||{}); }catch(e){} }
-    // The Supplies board reads live cluster state; a fake tour session can't
-    // fetch it, so the tour injects a representative store so the real board
-    // (prices, standing orders, stock gauges, spend limits, paid history) has
-    // something to render. Illustrative demo data, under the Guided demo badge.
+    function owner(t){ try{ if(window.__btTourSay){ window.__btTourSay("owner",t); window.__btTourSay("agent","",{loading:true}); } }catch(e){} }
+    function agent(t,opts){ try{ if(window.__btTourReplace) window.__btTourReplace(t,opts||{}); }catch(e){} }
+    // The Supplies board reads live cluster state; a demo session cannot fetch
+    // it, so we inject a representative store so the real board (prices,
+    // standing orders, stock gauges, spend limits, paid history) has something
+    // to render. Illustrative demo data, under the Interactive demo badge.
     function orders(s){ try{
       if(window.__btOrdersApplyState) window.__btOrdersApplyState(s);
       var n=document.getElementById("ordersAskNote"); if(n){ n.textContent=""; n.hidden=true; }
     }catch(e){} }
+
     var TOUR_STORE = {
       store: { catalogue: [
         { name: "San Marzano tomatoes (case)", unit_cents: 2400 },
@@ -34486,126 +34398,298 @@ ledger_entry · artifact · agent_run`,
       pending: []
     };
 
-    // The tour is one story in four acts. Each `card` step is a chapter divider
-    // so a viewer always knows where they are; the captions between them are
-    // short, plain sentences that carry the narrative rather than list features.
+    // ---- the script ---------------------------------------------------------
+    //  `run`     puts the app into the state this step is talking about. It is
+    //            re-run when the viewer steps backwards, so it must set absolute
+    //            state rather than toggle.
+    //  `once`    for steps whose effect is additive (pushing a chat message).
+    //            Those run the first time only, so Back/Next cannot duplicate.
+    //  `target`  what the spotlight ring should sit on. Optional.
+    //  `settle`  ms to wait before measuring the target, when a step changes view.
+    var CHAPTERS = [
+      "The morning board",
+      "Your agent, at work",
+      "Did it work?",
+      "The memory that makes it possible"
+    ];
+
     var OWNER_STEPS = [
-      { card: { tag: "Chapter 1", heading: "The morning board" } },
-      { caption: "Rosa runs a restaurant. While she sleeps, her agents work the night shift.",
-        run: function(){ view("autopilot"); scrollTo("#feedStage"); }, wait: 4000 },
-      { caption: "By morning, the night's findings are waiting — she swipes through them like a feed.",
-        run: function(){ click('[data-feed-index=\"1\"]'); }, wait: 3600 },
-      { caption: "Pricing, hours, reviews, supply — each one a different way to make money.",
-        run: function(){ click('[data-feed-index=\"2\"]'); }, wait: 3400 },
-      { caption: "Open one. It isn't a hunch — it comes with a plan the agent will carry out.",
-        run: function(){ click('[data-feed-index=\"0\"]'); click(".feed-plan summary"); }, wait: 4000 },
-      { caption: "And the evidence behind it: the exact things it read, scored by how relevant they were.",
-        run: function(){ click(".feed-detail-evidence"); }, wait: 4600 },
-      { caption: "Retrieval you can audit — recorded on every find.",
-        run: function(){ closeEvidence(); }, wait: 2800 },
+      { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, its agents work the night shift — and this is what the owner wakes up to.",
+        run:function(){ view("autopilot"); evidence(false); details(CURRENT + ".feed-plan", false); click('[data-feed-index="0"]'); scrollTo("#feedStage"); }, target:"#feedStage", settle:400 },
+      { ch:0, caption:"Each card is one finding from last night. Swipe or click through them — pricing, hours, reviews, supply.",
+        run:function(){ view("autopilot"); evidence(false); click('[data-feed-index="1"]'); }, target:"#feedStage", settle:300 },
+      { ch:0, caption:"Open it and it isn't a hunch. Weekend patio bookings: a specific move, $9 a day, and a date it gets checked.",
+        run:function(){ view("autopilot"); evidence(false); click('[data-feed-index="1"]'); details(CURRENT + ".feed-plan", true); }, target:CURRENT + ".feed-plan", settle:350 },
+      { ch:0, caption:"And its evidence: the real reviews the vector search returned, each scored by how closely it matched. Guests naming the patio, and one warning about the wait.",
+        run:function(){ view("autopilot"); click('[data-feed-index="1"]'); details(CURRENT + ".feed-plan", true); evidence(true); }, settle:400 },
+      { ch:0, caption:"That similarity score is stored with every recommendation. Retrieval you can audit, not a black box.",
+        run:function(){ view("autopilot"); evidence(false); }, target:CURRENT + ".feed-plan", settle:300 },
 
-      { card: { tag: "Chapter 2", heading: "Your agent, at work" } },
-      { caption: "She doesn't click through menus. She just asks.",
-        run: function(){ view("chat"); }, wait: 2800 },
-      { caption: "“What needs my approval?”",
-        run: function(){ owner("What needs my approval?"); }, wait: 2200 },
-      { caption: "It drafts every move and waits — it never spends or publishes without her yes.",
-        run: function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }, wait: 4200 },
-      { caption: "“Order supplies for me.”",
-        run: function(){ owner("Order supplies for me"); }, wait: 2200 },
-      { caption: "It runs the supply chain too — a priced catalogue, charged only when an order actually ships.",
-        run: function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); orders(TOUR_STORE); supplies(); click(".orders-catalogue > summary"); scrollTo("#ordersCatalogue"); }, wait: 4400 },
-      { caption: "Auto-stock keeps the essentials coming and reorders what's low — always under the cap she sets.",
-        run: function(){ scrollTo("#ordersStandingList"); }, wait: 4200 },
-      { caption: "And every order it's placed, with exactly what it paid.",
-        run: function(){ scrollTo("#ordersHistoryList"); }, wait: 3600 },
+      { ch:1, caption:"She doesn't hunt through menus. She just asks — this is the same agent, in conversation.",
+        run:function(){ view("chat"); }, target:"#view-chat", settle:450 },
+      { ch:1, caption:"Ask what needs a decision, and it answers from the work it has already done.",
+        run:function(){ view("chat"); sayOnce("approve-q", function(){ owner("What needs my approval?"); }); }, settle:300 },
+      { ch:1, caption:"It drafts every move and then waits. It never spends money or publishes anything without an explicit yes.",
+        run:function(){ view("chat"); sayOnce("approve-a", function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }); }, settle:300 },
+      { ch:1, caption:"It runs the supply side too. Ask it to order, and it opens a priced catalogue.",
+        run:function(){ view("chat"); sayOnce("supply-q", function(){ owner("Order supplies for me"); }); }, settle:300 },
+      { ch:1, caption:"A real price list, what's on auto-stock, and every order it has already placed — charged only when an order actually ships.",
+        run:function(){ view("chat"); sayOnce("supply-a", function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); }); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersCatalogue"); }, target:"#ordersCatalogue", settle:600 },
+      { ch:1, caption:"Auto-stock reorders what runs low — always under a spending cap the owner sets, which no model can talk its way past.",
+        run:function(){ view("chat"); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersStandingList"); }, target:"#ordersStandingList", settle:500 },
+      { ch:1, caption:"And a receipt for everything it bought, with what it actually paid.",
+        run:function(){ view("chat"); orders(TOUR_STORE); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
 
-      { card: { tag: "Chapter 3", heading: "Did it work?" } },
-      { caption: "This is what makes it more than a chatbot. Last night it predicted what this move would earn — and saved that number.",
-        run: function(){ view("growth"); scrollTo("#growthChart"); }, wait: 4800 },
-      { caption: "Tonight it checked: it read its own prediction back out of CockroachDB and scored it against what really happened.",
-        run: function(){ scrollTo("#growthChart"); }, wait: 4800 },
-      { caption: "Six verified wins. Real money, measured — not promised.",
-        run: function(){ scrollTo("#growthChart"); }, wait: 3400 },
-      { caption: "So how does an agent remember what it said last night?",
-        run: function(){}, wait: 3000 }
+      // No verdict exists yet for this tenant: the earliest measurement window
+      // closes on 2026-09-01. The chapter that used to show a finished track
+      // record now shows the same machinery mid-flight, which is the honest
+      // version -- and the Growth chart is deliberately not a target here,
+      // because it needs two months of ledger and there are none.
+      { ch:2, caption:"Here is what makes this different from a chatbot. Every move the owner approves is stored with what the agent expects it to earn.",
+        run:function(){ view("growth"); }, target:"#view-growth", settle:500 },
+      { ch:2, caption:"Seven moves are in flight right now. The biggest — lead every listing with the ocean-view patio — predicts $22 a day.",
+        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:550 },
+      { ch:2, caption:"That number was written to CockroachDB the night it was proposed, with the date it gets graded: 1 September. Nobody can edit it between now and then.",
+        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:450 },
+      { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so it published none. The owner ran it anyway and reported $500 a week.",
+        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:450 },
+      { ch:2, caption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
+        run:function(){ view("growth"); }, settle:200 }
     ];
 
     var CONSOLE_STEPS = [
-      { card: { tag: "Chapter 4", heading: "The memory that makes it possible" } },
-      { caption: "This is the Memory Engine — every business, every night, live from the cluster.",
-        run: function(){ view("admin"); scrollTo("#view-admin"); }, wait: 4000 },
-      { caption: "Each night is one pipeline: Radar, Analyst, Decision, Maker, Meter.",
-        run: function(){ scrollTo("#memorySummary"); }, wait: 3800 },
-      { caption: "Radar watches rivals, reviews and trends — and embeds each one with Bedrock into CockroachDB's vector index.",
-        run: function(){ scrollTo('[data-stage=\"radar\"]'); }, wait: 4400 },
-      { caption: "The Analyst searches that memory, then reasons over it to propose the move.",
-        run: function(){ scrollTo('[data-stage=\"analyst\"]'); }, wait: 4000 },
-      { caption: "Watch each agent hand the work to the next.",
-        run: function(){ click('[data-memory-view=\"visual\"]'); scrollTo("#memoryVisualPipeline"); }, wait: 4400 },
-      { caption: "The memory isn't a cache beside the app. It IS the product — two CockroachDB tools, working live.",
-        run: function(){ click('[data-memory-view=\"operations\"]'); scrollTo("#memoryEfficiencyHero"); }, wait: 4600 }
+      { ch:3, caption:"This is the Memory Engine — every business, every night, read live from the cluster.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#view-admin"); }, target:"#view-admin", settle:500 },
+      { ch:3, caption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memorySummary"); }, target:"#memorySummary", settle:400 },
+      { ch:3, caption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="radar"]'); }, target:'[data-stage="radar"]', settle:400 },
+      { ch:3, caption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="analyst"]'); }, target:'[data-stage="analyst"]', settle:400 },
+      { ch:3, caption:"Switch to the live graph to watch each agent hand its work to the next.",
+        // The graph stays empty until an owner is picked, so the step picks one
+        // rather than leaving the viewer on "Select an owner to see where work
+        // is moving" while the caption promises a live handoff.
+        run:function(){
+          view("admin");
+          click('[data-memory-view="visual"]');
+          setTimeout(function(){
+            click(".visual-owner-button");
+            scrollTo("#memoryVisualPipeline");
+          }, 260);
+        }, target:"#memoryVisualPipeline", settle:900 },
+      { ch:3, caption:"The memory isn't a cache sitting beside the app. It is the product — two CockroachDB tools, working at runtime.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memoryEfficiencyHero"); }, target:"#memoryEfficiencyHero", settle:600 }
     ];
 
-    //  A full-screen slide for a clean open and close, so the recording needs
-    //  no editor. Fades in, holds, fades out, then hands back.
-    function titleCard(tag, heading, sub, hold, done){
-      var card = document.createElement("div");
-      card.className = "bt-tour-title";
-      card.innerHTML = '<div class="tag">' + tag + '</div><h1>' + heading
-        + '</h1><p>' + sub + '</p>';
-      document.body.appendChild(card);
-      requestAnimationFrame(function(){ card.classList.add("show"); });
-      speak(heading + ". " + sub);
-      setTimeout(function(){
-        card.classList.remove("show");
-        setTimeout(function(){ card.remove(); if (done) done(); }, 850);
-      }, hold);
-    }
-
-    //  A lighter, dimmed chapter divider (the app stays visible behind it), so
-    //  the four acts are obvious without a hard cut to black each time.
-    function chapterCard(tag, heading, hold, done){
-      var el = document.createElement("div");
-      el.className = "bt-tour-chapter";
-      el.innerHTML = '<div class="box"><div class="tag">' + tag + '</div><h2>' + heading + '</h2></div>';
-      document.body.appendChild(el);
-      requestAnimationFrame(function(){ el.classList.add("show"); });
-      speak(heading);
-      setTimeout(function(){
-        el.classList.remove("show");
-        setTimeout(function(){ el.remove(); if (done) done(); }, 650);
-      }, hold);
-    }
-
     var steps = tour === "owner" ? OWNER_STEPS : CONSOLE_STEPS;
+    var lastChapter = tour === "owner";
+
+    // ---- the control bar ----------------------------------------------------
+    var bar = document.createElement("div");
+    bar.className = "bt-demo-bar";
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Interactive demo controls");
+    bar.innerHTML =
+      '<div class="bt-demo-head">'
+      + '<div class="bt-demo-chapter"><b>&#9679;</b> <span class="bt-demo-chapter-label"></span></div>'
+      + '<div class="bt-demo-count"></div>'
+      + '</div>'
+      + '<div class="bt-demo-body">'
+      + '<p class="bt-demo-caption"></p>'
+      + '<div class="bt-demo-controls">'
+      + '<button type="button" class="bt-demo-back">&#8592; Back</button>'
+      + '<div class="bt-demo-dots" aria-hidden="true"></div>'
+      + '<button type="button" class="bt-demo-next">Next &#8594;</button>'
+      + '<button type="button" class="bt-demo-exit">Exit</button>'
+      + '</div></div>';
+    document.body.appendChild(bar);
+    bar.hidden = true;
+
+    var spot = document.createElement("div");
+    spot.className = "bt-demo-spot";
+    document.body.appendChild(spot);
+
+    var capEl   = bar.querySelector(".bt-demo-caption");
+    var chapEl  = bar.querySelector(".bt-demo-chapter-label");
+    var countEl = bar.querySelector(".bt-demo-count");
+    var dotsEl  = bar.querySelector(".bt-demo-dots");
+    var backBtn = bar.querySelector(".bt-demo-back");
+    var nextBtn = bar.querySelector(".bt-demo-next");
+    var exitBtn = bar.querySelector(".bt-demo-exit");
+
+    dotsEl.innerHTML = CHAPTERS.map(function(){ return "<i></i>"; }).join("");
+
     var i = 0;
-    function run(){
-      if (i >= steps.length){
-        if (tour === "owner"){ location.href = "../login/?role=operator&tour=console"; return; }
-        //  Console half is the finale: a clean outro slide, then a replay.
-        titleCard("An agent with a track record", "Brass Tacks",
-          "Found money, on autopilot.", 3800, function(){ replay.classList.add("show"); });
+    var spotTarget = null;
+
+    function placeSpot(){
+      if(!spotTarget){ spot.classList.remove("on"); return; }
+      var el;
+      try{ el = document.querySelector(spotTarget); }catch(e){ el = null; }
+      if(!el){ spot.classList.remove("on"); return; }
+      var r = el.getBoundingClientRect();
+      if(!r.width || !r.height || r.bottom < 0 || r.top > window.innerHeight){
+        spot.classList.remove("on"); return;
+      }
+      var pad = 6;
+      spot.style.top    = Math.max(4, r.top - pad) + "px";
+      spot.style.left   = Math.max(4, r.left - pad) + "px";
+      spot.style.width  = Math.min(window.innerWidth - 8, r.width + pad * 2) + "px";
+      spot.style.height = Math.min(window.innerHeight - 8, r.height + pad * 2) + "px";
+      spot.classList.add("on");
+    }
+    window.addEventListener("scroll", placeSpot, true);
+    window.addEventListener("resize", placeSpot);
+
+    //  The bar's height changes with the caption -- a two-line step is taller
+    //  than a one-line one -- so the space the board gives up is measured after
+    //  every paint rather than guessed once. Guessing it left the card's Pass
+    //  and Do it buttons underneath the bar on a short window.
+    function syncInset(){
+      var h = bar.hidden ? 0 : bar.getBoundingClientRect().height + 30;
+      document.documentElement.style.setProperty("--bt-demo-inset", h + "px");
+    }
+    window.addEventListener("resize", syncInset);
+
+    function paint(){
+      var s = steps[i];
+      capEl.textContent = s.caption;
+      chapEl.textContent = "Chapter " + (s.ch + 1) + " · " + CHAPTERS[s.ch];
+      countEl.textContent = "Step " + (i + 1) + " of " + steps.length;
+      Array.prototype.forEach.call(dotsEl.children, function(d, n){
+        d.className = n <= s.ch ? "on" : "";
+      });
+      //  Disabled on the first step of either half. The operator half is a
+      //  separate page load, so there is nothing behind its first step to go
+      //  back to -- an enabled button that silently does nothing is worse than
+      //  a disabled one that explains itself.
+      backBtn.disabled = (i === 0);
+      nextBtn.textContent = (i === steps.length - 1)
+        ? (lastChapter ? "Open the Memory Engine →" : "Finish →")
+        : "Next →";
+      syncInset();
+    }
+
+    function goTo(n){
+      if(n < 0) return;
+      if(n >= steps.length){ finish(); return; }
+      i = n;
+      var s = steps[i];
+      paint();
+      spotTarget = null; spot.classList.remove("on");
+      try{ if(s.run) s.run(); }catch(e){}
+      if(s.target){
+        spotTarget = s.target;
+        setTimeout(placeSpot, s.settle || 300);
+        setTimeout(placeSpot, (s.settle || 300) + 450);   // after any smooth scroll
+      }
+    }
+
+    function finish(){
+      if(lastChapter){
+        // The Memory Engine needs the operator session, which is read once at
+        // load -- so this half is a fresh page rather than a view switch. The
+        // seed script at the top of the document plants that session before the
+        // board's own guard runs.
+        location.href = "?workspace=admin&tour=console";
         return;
       }
-      var s = steps[i++];
-      if (s.card){ chapterCard(s.card.tag, s.card.heading, s.wait || 2000, run); return; }
-      if (s.caption) say(s.caption);
-      try { if (s.run) s.run(); } catch(e){}
-      // Hold each caption long enough to read it, and — when the voice is on —
-      // until the narration has actually finished the sentence.
-      var floorMs = Math.max(s.wait || 3400, readingMs(s.caption));
-      if (speakThen(s.caption, run, floorMs)) return;
-      setTimeout(run, floorMs);
+      bar.hidden = true;
+      spot.classList.remove("on");
+      document.body.classList.remove("bt-demo-on");
+      card(
+        "An agent with a track record", "Brass Tacks", "Found money, on autopilot.",
+        "The ledger shown here is seeded, backdated history so a verdict exists to look at. "
+        + "The embeddings, the retrieval scores and the Meter's judgement are real.",
+        [ { label:"Replay the demo", go:true, act:function(){ location.href = "?tour=owner"; } },
+          { label:"Back to the site", act:leave } ]
+      );
     }
 
-    //  The owner half opens the whole recording, so it gets the title card;
-    //  the operator half is a continuation and goes straight into its steps.
-    if (tour === "owner"){
-      titleCard("Guided demo", "Brass Tacks", "Found money, on autopilot.",
-        3400, function(){ setTimeout(run, 500); });
+    function leave(){
+      try{
+        localStorage.removeItem("brass-tacks-session-v1");
+        localStorage.removeItem("brass-tacks-admin-session-v1");
+      }catch(e){}
+      location.href = "../";
+    }
+
+    function card(tag, heading, sub, fine, buttons){
+      var el = document.createElement("div");
+      el.className = "bt-demo-card";
+      el.innerHTML = '<div class="tag">' + tag + '</div><h1>' + heading + '</h1>'
+        + '<p>' + sub + '</p>'
+        + (fine ? '<p class="fine">' + fine + '</p>' : "")
+        + '<div class="row"></div>';
+      var row = el.querySelector(".row");
+      buttons.forEach(function(b){
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = b.label;
+        if(b.go) btn.className = "go";
+        btn.addEventListener("click", function(){
+          el.classList.remove("show");
+          setTimeout(function(){ el.remove(); b.act(); }, 420);
+        });
+        row.appendChild(btn);
+      });
+      document.body.appendChild(el);
+      //  rAF alone is not enough: a background tab throttles it, and this card
+      //  covers the page, so a deferred frame means a blank blocking overlay
+      //  until the tab is focused. The timer is the floor, and adding the class
+      //  twice is harmless.
+      var show = function(){ el.classList.add("show"); };
+      requestAnimationFrame(show);
+      setTimeout(show, 60);
+      var go = row.querySelector("button");
+      if(go) setTimeout(function(){ try{ go.focus(); }catch(e){} }, 500);
+    }
+
+    nextBtn.addEventListener("click", function(){ goTo(i + 1); });
+    backBtn.addEventListener("click", function(){ goTo(i - 1); });
+    exitBtn.addEventListener("click", leave);
+
+    //  Arrow keys move the demo, but never while the viewer is typing into the
+    //  app underneath -- the whole point is that it stays usable.
+    document.addEventListener("keydown", function(e){
+      if(bar.hidden) return;
+      var t = e.target;
+      if(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if(e.key === "ArrowRight"){ e.preventDefault(); goTo(i + 1); }
+      else if(e.key === "ArrowLeft" && !backBtn.disabled){ e.preventDefault(); goTo(i - 1); }
+    });
+
+    function start(){
+      bar.hidden = false;
+      document.body.classList.add("bt-demo-on");
+      goTo(0);
+    }
+
+    if(tour === "owner"){
+      card("Interactive demo", "Brass Tacks", "Found money, on autopilot.",
+        "You drive this one. The app stays live underneath — click anything you like, "
+        + "and use Next when you want the tour to move on.",
+        [ { label:"Start", go:true, act:start },
+          { label:"Skip — just let me explore", act:function(){ leaveBarOnly(); } } ]);
     } else {
-      setTimeout(run, 900);
+      start();
+    }
+
+    //  "Just let me explore" is a real option, not a dead end: the demo session
+    //  stays, the board stays, only the guided rail goes away.
+    function leaveBarOnly(){
+      bar.hidden = true;
+      spot.classList.remove("on");
+      document.body.classList.remove("bt-demo-on");
+      var pill = document.createElement("button");
+      pill.type = "button";
+      pill.textContent = "▶ Resume the guided demo";
+      pill.className = "bt-demo-bar";
+      pill.style.cssText += "width:auto;padding:10px 18px;font:700 13px -apple-system,"
+        + "BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer;";
+      pill.addEventListener("click", function(){ pill.remove(); start(); });
+      document.body.appendChild(pill);
     }
   })();
   </script>

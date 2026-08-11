@@ -1,0 +1,78 @@
+{
+  "_comment": [
+    "Copy to .anonymise-map.json and fill in the real identifiers.",
+    "The real file is gitignored: it names the business this demo is built from,",
+    "and committing it would publish exactly what the script exists to remove.",
+    "Order matters - longest form of each identifier first."
+  ],
+  "alias": {
+    "name": "Harborview Japanese",
+    "city": "Harbor Point, CA",
+    "username": "owner",
+    "email": "owner@example.com"
+  },
+  "replacements": [
+    [
+      "Real Business Name Ltd",
+      "Harborview Japanese"
+    ],
+    [
+      "Real Business",
+      "Harborview"
+    ],
+    [
+      "realbusiness\\.com",
+      "harborview.example.com"
+    ],
+    [
+      "\\b12345\\b",
+      "100"
+    ],
+    [
+      "Real Street Name",
+      "Harbor Point Drive"
+    ],
+    [
+      "Real Locality",
+      "Harbor Point"
+    ],
+    [
+      "\\b00000\\b",
+      "90000"
+    ],
+    [
+      "\\(555\\)\\s*555[-\\s]?5555",
+      "(555) 010-0000"
+    ],
+    [
+      "owner@theirdomain\\.example",
+      "owner@example.com"
+    ]
+  ],
+  "forbidden": [
+    [
+      "business name",
+      "Real Business"
+    ],
+    [
+      "street number",
+      "\\b12345\\b"
+    ],
+    [
+      "locality",
+      "Real Locality"
+    ],
+    [
+      "postcode",
+      "\\b00000\\b"
+    ],
+    [
+      "phone",
+      "555[-.\\s]?5555"
+    ],
+    [
+      "owner inbox",
+      "owner@theirdomain\\."
+    ]
+  ]
+}

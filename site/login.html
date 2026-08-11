@@ -238,8 +238,9 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
       <p class="note">Signs you in to a workspace you already have. Creating a new one still takes an invite.</p>
     </div>
 
-    <button class="submit" id="playDemo" type="button" style="margin-top:16px;background:var(--teal);">&#9654;&nbsp; Play guided demo</button>
-    <p class="note" style="text-align:center;margin-top:10px;">A 45-second self-driving tour of the whole loop — no sign-in needed. Perfect for a first look.</p>
+    <!-- The demo has one front door, and it is the landing page. It used to be
+         offered here too, which put "try the demo" in front of an owner who had
+         come to sign in to their own workspace. -->
 
     <p class="foot">No workspace yet? <a href="../signup/">Create one</a>.</p>
     <p class="note">There is no password reset yet. If you lose it, the workspace cannot be recovered from this page.</p>
@@ -385,8 +386,8 @@ if (returned) history.replaceState(null, "", window.location.pathname);
 //  Self-contained: seeds a local session and hands the app the tour, so nothing
 //  waits on the backend and a cold Lambda can never freeze the recording. Two
 //  phases -- owner, then (bounced back here with ?tour=console) operator -- so
-//  both sign-ins appear on camera. The board it opens reads the committed Rosa
-//  fixture; the README discloses that ledger as seeded, backdated history.
+//  both sign-ins appear on camera. The board it opens reads the committed anonymised
+//  export of a real tenant — see scripts/anonymise_fixture.py.
 function tourExpiry() { return new Date(Date.now() + 24 * 3600 * 1000).toISOString(); }
 function seedAndGo(key, isAdmin, dest) {
   localStorage.setItem(key, JSON.stringify({
@@ -407,8 +408,6 @@ function startOwnerTour() {
   setRole("owner");
   button.disabled = true;
   button.textContent = "Signing in";
-  const pd = document.getElementById("playDemo");
-  if (pd) { pd.disabled = true; pd.textContent = "Starting the tour…"; }
   document.getElementById("password").value = "";
   typeInto(document.getElementById("username"), "rosa", () => {
     typeInto(document.getElementById("password"), "••••••••••", () => {
@@ -416,8 +415,9 @@ function startOwnerTour() {
     });
   });
 }
-const playDemoButton = document.getElementById("playDemo");
-if (playDemoButton) playDemoButton.addEventListener("click", startOwnerTour);
+//  No button on this page starts the demo any more — the landing page is its
+//  one front door. `startOwnerTour` stays because the ?tour= deep links below
+//  still use it to seed a session without touching the backend.
 
 //  The operator half runs itself when the owner tour hands back here, and the
 //  app's Replay button returns with ?tour=start to run the whole thing again.

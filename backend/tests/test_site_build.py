@@ -297,16 +297,21 @@ def test_templates_carry_the_data_placeholder():
 
 
 def test_landing_routes_directly_to_the_demo():
-    """The nav offers signup; the page itself still opens the product.
+    """The nav offers signup; the page itself opens the interactive demo.
 
-    The two hero buttons deliberately bypass onboarding. A judge — or anyone
-    else — must be able to reach the working demo without handing over a name,
-    and that was the point of the assertion this replaces.
+    Both calls to action deliberately bypass onboarding. A judge — or anyone
+    else — must reach the working product without handing over a name.
+
+    They used to drop the visitor into a bare `app/` with no session and no
+    explanation, which showed the board with none of the reasoning behind it.
+    Both now open the guided-but-interactive demo instead, so the raw
+    unexplained entry is gone rather than merely relabelled.
     """
     html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
     assert 'class="nav-cta" href="register/">Sign up</a>' in html
-    assert 'href="app/"><span>Show me what I missed</span>' in html
-    assert 'href="app/"><span>Show me my morning move</span>' in html
+    assert html.count('href="app/?tour=owner"><span>Try the interactive demo</span>') == 2
+    # The unguided drop-in is retired, not just renamed.
+    assert 'href="app/">' not in html
 
 
 def test_signup_collects_the_agent_scope():
@@ -4062,47 +4067,75 @@ def test_opening_the_result_panel_does_not_rebuild_the_list():
 # purpose -- it seeds a local session and reads the committed fixture, so a
 # slow or cold Lambda can never freeze the recording mid-take.
 
-def test_login_offers_a_self_contained_guided_demo():
-    """The login page carries a Play button that starts the tour without ever
-    calling the backend: it seeds a local owner session and hands off to the
-    app with ?tour=owner. Landing back here with ?tour=console auto-runs the
-    operator half, so both logins appear on camera."""
+def test_the_login_page_does_not_advertise_the_demo():
+    """The demo has one front door and it is the landing page.
+
+    This page used to carry its own Play button, which offered "try the demo"
+    to an owner who had arrived to sign in to their own workspace. The deep
+    link still works -- the app's own replay uses it -- but nothing on the
+    sign-in form points at it.
+    """
     html = (build_web.SITE / "login.html").read_text(encoding="utf-8")
 
-    assert 'id="playDemo"' in html
-    assert "Play guided demo" in html
-    # Seeds a session locally -- no fetch to the login endpoint -- and hands the
-    # owner tour to the app.
+    assert 'id="playDemo"' not in html
+    assert "Try the interactive demo" not in html
+    # The ?tour= deep link still seeds a session locally, with no call to the
+    # login endpoint, so a replay never depends on the backend being awake.
     assert '"../app/?tour=owner"' in html
-    # The operator half runs itself when the tour bounces back through login.
-    assert 'tour") === "console"' in html or "tour\") == \"console\"" in html
-    assert '"../app/?workspace=admin&tour=console"' in html
 
 
-def test_the_app_runs_the_guided_tour_without_a_backend():
-    """The app reads the tour flag, guarantees a session so its own guard does
-    not bounce the tour to the login page, exposes switchView for the tour to
-    drive, and paints a caption overlay a muted judge can still follow."""
+def test_the_app_runs_the_interactive_demo_without_a_backend():
+    """The app reads the demo flag, guarantees a session so its own guard does
+    not bounce the demo to the login page, exposes switchView for the demo to
+    drive, and gives the viewer the controls."""
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
-    # switchView is inside the module; the tour needs a handle on it.
+    # switchView is inside the module; the demo needs a handle on it.
     assert "window.__btSwitchView = switchView;" in html
-    # The tour engine and its caption overlay.
-    assert 'id="bt-tour-caption"' in html
-    assert 'data-bt-tour' in html
     # A session is seeded before the "no session -> login" guard runs, so the
-    # tour is never redirected away.
+    # demo is never redirected away.
     assert "bt-tour-seed" in html
-    # A title card opens (and closes) the recording cleanly.
-    assert "bt-tour-title" in html
-    # A voice on/off toggle narrates the captions via the browser speech engine.
-    assert "bt-tour-voice" in html
-    assert "SpeechSynthesisUtterance" in html
-    # A dropdown to choose the narration voice on camera.
-    assert "bt-tour-voice-pick" in html
-    # It drives to the money shot and the Memory Engine by name.
+    # The control bar, and every control the viewer needs to drive it.
+    assert "bt-demo-bar" in html
+    assert "bt-demo-next" in html
+    assert "bt-demo-back" in html
+    assert "bt-demo-exit" in html
+    # It reaches the money shot and the Memory Engine by name.
     assert 'view("growth")' in html
     assert 'view("admin")' in html
+    # The operator half needs the admin session, which is read once at load, so
+    # the hand-off is a navigation rather than a view switch.
+    assert '"?workspace=admin&tour=console"' in html
+
+
+def test_the_demo_never_advances_on_its_own():
+    """The viewer drives it. This is the whole difference between the demo and
+    the self-playing tour it replaced: a judge who stops to read something must
+    not have the page move underneath them.
+
+    The narration went with it. A synthesised voice that cannot be paused is
+    worse than no voice, and it made the demo unwatchable in a shared room. The
+    assertion is negative on purpose -- it is the only way to stop the timer
+    quietly coming back."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "SpeechSynthesisUtterance" not in html
+    assert "speechSynthesis" not in html
+    # Advancing is bound to input, never to a clock.
+    assert 'nextBtn.addEventListener("click"' in html
+    assert 'e.key === "ArrowRight"' in html
+
+
+def test_the_demo_leaves_the_app_clickable():
+    """A demo whose overlay swallows clicks is a video with extra steps.
+
+    Only the control bar takes pointer events; the spotlight is a ring drawn
+    over the page rather than a mask cut out of a dimming layer, because a
+    dimming layer has to intercept clicks to look right."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert ".bt-demo-spot{" in html
+    assert "pointer-events:none" in html.split(".bt-demo-spot{")[1][:200]
 
 
 def test_the_guided_demo_ledger_is_disclosed_as_seeded():

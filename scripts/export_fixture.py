@@ -27,6 +27,7 @@ OUT_PATH = REPO_ROOT / "db" / "fixtures" / "demo.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from brasstacks.config import Settings  # noqa: E402
 from brasstacks.decision_schema import ensure_decision_schema  # noqa: E402
+from brasstacks.outcome_schema import ensure_outcome_schema  # noqa: E402
 from brasstacks.profile_schema import ensure_profile_schema  # noqa: E402
 from brasstacks.task_schema import ensure_task_schema  # noqa: E402
 
@@ -57,6 +58,7 @@ def main() -> int:
         ensure_profile_schema(conn)
         ensure_task_schema(conn)
         ensure_decision_schema(conn)
+        ensure_outcome_schema(conn)
         with conn.cursor() as cur:
             [business] = rows(cur, """
                 SELECT id, name, category, city, region, goal_monthly_cents, goal_note
@@ -84,6 +86,24 @@ def main() -> int:
                 WHERE f.business_id = %s
                 ORDER BY f.created_at DESC
             """, (settings.business_id,))
+
+            # What the owner reported back, if anything. `build_web` already
+            # renders this through `reported_outcome_view`, but the export
+            # never carried it, so a figure the owner had actually typed in
+            # was silently absent from the board it was typed into.
+            #
+            # `find_outcome` is append-only — a correction is a new row — so
+            # the latest report per find is the one that counts.
+            outcomes = rows(cur, """
+                SELECT DISTINCT ON (find_id)
+                       find_id, amount_cents, basis, daily_cents, note, reported_at
+                FROM find_outcome
+                WHERE business_id = %s
+                ORDER BY find_id, reported_at DESC
+            """, (settings.business_id,))
+            latest = {o["find_id"]: o for o in outcomes}
+            for find in finds:
+                find["reported_outcome"] = latest.get(find["id"])
 
             evidence = rows(cur, """
                 SELECT fe.find_id, fe.rank, fe.similarity,
