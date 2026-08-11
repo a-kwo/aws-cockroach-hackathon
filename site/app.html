@@ -22681,6 +22681,226 @@
       .feed-proof-item { min-width: 0; }
       .feed-rail { padding: 0 2px; }
     }
+
+    /* Phone: the deck-era mobile blocks restyled the card for one full-screen
+       slide — poster-size titles, chips flattened to bare text, panel rows
+       stripped of their borders, and pieces held invisible until a card
+       became "current", which no card is any more. Re-assert the scroll
+       feed's own system as the last word. */
+    @media (max-width: 900px) {
+      body.autopilot-mode .post-copy h2,
+      body.autopilot-mode .post-copy h2.post-title {
+        font-size: 21px !important;
+        line-height: 1.22 !important;
+        letter-spacing: -.02em !important;
+        color: var(--owner-ink, #f2f3fb) !important;
+        background: none !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+      body.day-mode.autopilot-mode .post-copy h2,
+      body.day-mode.autopilot-mode .post-copy h2.post-title { color: #101114 !important; }
+      body.autopilot-mode .signal-text {
+        font-size: 14px !important;
+        line-height: 1.55 !important;
+        opacity: 1 !important;
+      }
+      body.autopilot-mode .feed-tag-list {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        margin-top: 12px !important;
+        opacity: 1 !important;
+      }
+      body.autopilot-mode .feed-tag-list span {
+        display: inline-flex !important;
+        align-items: center !important;
+        padding: 6px 11px !important;
+        border: 1px solid rgba(205, 214, 255, .18) !important;
+        border-radius: 999px !important;
+        background: rgba(255, 255, 255, .035) !important;
+        color: #cdd3ea !important;
+        font-size: 12px !important;
+        font-weight: 650 !important;
+      }
+      body.day-mode.autopilot-mode .feed-tag-list span {
+        border-color: #e0ded8 !important;
+        background: #faf9f6 !important;
+        color: #3f4149 !important;
+      }
+      body.autopilot-mode .feed-proof-strip {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px 20px !important;
+        margin-top: 12px !important;
+        opacity: 1 !important;
+      }
+      body.autopilot-mode .feed-proof-item { display: inline-flex !important; align-items: center !important; gap: 8px !important; }
+      body.autopilot-mode .feed-proof-item strong { display: block !important; font-size: 12.5px !important; }
+      body.autopilot-mode .feed-proof-item small { display: block !important; font-size: 10.5px !important; }
+      body.autopilot-mode .feed-plan > summary,
+      body.autopilot-mode .feed-more > summary,
+      body.autopilot-mode .feed-detail-evidence {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        padding: 11px 14px !important;
+        border: 1px solid rgba(205, 214, 255, .12) !important;
+        border-radius: 13px !important;
+        background: rgba(255, 255, 255, .022) !important;
+        opacity: 1 !important;
+      }
+      body.day-mode.autopilot-mode .feed-plan > summary,
+      body.day-mode.autopilot-mode .feed-more > summary,
+      body.day-mode.autopilot-mode .feed-detail-evidence {
+        border-color: #e4e2dc !important;
+        background: #faf9f6 !important;
+      }
+      body.autopilot-mode .post-meta-row,
+      body.autopilot-mode .social-context { opacity: 1 !important; transform: none !important; }
+      /* The deck-era mobile card was one fixed-height screen: a grid of
+         body-then-footer with the body scrolling inside. In the feed the card
+         is a document — natural height, footer after the content, nothing
+         painted over the panel's last rows. */
+      body.autopilot-mode .post-surface,
+      body.autopilot-mode .feed-card .post-surface,
+      body.autopilot-mode .feed-stage .feed-card .post-surface {
+        display: block !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        grid-template-rows: none !important;
+      }
+      body.autopilot-mode .post-body,
+      body.autopilot-mode .feed-card .post-body,
+      body.autopilot-mode .feed-stage .feed-card .post-body {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+      }
+      body.autopilot-mode .feed-card .feed-detail-panel,
+      body.autopilot-mode .feed-stage .feed-card .feed-detail-panel {
+        display: flex !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      /* The deck glued the footer over the card's bottom edge; in the feed it
+         flows after the content like any document footer. */
+      body.autopilot-mode .post-footer,
+      body.autopilot-mode .feed-card .post-footer,
+      body.autopilot-mode .feed-stage .feed-card .post-footer {
+        position: static !important;
+        inset: auto !important;
+        z-index: auto !important;
+      }
+    }
+  </style>
+
+  <style id="supplies-clean-v67">
+    /* ==== Supplies: the clean dashboard pass ============================
+       The board's zones were divider-separated sections that read as one long
+       page. Each zone is now a quiet rounded card — icon chip, uppercase
+       title, its hint tucked beneath — one visual system, one accent. Last
+       block on purpose: it must beat the accumulated orders-mode styling. */
+
+    body.orders-mode .orders-zone {
+      margin: 0 0 12px;
+      padding: 17px 19px 15px;
+      border: 1px solid var(--owner-line, rgba(205, 214, 255, .12)) !important;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .024);
+    }
+    body.orders-mode .orders-zone-command {
+      position: static;
+      padding-top: 17px;
+    }
+    body.orders-mode .orders-zone-head { margin-bottom: 10px; }
+    body.orders-mode .orders-zone-ico {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(133, 136, 255, .12);
+      border: 1px solid rgba(160, 150, 255, .26);
+      color: #a5a8ff;
+    }
+    body.orders-mode .orders-zone-ico svg { width: 17px; height: 17px; }
+    body.orders-mode .orders-zone-head h2 {
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--owner-ink, #eef0fa);
+    }
+    /* The hint reads as the card's one-line subtitle, indented under the
+       title text rather than hanging below the icon. */
+    body.orders-mode .orders-empty,
+    body.orders-mode .orders-pane-hint {
+      padding: 0 2px 2px 50px;
+      color: var(--owner-muted, #8d95ad);
+      font-size: 13px;
+    }
+    body.orders-mode .orders-count {
+      min-width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      font-weight: 750;
+    }
+    body.orders-mode .orders-seg {
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .045);
+    }
+    body.orders-mode .orders-seg button {
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    body.orders-mode .orders-mock-banner {
+      border-radius: 15px;
+      padding: 13px 16px;
+    }
+    body.orders-mode .orders-ask input {
+      height: 46px;
+      border-radius: 13px;
+    }
+    body.orders-mode .orders-ask .orders-btn.primary { border-radius: 13px; }
+    body.orders-mode .orders-stats { gap: 10px; }
+    body.orders-mode .orders-stat {
+      border: 1px solid var(--owner-line, rgba(205, 214, 255, .12));
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .022);
+      padding: 12px 14px;
+    }
+
+    /* Day theme: same geometry on paper. */
+    body.day-mode .orders-zone {
+      border-color: #e4e2dc !important;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(37, 43, 47, .05);
+    }
+    body.day-mode .orders-zone-ico {
+      background: rgba(170, 125, 42, .10);
+      border-color: rgba(170, 125, 42, .28);
+      color: #96702a;
+    }
+    body.day-mode .orders-zone-head h2 { color: #101114; }
+    body.day-mode .orders-empty,
+    body.day-mode .orders-pane-hint { color: #77787e; }
+    body.day-mode .orders-stat { border-color: #e4e2dc; background: #faf9f6; }
+
+    /* Phone: tighter cards, same system, full-width segments. */
+    @media (max-width: 640px) {
+      body.orders-mode .orders-zone { padding: 14px 14px 12px; border-radius: 16px; }
+      body.orders-mode .orders-zone-ico { width: 33px; height: 33px; border-radius: 10px; }
+      body.orders-mode .orders-zone-ico svg { width: 15px; height: 15px; }
+      body.orders-mode .orders-empty,
+      body.orders-mode .orders-pane-hint { padding-left: 0; }
+      body.orders-mode .orders-zone-head { flex-wrap: wrap; gap: 8px; }
+      body.orders-mode .orders-seg { width: 100%; display: flex; }
+      body.orders-mode .orders-seg button { flex: 1; text-align: center; }
+    }
   </style>
 
 </head>
@@ -33014,7 +33234,12 @@ ledger_entry · artifact · agent_run`,
           try {
             const response = await fetch(ordersEndpoint, { headers: authHeaders() });
             if (response.status === 401) {
-              note("Your session has expired — sign out and back in.", true);
+              //  A guided demo runs on a placeholder session by design — the
+              //  injected sample store is the content, and a "session expired"
+              //  banner over it would be the demo scolding itself on camera.
+              if (!new URLSearchParams(window.location.search).get("tour")) {
+                note("Your session has expired — sign out and back in.", true);
+              }
               return;
             }
             state = await response.json();
