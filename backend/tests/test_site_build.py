@@ -3062,7 +3062,7 @@ def test_the_forecast_total_is_not_dressed_as_earned_money():
     assert "dailyTxt" not in growth
 
     rule = APP.split(".growth-total.forecast strong,", 1)[1].split("}", 1)[0]
-    assert "#4a58d6" in rule
+    assert "#c9893c" in rule
     assert "var(--approve)" not in rule
 
 
@@ -3346,7 +3346,7 @@ def test_owner_midnight_experience_is_shared_by_for_you_and_growth():
         "</style>", 1
     )[0]
 
-    assert "--owner-shell: #050814" in block
+    assert "--owner-shell: #0c0b09" in block
     assert "--owner-gradient: linear-gradient(135deg" in block
     assert "body.autopilot-mode .feed-card" in block
     assert "body.autopilot-mode .post-body" in block
