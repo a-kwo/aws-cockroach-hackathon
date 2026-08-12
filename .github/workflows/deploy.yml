@@ -12,6 +12,14 @@ on:
         description: "When the night runs, in the stack's ScheduleTimezone"
         type: string
         default: "cron(0 18 * * ? *)"
+      site_domain:
+        description: "Custom domain for the board (with site_certificate_arn); empty keeps the stack's current setting"
+        type: string
+        default: ""
+      site_certificate_arn:
+        description: "us-east-1 ACM certificate ARN covering the domain and its www variant"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -120,6 +128,8 @@ jobs:
           ARTIFACT_BUCKET: ${{ steps.existing.outputs.artifact_bucket }}
           SCHEDULE_STATE: ${{ inputs.schedule_state }}
           SCHEDULE_EXPRESSION: ${{ inputs.schedule_expression }}
+          SITE_DOMAIN: ${{ inputs.site_domain }}
+          SITE_CERTIFICATE_ARN: ${{ inputs.site_certificate_arn }}
         run: |
           # The inner \" are load-bearing. `--parameter-overrides` takes one
           # argument holding every Key=Value pair, and SAM re-splits it on
@@ -129,7 +139,16 @@ jobs:
           # it as an invalid schedule expression, and the whole stack update
           # rolled back. SAM's parser does honour literal quotes in the value;
           # these are the ones that survive to it.
-          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides "ArtifactBucket=\"$ARTIFACT_BUCKET\" ScheduleState=\"$SCHEDULE_STATE\" ScheduleExpression=\"$SCHEDULE_EXPRESSION\""
+          OVERRIDES="ArtifactBucket=\"$ARTIFACT_BUCKET\" ScheduleState=\"$SCHEDULE_STATE\" ScheduleExpression=\"$SCHEDULE_EXPRESSION\""
+
+          # Sent only when both halves are present: sam reuses the previous
+          # value for any parameter not mentioned, so an empty input leaves
+          # the deployed domain exactly as it is rather than detaching it.
+          if [ -n "$SITE_DOMAIN" ] && [ -n "$SITE_CERTIFICATE_ARN" ]; then
+            OVERRIDES="$OVERRIDES SiteDomainName=\"$SITE_DOMAIN\" SiteCertificateArn=\"$SITE_CERTIFICATE_ARN\""
+          fi
+
+          sam deploy             --template-file .aws-sam/build/template.yaml             --stack-name brasstacks             --region us-east-1             --capabilities CAPABILITY_IAM             --resolve-image-repos             --resolve-s3             --no-confirm-changeset             --no-fail-on-empty-changeset             --parameter-overrides "$OVERRIDES"
 
       - name: Show CloudFormation failure details
         if: always() && steps.deploy_stack.outcome == 'failure'
