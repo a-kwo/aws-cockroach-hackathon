@@ -23004,6 +23004,81 @@
     .evidence-sheet-prose .feed-detail-list { margin-top: 4px; }
     .evidence-sheet-prose .feed-glance-grid { margin-bottom: 4px; }
 
+    /* Exhibits: each evidence row reads as a testimony card — the ROW tag
+       (they are rows in CockroachDB), provenance and date up top, the text as
+       a quoted excerpt, long scrapes clipped behind an expand. */
+    .evidence-exhibit {
+      display: block !important;
+      margin: 0 0 12px;
+      padding: 14px 16px 12px !important;
+      border: 1px solid rgba(242, 239, 233, .1) !important;
+      border-left: 3px solid rgba(226, 168, 92, .55) !important;
+      border-radius: 14px;
+      background: rgba(242, 239, 233, .022);
+    }
+    .exhibit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 9px; }
+    .exhibit-tag {
+      padding: 4px 9px;
+      border-radius: 7px;
+      background: rgba(226, 168, 92, .14);
+      color: #e6c391;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-variant-numeric: tabular-nums;
+    }
+    .exhibit-when { color: #98948a; font-size: 11.5px; font-weight: 650; }
+    .evidence-exhibit .evidence-similarity {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 0 !important;
+      background: transparent !important;
+      padding: 0 !important;
+    }
+    .evidence-exhibit .evidence-similarity b { color: #f2efe9; font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .evidence-exhibit .evidence-similarity i {
+      width: 52px; height: 4px; border-radius: 999px;
+      background: rgba(242, 239, 233, .1);
+      overflow: hidden; display: inline-block; font-style: normal;
+    }
+    .evidence-exhibit .evidence-similarity em { display: block; height: 100%; border-radius: 999px; background: #e2a85c; }
+    .exhibit-quote {
+      margin: 0;
+      color: #e8e5dc;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+    .exhibit-quote::before { content: "C"; color: rgba(226, 168, 92, .8); margin-right: 2px; }
+    .exhibit-quote::after { content: "D"; color: rgba(226, 168, 92, .8); margin-left: 2px; }
+    .evidence-exhibit.is-long:not(.is-open) .exhibit-quote {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .exhibit-expand {
+      margin-top: 9px;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: #e2a85c;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .exhibit-expand:hover { text-decoration: underline; }
+    body.day-mode .evidence-exhibit { border-color: rgba(16, 17, 20, .1) !important; border-left-color: rgba(170, 125, 42, .55) !important; background: #faf9f6; }
+    body.day-mode .exhibit-quote { color: #26282d !important; }
+    body.day-mode .exhibit-when { color: #77787e; }
+    body.day-mode .evidence-exhibit .evidence-similarity b { color: #101114 !important; }
+    body.day-mode .evidence-exhibit .evidence-similarity i { background: rgba(16, 17, 20, .1); }
+    body.day-mode .evidence-exhibit .evidence-similarity em { background: #aa7d2a; }
+    body.day-mode .exhibit-tag { background: rgba(170, 125, 42, .12); color: #6b5316; }
+
     /* The plan map: a vertical route. Brass numbered nodes, a hairline
        connector, the destination filled. */
     .plan-map { list-style: none; margin: 4px 0 0; padding: 0; }
@@ -24856,17 +24931,25 @@
         const rank = Number.isFinite(Number(item.rank)) ? Number(item.rank) + 1 : index + 1;
         const source = item.sourceName || item.source || item.kind || "Stored memory";
         const similarity = Number(item.similarity);
-        return `<li class="evidence-sheet-item">
-          <span class="evidence-rank">${escapeHtml(String(rank).padStart(2, "0"))}</span>
-          <div class="evidence-copy">
-            <p>${escapeHtml(item.content || "Evidence text was not included in this snapshot.")}</p>
-            <div class="evidence-meta">
-              <span class="evidence-src" title="${escapeHtml(source)}" aria-label="${escapeHtml(source)}">${evidenceSourceBadge(item)}</span>
-              ${item.subject ? `<span>${escapeHtml(item.subject)}</span>` : ""}
-              ${item.when ? `<span>${escapeHtml(item.when)}</span>` : ""}
-            </div>
-          </div>
-          ${Number.isFinite(similarity) ? `<span class="evidence-similarity" title="Vector similarity">${escapeHtml(similarity.toFixed(3))}</span>` : ""}
+        const content = String(item.content || "Evidence text was not included in this snapshot.");
+        const isLong = content.length > 300;
+        //  The bar's width restates the number beside it — the number stays
+        //  the authority, exactly as the honesty rules require.
+        const barPct = Number.isFinite(similarity) ? Math.max(3, Math.min(100, similarity * 100)) : 0;
+        return `<li class="evidence-sheet-item evidence-exhibit${isLong ? " is-long" : ""}">
+          <header class="exhibit-head">
+            <span class="exhibit-tag">Row ${escapeHtml(String(rank))}</span>
+            <span class="evidence-src" title="${escapeHtml(source)}" aria-label="${escapeHtml(source)}">${evidenceSourceBadge(item)}</span>
+            ${item.when ? `<span class="exhibit-when">${escapeHtml(item.when)}</span>` : ""}
+            ${item.subject ? `<span class="exhibit-when">${escapeHtml(item.subject)}</span>` : ""}
+            ${Number.isFinite(similarity) ? `
+              <span class="evidence-similarity" title="Vector similarity">
+                <b>${escapeHtml(similarity.toFixed(3))}</b>
+                <i aria-hidden="true"><em style="width:${barPct.toFixed(0)}%"></em></i>
+              </span>` : ""}
+          </header>
+          <blockquote class="exhibit-quote">${escapeHtml(content)}</blockquote>
+          ${isLong ? `<button type="button" class="exhibit-expand" data-expand-evidence>Read the full text</button>` : ""}
         </li>`;
       }).join("");
       return detailSheetMarkup(post, {
@@ -24963,6 +25046,14 @@
       });
       document.querySelectorAll("#evidenceSheet [data-close-evidence]").forEach(button => {
         button.addEventListener("click", () => closeEvidenceSheet());
+      });
+      document.querySelectorAll("#evidenceSheet [data-expand-evidence]").forEach(button => {
+        button.addEventListener("click", () => {
+          const row = button.closest(".evidence-exhibit");
+          if (!row) return;
+          const open = row.classList.toggle("is-open");
+          button.textContent = open ? "Show less" : "Read the full text";
+        });
       });
     }
 

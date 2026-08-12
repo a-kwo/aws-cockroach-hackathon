@@ -4379,6 +4379,12 @@ def test_evidence_rows_carry_an_honest_source_badge():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "function evidenceSourceBadge" in html
+    # Evidence rows read as exhibits: a ROW tag (they are rows in
+    # CockroachDB), a quoted excerpt that clips long scrapes behind an
+    # expand, and the similarity kept as a number beside its match bar.
+    assert "evidence-exhibit" in html
+    assert "data-expand-evidence" in html
+    assert "similarity.toFixed(3)" in html
     badge = html.split("function evidenceSourceBadge", 1)[1][:2600]
     # Kind-driven fallbacks, matched against the row's own text.
     assert "review" in badge and "trend" in badge
