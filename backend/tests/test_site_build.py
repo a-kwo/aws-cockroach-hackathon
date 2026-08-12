@@ -4268,26 +4268,3 @@ def test_demo_decisions_take_the_local_path():
     assert "if (!DEMO_TOUR && decisionApiConfigured && workflowApiConfigured && !post.serverVerified)" in html
     # And the decision is stored locally, never POSTed on a placeholder session.
     assert "if (!base || DEMO_TOUR) return { demoOnly: true };" in html
-
-
-def test_the_feed_reads_social_but_every_pixel_is_a_row():
-    """The social-feed treatment -- greeting, filter chips, a hero panel, a
-    what-to-do checklist -- is welcome only where real rows can pay for it.
-    The hero is the find's top evidence quote with its similarity number and
-    source, never a stock photo; the chips count the posts on the page; the
-    checklist is the find's own steps. No invented avatars, agree-counts or
-    percentages anywhere."""
-    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-
-    assert "function renderFeedGreeting" in html
-    assert "function renderFeedFilters" in html
-    assert "function renderFeedHero" in html
-    hero = html.split("function renderFeedHero", 1)[1][:2400]
-    assert "similarity" in hero
-    assert ".evidence" in hero or "post.evidence" in hero
-    # The hero opens the real evidence sheet, same binding as the panel row.
-    assert "data-open-evidence" in hero
-    assert 'class="feed-todo"' in html
-    # Chips are counted from the same posts the feed renders.
-    filters = html.split("function renderFeedFilters", 1)[1][:1600]
-    assert "featureKey" in filters or "feature" in filters

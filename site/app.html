@@ -22477,9 +22477,9 @@
 
     .feed-scroll-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 280px;
+      grid-template-columns: minmax(0, 1fr) 292px;
       gap: 26px;
-      width: min(1260px, 100%);
+      width: min(1080px, 100%);
       margin: 0 auto;
       align-items: start;
     }
@@ -22917,148 +22917,6 @@
       body.orders-mode .orders-zone-head { flex-wrap: wrap; gap: 8px; }
       body.orders-mode .orders-seg { width: 100%; display: flex; }
       body.orders-mode .orders-seg button { flex: 1; text-align: center; }
-    }
-  </style>
-
-  <style id="feed-social-v68">
-    /* ==== For You: the social read ======================================
-       Greeting, category chips, a hero quote and a what-to-do checklist —
-       every one of them computed from rows already on the page. The hero is
-       the top evidence quote with its similarity number: the memory holds
-       text, not photos, so the panel is openly decorative and the words are
-       the picture. */
-
-    .feed-greeting { margin: 2px 2px 2px; }
-    .feed-greeting h2 {
-      margin: 0;
-      color: var(--owner-ink, #f2f3fb);
-      font-size: clamp(22px, 2.6vw, 30px);
-      font-weight: 800;
-      letter-spacing: -.03em;
-    }
-    .feed-greeting p { margin: 6px 0 0; color: var(--owner-muted, #8d95ad); font-size: 13.5px; }
-    body.day-mode .feed-greeting h2 { color: #101114; }
-    body.day-mode .feed-greeting p { color: #77787e; }
-
-    .feed-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
-    .feed-filter {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 8px 13px;
-      border: 1px solid var(--owner-line, rgba(205, 214, 255, .14));
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .03);
-      color: var(--owner-copy, #c9cee0);
-      font: inherit; font-size: 12.5px; font-weight: 700;
-      cursor: pointer;
-    }
-    .feed-filter b {
-      min-width: 20px; padding: 1px 6px; border-radius: 999px;
-      background: rgba(255, 255, 255, .08);
-      color: var(--owner-muted, #97a0b8);
-      font-size: 11px; text-align: center;
-    }
-    .feed-filter.active {
-      background: var(--owner-accent, #8588ff);
-      border-color: transparent;
-      color: #fff;
-    }
-    .feed-filter.active b { background: rgba(255, 255, 255, .22); color: #fff; }
-    body.day-mode .feed-filter { border-color: #e0ded8; background: #ffffff; color: #3f4149; }
-    body.day-mode .feed-filter b { background: #f0efeb; color: #77787e; }
-    body.day-mode .feed-filter.active { background: #aa7d2a; color: #fff; }
-    body.day-mode .feed-filter.active b { background: rgba(255, 255, 255, .25); color: #fff; }
-    .feed-filter-empty { margin: 20px 2px; color: var(--owner-muted, #8d95ad); font-size: 14px; }
-
-    /* The hero: quote card between copy and checklist on wide screens. */
-    .feed-hero {
-      flex: 0 0 264px;
-      align-self: stretch;
-      display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
-      padding: 16px 17px;
-      border: 1px solid rgba(var(--accent-rgb, 155, 86, 255), .30);
-      border-radius: 16px;
-      background:
-        radial-gradient(240px 170px at 100% 0%, rgba(var(--accent-rgb, 155, 86, 255), .18), transparent 74%),
-        rgba(255, 255, 255, .025);
-      color: inherit; font: inherit; text-align: left; cursor: pointer;
-      transition: border-color .15s ease, background .15s ease;
-    }
-    .feed-hero:hover { border-color: rgba(var(--accent-rgb, 155, 86, 255), .5); }
-    .feed-hero-chip {
-      align-self: flex-start;
-      padding: 5px 10px; border-radius: 999px;
-      background: rgba(var(--accent-rgb, 155, 86, 255), .16);
-      color: var(--owner-ink, #eef0fa);
-      font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
-      font-variant-numeric: tabular-nums;
-    }
-    .feed-hero blockquote {
-      margin: 0;
-      color: var(--owner-ink, #edeffa);
-      font-size: 14.5px; line-height: 1.5; font-weight: 560;
-      font-style: italic;
-    }
-    .feed-hero-meta { color: var(--owner-muted, #8d95ad); font-size: 11.5px; font-weight: 650; }
-    body.day-mode .feed-hero { background: radial-gradient(240px 170px at 100% 0%, rgba(170, 125, 42, .10), transparent 74%), #ffffff; border-color: #e4e2dc; }
-    body.day-mode .feed-hero blockquote { color: #101114; }
-    body.day-mode .feed-hero-chip { background: rgba(170, 125, 42, .12); color: #6b5316; }
-    body.day-mode .feed-hero-meta { color: #77787e; }
-
-    /* Evidence sources: one quiet line of real counts. */
-    .feed-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px; margin-top: 12px; }
-    .feed-sources small { color: var(--owner-muted, #848daa); font-size: 11px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
-    .feed-sources span { color: var(--owner-copy, #c3c9dc); font-size: 12.5px; font-weight: 600; }
-    .feed-sources span b { color: var(--owner-ink, #eef0fa); font-weight: 780; }
-    body.day-mode .feed-sources small { color: #96702a; }
-    body.day-mode .feed-sources span { color: #3f4149; }
-    body.day-mode .feed-sources span b { color: #101114; }
-
-    /* What to do: the plan's own first steps, checked off visually. */
-    .feed-todo-head span {
-      display: block; margin: 0 2px 8px;
-      color: var(--owner-muted, #97a0b8);
-      font-size: 10.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase;
-    }
-    .feed-todo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    .feed-todo li {
-      position: relative;
-      padding-left: 26px;
-      color: var(--owner-copy, #ccd1e2);
-      font-size: 12.5px; line-height: 1.45; font-weight: 560;
-    }
-    .feed-todo li::before {
-      content: "";
-      position: absolute; left: 0; top: 1px;
-      width: 16px; height: 16px; border-radius: 50%;
-      border: 1.6px solid rgba(var(--accent-rgb, 155, 86, 255), .55);
-      background:
-        linear-gradient(45deg, transparent 44%, rgba(var(--accent-rgb,155,86,255),.9) 45%, rgba(var(--accent-rgb,155,86,255),.9) 55%, transparent 56%) no-repeat 55% 62% / 7px 5px,
-        rgba(var(--accent-rgb, 155, 86, 255), .10);
-    }
-    .feed-todo li.feed-todo-more { color: var(--owner-muted, #8d95ad); font-style: italic; }
-    .feed-todo li.feed-todo-more::before { border-style: dashed; background: transparent; }
-    body.day-mode .feed-todo li { color: #3f4149; }
-    body.day-mode .feed-todo li.feed-todo-more { color: #77787e; }
-
-    /* Column budget. Three columns need ~1280px of glass: below that the
-       copy takes the full first row and the hero + checklist share the
-       second, so nothing is ever squeezed to a sliver. */
-    .feed-hero { flex: 0 0 240px; }
-    .feed-detail-panel,
-    body.autopilot-mode .feed-detail-panel { flex-basis: 264px; width: 264px; }
-    .post-copy { min-width: 240px; }
-    @media (max-width: 1279px) {
-      .post-body,
-      body.autopilot-mode .post-body { flex-wrap: wrap !important; }
-      .post-copy { flex: 1 1 100%; width: 100% !important; min-width: 0; }
-      .feed-hero { flex: 1 1 46%; align-self: auto; }
-      .feed-detail-panel,
-      body.autopilot-mode .feed-detail-panel { flex: 1 1 46%; width: auto; }
-    }
-    @media (max-width: 900px) {
-      .feed-hero { flex: 1 1 100%; width: 100%; }
-      .feed-detail-panel,
-      body.autopilot-mode .feed-detail-panel { flex: 1 1 100%; }
     }
   </style>
 
@@ -24379,82 +24237,6 @@
         </span>`).join("");
     }
 
-    //  Which slice of the feed is showing. "all" or a featureKey; set by the
-    //  filter chips, read by renderAutopilot.
-    let feedFilter = "all";
-
-    //  A greeting with the real business on it — time of day from the clock,
-    //  name from the cluster, nothing invented.
-    function renderFeedGreeting(pending) {
-      const hour = new Date().getHours();
-      const daypart = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-      const name = String(btData.business?.name || "").trim();
-      const count = pending.length;
-      return `
-        <header class="feed-greeting" data-enter>
-          <h2>${escapeHtml(daypart)}${name ? ` — ${escapeHtml(name)}` : ""}</h2>
-          <p>${count} move${count === 1 ? "" : "s"} from your market memory — every card backed by rows in CockroachDB.</p>
-        </header>`;
-    }
-
-    //  Filter chips with real counts, from the same posts the feed renders.
-    function renderFeedFilters(pending) {
-      const counts = new Map();
-      pending.forEach(post => {
-        const key = post.featureKey || "other";
-        counts.set(key, (counts.get(key) || 0) + 1);
-      });
-      if (counts.size < 2) return "";
-      const label = { demand: "Demand", reviews: "Reviews", competitors: "Competitors" };
-      const chips = [[`all`, `All`, pending.length],
-        ...[...counts.entries()].map(([key, n]) => [key, label[key] || titleCaseLabel(key), n])];
-      return `
-        <nav class="feed-filters" aria-label="Filter moves by category" data-enter>
-          ${chips.map(([key, text, n]) => `
-            <button type="button" class="feed-filter${feedFilter === key ? " active" : ""}" data-feed-filter="${escapeHtml(key)}">
-              <span>${escapeHtml(text)}</span><b>${escapeHtml(String(n))}</b>
-            </button>`).join("")}
-        </nav>`;
-    }
-
-    //  The hero is the card's strongest EVIDENCE — the top-similarity row the
-    //  vector search returned, quoted with its score and source. The memory
-    //  holds text, not photos, so no stock imagery pretending to be the
-    //  business; the accent-tinted panel is openly decorative, the quote and
-    //  the number are real, and tapping it opens the full evidence sheet.
-    function renderFeedHero(post) {
-      const evidence = Array.isArray(post.evidence) ? post.evidence : [];
-      if (!evidence.length) return "";
-      const top = evidence.reduce((best, row) =>
-        (Number(row.similarity) || 0) > (Number(best.similarity) || 0) ? row : best, evidence[0]);
-      const quote = String(top.content || "").trim();
-      if (!quote) return "";
-      const clipped = quote.length > 170 ? `${quote.slice(0, 167).trimEnd()}…` : quote;
-      const source = top.sourceName || top.source_name || top.kind || "Stored memory";
-      const similarity = Number(top.similarity);
-      return `
-        <button type="button" class="feed-hero" data-open-evidence="${escapeHtml(post.id)}"
-                aria-label="Read all evidence for ${escapeHtml(post.title)}">
-          <span class="feed-hero-chip">Top evidence${Number.isFinite(similarity) ? ` · ${similarity.toFixed(2)}` : ""}</span>
-          <blockquote>&ldquo;${escapeHtml(clipped)}&rdquo;</blockquote>
-          <span class="feed-hero-meta">${escapeHtml(source)}${top.when ? ` · ${escapeHtml(top.when)}` : ""} · ${evidence.length} row${evidence.length === 1 ? "" : "s"}</span>
-        </button>`;
-    }
-
-    //  "Evidence from" — real counts per source kind, nothing else.
-    function renderFeedSources(post) {
-      const evidence = Array.isArray(post.evidence) ? post.evidence : [];
-      if (!evidence.length) return "";
-      const counts = new Map();
-      evidence.forEach(row => {
-        const kind = String(row.kind || row.sourceName || "memory").replace(/_/g, " ");
-        counts.set(kind, (counts.get(kind) || 0) + 1);
-      });
-      const parts = [...counts.entries()].slice(0, 4)
-        .map(([kind, n]) => `<span><b>${escapeHtml(String(n))}</b> ${escapeHtml(kind)}${n === 1 ? "" : "s"}</span>`);
-      return `<div class="feed-sources" aria-label="Evidence sources"><small>Evidence from</small>${parts.join("")}</div>`;
-    }
-
     //  The feed reads like a timeline, so each card sits under the day it
     //  arrived. Buckets rather than exact dates: an owner scanning over coffee
     //  wants "Today" and "Yesterday", not an ISO string.
@@ -24638,18 +24420,8 @@
       //  than anything else. The highlighted "step 1" block that used to lead
       //  this panel repeated the plan's first bullet at ten times the size; the
       //  full plan is one tap away behind the first row.
-      //  Up to three of the plan's own steps, visible — the mock's "What to
-      //  do" checklist, sourced from the find rather than invented. The full
-      //  plan stays behind the first row.
-      const todo = steps.slice(0, 3);
       return `
         <aside class="feed-detail-panel" aria-label="Recommendation details">
-          ${todo.length ? `
-          <div class="feed-todo-head"><span>What to do</span></div>
-          <ul class="feed-todo">
-            ${todo.map(step => `<li>${escapeHtml(step)}</li>`).join("")}
-            ${stepCount > todo.length ? `<li class="feed-todo-more">+${stepCount - todo.length} more in the plan</li>` : ""}
-          </ul>` : ""}
           <details class="feed-plan">
             <summary>
               <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
@@ -26296,14 +26068,8 @@
       //  grouped under the day it arrived, with a summary rail beside it. The
       //  deck's gesture machinery stays defined for reference but is no longer
       //  bound — the browser's own scroll is the navigation now.
-      //  The chips slice the same list the groups render — one filter state,
-      //  applied before grouping so the day labels stay correct per slice.
-      const visible = feedFilter === "all"
-        ? pending
-        : pending.filter(post => post.featureKey === feedFilter);
       const groups = [];
-      visible.forEach(post => {
-        const index = pending.indexOf(post);
+      pending.forEach((post, index) => {
         const label = feedGroupLabel(post);
         const tail = groups[groups.length - 1];
         if (!tail || tail.label !== label) groups.push({ label, cards: [] });
@@ -26314,27 +26080,17 @@
         <div class="deck feed-scroll-deck" aria-label="Autopilot review queue">
           <div class="feed-scroll-layout">
             <div class="feed-stream">
-              ${renderFeedGreeting(pending)}
-              ${renderFeedFilters(pending)}
               <div class="feed-stage" id="feedStage" data-enter tabindex="0" aria-label="Scroll to browse moves">
                 ${groups.map(group => `
                   <div class="feed-group-label">${escapeHtml(group.label)}</div>
                   ${group.cards.map(({ post, index }) => renderFeedCard(post, index, pending.length)).join("")}
                 `).join("")}
-                ${visible.length ? "" : `<p class="feed-filter-empty">Nothing in this category right now.</p>`}
               </div>
             </div>
             ${renderFeedRail(pending)}
           </div>
         </div>
       `;
-
-      document.querySelectorAll("[data-feed-filter]").forEach(chip => {
-        chip.onclick = () => {
-          feedFilter = chip.dataset.feedFilter || "all";
-          renderAutopilot();
-        };
-      });
 
       queueCount.textContent = pending.length === 1
         ? "1 move to review" : `${pending.length} moves to review`;
@@ -26460,10 +26216,8 @@
                 <h2 class="post-title">${escapeHtml(post.title)}</h2>
                 <p class="signal-text">${escapeHtml(post.signal || "")}</p>
                 <div class="feed-tag-list" aria-label="Recommendation tags">${renderFeedTags(post)}</div>
-                ${renderFeedSources(post)}
                 <div class="feed-proof-strip" aria-label="Recommendation proof">${renderFeedProofStrip(post)}</div>
               </div>
-              ${renderFeedHero(post)}
               ${renderFeedDetailPanel(post)}
             </div>
 
