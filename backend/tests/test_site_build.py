@@ -3642,8 +3642,8 @@ def test_the_detail_panel_shows_a_cost_only_when_one_was_estimated():
     the figures themselves.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
-        "function findToPost", 1
+    panel = html.split("function renderCostsAndGoals", 1)[1].split(
+        "function renderFeedDetailPanel", 1
     )[0]
 
     assert "cost.hasEstimate" in panel
@@ -3659,8 +3659,8 @@ def test_the_card_never_does_money_arithmetic_for_a_cost():
     and disagreeing with the ledger three decimal places down.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
-        "function findToPost", 1
+    panel = html.split("function renderCostsAndGoals", 1)[1].split(
+        "function renderFeedDetailPanel", 1
     )[0]
 
     assert "cost.setupTxt" in panel
@@ -3678,8 +3678,8 @@ def test_a_cost_is_labelled_modelled_and_never_called_actual():
     rather than letting a confident number imply otherwise.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
-        "function findToPost", 1
+    panel = html.split("function renderCostsAndGoals", 1)[1].split(
+        "function renderFeedDetailPanel", 1
     )[0]
 
     assert "Costs are modelled, not measured." in panel
@@ -3694,8 +3694,8 @@ def test_the_card_says_when_a_move_is_measured_before_it_breaks_even():
     than the payback.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
-    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
-        "function findToPost", 1
+    panel = html.split("function renderCostsAndGoals", 1)[1].split(
+        "function renderFeedDetailPanel", 1
     )[0]
 
     assert "cost.paysBackWithinWindow === false" in panel
@@ -4303,3 +4303,24 @@ def test_demo_decisions_take_the_local_path():
     assert "if (!DEMO_TOUR && decisionApiConfigured && workflowApiConfigured && !post.serverVerified)" in html
     # And the decision is stored locally, never POSTed on a placeholder session.
     assert "if (!base || DEMO_TOUR) return { demoOnly: true };" in html
+
+
+def test_all_three_detail_rows_open_the_same_sheet():
+    """Evidence opened a centred dialog; the plan and costs rows expanded
+    inline underneath, three rows with two behaviours. All three are buttons
+    now, opening the one sheet chrome -- same scrim, same panel, same close --
+    with only the eyebrow and body changing."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    panel = html.split("function renderFeedDetailPanel", 1)[1].split(
+        "function findToPost", 1)[0]
+    # Buttons, not inline disclosures.
+    assert '<details class="feed-plan"' not in panel
+    assert '<details class="feed-more"' not in panel
+    assert 'data-open-sheet="plan"' in panel
+    assert 'data-open-sheet="costs"' in panel
+    # One sheet builder drives all three, and the sheet says which it is so
+    # the tour can tell them apart.
+    assert "function detailSheetMarkup" in html
+    assert "function openDetailSheet" in html
+    assert "data-sheet-kind" in html
