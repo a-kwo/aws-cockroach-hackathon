@@ -4362,6 +4362,13 @@ def test_all_three_detail_rows_open_the_same_sheet():
     assert "body.day-mode .evidence-sheet-title" in sheets
     assert "body.day-mode .evidence-copy p" in sheets
 
+    # The execution plan reads as a route, not a bullet list: numbered nodes
+    # on a connecting line, the final step marked as the destination.
+    assert "function planMapHtml" in html
+    assert 'class="plan-map"' in html
+    plan = html.split("function planSheetMarkup", 1)[1][:600]
+    assert "planMapHtml" in plan
+
 
 def test_evidence_rows_carry_an_honest_source_badge():
     """Each evidence row shows an icon for where it came from -- derived from
