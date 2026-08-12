@@ -15451,7 +15451,7 @@
     body.growth-mode #detailDrawer .detail-impact {
       margin-top: 12px !important;
       border: 1px solid var(--owner-accent-border) !important;
-      background: linear-gradient(135deg, rgba(126,59,225,.16), rgba(190,55,169,.09)) !important;
+      background: linear-gradient(135deg, rgba(226,168,92,.16), rgba(201,137,60,.08)) !important;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.045) !important;
     }
 
@@ -15470,7 +15470,7 @@
     body.chat-mode #detailDrawer .detail-impact strong,
     body.autopilot-mode #detailDrawer .detail-impact strong,
     body.growth-mode #detailDrawer .detail-impact strong {
-      color: #e5c9ff !important;
+      color: #e6c391 !important;
       font-variant-numeric: tabular-nums !important;
     }
 
@@ -23076,6 +23076,9 @@
       cursor: pointer;
     }
     .exhibit-expand:hover { text-decoration: underline; }
+    #detailDrawer .evidence-sheet-list { margin: 0; padding: 0; list-style: none; overflow: visible; }
+    #detailDrawer .evidence-sheet-empty { color: var(--owner-muted, #8f8b83); font-size: 13px; }
+    #detailDrawer .drawer-costs .feed-detail-list { margin-top: 2px; }
     body.day-mode .evidence-exhibit { border-color: rgba(16, 17, 20, .1) !important; border-left-color: rgba(170, 125, 42, .55) !important; background: #faf9f6; }
     body.day-mode .exhibit-quote { color: #26282d !important; }
     body.day-mode .exhibit-when { color: #77787e; }
@@ -24929,7 +24932,7 @@
       return `<span class="evidence-src-badge is-kind" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[key]}</svg></span>`;
     }
 
-    function evidenceSheetMarkup(post) {
+    function exhibitListHtml(post) {
       const evidence = Array.isArray(post?.evidence) ? post.evidence : [];
       const rows = evidence.map((item, index) => {
         const rank = Number.isFinite(Number(item.rank)) ? Number(item.rank) + 1 : index + 1;
@@ -24960,12 +24963,16 @@
           ${isLong ? `<button type="button" class="exhibit-expand" data-expand-evidence>Read the full text</button>` : ""}
         </li>`;
       }).join("");
+      return rows
+        ? `<ol class="evidence-sheet-list">${rows}</ol>`
+        : `<p class="evidence-sheet-empty">The evidence count is stored, but the source text was not included in this snapshot.</p>`;
+    }
+
+    function evidenceSheetMarkup(post) {
       return detailSheetMarkup(post, {
         kind: "evidence",
         eyebrow: "Analyst evidence",
-        bodyHtml: rows
-          ? `<ol class="evidence-sheet-list">${rows}</ol>`
-          : `<p class="evidence-sheet-empty">The evidence count is stored, but the source text was not included in this snapshot.</p>`,
+        bodyHtml: exhibitListHtml(post),
       });
     }
 
@@ -31543,9 +31550,19 @@ ledger_entry · artifact · agent_run`,
           </section>
 
           <section class="detail-section">
-            <div class="detail-section-label">Recommendation</div>
-            <div class="drawer-recommendation-list">${renderSteps(post)}</div>
-            <p>${status === "pending" ? "Nothing changes until you choose Do it." : status === "approved" ? "This idea is now in Where it came from." : "You passed on this recommendation."}</p>
+            <div class="detail-section-label">The plan · ${(post.steps || []).filter(Boolean).length || 1} steps</div>
+            ${planMapHtml(post)}
+            <p>${status === "pending" ? "Nothing changes until you choose Do it — in the feed or right here in chat." : status === "approved" ? "This idea is now in Where it came from." : "You passed on this recommendation."}</p>
+          </section>
+
+          <section class="detail-section">
+            <div class="detail-section-label">Costs, category &amp; goals</div>
+            <div class="drawer-costs">${renderCostsAndGoals(post)}</div>
+          </section>
+
+          <section class="detail-section">
+            <div class="detail-section-label">Evidence · ${Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0))} rows</div>
+            ${exhibitListHtml(post)}
           </section>
         </div>
 
@@ -31575,17 +31592,6 @@ ledger_entry · artifact · agent_run`,
               </button>
             </div>
           </section>
-        ` : ""}
-        <button class="drawer-open-chat" type="button" data-open-chat-tab data-post-id="${post.id}"
-                title="One conversation for the whole app, with this move on the canvas">
-          Discuss this move in Chat &rarr;
-        </button>
-
-        ${status === "pending" ? `
-          <div class="drawer-actions">
-            <button class="decision-button reject" type="button" data-decide="rejected" data-post-id="${post.id}">${icons.rejected}<span>Pass</span></button>
-            <button class="decision-button approve" type="button" data-decide="approved" data-post-id="${post.id}">${icons.approved}<span>Do it</span></button>
-          </div>
         ` : ""}
       `;
       configureDrawerComposer(post);
@@ -32510,6 +32516,14 @@ ledger_entry · artifact · agent_run`,
         button.onclick = event => {
           event.stopPropagation();
           openEvidenceSheet(button.dataset.openEvidence, button);
+        };
+      });
+      document.querySelectorAll("[data-expand-evidence]").forEach(button => {
+        button.onclick = () => {
+          const row = button.closest(".evidence-exhibit");
+          if (!row) return;
+          const open = row.classList.toggle("is-open");
+          button.textContent = open ? "Show less" : "Read the full text";
         };
       });
       document.querySelectorAll("[data-open-sheet]").forEach(button => {

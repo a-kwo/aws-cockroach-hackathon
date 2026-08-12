@@ -3848,7 +3848,12 @@ def test_maker_workspace_and_chat_name_the_draft_destination_and_owner_gate():
     # The drawer no longer hosts a chat thread — one conversation for the
     # whole app lives in the Chat tab, and the drawer routes there.
     assert 'id="drawerChatThread"' not in drawer
-    assert "data-open-chat-tab" in drawer
+    # The drawer is the reading document inside the chat canvas now -- the
+    # conversation sits beside it, so no trip-to-chat button. It carries the
+    # full move: route, costs & goals, exhibits.
+    assert "planMapHtml(post)" in drawer
+    assert "renderCostsAndGoals(post)" in drawer
+    assert "exhibitListHtml(post)" in drawer
 
 
 def test_growth_decision_rows_escape_the_find_title():
@@ -4331,7 +4336,7 @@ def test_evidence_rows_carry_an_honest_source_badge():
     # Kind-driven fallbacks, matched against the row's own text.
     assert "review" in badge and "trend" in badge
     # And the sheet rows actually use it.
-    sheet = html.split("function evidenceSheetMarkup", 1)[1][:2400]
+    sheet = html.split("function exhibitListHtml", 1)[1][:2400]
     assert "evidenceSourceBadge" in sheet
 
 
