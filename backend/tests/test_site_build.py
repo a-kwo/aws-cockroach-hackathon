@@ -4361,3 +4361,19 @@ def test_all_three_detail_rows_open_the_same_sheet():
     sheets = html.split('<style id="feed-sheets-v68">', 1)[1].split("</style>", 1)[0]
     assert "body.day-mode .evidence-sheet-title" in sheets
     assert "body.day-mode .evidence-copy p" in sheets
+
+
+def test_evidence_rows_carry_an_honest_source_badge():
+    """Each evidence row shows an icon for where it came from -- derived from
+    the row's own source/kind, never invented. A named platform gets its mark;
+    an anonymous "web" row gets a globe, reviews a star, trends a chart. No
+    brand logo may appear on a row that does not name that brand."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert "function evidenceSourceBadge" in html
+    badge = html.split("function evidenceSourceBadge", 1)[1][:2600]
+    # Kind-driven fallbacks, matched against the row's own text.
+    assert "review" in badge and "trend" in badge
+    # And the sheet rows actually use it.
+    sheet = html.split("function evidenceSheetMarkup", 1)[1][:2400]
+    assert "evidenceSourceBadge" in sheet
