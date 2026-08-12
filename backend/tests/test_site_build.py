@@ -4377,3 +4377,21 @@ def test_evidence_rows_carry_an_honest_source_badge():
     # And the sheet rows actually use it.
     sheet = html.split("function evidenceSheetMarkup", 1)[1][:2400]
     assert "evidenceSourceBadge" in sheet
+
+
+def test_the_sly_facelift_dresses_both_surfaces():
+    """The face-lift: warm near-black, bone ink, one brass accent, hairline
+    borders, micro-label typography -- applied as final token-override blocks
+    so every earlier honesty rule and theme block keeps its text intact."""
+    landing = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
+    app = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert '<style id="facelift-sly-v1">' in landing
+    face = landing.split('<style id="facelift-sly-v1">', 1)[1].split("</style>", 1)[0]
+    assert "#0c0b09" in face.lower()
+    assert "#e2a85c" in face.lower()
+
+    assert '<style id="facelift-sly-v70">' in app
+    owner = app.split('<style id="facelift-sly-v70">', 1)[1].split("</style>", 1)[0]
+    assert "--owner-accent: #e2a85c" in owner.lower()
+    assert "--owner-shell: #0c0b09" in owner.lower()
