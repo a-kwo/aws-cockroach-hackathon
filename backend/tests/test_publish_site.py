@@ -68,6 +68,26 @@ def test_emoji_survive_the_windows_console():
         "PYTHONIOENCODING"] == "utf-8"
 
 
+def test_a_fresh_export_is_anonymised_before_anything_is_uploaded():
+    """Exporting without anonymising publishes the real tenant's identity.
+
+    The committed fixture is scrubbed, but `export_fixture.py` writes whatever
+    tenant BRASSTACKS_BUSINESS_ID points at, verbatim. The export path must
+    therefore rewrite the fixture through the anonymise map and then prove the
+    scrub took (`--check`) before a single byte reaches S3 — and if the map is
+    absent, anonymise_fixture exits with instructions, which aborts the publish
+    rather than shipping a real business's reviews and revenue to the demo URL.
+    """
+    commands = publish_site.export_commands()
+    scripts = [Path(command[1]).name for command in commands]
+
+    assert scripts[0] == "export_fixture.py"
+    assert scripts[1] == "anonymise_fixture.py"
+    assert scripts[2] == "anonymise_fixture.py"
+    assert commands[1][-1] != "--check", "rewrite first, then verify"
+    assert commands[2][-1] == "--check"
+
+
 def test_a_missing_output_becomes_empty_rather_than_the_string_none():
     # build_web treats "" as absent and derives a fallback. "None" — which is
     # what the AWS CLI prints for a missing output — would be spliced into the

@@ -1256,6 +1256,39 @@ Resources:
           return request;
         }
 
+  SiteSecurityHeaders:
+    # The dashboard keeps the session token in localStorage and renders text
+    # that arrived from scrapes and models, so these are the backstop: the CSP
+    # lets an injected handler run (inline script is the page's own idiom) but
+    # gives it nowhere to send what it steals — connect-src names the API
+    # origins and nothing else. frame-ancestors stops the board being framed
+    # for clickjacking; nosniff and HSTS close the classics.
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub ${AWS::StackName}-site-security-headers
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          ContentSecurityPolicy:
+            Override: true
+            # One line, because the CSP grammar is semicolon-delimited and a
+            # folded block would be one giant directive. Inline script/style
+            # stay allowed: the board is a single self-contained file by
+            # design. Artifacts download from S3, so both S3 URL shapes are
+            # connectable alongside the API.
+            ContentSecurityPolicy: !Sub "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com https://*.s3.${AWS::Region}.amazonaws.com https://*.s3.amazonaws.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+
   SiteDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -1293,6 +1326,7 @@ Resources:
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD, OPTIONS]
           Compress: true
+          ResponseHeadersPolicyId: !Ref SiteSecurityHeaders
           # Managed-CachingOptimized. A fixed AWS-owned id, stable across
           # accounts and regions.
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
