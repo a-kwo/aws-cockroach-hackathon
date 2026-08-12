@@ -4329,3 +4329,8 @@ def test_the_sly_facelift_dresses_both_surfaces():
     owner = app.split('<style id="facelift-sly-v70">', 1)[1].split("</style>", 1)[0]
     assert "--owner-accent: #e2a85c" in owner.lower()
     assert "--owner-shell: #0c0b09" in owner.lower()
+    # The second token family is retuned on the mode bodies too.
+    assert "--owner-surface-raised: #1d1b14" in owner
+    # The hero carries the living-network canvas, motion-respectful.
+    assert 'id="netMap"' in landing
+    assert "prefers-reduced-motion" in landing.split('<script id="net-map">', 1)[1]

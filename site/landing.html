@@ -1461,6 +1461,10 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
 .move-card, .relief-card, .category.active {
   box-shadow: 0 22px 56px rgba(0, 0, 0, .45), 0 22px 60px -26px rgba(226, 168, 92, .24) !important;
 }
+/* The living network: a slowly turning 3D constellation behind the hero —
+   nodes and threads, brass on black, the memory graph as a picture. */
+#netMap { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: .9; }
+.hero > *:not(#netMap):not(.hero-sky) { position: relative; z-index: 2; }
 </style>
 </head>
 
@@ -1478,6 +1482,7 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
 
 <main id="top">
   <section class="hero" data-chapter="hero">
+    <canvas id="netMap" aria-hidden="true"></canvas>
     <div class="hero-sky" aria-hidden="true">
       <div class="sky-grid"></div>
       <svg class="sky-traces" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
@@ -1802,6 +1807,109 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
   });
 }
 
+</script>
+<script id="net-map">
+/* A dependency-free 3D network: ~120 nodes scattered in a sphere, joined to
+   their nearest neighbours, projected with perspective and slowly rotated.
+   Decorative — the memory graph as a picture, not a chart of rows. Respects
+   prefers-reduced-motion (single still frame), pauses when the tab hides. */
+(function () {
+  var canvas = document.getElementById("netMap");
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext("2d");
+  var DPR = Math.min(2, window.devicePixelRatio || 1);
+  var REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var N = 156, R = 340;
+  var nodes = [], edges = [];
+  // Deterministic layout: the same constellation on every visit.
+  var seed = 42;
+  function rand() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+  for (var i = 0; i < N; i++) {
+    // Points on a fuzzy sphere: direction uniform, radius jittered inward.
+    var t = rand() * Math.PI * 2, p = Math.acos(2 * rand() - 1), r = R * (0.55 + 0.45 * rand());
+    nodes.push({
+      x: r * Math.sin(p) * Math.cos(t),
+      y: r * Math.cos(p) * 0.72,
+      z: r * Math.sin(p) * Math.sin(t),
+      s: 1 + rand() * 1.8,
+      warm: rand() < 0.22
+    });
+  }
+  for (var a = 0; a < N; a++) {
+    var best = [];
+    for (var b = 0; b < N; b++) {
+      if (a === b) continue;
+      var dx = nodes[a].x - nodes[b].x, dy = nodes[a].y - nodes[b].y, dz = nodes[a].z - nodes[b].z;
+      best.push([dx * dx + dy * dy + dz * dz, b]);
+    }
+    best.sort(function (u, v) { return u[0] - v[0]; });
+    for (var k = 0; k < 3; k++) if (a < best[k][1]) edges.push([a, best[k][1]]);
+  }
+
+  var W = 0, H = 0;
+  function size() {
+    var rect = canvas.getBoundingClientRect();
+    W = Math.max(1, rect.width); H = Math.max(1, rect.height);
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  size();
+  window.addEventListener("resize", size);
+
+  var mouseX = 0, mouseY = 0;
+  window.addEventListener("pointermove", function (e) {
+    mouseX = (e.clientX / window.innerWidth - 0.5);
+    mouseY = (e.clientY / window.innerHeight - 0.5);
+  }, { passive: true });
+
+  var angle = 0, tilt = 0, running = true;
+  document.addEventListener("visibilitychange", function () { running = !document.hidden; if (running && !REDUCED) tick(); });
+
+  var FOV = 620;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    var cx = W / 2, cy = H * 0.5;
+    // Scale the constellation to the viewport so it fills the hero rather
+    // than hiding behind the headline.
+    var k2 = Math.min(W, H) / 560;
+    var ca = Math.cos(angle), sa = Math.sin(angle);
+    var ct = Math.cos(tilt), st = Math.sin(tilt);
+    var pts = new Array(N);
+    for (var i = 0; i < N; i++) {
+      var n = nodes[i];
+      var x = (n.x * ca + n.z * sa) * k2;
+      var z = (-n.x * sa + n.z * ca) * k2;
+      var y = (n.y * ct - z * st) * k2 * 1.12;
+      z = n.y * st + z * ct;
+      var sc = FOV / (FOV + z + R * 0.9);
+      pts[i] = { x: cx + x * sc, y: cy + y * sc, sc: sc, z: z };
+    }
+    ctx.lineWidth = 1;
+    for (var e = 0; e < edges.length; e++) {
+      var pA = pts[edges[e][0]], pB = pts[edges[e][1]];
+      var depth = Math.min(pA.sc, pB.sc);
+      ctx.strokeStyle = "rgba(226,168,92," + Math.max(0.06, 0.16 + 0.4 * (depth - 0.6)) + ")";
+      ctx.beginPath(); ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y); ctx.stroke();
+    }
+    for (var j = 0; j < N; j++) {
+      var pt = pts[j], nd = nodes[j];
+      var rad = nd.s * pt.sc;
+      ctx.fillStyle = nd.warm
+        ? "rgba(230,175,100," + (0.5 + 0.5 * (pt.sc - 0.55)) + ")"
+        : "rgba(242,239,233," + (0.28 + 0.55 * (pt.sc - 0.55)) + ")";
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.6, rad), 0, 6.2832); ctx.fill();
+    }
+  }
+  function tick() {
+    if (!running) return;
+    angle += 0.0016 + mouseX * 0.0025;
+    tilt += ((mouseY * 0.5) - tilt) * 0.03;
+    draw();
+    if (!REDUCED) requestAnimationFrame(tick);
+  }
+  if (REDUCED) { angle = 0.8; tilt = 0.18; draw(); } else { tick(); }
+})();
 </script>
 </body>
 </html>

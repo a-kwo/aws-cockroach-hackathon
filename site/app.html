@@ -23177,6 +23177,58 @@
     body.autopilot-mode .feed-card .post-surface {
       box-shadow: 0 24px 60px rgba(0, 0, 0, .45), 0 26px 70px -30px rgba(226, 168, 92, .20) !important;
     }
+
+    /* The second token family (v37/v38) scopes on the mode bodies, which
+       outranks :root — so Growth, the agent canvas and the profile kept the
+       old lavender until it was retuned here, on the same scope. */
+    body.autopilot-mode, body.growth-mode, body.chat-mode, body.orders-mode {
+      --owner-surface: #16140f;
+      --owner-surface-base: #0c0b09;
+      --owner-surface-raised: #1d1b14;
+      --owner-surface-input: #14120d;
+      --owner-text: #f2efe9;
+      --owner-text-secondary: #c9c5bb;
+      --owner-text-muted: #8f8b83;
+      --owner-border: rgba(242, 239, 233, .13);
+      --owner-border-strong: rgba(242, 239, 233, .24);
+      --owner-accent: #e2a85c;
+      --owner-accent-border: rgba(226, 168, 92, .38);
+      --owner-accent-soft: rgba(226, 168, 92, .12);
+      --owner-brand-gradient: linear-gradient(135deg, #eebd77 0%, #c9893c 100%);
+      --owner-control-hover: rgba(242, 239, 233, .06);
+      --owner-positive: #3dbf82;
+      --owner-success: #3dbf82;
+      --owner-danger: #e06a55;
+      --owner-warning: #e2a85c;
+    }
+    /* The lavender and periwinkle that were written as literals. */
+    body.growth-mode::before {
+      background: radial-gradient(760px 500px at 24% 8%, rgba(226, 168, 92, .09), transparent 60%) !important;
+    }
+    body.growth-mode .growth-slide-summary::after { background: rgba(226, 168, 92, .06) !important; }
+    body.growth-mode .growth-period {
+      border-color: rgba(226, 168, 92, .24) !important;
+      background: rgba(226, 168, 92, .08) !important;
+    }
+    body.growth-mode .growth-swipe-dot { background: rgba(226, 168, 92, .3) !important; }
+    body.growth-mode .growth-swipe-dot.active { box-shadow: 0 0 0 4px rgba(226, 168, 92, .1) !important; }
+    body.growth-mode .growth-slide-progress {
+      background: radial-gradient(300px 180px at 82% 12%, rgba(226, 168, 92, .1), transparent 70%) !important;
+    }
+    body.growth-mode .growth-projection-node { fill: #16140f !important; }
+    body.orders-mode .orders-row.pending { border-color: rgba(226, 168, 92, .34) !important; }
+    .chat-avatar { border-color: rgba(226, 168, 92, .3) !important; }
+    .chat-msg-action:hover { border-color: rgba(226, 168, 92, .48) !important; }
+    /* The Do it pill's label kept a white descendant rule — ink it. */
+    body.autopilot-mode .decision-button.approve,
+    body.autopilot-mode .decision-button.approve span { color: #0c0b09 !important; }
+    body.autopilot-mode .decision-button.approve svg { stroke: #0c0b09 !important; }
+    /* The logo joins the brass system. */
+    .brand-mark {
+      background: linear-gradient(135deg, #eebd77 0%, #c9893c 100%) !important;
+      color: #0c0b09 !important;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .4) !important;
+    }
   </style>
 
 </head>
