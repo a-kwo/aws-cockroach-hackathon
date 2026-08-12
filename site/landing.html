@@ -1425,11 +1425,42 @@ h1, h2 { letter-spacing: -.045em; }
   box-shadow: 0 22px 56px rgba(0, 0, 0, .45) !important;
 }
 .category:hover, .category.active { background: #1d1b15 !important; }
-/* The dawn sky reads as the one cinematic visual; dim it into the black. */
-.hero-sky { opacity: .5; filter: saturate(.85) brightness(.75); }
+/* The dawn sky reads as the one cinematic visual; on black the blue haze
+   went milky, so both glows go warm and quiet. */
+.hero-sky { opacity: .45; }
+.hero-sky::before { background: rgba(226, 168, 92, .10) !important; }
+.hero-sky::after { background: radial-gradient(circle at 45% 60%, rgba(226, 168, 92, .26), rgba(226, 168, 92, .08) 58%, transparent 72%) !important; }
 /* The bare <header> carried the old paper glass. */
 header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid var(--line) !important; }
 .nav-cta { background: var(--ink) !important; color: #0c0b09 !important; }
+
+/* ==== Rev 2 — the ember rim-light (from the mobile reference) ==========
+   Key surfaces sit on black with a warm glow leaking from their edges, and
+   the listening scene turns dark: brass orbit rings on near-black, a bone
+   core, the thread of light brightened. */
+.story-visual,
+.story-visual[data-state="watch"],
+.story-visual[data-state="decide"],
+.story-visual[data-state="prove"] {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(226, 168, 92, .10), transparent 46%),
+    linear-gradient(165deg, #191712, #100f0c) !important;
+  border: 1px solid rgba(242, 239, 233, .12) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 26px 70px -24px rgba(226, 168, 92, .30) !important;
+}
+.watch-core {
+  background: #f2efe9 !important;
+  color: #0c0b09 !important;
+  box-shadow: 0 0 0 16px rgba(242, 239, 233, .05), 0 20px 44px rgba(0, 0, 0, .5) !important;
+}
+.watch-core::before { border-color: rgba(226, 168, 92, .5) !important; }
+.watch-core::after { border-color: rgba(242, 239, 233, .16) !important; }
+.visual-thread { opacity: 1 !important; background: linear-gradient(to bottom, transparent, rgba(226, 168, 92, .38), transparent) !important; }
+.visual-time { color: #8f8b83 !important; }
+.hero { background: radial-gradient(1000px 340px at 50% 98%, rgba(226, 168, 92, .12), transparent 70%); }
+.move-card, .relief-card, .category.active {
+  box-shadow: 0 22px 56px rgba(0, 0, 0, .45), 0 22px 60px -26px rgba(226, 168, 92, .24) !important;
+}
 </style>
 </head>
 
