@@ -23040,6 +23040,20 @@
     body.day-mode .evidence-sheet-prose .feed-glance-item strong { color: #101114 !important; }
     body.day-mode .evidence-sheet-prose .feed-glance-item p { color: #3f4149 !important; }
     body.day-mode .evidence-sheet-prose .feed-cost-note { color: #3f4149 !important; }
+
+    /* The chat-about-this-move button sits in the card's top-right corner,
+       not mid-card at the copy column's edge. The surface anchors it. */
+    body.autopilot-mode .feed-card .post-surface { position: relative; }
+    body.autopilot-mode .feed-card .top-details-button {
+      position: absolute !important;
+      top: 16px;
+      right: 18px;
+      z-index: 6;
+      margin: 0 !important;
+    }
+    @media (max-width: 640px) {
+      body.autopilot-mode .feed-card .top-details-button { top: 12px; right: 12px; }
+    }
   </style>
 
 </head>
@@ -24352,10 +24366,12 @@
         { icon: "confidence", value: confidenceLabel, label: "Analyst confidence" },
         { icon: "calendar", value: post.measurementWindowLabel, label: "Measurement window" },
       ];
+      //  The value alone, at reading size; the explanatory label lives in the
+      //  accessible name rather than a second line of small print.
       return items.map(item => `
-        <span class="feed-proof-item">
+        <span class="feed-proof-item" aria-label="${escapeHtml(item.label)}: ${escapeHtml(item.value)}" title="${escapeHtml(item.label)}">
           <i>${feedDetailIcon(item.icon)}</i>
-          <span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.label)}</small></span>
+          <span><strong>${escapeHtml(item.value)}</strong></span>
         </span>`).join("");
     }
 
