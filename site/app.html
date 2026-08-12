@@ -22920,6 +22920,93 @@
     }
   </style>
 
+  <style id="feed-sheets-v68">
+    /* ==== One sheet for every card disclosure ============================
+       Plan and costs were inline <details>; they are buttons now, identical
+       to the evidence row and opening the identical centred sheet. These
+       rules re-create the row look the summaries used to carry, and dress
+       the plan / costs bodies for the sheet. Last block on purpose. */
+
+    body.autopilot-mode .feed-plan,
+    body.autopilot-mode .feed-more,
+    body.autopilot-mode .feed-detail-evidence {
+      width: 100%;
+      margin: 0 !important;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 14px;
+      border: 1px solid rgba(205, 214, 255, .12);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .022);
+      color: #cbb6f4;
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    body.autopilot-mode .feed-plan:hover,
+    body.autopilot-mode .feed-more:hover,
+    body.autopilot-mode .feed-detail-evidence:hover {
+      border-color: rgba(205, 214, 255, .22);
+      background: rgba(255, 255, 255, .045);
+    }
+    body.autopilot-mode .feed-plan small,
+    body.autopilot-mode .feed-more small,
+    body.autopilot-mode .feed-detail-evidence small {
+      color: #d3d0ec;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    body.autopilot-mode .feed-plan::after,
+    body.autopilot-mode .feed-more::after,
+    body.autopilot-mode .feed-detail-evidence::after {
+      content: "";
+      flex: none;
+      width: 7px;
+      height: 7px;
+      border-right: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor;
+      transform: rotate(45deg);
+      opacity: .7;
+      margin-left: 4px;
+    }
+    body.day-mode.autopilot-mode .feed-plan,
+    body.day-mode.autopilot-mode .feed-more,
+    body.day-mode.autopilot-mode .feed-detail-evidence {
+      border-color: #e4e2dc !important;
+      background: #faf9f6 !important;
+      color: #6b5316;
+    }
+    body.day-mode.autopilot-mode .feed-plan small,
+    body.day-mode.autopilot-mode .feed-more small,
+    body.day-mode.autopilot-mode .feed-detail-evidence small { color: #101114 !important; }
+
+    /* The plan and costs bodies inside the sheet: comfortable reading, the
+       same list/grid styling they had inline, on the sheet's surface. */
+    .evidence-sheet-prose {
+      margin: 0;
+      padding: 16px 22px 24px;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+    .evidence-sheet-prose .recommendation-steps {
+      margin: 0;
+      padding-left: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: #e3e6f2;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .evidence-sheet-prose .feed-detail-list { margin-top: 4px; }
+    .evidence-sheet-prose .feed-glance-grid { margin-bottom: 4px; }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
@@ -24320,27 +24407,68 @@
           ${Number.isFinite(similarity) ? `<span class="evidence-similarity" title="Vector similarity">${escapeHtml(similarity.toFixed(3))}</span>` : ""}
         </li>`;
       }).join("");
-      return `<div class="evidence-sheet" id="evidenceSheet" role="dialog" aria-modal="true" aria-labelledby="evidenceSheetTitle" style="--accent:${escapeHtml(post?.accent || "#9b56ff")};--accent-rgb:${escapeHtml(post?.accentRgb || "155,86,255")}">
-        <button class="evidence-sheet-scrim" type="button" data-close-evidence tabindex="-1" aria-label="Close evidence"></button>
+      return detailSheetMarkup(post, {
+        kind: "evidence",
+        eyebrow: "Analyst evidence",
+        bodyHtml: rows
+          ? `<ol class="evidence-sheet-list">${rows}</ol>`
+          : `<p class="evidence-sheet-empty">The evidence count is stored, but the source text was not included in this snapshot.</p>`,
+      });
+    }
+
+    //  One sheet chrome for every card disclosure — evidence, the execution
+    //  plan, and costs & goals all open the same centred dialog: same scrim,
+    //  same panel, same close, only the eyebrow and body changing. The
+    //  data-sheet-kind attribute is how the guided tour tells them apart.
+    function detailSheetMarkup(post, { kind, eyebrow, bodyHtml }) {
+      return `<div class="evidence-sheet" id="evidenceSheet" data-sheet-kind="${escapeHtml(kind)}" role="dialog" aria-modal="true" aria-labelledby="evidenceSheetTitle" style="--accent:${escapeHtml(post?.accent || "#9b56ff")};--accent-rgb:${escapeHtml(post?.accentRgb || "155,86,255")}">
+        <button class="evidence-sheet-scrim" type="button" data-close-evidence tabindex="-1" aria-label="Close"></button>
         <section class="evidence-sheet-panel" tabindex="-1">
           <header class="evidence-sheet-head">
             <div>
-              <span class="evidence-sheet-eyebrow">Analyst evidence</span>
-              <h2 class="evidence-sheet-title" id="evidenceSheetTitle">${escapeHtml(post?.title || "Recommendation evidence")}</h2>
+              <span class="evidence-sheet-eyebrow">${escapeHtml(eyebrow)}</span>
+              <h2 class="evidence-sheet-title" id="evidenceSheetTitle">${escapeHtml(post?.title || "This move")}</h2>
             </div>
-            <button class="evidence-sheet-close" type="button" data-close-evidence aria-label="Close evidence">×</button>
+            <button class="evidence-sheet-close" type="button" data-close-evidence aria-label="Close">×</button>
           </header>
-          ${rows ? `<ol class="evidence-sheet-list">${rows}</ol>` : `<p class="evidence-sheet-empty">The evidence count is stored, but the source text was not included in this snapshot.</p>`}
+          ${bodyHtml}
         </section>
       </div>`;
     }
 
-    function openEvidenceSheet(postId, opener) {
+    function planSheetMarkup(post) {
+      return detailSheetMarkup(post, {
+        kind: "plan",
+        eyebrow: "Execution plan",
+        bodyHtml: `<div class="evidence-sheet-prose feed-plan-body">${renderSteps(post)}</div>`,
+      });
+    }
+
+    function costsSheetMarkup(post) {
+      return detailSheetMarkup(post, {
+        kind: "costs",
+        eyebrow: "Costs, category & goals",
+        bodyHtml: `<div class="evidence-sheet-prose feed-more-body">${renderCostsAndGoals(post)}</div>`,
+      });
+    }
+
+    const SHEET_MARKUP = { evidence: evidenceSheetMarkup, plan: planSheetMarkup, costs: costsSheetMarkup };
+
+    function openDetailSheet(postId, kind, opener) {
+      const build = SHEET_MARKUP[kind] || evidenceSheetMarkup;
       const post = posts.find(item => String(item.id) === String(postId));
       if (!post) return;
       closeEvidenceSheet(false);
       evidenceSheetOpener = opener || document.activeElement;
-      document.body.insertAdjacentHTML("beforeend", evidenceSheetMarkup(post));
+      document.body.insertAdjacentHTML("beforeend", build(post));
+      afterSheetOpen();
+    }
+
+    function openEvidenceSheet(postId, opener) {
+      openDetailSheet(postId, "evidence", opener);
+    }
+
+    function afterSheetOpen() {
       document.body.classList.add("evidence-sheet-open");
       const panel = document.querySelector("#evidenceSheet .evidence-sheet-panel");
       const close = document.querySelector("#evidenceSheet .evidence-sheet-close");
@@ -24372,11 +24500,12 @@
     // reads clean; the owner taps to open. When it is closed the card drops to
     // a single column (see CSS :has), so the panel never strands an empty
     // column on desktop.
-    function renderFeedDetailPanel(post) {
-      // A find without a normalised brief must not throw and take the whole
-      // app script down with it (it used to read brief.goal and crash init).
+    //  The Costs, category & goals body — modelled costs, classification, and
+    //  the goal/benefit/signal grid the honesty rules require. Rendered inside
+    //  the detail sheet now; kept as its own function so the sheet builder and
+    //  any future surface share one source of truth.
+    function renderCostsAndGoals(post) {
       const brief = post.feedBrief || normaliseFeedBrief(post);
-      const evidenceCount = Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0));
       // Priced by a second agent that was never shown what this move is
       // predicted to earn, so the two figures are independent. Absent whenever
       // nobody costed it — an older find, or a night the costing call failed —
@@ -24393,21 +24522,11 @@
         { icon: "people", label: "Who benefits", value: brief.beneficiary },
         { icon: "signal", label: "Success signal", value: brief.successSignal },
       ];
-      const steps = (post.steps || []).filter(Boolean);
-      const stepCount = steps.length || 1;
-
-      // The Impact/Effort/Type/Owner-approval grid was removed from the card
-      // at the owner's request — too much to read at a glance, and the money
-      // already sits in the footer. The costing, classification and the
-      // goal/benefit/signal grid the honesty rules require stay in More detail.
-      // modelled costs, the finer classification, and the goal/benefit/signal
-      // at-a-glance grid the honesty rules require to remain on the page.
       const moreRows = [
         ...costRows,
         { icon: "category", label: "Category", value: brief.category },
         { icon: "price", label: "Price point", value: brief.pricePoint },
       ];
-
       const rowHtml = row => `
         <div class="feed-detail-row ${row.tone ? `is-${row.tone}` : ""}">
           <dt><i>${feedDetailIcon(row.icon)}</i><span>${escapeHtml(row.label)}</span></dt>
@@ -24415,45 +24534,51 @@
             ? `<span class="feed-effort-pill is-${escapeHtml(brief.effort)}">${escapeHtml(row.value)}</span>`
             : escapeHtml(row.value || "Not specified")}</dd>
         </div>`;
+      return `
+        <dl class="feed-detail-list">
+          ${moreRows.map(rowHtml).join("")}
+        </dl>
+        ${cost && cost.hasEstimate ? `
+          <p class="feed-cost-note">
+            <b>Costs are modelled, not measured.</b>
+            ${escapeHtml(cost.basis || "")}
+            ${cost.paysBackWithinWindow === false
+              ? "This is checked before it breaks even, so the first verdict measures the lift rather than the payback."
+              : ""}
+          </p>` : ""}
+        <div class="feed-glance-heading"><span>At a glance</span></div>
+        <div class="feed-glance-grid">
+          ${glance.map(item => `
+            <section class="feed-glance-item">
+              <i>${feedDetailIcon(item.icon)}</i>
+              <strong>${escapeHtml(item.label)}</strong>
+              <p>${escapeHtml(item.value)}</p>
+            </section>`).join("")}
+        </div>`;
+    }
 
-      //  Three identical quiet rows — plan, costs, evidence — nothing louder
-      //  than anything else. The highlighted "step 1" block that used to lead
-      //  this panel repeated the plan's first bullet at ten times the size; the
-      //  full plan is one tap away behind the first row.
+    function renderFeedDetailPanel(post) {
+      const evidenceCount = Math.max(0, Number(post.evidenceCount || post.evidence?.length || 0));
+      const steps = (post.steps || []).filter(Boolean);
+      const stepCount = steps.length || 1;
+
+      //  Three identical quiet rows — plan, costs, evidence — and one
+      //  identical behaviour: each opens the same centred sheet the evidence
+      //  always used. The rows used to be two inline disclosures and one
+      //  dialog, which read as three rows with two personalities.
       return `
         <aside class="feed-detail-panel" aria-label="Recommendation details">
-          <details class="feed-plan">
-            <summary>
-              <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
-            </summary>
-            <div class="feed-plan-body">${renderSteps(post)}</div>
-          </details>
+          <button class="feed-plan" type="button" data-open-sheet="plan" data-post-id="${escapeHtml(post.id)}"
+                  aria-haspopup="dialog"
+                  aria-label="Execution plan — ${escapeHtml(String(stepCount))} step${stepCount === 1 ? "" : "s"} for ${escapeHtml(post.title)}">
+            <small>Execution plan · ${stepCount} step${stepCount === 1 ? "" : "s"}</small>
+          </button>
 
-          <details class="feed-more">
-            <summary><small>Costs, category &amp; goals</small></summary>
-            <div class="feed-more-body">
-              <dl class="feed-detail-list">
-                ${moreRows.map(rowHtml).join("")}
-              </dl>
-              ${cost && cost.hasEstimate ? `
-                <p class="feed-cost-note">
-                  <b>Costs are modelled, not measured.</b>
-                  ${escapeHtml(cost.basis || "")}
-                  ${cost.paysBackWithinWindow === false
-                    ? "This is checked before it breaks even, so the first verdict measures the lift rather than the payback."
-                    : ""}
-                </p>` : ""}
-              <div class="feed-glance-heading"><span>At a glance</span></div>
-              <div class="feed-glance-grid">
-                ${glance.map(item => `
-                  <section class="feed-glance-item">
-                    <i>${feedDetailIcon(item.icon)}</i>
-                    <strong>${escapeHtml(item.label)}</strong>
-                    <p>${escapeHtml(item.value)}</p>
-                  </section>`).join("")}
-              </div>
-            </div>
-          </details>
+          <button class="feed-more" type="button" data-open-sheet="costs" data-post-id="${escapeHtml(post.id)}"
+                  aria-haspopup="dialog"
+                  aria-label="Costs, category and goals for ${escapeHtml(post.title)}">
+            <small>Costs, category &amp; goals</small>
+          </button>
 
           <button class="feed-detail-evidence" type="button" data-open-evidence="${escapeHtml(post.id)}"
                   aria-haspopup="dialog"
@@ -31813,6 +31938,12 @@ ledger_entry · artifact · agent_run`,
           openEvidenceSheet(button.dataset.openEvidence, button);
         };
       });
+      document.querySelectorAll("[data-open-sheet]").forEach(button => {
+        button.onclick = event => {
+          event.stopPropagation();
+          openDetailSheet(button.dataset.postId, button.dataset.openSheet, button);
+        };
+      });
       document.querySelectorAll("[data-decide]").forEach(button => {
         button.onclick = () => {
           const postId = button.dataset.postId;
@@ -34918,10 +35049,17 @@ ledger_entry · artifact · agent_run`,
     }catch(e){} }
     //  The sheet is inserted into the DOM when it opens, so its presence IS its
     //  state -- no class to guess at.
-    function evidenceIsOpen(){ return !!document.getElementById("evidenceSheet"); }
+    //  All three card disclosures share one sheet now, tagged with its kind —
+    //  ask for the kind, not just "a sheet is open".
+    function sheetKind(){ var s=document.getElementById("evidenceSheet"); return s ? (s.getAttribute("data-sheet-kind") || "evidence") : null; }
+    function evidenceIsOpen(){ return sheetKind() === "evidence"; }
     function evidence(open){
       if(open && !evidenceIsOpen()) click(CURRENT + ".feed-detail-evidence");
-      else if(!open && evidenceIsOpen()) closeEvidence();
+      else if(!open && sheetKind()) closeEvidence();
+    }
+    function planSheet(open){
+      if(open && sheetKind() !== "plan") click(CURRENT + ".feed-plan");
+      else if(!open && sheetKind() === "plan") closeEvidence();
     }
     //  The chat thread is append-only, so replaying a line on the way back
     //  would stack duplicates. The messages stay put; everything around them --
@@ -35000,13 +35138,13 @@ ledger_entry · artifact · agent_run`,
 
     var OWNER_STEPS = [
       { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, its agents work the night shift — and this is what the owner wakes up to.",
-        run:function(){ view("autopilot"); evidence(false); details(CURRENT + ".feed-plan", false); focusCard(0); }, target:"#feedStage", settle:400 },
+        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); }, target:"#feedStage", settle:400 },
       { ch:0, caption:"Each card is one finding from last night, grouped by the day it arrived. Scroll the feed — pricing, hours, reviews, supply.",
         run:function(){ view("autopilot"); evidence(false); focusCard(1); }, target:CURRENT.trim(), settle:300 },
       { ch:0, caption:"Open it and it isn't a hunch. Weekend patio bookings: a specific move, $9 a day, and a date it gets checked.",
-        run:function(){ view("autopilot"); evidence(false); focusCard(1); details(CURRENT + ".feed-plan", true); }, target:CURRENT + ".feed-plan", settle:350 },
+        run:function(){ view("autopilot"); evidence(false); focusCard(1); planSheet(true); }, target:CURRENT + ".feed-plan", settle:350 },
       { ch:0, caption:"And its evidence: the real reviews the vector search returned, each scored by how closely it matched. Guests naming the patio, and one warning about the wait.",
-        run:function(){ view("autopilot"); focusCard(1); details(CURRENT + ".feed-plan", true); evidence(true); }, settle:400 },
+        run:function(){ view("autopilot"); focusCard(1); evidence(true); }, settle:400 },
       { ch:0, caption:"That similarity score is stored with every recommendation. Retrieval you can audit, not a black box.",
         run:function(){ view("autopilot"); evidence(false); }, target:CURRENT + ".feed-plan", settle:300 },
 
