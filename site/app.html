@@ -23005,6 +23005,43 @@
     }
     .evidence-sheet-prose .feed-detail-list { margin-top: 4px; }
     .evidence-sheet-prose .feed-glance-grid { margin-bottom: 4px; }
+
+    /* Day mode: the panel goes paper elsewhere, but the sheet's text was
+       still midnight-coloured — white on white. Re-ink every piece. */
+    body.day-mode .evidence-sheet-title { color: #101114 !important; }
+    body.day-mode .evidence-sheet-eyebrow { color: #96702a !important; }
+    body.day-mode .evidence-sheet-subtitle { color: #77787e !important; }
+    body.day-mode .evidence-sheet-close {
+      color: #3f4149 !important;
+      border-color: #e0ded8 !important;
+      background: #faf9f6 !important;
+    }
+    body.day-mode .evidence-sheet-head { border-bottom-color: rgba(16, 17, 20, .08) !important; }
+    body.day-mode .evidence-sheet-item { border-bottom-color: rgba(16, 17, 20, .07) !important; }
+    body.day-mode .evidence-copy p { color: #26282d !important; }
+    body.day-mode .evidence-meta,
+    body.day-mode .evidence-meta span { color: #77787e !important; }
+    body.day-mode .evidence-rank {
+      color: #96702a !important;
+      border-color: rgba(170, 125, 42, .35) !important;
+      background: rgba(170, 125, 42, .08) !important;
+    }
+    body.day-mode .evidence-similarity {
+      color: #101114 !important;
+      border-color: #e0ded8 !important;
+      background: #faf9f6 !important;
+    }
+    body.day-mode .evidence-sheet-empty { color: #77787e !important; }
+    body.day-mode .evidence-sheet-prose .recommendation-steps,
+    body.day-mode .evidence-sheet-prose .recommendation-steps li { color: #26282d !important; }
+    body.day-mode .evidence-sheet-prose .feed-detail-row dt span { color: #3f4149 !important; }
+    body.day-mode .evidence-sheet-prose .feed-detail-row dt i { color: #96702a !important; }
+    body.day-mode .evidence-sheet-prose .feed-detail-row dd { color: #101114 !important; }
+    body.day-mode .evidence-sheet-prose .feed-glance-heading > span { color: #96702a !important; }
+    body.day-mode .evidence-sheet-prose .feed-glance-item i { color: #96702a !important; }
+    body.day-mode .evidence-sheet-prose .feed-glance-item strong { color: #101114 !important; }
+    body.day-mode .evidence-sheet-prose .feed-glance-item p { color: #3f4149 !important; }
+    body.day-mode .evidence-sheet-prose .feed-cost-note { color: #3f4149 !important; }
   </style>
 
 </head>
