@@ -1465,6 +1465,27 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
    nodes and threads, brass on black, the memory graph as a picture. */
 #netMap { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: .9; }
 .hero > *:not(#netMap):not(.hero-sky) { position: relative; z-index: 2; }
+/* The burn: a charred grain over the hero, and an ember glow that follows a
+   fine pointer — the page smoulders where the visitor touches it. */
+.hero::after {
+  content: "";
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.38 0 0 0 0 0.2 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .10;
+  mix-blend-mode: overlay;
+}
+#burnGlow {
+  position: absolute; z-index: 1; width: 360px; height: 360px;
+  margin: -180px 0 0 -180px; left: 50%; top: 40%;
+  pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(255,190,110,.20), rgba(232,130,50,.10) 42%, transparent 68%);
+  mix-blend-mode: screen;
+  transition: opacity .5s ease;
+  animation: burnFlicker 2.6s ease-in-out infinite;
+}
+.hero.is-burning #burnGlow { opacity: 1; }
+@keyframes burnFlicker { 0%,100% { transform: scale(1); } 38% { transform: scale(1.07); } 71% { transform: scale(.95); } }
+@media (prefers-reduced-motion: reduce) { #burnGlow { display: none; } .hero::after { opacity: .07; } }
 </style>
 </head>
 
@@ -1483,6 +1504,7 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
 <main id="top">
   <section class="hero" data-chapter="hero">
     <canvas id="netMap" aria-hidden="true"></canvas>
+    <div id="burnGlow" aria-hidden="true"></div>
     <div class="hero-sky" aria-hidden="true">
       <div class="sky-grid"></div>
       <svg class="sky-traces" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
@@ -1847,6 +1869,20 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
     for (var k = 0; k < 3; k++) if (a < best[k][1]) edges.push([a, best[k][1]]);
   }
 
+  // Drifting embers: sparks rising off the bottom of the scene, flickering
+  // as they climb — the burn. Respawn above the top back to the bottom.
+  var EMBERS = 44, embers = [];
+  for (var q = 0; q < EMBERS; q++) {
+    embers.push({
+      u: rand(),                       // horizontal position, 0..1
+      v: rand() * 1.2,                 // vertical progress, 0 bottom .. 1 top
+      sway: 12 + rand() * 30,
+      speed: 0.0006 + rand() * 0.0013,
+      size: 0.8 + rand() * 1.9,
+      phase: rand() * 6.283
+    });
+  }
+
   var W = 0, H = 0;
   function size() {
     var rect = canvas.getBoundingClientRect();
@@ -1858,9 +1894,21 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
   window.addEventListener("resize", size);
 
   var mouseX = 0, mouseY = 0;
+  var hero = canvas.closest(".hero");
+  var glow = document.getElementById("burnGlow");
+  var FINE = window.matchMedia("(pointer: fine)").matches;
   window.addEventListener("pointermove", function (e) {
     mouseX = (e.clientX / window.innerWidth - 0.5);
     mouseY = (e.clientY / window.innerHeight - 0.5);
+    if (FINE && !REDUCED && hero && glow) {
+      var hr = hero.getBoundingClientRect();
+      var inside = e.clientY >= hr.top && e.clientY <= hr.bottom;
+      hero.classList.toggle("is-burning", inside);
+      if (inside) {
+        glow.style.left = (e.clientX - hr.left) + "px";
+        glow.style.top = (e.clientY - hr.top) + "px";
+      }
+    }
   }, { passive: true });
 
   var angle = 0, tilt = 0, running = true;
@@ -1899,6 +1947,24 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
         ? "rgba(230,175,100," + (0.5 + 0.5 * (pt.sc - 0.55)) + ")"
         : "rgba(242,239,233," + (0.28 + 0.55 * (pt.sc - 0.55)) + ")";
       ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.6, rad), 0, 6.2832); ctx.fill();
+    }
+    // The embers ride over the constellation.
+    var now = angle * 600;
+    for (var w = 0; w < EMBERS; w++) {
+      var em = embers[w];
+      em.v += em.speed * (REDUCED ? 0 : 1);
+      if (em.v > 1.15) { em.v = -0.05; em.u = rand(); }
+      var ex = em.u * W + Math.sin(now * 0.01 + em.phase) * em.sway;
+      var ey = H * (1 - em.v);
+      var flicker = 0.45 + 0.55 * Math.abs(Math.sin(now * 0.02 + em.phase));
+      var fade = em.v < 0.12 ? em.v / 0.12 : em.v > 0.85 ? (1.15 - em.v) / 0.3 : 1;
+      var alpha = 0.55 * flicker * Math.max(0, fade);
+      var g = ctx.createRadialGradient(ex, ey, 0, ex, ey, em.size * 4);
+      g.addColorStop(0, "rgba(255,214,150," + alpha + ")");
+      g.addColorStop(0.4, "rgba(232,140,60," + alpha * 0.55 + ")");
+      g.addColorStop(1, "rgba(232,120,40,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(ex, ey, em.size * 4, 0, 6.2832); ctx.fill();
     }
   }
   function tick() {
