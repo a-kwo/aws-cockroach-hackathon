@@ -89,6 +89,27 @@ def test_business_ids_reject_an_invalid_uuid():
         )
 
 
+def test_a_config_failure_does_not_echo_its_details(monkeypatch):
+    """A 500 must not narrate the infrastructure to whoever caused it.
+
+    Settings and secrets errors name parameter paths and expected environment
+    variables — a map of the deployment, served to any unauthenticated caller
+    who manages to arrive while configuration is broken. The detail belongs in
+    the log; the caller gets a sentence.
+    """
+    def boom():
+        raise RuntimeError(
+            "could not read /brasstacks/COCKROACH_DATABASE_URL from ssm")
+
+    monkeypatch.setattr(workflow, "hydrate_environment", boom)
+    response = workflow.handler(SIGNED_IN)
+
+    assert response["statusCode"] == 500
+    error = json.loads(response["body"])["error"].lower()
+    for fragment in ("ssm", "cockroach", "/brasstacks", "database_url"):
+        assert fragment not in error
+
+
 def test_response_exposes_etag_for_conditional_refreshes():
     out = workflow.respond(200, {"workspaces": []}, etag='"abc"')
     assert out["headers"]["ETag"] == '"abc"'

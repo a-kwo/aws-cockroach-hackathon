@@ -1244,6 +1244,37 @@ def test_deploy_template_supports_a_custom_site_domain():
     assert "!If" in site_url and "HasSiteDomain" in site_url
 
 
+def test_the_board_ships_security_headers():
+    """CloudFront must attach security headers to every page it serves.
+
+    The dashboard keeps the session token in localStorage and renders text that
+    came from scrapes and models, so the headers are the backstop: the CSP
+    stops an injected handler exfiltrating tokens to an arbitrary host (only
+    the API origins are connectable), frame-ancestors stops the board being
+    framed for clickjacking, nosniff and HSTS close the classics. Inline
+    script/style stay allowed — the page is one self-contained file by design.
+    """
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+
+    assert "AWS::CloudFront::ResponseHeadersPolicy" in template
+
+    policy = template.split("AWS::CloudFront::ResponseHeadersPolicy", 1)[1]
+    assert "StrictTransportSecurity:" in policy
+    assert "ContentTypeOptions:" in policy
+    assert "FrameOptions:" in policy
+    assert "ReferrerPolicy:" in policy
+
+    csp = policy.split("ContentSecurityPolicy:", 1)[1]
+    assert "frame-ancestors 'none'" in csp
+    assert "object-src 'none'" in csp
+    assert "connect-src" in csp
+    assert "execute-api" in csp, "the page must still reach its own API"
+
+    # Declared but never attached is the quiet failure mode.
+    distribution = template.split("SiteDistribution:", 1)[1].split("Outputs:", 1)[0]
+    assert "ResponseHeadersPolicyId:" in distribution
+
+
 def test_the_sweep_wakes_while_the_businesses_it_watches_are_open():
     """Every observation in the corpus was captured before its tenant opened.
 

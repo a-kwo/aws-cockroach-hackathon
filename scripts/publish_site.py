@@ -144,6 +144,25 @@ def frontend_env(outputs: dict[str, str], *, oauth_enabled: bool) -> dict[str, s
     }
 
 
+def export_commands() -> list[list[str]]:
+    """The export path, in publish order: dump, scrub, prove the scrub took.
+
+    `export_fixture.py` writes whatever tenant BRASSTACKS_BUSINESS_ID points at,
+    verbatim — reviews, revenue figures, the owner's name. The committed fixture
+    is only safe because `anonymise_fixture.py` rewrote it, so a fresh export
+    must go through the same rewrite and then `--check` before anything reaches
+    S3. If the gitignored map is absent, anonymise_fixture exits with
+    instructions and the publish aborts — the safe failure. `--no-export` skips
+    all three and publishes the already-scrubbed committed fixture.
+    """
+    anonymise = str(REPO_ROOT / "scripts" / "anonymise_fixture.py")
+    return [
+        [sys.executable, str(REPO_ROOT / "scripts" / "export_fixture.py")],
+        [sys.executable, anonymise],
+        [sys.executable, anonymise, "--check"],
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-export", action="store_true",
@@ -163,9 +182,9 @@ def main() -> int:
     env.update(frontend_env(outputs, oauth_enabled=oauth_client_exists(aws)))
 
     if not args.no_export:
-        print("\nexporting the fixture from the live cluster")
-        run([sys.executable, str(REPO_ROOT / "scripts" / "export_fixture.py")],
-            env=env, dry=args.dry_run)
+        print("\nexporting the fixture from the live cluster (then anonymising it)")
+        for command in export_commands():
+            run(command, env=env, dry=args.dry_run)
 
     print("\nbuilding the site")
     run([sys.executable, str(REPO_ROOT / "scripts" / "build_web.py")],
