@@ -659,10 +659,10 @@
       border: 1px solid transparent;
       background: var(--approve);
       color: #ffffff;
-      box-shadow: 0 9px 20px rgba(15, 155, 114, .20);
+      box-shadow: 0 9px 20px rgba(47, 158, 93, .20);
     }
 
-    .decision-button.approve:hover { background: var(--approve-hover); box-shadow: 0 12px 24px rgba(15, 155, 114, .24); }
+    .decision-button.approve:hover { background: var(--approve-hover); box-shadow: 0 12px 24px rgba(47, 158, 93, .24); }
 
     .swipe-cue {
       position: absolute;
@@ -1439,7 +1439,7 @@
       align-items: center;
       gap: 9px;
       padding: 0 14px;
-      border: 1px solid rgba(15, 155, 114, .20);
+      border: 1px solid rgba(47, 158, 93, .20);
       border-radius: 12px;
       background: #17352b;
       color: #e8fff5;
@@ -1674,13 +1674,13 @@
     .decision-state.approved {
       border-color: #bfe9da;
       background: linear-gradient(135deg, #e8f8f1 0%, #f2fbf7 100%);
-      box-shadow: 0 12px 28px rgba(15,155,114,.08);
+      box-shadow: 0 12px 28px rgba(47,158,93,.08);
     }
 
     .decision-state.approved .decision-state-icon {
       background: var(--approve);
       color: #ffffff;
-      box-shadow: 0 7px 18px rgba(15,155,114,.20);
+      box-shadow: 0 7px 18px rgba(47,158,93,.20);
     }
 
     .decision-state.approved strong { color: #08775a; }
@@ -1863,7 +1863,7 @@
       --brand-dark: #5d60df;
       --brand-soft: #efefff;
       --approve: #20b887;
-      --approve-hover: #16a879;
+      --approve-hover: #2f9e5d;
       --approve-soft: #e7f7f0;
       --reject: #d25b66;
       --reject-soft: #fff0f1;
@@ -1977,7 +1977,7 @@
     }
 
     .queue-pill-dot { background: #8789ff; box-shadow: 0 0 0 4px rgba(135,137,255,.09); }
-    .queue-pill.complete .queue-pill-dot { background: var(--approve); box-shadow: 0 0 0 4px rgba(32,184,135,.10); }
+    .queue-pill.complete .queue-pill-dot { background: var(--approve); box-shadow: 0 0 0 4px rgba(75,181,111,.10); }
 
     .restart-button {
       height: 36px;
@@ -2375,10 +2375,10 @@
       border: 1px solid transparent;
       background: var(--approve);
       color: #fff;
-      box-shadow: 0 12px 28px rgba(32,184,135,.22), inset 0 1px 0 rgba(255,255,255,.18);
+      box-shadow: 0 12px 28px rgba(75,181,111,.22), inset 0 1px 0 rgba(255,255,255,.18);
     }
 
-    .decision-button.approve:hover { background: var(--approve-hover); box-shadow: 0 15px 32px rgba(32,184,135,.28); }
+    .decision-button.approve:hover { background: var(--approve-hover); box-shadow: 0 15px 32px rgba(75,181,111,.28); }
 
     .swipe-cue {
       min-width: 70px;
@@ -2499,12 +2499,12 @@
 
     /* ---- monthly revenue chart -------------------------------------------
        Palette is two marks only, checked with the data-viz validator against
-       this panel's #faf9f6 surface: verified #0f9c74 and projected #c9893c —
+       this panel's #faf9f6 surface: verified #2f8f5a and projected #c9893c —
        deutan ΔE 22.8, both clearing 3:1. The app's own --approve (#20b887)
        measured 2.41:1 here, which is why the green is a step deeper than the
        Approve button rather than the same token. */
     .growth-chart {
-      --verified: #0f9c74;
+      --verified: #2f8f5a;
       --projected: #c9893c;
       margin-top: 14px;
       /* The chart panel used to sit flush against the decision lists below it —
@@ -3573,7 +3573,7 @@
     body.autopilot-mode::before {
       background:
         radial-gradient(760px 520px at 50% 42%, rgba(107,111,255,.10), transparent 70%),
-        radial-gradient(620px 420px at 80% 82%, rgba(32,184,135,.055), transparent 72%);
+        radial-gradient(620px 420px at 80% 82%, rgba(75,181,111,.055), transparent 72%);
       background-size: auto;
     }
     body.autopilot-mode .topbar {
@@ -3778,7 +3778,7 @@
     body.growth-mode::before {
       background:
         radial-gradient(760px 500px at 24% 8%, rgba(226,168,92,.12), transparent 70%),
-        radial-gradient(680px 460px at 86% 78%, rgba(32,184,135,.07), transparent 72%);
+        radial-gradient(680px 460px at 86% 78%, rgba(75,181,111,.07), transparent 72%);
       background-size:auto;
     }
     body.growth-mode .topbar {
@@ -3863,7 +3863,7 @@
       padding:30px;
       border-right:1px solid #e8e9e4;
       background:
-        radial-gradient(280px 220px at 18% 0%, rgba(32,184,135,.10), transparent 72%),
+        radial-gradient(280px 220px at 18% 0%, rgba(75,181,111,.10), transparent 72%),
         #fbfaf7;
     }
     body.growth-mode .growth-total span {
@@ -3980,7 +3980,7 @@
       padding:8px 10px;
       border-radius:999px;
       background:#e8f7f1;
-      color:#0c986f;
+      color:#2f8f5a;
       font-size:10px;
     }
     body.growth-mode .decision-row-value.rejected {
@@ -4001,7 +4001,7 @@
       box-shadow:0 8px 20px rgba(17,22,30,.08);
     }
     body.autopilot-mode .decision-button.approve {
-      box-shadow:0 14px 30px rgba(32,184,135,.25);
+      box-shadow:0 14px 30px rgba(75,181,111,.25);
     }
     body.autopilot-mode .feed-card.is-current {
       animation:social-card-in .38s var(--ease) both;
@@ -4079,7 +4079,7 @@
       place-items:center;
       isolation:isolate;
       background:
-        radial-gradient(460px 250px at 18% 12%,rgba(32,184,135,.18),transparent 70%),
+        radial-gradient(460px 250px at 18% 12%,rgba(75,181,111,.18),transparent 70%),
         radial-gradient(420px 250px at 88% 82%,rgba(226,168,92,.12),transparent 72%),
         #fbfaf7;
     }
@@ -4098,7 +4098,7 @@
       height:210px;
       left:8%;
       top:50%;
-      border:1px solid rgba(32,184,135,.12);
+      border:1px solid rgba(75,181,111,.12);
       transform:translateY(-50%);
       animation:growth-orbit 8s ease-in-out infinite;
     }
@@ -4137,7 +4137,7 @@
       -webkit-background-clip:text;
       background-clip:text;
       color:transparent;
-      filter:drop-shadow(0 12px 24px rgba(32,184,135,.12));
+      filter:drop-shadow(0 12px 24px rgba(75,181,111,.12));
       animation:growth-number-in .7s .08s var(--ease) both;
     }
     body.growth-mode .growth-total p {
@@ -4155,7 +4155,7 @@
     body.growth-mode .growth-slide-progress {
       background:
         radial-gradient(520px 260px at 88% 0%,rgba(226,168,92,.16),transparent 70%),
-        radial-gradient(420px 240px at 10% 100%,rgba(32,184,135,.10),transparent 74%),
+        radial-gradient(420px 240px at 10% 100%,rgba(75,181,111,.10),transparent 74%),
         #fbfaf7;
     }
     body.growth-mode .growth-chart {
@@ -4256,7 +4256,7 @@
       stroke-dasharray:1;
       stroke-dashoffset:1;
       animation:journey-draw 1.15s .12s var(--ease) forwards;
-      filter:drop-shadow(0 9px 14px rgba(44,164,133,.16));
+      filter:drop-shadow(0 9px 14px rgba(72,182,113,.16));
     }
     .journey-line.projected {
       stroke:#d0a05a;
@@ -4394,11 +4394,11 @@
       display:grid;
       place-items:center;
       border-radius:19px;
-      background:linear-gradient(145deg,#20bd8b,#c9893c);
+      background:linear-gradient(145deg,#48b671,#c9893c);
       color:#fff;
       font-size:26px;
       font-weight:800;
-      box-shadow:0 14px 30px rgba(41,178,139,.23);
+      box-shadow:0 14px 30px rgba(72,182,113,.23);
     }
     body.growth-mode .growth-total span {
       grid-column:2;
@@ -4516,8 +4516,8 @@
   <style id="growth-social-v6-polish">
     /* Center the monthly result and use one calm social palette. */
     body.growth-mode {
-      --growth-emerald:#19b985;
-      --growth-teal:#2aa9a1;
+      --growth-emerald:#48b671;
+      --growth-teal:#4bb56f;
       --growth-indigo:#c9893c;
       --growth-ink:#181510;
       --growth-muted:#7b8592;
@@ -4526,7 +4526,7 @@
 
     body.growth-mode .growth-slide-summary {
       background:
-        radial-gradient(300px 180px at 50% 48%,rgba(25,185,133,.13),transparent 72%),
+        radial-gradient(300px 180px at 50% 48%,rgba(72,182,113,.13),transparent 72%),
         linear-gradient(145deg,#f7fffb 0%,#fbfaf7 58%,#f7f7ff 100%);
     }
 
@@ -4573,7 +4573,7 @@
       -webkit-background-clip:text;
       background-clip:text;
       color:transparent;
-      filter:drop-shadow(0 10px 20px rgba(25,185,133,.10));
+      filter:drop-shadow(0 10px 20px rgba(72,182,113,.10));
     }
 
     body.growth-mode .growth-total p {
@@ -4598,7 +4598,7 @@
     body.growth-mode .growth-slide-progress {
       background:
         radial-gradient(300px 180px at 82% 12%,rgba(226,168,92,.12),transparent 72%),
-        radial-gradient(280px 170px at 12% 88%,rgba(25,185,133,.10),transparent 74%),
+        radial-gradient(280px 170px at 12% 88%,rgba(72,182,113,.10),transparent 74%),
         linear-gradient(145deg,#fbfaf7 0%,#f8fbfa 46%,#f7f7ff 100%);
     }
 
@@ -4708,7 +4708,7 @@
       position:absolute; inset:0; z-index:0; pointer-events:none;
       background:
         radial-gradient(520px 360px at 94% 4%,rgba(var(--accent-rgb),.13),transparent 72%),
-        radial-gradient(420px 320px at 8% 96%,rgba(32,184,135,.07),transparent 72%);
+        radial-gradient(420px 320px at 8% 96%,rgba(75,181,111,.07),transparent 72%);
     }
     body.autopilot-mode .post-surface { position:relative; z-index:1; background:transparent; }
     body.autopilot-mode .post-header { position:relative; z-index:5; }
@@ -5640,8 +5640,8 @@
       --premium-copy: #4f5b63;
       --premium-muted: #7a858c;
       --premium-line: rgba(23,28,32,.09);
-      --premium-forest: #2f705c;
-      --premium-forest-dark: #255a4b;
+      --premium-forest: #3d7a4e;
+      --premium-forest-dark: #316140;
       --premium-forest-soft: #dfece6;
       --premium-slate: #617083;
       --premium-slate-soft: #e4e8eb;
@@ -5754,7 +5754,7 @@
     }
 
     body.autopilot-mode .recommendation {
-      border: 1px solid rgba(47,112,92,.12) !important;
+      border: 1px solid rgba(61,122,78,.12) !important;
       background: #e9eee9 !important;
       border-radius: 15px !important;
     }
@@ -5785,12 +5785,12 @@
     body.autopilot-mode .decision-button.approve {
       background: var(--premium-forest) !important;
       color: #fff !important;
-      box-shadow: 0 9px 20px rgba(47,112,92,.20) !important;
+      box-shadow: 0 9px 20px rgba(61,122,78,.20) !important;
     }
 
     body.autopilot-mode .decision-button.approve:hover {
       background: var(--premium-forest-dark) !important;
-      box-shadow: 0 11px 24px rgba(47,112,92,.24) !important;
+      box-shadow: 0 11px 24px rgba(61,122,78,.24) !important;
     }
 
     body.autopilot-mode .decision-button.approve span,
@@ -5834,7 +5834,7 @@
     body.growth-mode .growth-slide-summary,
     body.growth-mode .growth-slide-chart {
       background:
-        radial-gradient(460px 240px at 50% 38%, rgba(47,112,92,.07), transparent 72%),
+        radial-gradient(460px 240px at 50% 38%, rgba(61,122,78,.07), transparent 72%),
         var(--premium-paper) !important;
     }
 
@@ -13458,8 +13458,8 @@
       font-size: 10px;
       line-height: 1.45;
     }
-    .profile-save-note.is-error { color: #b74455; }
-    .profile-save-note.is-success { color: #26795b; }
+    .profile-save-note.is-error { color: #c25a49; }
+    .profile-save-note.is-success { color: #3d7a4e; }
     .profile-panel-foot {
       display: flex;
       align-items: center;
@@ -15506,7 +15506,7 @@
     body.growth-mode #detailDrawer .memory-chip {
       border: 1px solid rgba(104,221,179,.22) !important;
       background: rgba(104,221,179,.08) !important;
-      color: #8ce7c6 !important;
+      color: #a5d9b2 !important;
     }
 
     body.chat-mode #detailDrawer .chat-empty,
@@ -16073,11 +16073,11 @@
     body.chat-mode .profile-save-note.is-error,
     body.autopilot-mode .profile-save-note.is-error,
     body.growth-mode .profile-save-note.is-error,
-    body.orders-mode .profile-save-note.is-error { color: #ffb0bd !important; }
+    body.orders-mode .profile-save-note.is-error { color: #f4a898 !important; }
     body.chat-mode .profile-save-note.is-success,
     body.autopilot-mode .profile-save-note.is-success,
     body.growth-mode .profile-save-note.is-success,
-    body.orders-mode .profile-save-note.is-success { color: #8ce7c6 !important; }
+    body.orders-mode .profile-save-note.is-success { color: #a5d9b2 !important; }
 
     body.chat-mode .profile-save,
     body.autopilot-mode .profile-save,
@@ -20071,11 +20071,11 @@
     body.orders-mode .orders-btn.primary:hover { filter: brightness(1.08); background: var(--owner-gradient); }
 
     body.orders-mode .orders-btn.approve {
-      background: linear-gradient(135deg, #16a879, #2bc793);
-      box-shadow: 0 10px 24px rgba(32, 184, 135, .25);
+      background: linear-gradient(135deg, #2f9e5d, #5cc27e);
+      box-shadow: 0 10px 24px rgba(75, 181, 111, .25);
     }
 
-    body.orders-mode .orders-btn.approve:hover { filter: brightness(1.07); background: linear-gradient(135deg, #16a879, #2bc793); }
+    body.orders-mode .orders-btn.approve:hover { filter: brightness(1.07); background: linear-gradient(135deg, #2f9e5d, #5cc27e); }
 
     body.orders-mode .orders-btn.ghost {
       background: rgba(255,255,255,.05);
@@ -21880,7 +21880,7 @@
       --owner-violet: #aa7d2a;
       --owner-blue: #6f83ad;
       --owner-pink: #c07a2e;
-      --owner-success: #238a55;
+      --owner-success: #3f9e5f;
       --owner-gradient: linear-gradient(135deg, #b7862f 0%, #d2ad61 100%);
       --owner-gradient-soft: linear-gradient(135deg, rgba(170, 125, 42, .12), rgba(211, 169, 97, .10));
       --owner-shadow: 0 24px 60px rgba(30, 34, 42, .12), 0 0 0 1px rgba(16, 17, 20, .04) inset;
@@ -21907,9 +21907,9 @@
       --brand: #aa7d2a;
       --brand-dark: #8a6420;
       --brand-soft: rgba(170, 125, 42, .12);
-      --approve: #238a55;
+      --approve: #3f9e5f;
       --approve-hover: #1f7a4b;
-      --approve-soft: rgba(35, 138, 85, .12);
+      --approve-soft: rgba(63, 158, 95, .12);
       color-scheme: light;
       color: #101114 !important;
       background:
@@ -22003,7 +22003,7 @@
       color: #fff !important;
     }
     body.day-mode.autopilot-mode .impact-summary > strong {
-      background: linear-gradient(100deg, #238a55, #aa7d2a) !important;
+      background: linear-gradient(100deg, #3f9e5f, #aa7d2a) !important;
       -webkit-background-clip: text !important;
       background-clip: text !important;
     }
@@ -22029,7 +22029,7 @@
 
     /* The Growth headline number: gold-to-green instead of teal-to-indigo. */
     body.day-mode.growth-mode .growth-total strong {
-      background: linear-gradient(125deg, #238a55 12%, #2a9c6f 52%, #aa7d2a 112%) !important;
+      background: linear-gradient(125deg, #3f9e5f 12%, #2a9c6f 52%, #aa7d2a 112%) !important;
       -webkit-background-clip: text !important;
       background-clip: text !important;
     }
@@ -22138,7 +22138,7 @@
     body.day-mode #detailDrawer .drawer-actions .decision-button.approve:hover,
     body.day-mode #detailDrawer .drawer-actions .decision-button.approve:focus-visible {
       background: linear-gradient(135deg, #2a9c6f, #1f8a5f) !important;
-      box-shadow: 0 10px 24px rgba(35, 138, 85, .22) !important;
+      box-shadow: 0 10px 24px rgba(63, 158, 95, .22) !important;
     }
   </style>
 
@@ -22168,8 +22168,8 @@
       --owner-accent: #aa7d2a;
       --owner-accent-soft: rgba(170, 125, 42, .10);
       --owner-accent-border: rgba(170, 125, 42, .30);
-      --owner-positive: #238a55;
-      --owner-success: #238a55;
+      --owner-positive: #3f9e5f;
+      --owner-success: #3f9e5f;
       --owner-warning: #9a6b29;
       --owner-danger: #b23a4a;
       --owner-brand-gradient: linear-gradient(135deg, #b7862f, #d2ad61);
@@ -22422,8 +22422,8 @@
       box-shadow: none !important;
     }
     body.day-mode.growth-mode .growth-projection-badge {
-      border-color: rgba(35, 138, 85, .28) !important;
-      background: rgba(35, 138, 85, .10) !important;
+      border-color: rgba(63, 158, 95, .28) !important;
+      background: rgba(63, 158, 95, .10) !important;
       color: #1f7a4b !important;
     }
     body.day-mode.growth-mode .growth-projection-node { fill: #ffffff !important; }
@@ -23113,7 +23113,7 @@
       --owner-gradient: linear-gradient(135deg, #eebd77 0%, #c9893c 100%);
       --owner-gradient-soft: rgba(226, 168, 92, .13);
       --owner-shadow: 0 26px 64px rgba(0, 0, 0, .5);
-      --owner-success: #3dbf82;
+      --owner-success: #4bb56f;
       --owner-violet: #e2a85c;
       --owner-pink: #e2a85c;
       --owner-blue: #9aa39b;
@@ -23196,8 +23196,8 @@
       --owner-accent-soft: rgba(226, 168, 92, .12);
       --owner-brand-gradient: linear-gradient(135deg, #eebd77 0%, #c9893c 100%);
       --owner-control-hover: rgba(242, 239, 233, .06);
-      --owner-positive: #3dbf82;
-      --owner-success: #3dbf82;
+      --owner-positive: #4bb56f;
+      --owner-success: #4bb56f;
       --owner-danger: #e06a55;
       --owner-warning: #e2a85c;
     }
@@ -23303,25 +23303,69 @@
     body.autopilot-mode, body.growth-mode, body.chat-mode, body.orders-mode {
       --theme-competitors: #e2a85c;
       --theme-reviews: #d0a05a;
-      --theme-demand: #3dbf82;
+      --theme-demand: #4bb56f;
       --theme-competitors-rgb: 226, 168, 92;
       --theme-reviews-rgb: 208, 160, 90;
-      --theme-demand-rgb: 61, 191, 130;
+      --theme-demand-rgb: 75, 181, 111;
     }
 
     /* One green. Approve-and-pay and the Paid chips share a single success
        hue instead of three near-misses. */
     body.orders-mode .orders-btn.approve,
     body.chat-mode .orders-btn.approve {
-      background: linear-gradient(135deg, #34b57f 0%, #1f9463 100%) !important;
+      background: linear-gradient(135deg, #48b671 0%, #2f8f5a 100%) !important;
       color: #ffffff !important;
     }
     body.orders-mode .orders-pill.p-ok,
     body.chat-mode .orders-pill.p-ok {
-      color: #4ecf95 !important;
-      border-color: rgba(61, 191, 130, .34) !important;
-      background: rgba(61, 191, 130, .09) !important;
+      color: #66c58a !important;
+      border-color: rgba(75, 181, 111, .34) !important;
+      background: rgba(75, 181, 111, .09) !important;
     }
+
+    /* At a glance as gauges: a decorative brass arc — identical sweep on all
+       three, encoding nothing — around each real count. */
+    .feed-rail-stats.is-gauges {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      text-align: center;
+    }
+    .feed-rail-gauge { position: relative; display: grid; justify-items: center; gap: 6px; }
+    .feed-rail-gauge svg { display: block; }
+    .feed-rail-gauge .gauge-track {
+      fill: none;
+      stroke: rgba(242, 239, 233, .1);
+      stroke-width: 3;
+    }
+    .feed-rail-gauge .gauge-arc {
+      fill: none;
+      stroke: #e2a85c;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 99 132;
+      transform: rotate(122deg);
+      transform-origin: center;
+    }
+    .feed-rail-gauge b {
+      position: absolute;
+      top: 15px;
+      left: 0; right: 0;
+      color: var(--owner-ink, #f2efe9);
+      font-size: 16px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .feed-rail-gauge span {
+      color: var(--owner-muted, #8f8b83);
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1.3;
+    }
+    body.day-mode .feed-rail-gauge .gauge-track { stroke: rgba(16, 17, 20, .1); }
+    body.day-mode .feed-rail-gauge .gauge-arc { stroke: #aa7d2a; }
+    body.day-mode .feed-rail-gauge b { color: #101114; }
+    body.day-mode .feed-rail-gauge span { color: #77787e; }
   </style>
 
 </head>
@@ -23351,9 +23395,10 @@
           <span></span><span></span><span></span>
         </button>
         <div class="brand-mark" aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M7 7h10v10H7z" />
-            <path d="M4 12h3M17 12h3M12 4v3M12 17v3" />
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="7.6" r="4.3" />
+            <path d="M8.8 11.5h6.4" />
+            <path d="M12 11.5v8.1" />
           </svg>
         </div>
         <div class="brand-copy">
@@ -24680,10 +24725,13 @@
         <aside class="feed-rail" data-enter aria-label="Feed summary">
           <section class="feed-rail-card">
             <h3>At a glance</h3>
-            <div class="feed-rail-stats">
+            <div class="feed-rail-stats is-gauges">
               ${stats.map(stat => `
-                <div class="feed-rail-stat">
-                  <i>${feedDetailIcon(stat.icon)}</i>
+                <div class="feed-rail-gauge">
+                  <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true">
+                    <circle class="gauge-track" cx="26" cy="26" r="21" />
+                    <circle class="gauge-arc" cx="26" cy="26" r="21" />
+                  </svg>
                   <b>${escapeHtml(String(stat.n))}</b>
                   <span>${escapeHtml(stat.label)}</span>
                 </div>`).join("")}
@@ -24756,7 +24804,7 @@
           <div class="evidence-copy">
             <p>${escapeHtml(item.content || "Evidence text was not included in this snapshot.")}</p>
             <div class="evidence-meta">
-              <span class="evidence-src">${evidenceSourceBadge(item)}${escapeHtml(source)}</span>
+              <span class="evidence-src" title="${escapeHtml(source)}" aria-label="${escapeHtml(source)}">${evidenceSourceBadge(item)}</span>
               ${item.subject ? `<span>${escapeHtml(item.subject)}</span>` : ""}
               ${item.when ? `<span>${escapeHtml(item.when)}</span>` : ""}
             </div>
@@ -34680,8 +34728,8 @@ ledger_entry · artifact · agent_run`,
       }
 
       const AGENT_MARK = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <path d="M7 7h10v10H7z" /><path d="M4 12h3M17 12h3M12 4v3M12 17v3" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="7.6" r="4.3" /><path d="M8.8 11.5h6.4" /><path d="M12 11.5v8.1" />
         </svg>`;
 
       function renderThread() {
@@ -34712,7 +34760,7 @@ ledger_entry · artifact · agent_run`,
             : "";
           return `
             <div class="chat-turn agent">
-              <span class="chat-avatar${first ? "" : " ghost"}" aria-hidden="true">${first ? AGENT_MARK : ""}</span>
+              <span class="chat-avatar" aria-hidden="true">${AGENT_MARK}</span>
               <div>
                 ${first ? `<span class="chat-author">Brass Tacks</span>` : ""}
                 <div class="${classes}">${body}</div>
