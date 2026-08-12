@@ -23004,6 +23004,57 @@
     .evidence-sheet-prose .feed-detail-list { margin-top: 4px; }
     .evidence-sheet-prose .feed-glance-grid { margin-bottom: 4px; }
 
+    /* The plan map: a vertical route. Brass numbered nodes, a hairline
+       connector, the destination filled. */
+    .plan-map { list-style: none; margin: 4px 0 0; padding: 0; }
+    .plan-map li {
+      position: relative;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 14px;
+      padding: 0 0 22px;
+    }
+    .plan-map li:last-child { padding-bottom: 6px; }
+    .plan-map li::before {
+      content: "";
+      position: absolute;
+      left: 16.5px;
+      top: 32px;
+      bottom: -2px;
+      width: 1.4px;
+      background: linear-gradient(to bottom, rgba(226, 168, 92, .45), rgba(226, 168, 92, .12));
+    }
+    .plan-map li:last-child::before { display: none; }
+    .plan-map li i {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 1.6px solid rgba(226, 168, 92, .55);
+      background: rgba(226, 168, 92, .08);
+      color: #e6c391;
+      font-style: normal;
+      font-size: 13px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-map li.is-last i {
+      background: linear-gradient(135deg, #eebd77 0%, #c9893c 100%);
+      border-color: transparent;
+      color: #171006;
+    }
+    .plan-map li p {
+      margin: 5px 0 0;
+      color: #e8e5dc;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    body.day-mode .plan-map li p { color: #26282d !important; }
+    body.day-mode .plan-map li i { color: #96702a; border-color: rgba(170, 125, 42, .5); background: rgba(170, 125, 42, .08); }
+    body.day-mode .plan-map li.is-last i { color: #ffffff; }
+    body.day-mode .plan-map li::before { background: linear-gradient(to bottom, rgba(170, 125, 42, .4), rgba(170, 125, 42, .1)); }
+
     /* Day mode: the panel goes paper elsewhere, but the sheet's text was
        still midnight-coloured — white on white. Re-ink every piece. */
     body.day-mode .evidence-sheet-title { color: #101114 !important; }
@@ -24843,11 +24894,28 @@
       </div>`;
     }
 
+    //  The plan as a route: numbered nodes on a connecting line, the final
+    //  step marked as the destination. The same steps, drawn as a map.
+    function planMapHtml(post) {
+      const steps = (post.steps || []).filter(Boolean);
+      if (!steps.length) {
+        const move = cleanOwnerCopy(post.recommendation || "");
+        return move ? `<ol class="plan-map"><li class="is-last"><i>1</i><p>${escapeHtml(move)}</p></li></ol>` : "";
+      }
+      return `<ol class="plan-map">
+        ${steps.map((step, index) => `
+          <li class="${index === steps.length - 1 ? "is-last" : ""}">
+            <i>${index + 1}</i>
+            <p>${escapeHtml(step)}</p>
+          </li>`).join("")}
+      </ol>`;
+    }
+
     function planSheetMarkup(post) {
       return detailSheetMarkup(post, {
         kind: "plan",
         eyebrow: "Execution plan",
-        bodyHtml: `<div class="evidence-sheet-prose feed-plan-body">${renderSteps(post)}</div>`,
+        bodyHtml: `<div class="evidence-sheet-prose">${planMapHtml(post)}</div>`,
       });
     }
 
