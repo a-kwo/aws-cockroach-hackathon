@@ -33085,7 +33085,12 @@ ledger_entry · artifact · agent_run`,
         }
       });
 
-      if (ordersEndpoint && readSession()) {
+      //  A guided demo runs on a placeholder session, so the live API would
+      //  refuse every call. The preview engine is the demo: the local mirror
+      //  of the tested Python, where ordering, authority and approvals all
+      //  work — and the sample-data banner already discloses it.
+      const TOUR_DEMO = Boolean(new URLSearchParams(window.location.search).get("tour"));
+      if (ordersEndpoint && readSession() && !TOUR_DEMO) {
         ordersLive();
       } else {
         ordersPreview();
@@ -33845,12 +33850,34 @@ ledger_entry · artifact · agent_run`,
                             ref: `dd-preview-${history.length + 1}`,
                             tag: "placed automatically", payRef: payRef() });
           note(`Placed and paid — ${money(cart.total)} to your card. ${verdict.reason}`, false);
-        } else {
-          pending.push({ title, cart, reason: verdict.reason, category, trigger });
-          note(`Needs your approval — nothing has been charged. ${verdict.reason}`, false);
+          renderAll();
+          // The live endpoint's contract, so a caller in the chat can answer
+          // the same way whichever engine did the work.
+          return { kind: "placed", reason: `${money(cart.total)} to your test card. ${verdict.reason}` };
         }
+        pending.push({ title, cart, reason: verdict.reason, category, trigger });
+        note(`Needs your approval — nothing has been charged. ${verdict.reason}`, false);
         renderAll();
+        return { kind: "needs_approval", reason: verdict.reason };
       }
+
+      //  The chat orders through this in preview and demo mode — same parse,
+      //  same purchase authority, same board updates as the ask form below.
+      window.__btPreviewAsk = text => {
+        const items = readRequest(text);
+        if (!items.length) {
+          //  Only claim it as an order if it reads like one; anything else is
+          //  the chat's to answer.
+          if (!/\b(order|buy|get|restock|purchase|need)\b/i.test(String(text || ""))) {
+            return { kind: "not_an_order" };
+          }
+          return { kind: "failed", reason: "that isn't sold here. The sample store stocks: "
+            + Object.keys(CATALOGUE).join(", ") + "." };
+        }
+        const title = items.map(([name, qty]) => `${name} ×${qty}`).join(", ");
+        const category = items.every(([n]) => n === "tomatoes" || n === "olive oil") ? "produce" : null;
+        return submit(priceCart(items), title, category, "owner");
+      };
 
       function note(text, warn) {
         const target = el("ordersAskNote");
@@ -34022,7 +34049,11 @@ ledger_entry · artifact · agent_run`,
 
       const chatOrdersEndpoint = String(btData.api?.ordersEndpoint || "").trim().replace(/\/$/, "");
       const chatAskEndpoint = String(btData.api?.askEndpoint || "").trim();
-      const chatLive = Boolean(chatOrdersEndpoint && readSession());
+      //  A tour's placeholder session must never reach the live API — the
+      //  backend would refuse it ("sign in first") mid-demo. Orders still
+      //  work: routeMessage hands them to the preview Quartermaster.
+      const CHAT_TOUR_DEMO = Boolean(new URLSearchParams(window.location.search).get("tour"));
+      const chatLive = Boolean(chatOrdersEndpoint && readSession()) && !CHAT_TOUR_DEMO;
 
       const messages = [];
 
@@ -34214,6 +34245,10 @@ ledger_entry · artifact · agent_run`,
         ? ("Hi — ask me anything about your business, and I'll answer from "
            + "your memory in CockroachDB. I can order supplies from here too; "
            + "the board itself lives on Supplies.")
+        : CHAT_TOUR_DEMO
+        ? ("Hi — in this demo, ordering works for real against a sample store "
+           + "and a test card. Try “order 2 cases of tomatoes”; approvals land "
+           + "on the Supplies board.")
         : ("This build isn't connected to the agents, so I can't act or "
            + "answer from memory. When the deployed site loads this screen, "
            + "everything here is live."));
@@ -34495,6 +34530,23 @@ ledger_entry · artifact · agent_run`,
 
       async function routeMessage(text) {
         if (!chatLive) {
+          //  The preview Quartermaster can act for real against the sample
+          //  store — same parse, same purchase authority, a receipt on the
+          //  board. Only when it says "this is not an order" does the refusal
+          //  below apply.
+          const verdict = window.__btPreviewAsk ? window.__btPreviewAsk(text) : null;
+          if (verdict && verdict.kind && verdict.kind !== "not_an_order") {
+            const toSupplies = { action: { label: "Open Supplies", view: "orders" } };
+            if (verdict.kind === "placed") {
+              replaceLoading(`Done — ${verdict.reason} It's on Supplies under Activity.`, toSupplies);
+            } else if (verdict.kind === "needs_approval") {
+              replaceLoading("I priced it, and it needs your OK — it's waiting "
+                + `on Supplies under Needs you. ${verdict.reason}`, toSupplies);
+            } else {
+              replaceLoading(`That didn't go through: ${verdict.reason}`, { error: true });
+            }
+            return;
+          }
           replaceLoading("I can't act in this preview. On the deployed site "
             + "I'd price that, check your limits, and either place it or ask "
             + "you first.");

@@ -4229,3 +4229,23 @@ def test_the_supplies_board_carries_the_clean_dashboard_pass():
     assert ".orders-seg" in css
     assert "body.day-mode" in css
     assert "@media (max-width: 640px)" in css
+
+
+def test_the_demo_orders_through_the_preview_quartermaster():
+    """In the guided demo, ordering in chat must WORK. The demo session is a
+    placeholder, so the live /orders API refuses it ("sign in first" on
+    camera). In tour mode the board boots the preview engine -- the local
+    mirror of the tested Python -- and the chat routes orders through it:
+    same parse, same purchase authority, a receipt on the board."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    # The board chooses the preview engine while a tour is running.
+    gate = html.split("ordersLive();", 1)[0][-500:]
+    assert "tour" in gate
+    # The preview exposes the chat's order hook, answering the live contract.
+    assert "window.__btPreviewAsk" in html
+    hook = html.split("window.__btPreviewAsk", 1)[1][:1600]
+    assert "needs_approval" in hook or "submit(" in hook
+    # The chat tries the preview engine before refusing to act.
+    branch = html.split("if (!chatLive) {", 1)[1][:1200]
+    assert "__btPreviewAsk" in branch
