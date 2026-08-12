@@ -4324,3 +4324,9 @@ def test_all_three_detail_rows_open_the_same_sheet():
     assert "function detailSheetMarkup" in html
     assert "function openDetailSheet" in html
     assert "data-sheet-kind" in html
+
+    # Day mode whitened the sheet's panel but left its text pale-on-pale;
+    # the readability pass re-inks every piece of sheet content.
+    sheets = html.split('<style id="feed-sheets-v68">', 1)[1].split("</style>", 1)[0]
+    assert "body.day-mode .evidence-sheet-title" in sheets
+    assert "body.day-mode .evidence-copy p" in sheets
