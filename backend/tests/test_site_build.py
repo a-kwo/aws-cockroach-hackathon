@@ -3424,13 +3424,13 @@ def test_owner_profile_and_chat_share_the_midnight_product_surface():
 
     assert "body.autopilot-mode #detailDrawer" in block
     assert "body.growth-mode #detailDrawer" in block
-    assert "background: linear-gradient(180deg, #0e1428 0%, #080c19 100%) !important" in block
+    assert "background: linear-gradient(180deg, #171410 0%, #100e0a 100%) !important" in block
     assert "body.autopilot-mode .profile-panel" in block
     assert "body.growth-mode .profile-panel" in block
     assert "body.autopilot-mode .profile-field input" in block
     assert "background: var(--owner-surface-input) !important" in block
     assert "body.autopilot-mode #detailDrawer .chat-message.agent" in block
-    assert "background: #141a30 !important" in block
+    assert "background: #1b1811 !important" in block
     assert "body.autopilot-mode #detailDrawer .send-button" in block
 
 
@@ -3505,11 +3505,11 @@ def test_owner_chat_controls_use_dark_high_contrast_statuses_and_disclosures():
         "</style>", 1
     )[0]
 
-    assert "--owner-surface-input: #090f1e" in block
+    assert "--owner-surface-input: #12100c" in block
     assert "body.autopilot-mode #detailDrawer .maker-full-draft" in block
-    assert "background: #0a1020 !important" in block
+    assert "background: #12100d !important" in block
     assert "max-height: min(48vh, 520px) !important" in block
-    assert "background: #080d1a !important" in block
+    assert "background: #100e0a !important" in block
     assert "body.autopilot-mode #detailDrawer .maker-review-state.superseded" in block
     assert "background: rgba(148,163,184,.10) !important" in block
     assert "body.autopilot-mode #detailDrawer .maker-email-status.clicked" in block
