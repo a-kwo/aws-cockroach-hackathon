@@ -22544,7 +22544,9 @@
     }
     .post-art { display: none !important; }
     .post-body,
-    body.autopilot-mode .post-body {
+    body.autopilot-mode .post-body,
+    body.autopilot-mode .feed-card .post-body,
+    body.autopilot-mode .feed-stage .feed-card .post-body {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important;
@@ -22553,6 +22555,11 @@
       padding: 22px 26px 16px !important;
       height: auto !important;
       min-height: 0 !important;
+      /* Never a scroll container: the deck made the body its own scroller
+         with overscroll containment, and a wheel over any card stopped the
+         PAGE from scrolling — at every width, not just phones. */
+      overflow: visible !important;
+      overscroll-behavior: auto !important;
     }
     .post-copy { flex: 1 1 auto; min-width: 0; width: auto !important; }
     .post-copy h2,
