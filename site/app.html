@@ -22632,7 +22632,6 @@
     .feed-rail-stat i svg { width: 16px; height: 16px; }
     .feed-rail-stat b { color: var(--owner-ink, #f2f3fb); font-size: 17px; font-weight: 780; font-variant-numeric: tabular-nums; }
     .feed-rail-stat span { color: var(--owner-muted, #97a0b8); font-size: 12.5px; font-weight: 600; }
-    .feed-rail-note { margin: 12px 0 0; color: var(--owner-muted, #848daa); font-size: 11px; line-height: 1.5; }
     .feed-rail-topics { display: flex; flex-direction: column; gap: 9px; }
     .feed-rail-topic { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center; }
     .feed-rail-topic i { width: 8px; height: 8px; border-radius: 50%; background: #8588ff; }
@@ -22650,7 +22649,6 @@
     body.day-mode .feed-rail-stat i { border-color: #e4e2dc; background: #faf9f6; color: #77787e; }
     body.day-mode .feed-rail-stat b { color: #101114; }
     body.day-mode .feed-rail-stat span,
-    body.day-mode .feed-rail-note,
     body.day-mode .feed-rail-topic b { color: #77787e; }
     body.day-mode .feed-rail-topic span { color: #3f4149; }
 
@@ -24406,7 +24404,6 @@
                   <span>${escapeHtml(stat.label)}</span>
                 </div>`).join("")}
             </div>
-            <p class="feed-rail-note">Counted from the moves on this page — each one a row in CockroachDB.</p>
           </section>
           ${topTopics.length ? `
           <section class="feed-rail-card">
