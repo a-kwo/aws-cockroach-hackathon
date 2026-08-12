@@ -23439,6 +23439,23 @@
       color: #171006 !important;
     }
 
+    /* The category chip loses its pill box — icon and words on the card,
+       nothing framed. */
+    body.autopilot-mode .social-context,
+    body.autopilot-mode .feed-card .social-context {
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    body.day-mode.autopilot-mode .social-context,
+    body.day-mode.autopilot-mode .feed-card .social-context {
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
     /* The rows carry no chevron; the row itself is the affordance. */
     body.autopilot-mode .feed-plan::after,
     body.autopilot-mode .feed-more::after,
