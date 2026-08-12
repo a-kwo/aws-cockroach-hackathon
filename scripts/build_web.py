@@ -552,6 +552,7 @@ def build_model(data: dict) -> dict:
                 "kind": e["kind"],
                 "source": SOURCE_LABEL.get(e["kind"], e["kind"]),
                 "sourceName": e.get("source_name"),
+                "sourceUrl": (e.get("source_url") or "").strip() or None,
                 "subject": e.get("subject"),
                 "when": when(e["observed_at"]),
                 "similarity": round(e["similarity"], 3),

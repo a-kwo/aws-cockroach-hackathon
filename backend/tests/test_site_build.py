@@ -4379,12 +4379,20 @@ def test_evidence_rows_carry_an_honest_source_badge():
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
     assert "function evidenceSourceBadge" in html
-    # Evidence rows read as exhibits: a ROW tag (they are rows in
-    # CockroachDB), a quoted excerpt that clips long scrapes behind an
-    # expand, and the similarity kept as a number beside its match bar.
+    # Evidence rows read as exhibits: a quoted excerpt that clips long
+    # scrapes behind an expand, the similarity kept as a number beside its
+    # match bar -- and a way back to the source when the row stored one.
     assert "evidence-exhibit" in html
     assert "data-expand-evidence" in html
     assert "similarity.toFixed(3)" in html
+    assert "exhibit-tag" not in html
+    assert 'class="exhibit-link"' in html
+    assert 'rel="noopener noreferrer"' in html
+    # The pipeline carries observation.source_url end to end.
+    export = (build_web.REPO / "scripts" / "export_fixture.py").read_text(encoding="utf-8")
+    assert "o.source_url" in export
+    build = (build_web.REPO / "scripts" / "build_web.py").read_text(encoding="utf-8")
+    assert '"sourceUrl"' in build
     badge = html.split("function evidenceSourceBadge", 1)[1][:2600]
     # Kind-driven fallbacks, matched against the row's own text.
     assert "review" in badge and "trend" in badge

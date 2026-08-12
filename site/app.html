@@ -23017,18 +23017,18 @@
       background: rgba(242, 239, 233, .022);
     }
     .exhibit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 9px; }
-    .exhibit-tag {
-      padding: 4px 9px;
-      border-radius: 7px;
-      background: rgba(226, 168, 92, .14);
-      color: #e6c391;
-      font-size: 10px;
-      font-weight: 850;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      font-variant-numeric: tabular-nums;
-    }
     .exhibit-when { color: #98948a; font-size: 11.5px; font-weight: 650; }
+    .exhibit-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #e2a85c;
+      font-size: 11.5px;
+      font-weight: 750;
+      text-decoration: none;
+    }
+    .exhibit-link:hover { text-decoration: underline; }
+    body.day-mode .exhibit-link { color: #96702a !important; }
     .evidence-exhibit .evidence-similarity {
       margin-left: auto;
       display: inline-flex;
@@ -23051,8 +23051,6 @@
       font-size: 13.5px;
       line-height: 1.6;
     }
-    .exhibit-quote::before { content: "C"; color: rgba(226, 168, 92, .8); margin-right: 2px; }
-    .exhibit-quote::after { content: "D"; color: rgba(226, 168, 92, .8); margin-left: 2px; }
     .evidence-exhibit.is-long:not(.is-open) .exhibit-quote {
       display: -webkit-box;
       -webkit-line-clamp: 4;
@@ -23077,7 +23075,6 @@
     body.day-mode .evidence-exhibit .evidence-similarity b { color: #101114 !important; }
     body.day-mode .evidence-exhibit .evidence-similarity i { background: rgba(16, 17, 20, .1); }
     body.day-mode .evidence-exhibit .evidence-similarity em { background: #aa7d2a; }
-    body.day-mode .exhibit-tag { background: rgba(170, 125, 42, .12); color: #6b5316; }
 
     /* The plan map: a vertical route. Brass numbered nodes, a hairline
        connector, the destination filled. */
@@ -24938,8 +24935,12 @@
         const barPct = Number.isFinite(similarity) ? Math.max(3, Math.min(100, similarity * 100)) : 0;
         return `<li class="evidence-sheet-item evidence-exhibit${isLong ? " is-long" : ""}">
           <header class="exhibit-head">
-            <span class="exhibit-tag">Row ${escapeHtml(String(rank))}</span>
             <span class="evidence-src" title="${escapeHtml(source)}" aria-label="${escapeHtml(source)}">${evidenceSourceBadge(item)}</span>
+            ${item.sourceUrl && /^https?:\/\//i.test(String(item.sourceUrl)) ? `
+              <a class="exhibit-link" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer">
+                View source
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>
+              </a>` : ""}
             ${item.when ? `<span class="exhibit-when">${escapeHtml(item.when)}</span>` : ""}
             ${item.subject ? `<span class="exhibit-when">${escapeHtml(item.subject)}</span>` : ""}
             ${Number.isFinite(similarity) ? `

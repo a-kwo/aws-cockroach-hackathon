@@ -108,7 +108,7 @@ def main() -> int:
             evidence = rows(cur, """
                 SELECT fe.find_id, fe.rank, fe.similarity,
                        o.id AS observation_id, o.content, o.kind,
-                       o.source_name, o.subject, o.observed_at
+                       o.source_name, o.source_url, o.subject, o.observed_at
                 FROM find_evidence fe
                 JOIN observation o ON o.id = fe.observation_id
                 JOIN find f ON f.id = fe.find_id
