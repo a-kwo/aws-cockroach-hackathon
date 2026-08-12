@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brass Tacks — Decision Lens</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='34' fill='%23e2a85c'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23101114'/%3E%3C/svg%3E" />
+
   <style>
     :root {
       color-scheme: light;
@@ -23703,6 +23705,23 @@
             </nav>
           </section>
 
+          <!-- The moves already approved that the Meter is still measuring.
+               They come from the workspace finds, not this session's clicks:
+               Growth used to have nowhere that showed them, so the guided
+               tour pointed at an empty Approved list while its caption
+               counted seven moves in flight. Money here is a labelled
+               prediction, never a verified figure. -->
+          <section class="list-panel inflight-panel" id="growthInflight" aria-label="Approved moves still being measured" data-enter hidden>
+            <header class="list-panel-header">
+              <div class="list-panel-title">
+                <h2>In flight</h2>
+              </div>
+              <span class="list-count" id="growthInflightCount">0</span>
+            </header>
+            <ul class="inflight-list" id="growthInflightList"></ul>
+            <p class="inflight-money" id="growthInflightMoney"></p>
+          </section>
+
           <section class="decision-lists" aria-label="Approved and rejected decisions" data-enter>
             <article class="list-panel approved-panel">
               <header class="list-panel-header">
@@ -23761,7 +23780,7 @@
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3 8-8" /><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" /></svg>
                   <span>What needs my approval?</span>
                 </button>
-                <button type="button" class="chat-hint" data-chat-hint="order 2 cases of tomatoes">
+                <button type="button" class="chat-hint" data-chat-hint="order 2 packs of nori">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6h15l-1.5 9h-13z" /><circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" /><path d="M6 6 5 3H2" /></svg>
                   <span>Order supplies for me</span>
                 </button>
@@ -23888,14 +23907,14 @@
             <h2 class="sr-only" id="ordersAskHeading">Ask for something</h2>
             <form class="orders-ask" id="ordersAskForm">
               <input type="text" id="ordersAskInput" autocomplete="off"
-                     placeholder="What do you need? &mdash; try &ldquo;2 cases of tomatoes&rdquo;"
+                     placeholder="What do you need? &mdash; try &ldquo;2 packs of nori&rdquo;"
                      aria-label="What would you like to order?" />
               <button type="submit" class="orders-btn primary">Order</button>
             </form>
             <div class="orders-ask-examples">
-              <button type="button" class="orders-example" data-example="order 20lb of tomatoes and a case of olive oil">20lb tomatoes + olive oil</button>
-              <button type="button" class="orders-example" data-example="get 3 bags of flour">3 bags of flour</button>
-              <button type="button" class="orders-example" data-example="order 1 tin of saffron">1 tin of saffron</button>
+              <button type="button" class="orders-example" data-example="order 8 packs of nori and a bottle of soy sauce">8 packs nori + soy sauce</button>
+              <button type="button" class="orders-example" data-example="get 3 bags of sushi rice">3 bags of sushi rice</button>
+              <button type="button" class="orders-example" data-example="order 1kg of bluefin tuna">1kg of bluefin tuna</button>
             </div>
             <!-- The store's full price list, collapsed by default so it never
                  crowds the board, one tap to see everything on offer. Filled by
@@ -23964,8 +23983,8 @@
                 <button type="button" class="orders-btn ghost small" id="ordersAddStanding">Add</button>
               </div>
               <form class="orders-form" id="ordersStandingForm" hidden>
-                <label>Name<input type="text" name="name" placeholder="The usual produce" required /></label>
-                <label>Items<input type="text" name="items" placeholder="tomatoes x8, flour x2" required /></label>
+                <label>Name<input type="text" name="name" placeholder="The weekly pantry" required /></label>
+                <label>Items<input type="text" name="items" placeholder="nori x8, sushi rice x2" required /></label>
                 <label>Repeats
                   <select name="schedule">
                     <option value="w1">Every Tuesday</option>
@@ -23996,7 +24015,7 @@
                 <button type="button" class="orders-btn ghost small" id="ordersAddStock" hidden>Add</button>
               </div>
               <form class="orders-form" id="ordersStockForm" hidden>
-                <label>Item<input type="text" name="name" placeholder="tomatoes" required /></label>
+                <label>Item<input type="text" name="name" placeholder="nori" required /></label>
                 <label>You get through per week<input type="number" name="usage_per_week" min="1" value="3" required /></label>
                 <label>Ask to reorder at<input type="number" name="reorder_at" min="0" value="2" required /></label>
                 <label>Reorder this many<input type="number" name="reorder_quantity" min="1" value="6" required /></label>
@@ -26249,7 +26268,10 @@
     }
 
     async function refreshWorkflowSnapshot({ force = false, silent = false } = {}) {
-      if (!workflowApiConfigured) {
+      //  The guided tour seeds a placeholder token, so the live call can only
+      //  401 — skip the round trip and stay on the committed fixture. A real
+      //  session that happens to be touring keeps its live data.
+      if (!workflowApiConfigured || readSession()?.token === "guided-tour") {
         workflowRefreshState = "static";
         updateWorkflowLiveStatus();
         return false;
@@ -27867,6 +27889,37 @@
 
       renderGrowthDecisionList("approvedList", approved, "approved");
       renderGrowthDecisionList("rejectedList", rejected, "rejected");
+
+      //  The In flight panel: approved moves the Meter is still measuring,
+      //  read from the workspace finds rather than this session's decisions.
+      //  Same source and same row shape as the For You in-flight board.
+      const liveMine = Array.isArray(liveWorkflowWorkspaces) && liveWorkflowWorkspaces.length
+        ? liveWorkflowWorkspaces[0]
+        : null;
+      const growthWorkspace = liveMine || btData;
+      const inFlight = (growthWorkspace.finds || []).filter(found =>
+        !found.verdict && ["accepted", "live"].includes(found.status));
+      const inflightPanel = document.getElementById("growthInflight");
+      if (inflightPanel) {
+        inflightPanel.hidden = !inFlight.length;
+        document.getElementById("growthInflightCount").textContent = inFlight.length;
+        document.getElementById("growthInflightList").innerHTML = inFlight.map(found => `
+          <li>
+            <span class="inflight-emoji" aria-hidden="true">${escapeHtml(found.emoji || "💡")}</span>
+            <span class="inflight-title">${escapeHtml(found.shortTitle || found.title || "Move")}</span>
+            <span class="inflight-stage">${escapeHtml(moveStage(found, growthWorkspace.tasks || []))}</span>
+            <span class="inflight-verify">${found.verifyAfter ? `verifies ${escapeHtml(shortDate(found.verifyAfter))}` : "no verify date"}</span>
+          </li>`).join("");
+        //  Prediction only — the verified figure is the ledger's to report,
+        //  and this function never draws from the ledger-backed summary.
+        const predicted = inFlight.reduce((sum, found) => sum + (Number(found.predictedDaily) || 0), 0);
+        const nextVerdict = inFlight.map(found => found.verifyAfter).filter(Boolean).sort()[0];
+        const moneyEl = document.getElementById("growthInflightMoney");
+        moneyEl.hidden = !inFlight.length;
+        moneyEl.innerHTML = inFlight.length ? `
+          <strong>${escapeHtml(dailyMoney(predicted))}/day predicted</strong>
+          <span>not earned until the Meter verifies it${nextVerdict ? ` · first verdict ${escapeHtml(shortDate(nextVerdict))}` : ""}</span>` : "";
+      }
 
       renderRevenueChart();
       bindDynamicActions();
@@ -34510,33 +34563,36 @@ ledger_entry · artifact · agent_run`,
       const view = document.getElementById("ordersBoard");
       if (!view) return;
 
-      const CATALOGUE = { "tomatoes": 450, "olive oil": 1200, "flour": 325, "saffron": 4200 };
+      //  A sushi kitchen's pantry — the demo tenant is a coastal Japanese
+      //  restaurant, and the board it shows judges must read like its own.
+      const CATALOGUE = { "nori": 450, "soy sauce": 1200, "sushi rice": 325, "bluefin tuna": 4200,
+                          "wasabi paste": 950, "pickled ginger": 600, "green tea": 1800, "white miso": 2600 };
       const FEES = 299;
 
       // Mirrors purchase_authority.PurchaseAuthority.
       const limits = [
-        { scope: "produce", level: "auto", perOrder: 12000, periodCap: 20000, spent: 4850 },
-        { scope: "flour", level: "ask_if_over", perOrder: 8000, threshold: 2000, spent: 0 },
-        { scope: "saffron", level: "ask_always", perOrder: 50000, spent: 0 },
+        { scope: "pantry", level: "auto", perOrder: 12000, periodCap: 20000, spent: 4850 },
+        { scope: "sushi rice", level: "ask_if_over", perOrder: 8000, threshold: 2000, spent: 0 },
+        { scope: "bluefin tuna", level: "ask_always", perOrder: 50000, spent: 0 },
       ];
 
       const standing = [
-        { name: "The usual produce", items: [["tomatoes", 8]], when: "Every Tuesday", next: "Tue 11 Aug", paused: false, category: "produce" },
-        { name: "Dry goods top-up", items: [["flour", 4]], when: "Every 14 days", next: "Thu 20 Aug", paused: false, category: null },
+        { name: "The weekly pantry", items: [["nori", 8]], when: "Every Tuesday", next: "Tue 11 Aug", paused: false, category: "pantry" },
+        { name: "Rice top-up", items: [["sushi rice", 4]], when: "Every 14 days", next: "Thu 20 Aug", paused: false, category: null },
       ];
 
       // Mirrors stock.StockEstimate — the basis sentence is shown, not hidden.
       const stock = [
-        { name: "tomatoes", remaining: 5, reorderAt: 7, reorderQty: 12, full: 14,
-          basis: "Last bought 9 days ago (14 units); you get through about 7 a week, so roughly 5 left." },
-        { name: "olive oil", remaining: 2, reorderAt: 3, reorderQty: 6, full: 8,
-          basis: "Last bought 12 days ago (8 units); you get through about 3 a week, so roughly 2 left." },
+        { name: "nori", remaining: 5, reorderAt: 7, reorderQty: 12, full: 14,
+          basis: "Last bought 9 days ago (14 packs); you get through about 7 a week, so roughly 5 left." },
+        { name: "soy sauce", remaining: 2, reorderAt: 3, reorderQty: 6, full: 8,
+          basis: "Last bought 12 days ago (8 bottles); you get through about 3 a week, so roughly 2 left." },
       ];
 
       const pending = [];
       const history = [
-        { title: "The usual produce", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing", payRef: "pi_test_60417" },
-        { title: "Flour, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked", payRef: "pi_test_60318" },
+        { title: "The weekly pantry", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing", payRef: "pi_test_60417" },
+        { title: "Sushi rice, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked", payRef: "pi_test_60318" },
       ];
 
       // Deterministic test-mode Stripe references, like the fake payment
@@ -34680,8 +34736,25 @@ ledger_entry · artifact · agent_run`,
           </div>`).join("");
       }
 
+      /* The full price list, mirrored from the live board's disclosure. The
+         guided tour points its spotlight here when the captions talk about
+         supplies, so a preview build must actually render it — it used to
+         stay hidden, and the tour described a price list nobody could see. */
+      function renderCatalogue() {
+        const box = el("ordersCatalogue");
+        const grid = el("ordersCatalogueGrid");
+        if (!box || !grid) return;
+        const names = Object.keys(CATALOGUE).sort((a, b) => a.localeCompare(b));
+        box.hidden = false;
+        const countEl = box.querySelector(".orders-catalogue-count");
+        if (countEl) countEl.textContent = `${names.length} item${names.length === 1 ? "" : "s"}`;
+        grid.innerHTML = names.map(name => `
+          <button type="button" class="orders-catalogue-item" data-order="${escapeHtml(name)}"
+                  title="Order ${escapeHtml(name)}"><b>${escapeHtml(name)}</b><span>${money(CATALOGUE[name])}</span></button>`).join("");
+      }
+
       function renderAll() {
-        renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory();
+        renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory(); renderCatalogue();
         // Sample figures, like everything else on the preview board — the
         // banner above them already says so.
         renderOrdersStats({
@@ -34727,7 +34800,7 @@ ledger_entry · artifact · agent_run`,
             + Object.keys(CATALOGUE).join(", ") + "." };
         }
         const title = items.map(([name, qty]) => `${name} ×${qty}`).join(", ");
-        const category = items.every(([n]) => n === "tomatoes" || n === "olive oil") ? "produce" : null;
+        const category = items.every(([n]) => n === "nori" || n === "soy sauce") ? "pantry" : null;
         return submit(priceCart(items), title, category, "owner");
       };
 
@@ -34762,18 +34835,27 @@ ledger_entry · artifact · agent_run`,
           note("That didn't look like a request to buy anything I recognise. Try naming an item.", true);
           return;
         }
-        const category = items.every(([n]) => n === "tomatoes" || n === "olive oil") ? "produce" : null;
+        const category = items.every(([n]) => n === "nori" || n === "soy sauce") ? "pantry" : null;
         submit(priceCart(items), text, category, "owner");
         el("ordersAskInput").value = "";
       });
 
       view.addEventListener("click", event => {
-        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example]");
+        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example],[data-order]");
         if (!target) return;
 
         if (target.dataset.example != null) {
           el("ordersAskInput").value = target.dataset.example;
           el("ordersAskInput").focus();
+          return;
+        }
+        //  A tap on a price-list item orders one of it through the same
+        //  purchase authority as everything else — tapping bluefin tuna is
+        //  the quickest way to see the approval gate work.
+        if (target.dataset.order != null) {
+          const name = target.dataset.order;
+          const category = (name === "nori" || name === "soy sauce") ? "pantry" : null;
+          submit(priceCart([[name, 1]]), `${name} ×1`, category, "owner");
           return;
         }
         if (target.dataset.approve != null) {
@@ -34829,9 +34911,9 @@ ledger_entry · artifact · agent_run`,
       // rather than an empty section. Saffron is set to ask every time, which
       // is the reason shown.
       pending.push({
-        title: "Saffron, 1 tin",
-        cart: priceCart([["saffron", 1]]),
-        reason: "saffron is set to ask every time.",
+        title: "Bluefin tuna, 1kg",
+        cart: priceCart([["bluefin tuna", 1]]),
+        reason: "bluefin tuna is set to ask every time.",
         category: null,
         trigger: "owner",
       });
@@ -35099,7 +35181,7 @@ ledger_entry · artifact · agent_run`,
            + "the board itself lives on Supplies.")
         : CHAT_TOUR_DEMO
         ? ("Hi — in this demo, ordering works for real against a sample store "
-           + "and a test card. Try “order 2 cases of tomatoes”; approvals land "
+           + "and a test card. Try “order 2 packs of nori”; approvals land "
            + "on the Supplies board.")
         : ("This build isn't connected to the agents, so I can't act or "
            + "answer from memory. When the deployed site loads this screen, "
@@ -35788,42 +35870,42 @@ ledger_entry · artifact · agent_run`,
 
     var TOUR_STORE = {
       store: { catalogue: [
-        { name: "San Marzano tomatoes (case)", unit_cents: 2400 },
-        { name: "Fresh mozzarella (5kg)", unit_cents: 3800 },
-        { name: "Extra-virgin olive oil (5L)", unit_cents: 5200 },
-        { name: "00 flour (25kg)", unit_cents: 2900 },
-        { name: "Espresso beans (1kg)", unit_cents: 1800 },
-        { name: "Mascarpone (2kg)", unit_cents: 2600 },
-        { name: "Fresh basil (bunch)", unit_cents: 320 },
-        { name: "Parmigiano wedge", unit_cents: 4400 }
+        { name: "Sushi rice (25kg)", unit_cents: 2400 },
+        { name: "Sushi-grade salmon (5kg)", unit_cents: 3800 },
+        { name: "Soy sauce (18L)", unit_cents: 5200 },
+        { name: "Nori sheets (10×100)", unit_cents: 2900 },
+        { name: "Green tea (1kg)", unit_cents: 1800 },
+        { name: "White miso (2kg)", unit_cents: 2600 },
+        { name: "Shiso leaves (bunch)", unit_cents: 320 },
+        { name: "Bluefin tuna (kg)", unit_cents: 4400 }
       ]},
       standing: [
-        { id:"s1", name:"Weekly tomatoes & mozzarella", enabled:true,
-          items:[["San Marzano tomatoes (case)",2],["Fresh mozzarella (5kg)",1]],
+        { id:"s1", name:"Weekly rice & salmon", enabled:true,
+          items:[["Sushi rice (25kg)",2],["Sushi-grade salmon (5kg)",1]],
           schedule:"Every Monday, 7am", next:"2026-08-11" },
-        { id:"s2", name:"Espresso beans", enabled:true,
-          items:[["Espresso beans (1kg)",3]], schedule:"Every 10 days", next:"2026-08-13" }
+        { id:"s2", name:"Green tea", enabled:true,
+          items:[["Green tea (1kg)",3]], schedule:"Every 10 days", next:"2026-08-13" }
       ],
       stock: [
-        { id:"k1", name:"Fresh mozzarella", known:true, gauge_full:10, remaining:2, is_low:true,
-          basis:"Using about 1.6kg a day over the last two weeks", reorder_quantity:"2 tubs" },
-        { id:"k2", name:"San Marzano tomatoes", known:true, gauge_full:12, remaining:7, is_low:false,
-          basis:"Steady at about a case a day" },
-        { id:"k3", name:"Mascarpone", known:true, gauge_full:8, remaining:6, is_low:false,
+        { id:"k1", name:"Sushi-grade salmon", known:true, gauge_full:10, remaining:2, is_low:true,
+          basis:"Using about 1.6kg a day over the last two weeks", reorder_quantity:"2 sides" },
+        { id:"k2", name:"Sushi rice", known:true, gauge_full:12, remaining:7, is_low:false,
+          basis:"Steady at about a bag a day" },
+        { id:"k3", name:"White miso", known:true, gauge_full:8, remaining:6, is_low:false,
           basis:"Slower midweek" }
       ],
       limits: [
-        { scope:"Produce & dairy", level:"auto", per_order_cap_cents:8000,
+        { scope:"Fish & produce", level:"auto", per_order_cap_cents:8000,
           period_cap_cents:20000, spent_in_period_cents:9600 },
         { scope:"Everything else", level:"ask_if_over", per_order_cap_cents:15000,
           auto_threshold_cents:5000 }
       ],
       history: [
-        { title:"Weekly tomatoes & mozzarella", status:"placed", total_cents:6200,
+        { title:"Weekly rice & salmon", status:"placed", total_cents:6200,
           created_at:"2026-08-04", trigger:"standing", cart:{lines:[]} },
-        { title:"Espresso beans x3", status:"placed", total_cents:5400,
+        { title:"Green tea x3", status:"placed", total_cents:5400,
           created_at:"2026-08-03", trigger:"standing", cart:{lines:[]} },
-        { title:"Olive oil x1", status:"placed", total_cents:5200,
+        { title:"Soy sauce x1", status:"placed", total_cents:5200,
           created_at:"2026-07-30", trigger:"ask", cart:{lines:[]} }
       ],
       pending: []
@@ -35878,12 +35960,16 @@ ledger_entry · artifact · agent_run`,
       // because it needs two months of ledger and there are none.
       { ch:2, caption:"Here is what makes this different from a chatbot. Every move the owner approves is stored with what the agent expects it to earn.",
         run:function(){ view("growth"); }, target:"#view-growth", settle:500 },
+      //  #growthInflight, not #approvedList: the Approved list holds this
+      //  session's clicks and is empty on a fresh tour, so these three steps
+      //  used to point their ring at nothing. The In flight panel shows the
+      //  measuring moves the captions are counting.
       { ch:2, caption:"Seven moves are in flight right now. The biggest — lead every listing with the ocean-view patio — predicts $22 a day.",
-        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:550 },
+        run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:550 },
       { ch:2, caption:"That number was written to CockroachDB the night it was proposed, with the date it gets graded: 1 September. Nobody can edit it between now and then.",
-        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:450 },
+        run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:450 },
       { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so it published none. The owner ran it anyway and reported $500 a week.",
-        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:450 },
+        run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:450 },
       { ch:2, caption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
         run:function(){ view("growth"); }, settle:200 }
     ];
