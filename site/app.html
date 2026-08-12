@@ -2541,7 +2541,7 @@
 
     .growth-chart-head p { margin: 3px 0 0; color: #858e9a; font-size: 9.5px; font-weight: 650; }
 
-    .chart-legend { display: inline-flex; gap: 13px; color: #6b7481; font-size: 9px; font-weight: 720; }
+    .chart-legend { display: inline-flex; gap: 13px; color: #8f8b83; font-size: 9px; font-weight: 720; }
     .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
     /* Line swatches, matching the marks: one drawn, one dashed. */
     .chart-legend .key { width: 15px; height: 0; border-radius: 0; }
@@ -4259,7 +4259,7 @@
       filter:drop-shadow(0 9px 14px rgba(44,164,133,.16));
     }
     .journey-line.projected {
-      stroke:#7478f4;
+      stroke:#d0a05a;
       stroke-width:7;
       stroke-dasharray:13 12;
       stroke-dashoffset:100;
@@ -4280,7 +4280,7 @@
     }
     .journey-ring { fill:#fff;stroke:rgba(32,29,21,.08);stroke-width:1;filter:drop-shadow(0 10px 16px rgba(25,32,43,.14)); }
     .journey-core { fill:url(#journeyDotGradient); }
-    .journey-core.projected { fill:#fbfaf7;stroke:#7478f4;stroke-width:4; }
+    .journey-core.projected { fill:#fbfaf7;stroke:#d0a05a;stroke-width:4; }
     .journey-value-card { fill:#fff;stroke:rgba(32,29,21,.07);stroke-width:1;filter:drop-shadow(0 7px 12px rgba(25,32,43,.10)); }
     .journey-value { fill:#181510;font-size:14px;font-weight:850;letter-spacing:-.025em; }
     .journey-month { fill:#7f8995;font-size:10px;font-weight:760; }
@@ -5361,7 +5361,7 @@
       border: 0;
       background: linear-gradient(135deg, var(--social-indigo), var(--social-indigo-dark));
       color: #ffffff !important;
-      box-shadow: 0 11px 24px rgba(80,72,221,.27) !important;
+      box-shadow: 0 11px 24px rgba(0,0,0,.27) !important;
     }
 
     /* Explicit visibility beats the older, more specific green-on-green cascade. */
@@ -5374,10 +5374,10 @@
     }
 
     body.autopilot-mode .decision-button.approve:hover {
-      background: linear-gradient(135deg, #706aff, #4b43d5);
+      background: linear-gradient(135deg, #eebd77, #c9893c);
       color: #ffffff !important;
       transform: translateY(-1px);
-      box-shadow: 0 14px 28px rgba(80,72,221,.32) !important;
+      box-shadow: 0 14px 28px rgba(0,0,0,.32) !important;
     }
 
     /* A familiar carousel control instead of the old operator-style side rail. */
@@ -13770,7 +13770,7 @@
     body.growth-mode .growth-slide-summary .growth-total.forecast p:not(.growth-total-tag) {
       max-width: 42ch;
       margin: 12px 0 0;
-      color: #6b7481 !important;
+      color: #8f8b83 !important;
       font-size: 12.5px;
       font-weight: 620;
       line-height: 1.45;
@@ -14367,13 +14367,13 @@
     }
     body.growth-mode .growth-total-tag {
       margin-top: 22px !important;
-      border: 1px solid rgba(183,111,255,.34) !important;
-      background: rgba(144,64,255,.10) !important;
-      color: #d3afff !important;
+      border: 1px solid rgba(230,180,110,.34) !important;
+      background: rgba(226,168,92,.10) !important;
+      color: #e6c391 !important;
     }
     body.growth-mode .growth-total p:not(.growth-total-tag) {
       max-width: 56ch !important;
-      color: #949bb1 !important;
+      color: #a39f95 !important;
       font-size: 15px !important;
       line-height: 1.6 !important;
     }
@@ -14432,8 +14432,8 @@
     body.growth-mode .decision-row small { color: #858da4 !important; }
     body.growth-mode .decision-row-value.forecast,
     body.growth-mode .decision-row-value.forecast:not(.rejected) {
-      color: #c888ff !important;
-      border-bottom-color: rgba(189,112,255,.44) !important;
+      color: #e2a85c !important;
+      border-bottom-color: rgba(226,168,92,.44) !important;
     }
 
     /* Owner drawer and chat feel like part of the same product, not a second skin. */
@@ -14922,16 +14922,16 @@
       top: 13px !important;
       right: 14px !important;
       padding: 7px 10px !important;
-      border-color: rgba(77, 215, 168, .22) !important;
-      background: rgba(77, 215, 168, .08) !important;
-      color: #8ee6c9 !important;
+      border-color: rgba(226, 168, 92, .22) !important;
+      background: rgba(226, 168, 92, .08) !important;
+      color: #e6c391 !important;
       font-size: 9.5px !important;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
     }
 
     body.growth-mode .growth-projection-badge::before {
       background: #59d8ad !important;
-      box-shadow: 0 0 0 5px rgba(77,215,168,.09) !important;
+      box-shadow: 0 0 0 5px rgba(226,168,92,.09) !important;
     }
 
     body.growth-mode .growth-projection svg {
@@ -15246,9 +15246,9 @@
     }
 
     body.growth-mode .decision-row-value.rejected {
-      border-color: rgba(194,202,229,.14) !important;
+      border-color: rgba(242,239,233,.14) !important;
       background: rgba(255,255,255,.045) !important;
-      color: #aab3c9 !important;
+      color: #a8a49a !important;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
@@ -16250,7 +16250,7 @@
     body.growth-mode .profile-menu-button,
     body.orders-mode .profile-menu-button {
       border-color: var(--owner-border) !important;
-      background: #0d1427 !important;
+      background: #171410 !important;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
     }
 
@@ -16259,14 +16259,14 @@
     body.growth-mode .profile-menu-button:hover,
     body.orders-mode .profile-menu-button:hover {
       border-color: var(--owner-accent-border) !important;
-      background: #151d33 !important;
+      background: #201c15 !important;
     }
 
     body.chat-mode .profile-menu-button span,
     body.autopilot-mode .profile-menu-button span,
     body.growth-mode .profile-menu-button span,
     body.orders-mode .profile-menu-button span {
-      background: #d8c3ff !important;
+      background: #e6c391 !important;
     }
 
     /* Growth: titles and counts are enough. Empty panels collapse to one row. */
@@ -16310,7 +16310,7 @@
     body.autopilot-mode #detailDrawer,
     body.growth-mode #detailDrawer {
       width: min(560px, calc(100% - 24px)) !important;
-      background: linear-gradient(180deg, #0d1427 0%, #070b17 100%) !important;
+      background: linear-gradient(180deg, #171410 0%, #070b17 100%) !important;
     }
 
     body.chat-mode #detailDrawer .drawer-body,
@@ -19864,7 +19864,7 @@
       --brand-soft: rgba(226, 168, 92, .18);
       --approve: var(--owner-success);
       --approve-hover: #3fc697;
-      --approve-soft: rgba(77, 215, 168, .12);
+      --approve-soft: rgba(226, 168, 92, .12);
       color-scheme: dark;
       color: var(--owner-ink) !important;
       background:
@@ -20132,8 +20132,8 @@
     }
 
     body.orders-mode .orders-tag.auto {
-      background: rgba(77, 215, 168, .12);
-      border-color: rgba(77, 215, 168, .3);
+      background: rgba(226, 168, 92, .12);
+      border-color: rgba(226, 168, 92, .3);
       color: #74e2bd;
     }
 
@@ -20653,7 +20653,7 @@
       vertical-align: 1.5px;
     }
 
-    .orders-pill.p-ok { background: rgba(77, 215, 168, .12); border: 1px solid rgba(77, 215, 168, .26); color: #74e2bd; }
+    .orders-pill.p-ok { background: rgba(226, 168, 92, .12); border: 1px solid rgba(226, 168, 92, .26); color: #74e2bd; }
     .orders-pill.p-bad { background: rgba(255, 155, 172, .1); border: 1px solid rgba(255, 155, 172, .3); color: #ffb3c0; }
     .orders-pill.p-mute { background: rgba(255,255,255,.05); border: 1px solid var(--owner-line); color: var(--owner-muted); }
 
@@ -20832,7 +20832,7 @@
       font-weight: 800;
       letter-spacing: .09em;
       text-transform: uppercase;
-      color: #c9a9ff;
+      color: #e6b06a;
     }
 
     .chat-msg.agent .chat-answer-section p { margin: 0 0 7px; }
@@ -20857,7 +20857,7 @@
       cursor: pointer;
       font-size: 12px;
       font-weight: 650;
-      color: #c9a9ff;
+      color: #e6b06a;
       list-style: none;
     }
 
@@ -21666,7 +21666,7 @@
         grid-template-columns: 1fr auto !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
-        background: #070b18 !important;
+        background: #0f0d0a !important;
       }
       body.console-mode .topbar {
         grid-template-columns: 1fr auto !important;
@@ -21819,7 +21819,7 @@
       body.orders-mode .view-switcher,
       body.chat-mode .view-switcher {
         border-top-color: rgba(255, 255, 255, .08) !important;
-        background: rgba(9, 13, 27, .92) !important;
+        background: rgba(17, 15, 11, .92) !important;
         box-shadow: 0 -10px 30px rgba(0, 0, 0, .3) !important;
       }
       body.autopilot-mode .view-tab,
@@ -21833,7 +21833,7 @@
       body.autopilot-mode .view-tab.active svg,
       body.growth-mode .view-tab.active svg,
       body.orders-mode .view-tab.active svg,
-      body.chat-mode .view-tab.active svg { color: #c19bff !important; }
+      body.chat-mode .view-tab.active svg { color: #e2a85c !important; }
 
       /* Operator console: teal accent to match its world. */
       body.console-mode .view-switcher {
@@ -22434,7 +22434,7 @@
     body.day-mode.growth-mode .decision-row-value.forecast:not(.rejected) {
       border-color: rgba(226, 168, 92, .30) !important;
       background: rgba(226, 168, 92, .10) !important;
-      color: #5b3ea6 !important;
+      color: #e6c391 !important;
       box-shadow: none !important;
     }
 
@@ -22837,8 +22837,8 @@
       height: 38px;
       border-radius: 12px;
       background: rgba(226, 168, 92, .12);
-      border: 1px solid rgba(160, 150, 255, .26);
-      color: #a5a8ff;
+      border: 1px solid rgba(230, 180, 110, .26);
+      color: #e2a85c;
     }
     body.orders-mode .orders-zone-ico svg { width: 17px; height: 17px; }
     body.orders-mode .orders-zone-head h2 {
@@ -23284,6 +23284,43 @@
     .profile-panel-mark, #profilePanelMark {
       background: linear-gradient(135deg, #eebd77 0%, #c9893c 100%) !important;
       color: #171006 !important;
+    }
+
+    /* Do it stays readable in EVERY state — hover included. */
+    body.autopilot-mode .decision-button.approve:hover {
+      background: #ffffff !important;
+      color: #0c0b09 !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .4) !important;
+    }
+    body.autopilot-mode .decision-button.approve:hover span,
+    body.autopilot-mode .decision-button.approve span { color: #0c0b09 !important; }
+    body.autopilot-mode .decision-button.approve:hover svg,
+    body.autopilot-mode .decision-button.approve svg { stroke: #0c0b09 !important; color: #0c0b09 !important; }
+
+    /* Growth's category trio joins the warm ramp at night — the journey
+       rings, the tri-colour bars and the per-row accents all read as one
+       system: brass through to the green of verified money. */
+    body.autopilot-mode, body.growth-mode, body.chat-mode, body.orders-mode {
+      --theme-competitors: #e2a85c;
+      --theme-reviews: #d0a05a;
+      --theme-demand: #3dbf82;
+      --theme-competitors-rgb: 226, 168, 92;
+      --theme-reviews-rgb: 208, 160, 90;
+      --theme-demand-rgb: 61, 191, 130;
+    }
+
+    /* One green. Approve-and-pay and the Paid chips share a single success
+       hue instead of three near-misses. */
+    body.orders-mode .orders-btn.approve,
+    body.chat-mode .orders-btn.approve {
+      background: linear-gradient(135deg, #34b57f 0%, #1f9463 100%) !important;
+      color: #ffffff !important;
+    }
+    body.orders-mode .orders-pill.p-ok,
+    body.chat-mode .orders-pill.p-ok {
+      color: #4ecf95 !important;
+      border-color: rgba(61, 191, 130, .34) !important;
+      background: rgba(61, 191, 130, .09) !important;
     }
   </style>
 

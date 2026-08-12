@@ -1831,10 +1831,11 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
 
 </script>
 <script id="net-map">
-/* A dependency-free 3D network: ~120 nodes scattered in a sphere, joined to
-   their nearest neighbours, projected with perspective and slowly rotated.
-   Decorative — the memory graph as a picture, not a chart of rows. Respects
-   prefers-reduced-motion (single still frame), pauses when the tab hides. */
+/* The night radar. While the owner sleeps, the sweep keeps turning: signals
+   light up as the beam passes them — a review changing, a competitor moving,
+   demand shifting — and drifting embers carry the found-money story. Pure
+   canvas, no dependencies. A single still frame under prefers-reduced-motion;
+   paused when the tab hides. Decorative: the product story as a picture. */
 (function () {
   var canvas = document.getElementById("netMap");
   if (!canvas || !canvas.getContext) return;
@@ -1842,43 +1843,31 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
   var DPR = Math.min(2, window.devicePixelRatio || 1);
   var REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  var N = 156, R = 340;
-  var nodes = [], edges = [];
-  // Deterministic layout: the same constellation on every visit.
-  var seed = 42;
+  // Deterministic scene: the same sky on every visit.
+  var seed = 7;
   function rand() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
-  for (var i = 0; i < N; i++) {
-    // Points on a fuzzy sphere: direction uniform, radius jittered inward.
-    var t = rand() * Math.PI * 2, p = Math.acos(2 * rand() - 1), r = R * (0.55 + 0.45 * rand());
-    nodes.push({
-      x: r * Math.sin(p) * Math.cos(t),
-      y: r * Math.cos(p) * 0.72,
-      z: r * Math.sin(p) * Math.sin(t),
-      s: 1 + rand() * 1.8,
-      warm: rand() < 0.22
+
+  // Signals scattered across the rings. Three kinds, three quiet tones —
+  // reviews (brass), competitors (bone), demand (ember-green).
+  var SIGNALS = 26, signals = [];
+  var TONES = [[230, 175, 100], [242, 239, 233], [110, 205, 150]];
+  for (var i = 0; i < SIGNALS; i++) {
+    signals.push({
+      a: rand() * Math.PI * 2,
+      r: 0.22 + rand() * 0.75,
+      tone: TONES[i % 3],
+      size: 1.4 + rand() * 1.8,
+      hit: 0
     });
   }
-  for (var a = 0; a < N; a++) {
-    var best = [];
-    for (var b = 0; b < N; b++) {
-      if (a === b) continue;
-      var dx = nodes[a].x - nodes[b].x, dy = nodes[a].y - nodes[b].y, dz = nodes[a].z - nodes[b].z;
-      best.push([dx * dx + dy * dy + dz * dz, b]);
-    }
-    best.sort(function (u, v) { return u[0] - v[0]; });
-    for (var k = 0; k < 3; k++) if (a < best[k][1]) edges.push([a, best[k][1]]);
-  }
 
-  // Drifting embers: sparks rising off the bottom of the scene, flickering
-  // as they climb — the burn. Respawn above the top back to the bottom.
-  var EMBERS = 44, embers = [];
+  var EMBERS = 30, embers = [];
   for (var q = 0; q < EMBERS; q++) {
     embers.push({
-      u: rand(),                       // horizontal position, 0..1
-      v: rand() * 1.2,                 // vertical progress, 0 bottom .. 1 top
-      sway: 12 + rand() * 30,
-      speed: 0.0006 + rand() * 0.0013,
-      size: 0.8 + rand() * 1.9,
+      u: rand(), v: rand() * 1.2,
+      sway: 12 + rand() * 26,
+      speed: 0.0005 + rand() * 0.001,
+      size: 0.7 + rand() * 1.6,
       phase: rand() * 6.283
     });
   }
@@ -1911,45 +1900,65 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
     }
   }, { passive: true });
 
-  var angle = 0, tilt = 0, running = true;
+  var sweep = 0.8, running = true;
   document.addEventListener("visibilitychange", function () { running = !document.hidden; if (running && !REDUCED) tick(); });
 
-  var FOV = 620;
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    var cx = W / 2, cy = H * 0.5;
-    // Scale the constellation to the viewport so it fills the hero rather
-    // than hiding behind the headline.
-    var k2 = Math.min(W, H) / 560;
-    var ca = Math.cos(angle), sa = Math.sin(angle);
-    var ct = Math.cos(tilt), st = Math.sin(tilt);
-    var pts = new Array(N);
-    for (var i = 0; i < N; i++) {
-      var n = nodes[i];
-      var x = (n.x * ca + n.z * sa) * k2;
-      var z = (-n.x * sa + n.z * ca) * k2;
-      var y = (n.y * ct - z * st) * k2 * 1.12;
-      z = n.y * st + z * ct;
-      var sc = FOV / (FOV + z + R * 0.9);
-      pts[i] = { x: cx + x * sc, y: cy + y * sc, sc: sc, z: z };
+    var cx = W / 2 + mouseX * 18;
+    var cy = H * 0.52 + mouseY * 12;
+    var R = Math.min(W, H) * 0.62;
+
+    // Rings: quiet dashed circles, fading outward.
+    ctx.setLineDash([2, 7]);
+    for (var ring = 1; ring <= 4; ring++) {
+      ctx.strokeStyle = "rgba(226,168,92," + (0.14 - ring * 0.022) + ")";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, R * ring / 4, 0, 6.2832); ctx.stroke();
     }
-    ctx.lineWidth = 1;
-    for (var e = 0; e < edges.length; e++) {
-      var pA = pts[edges[e][0]], pB = pts[edges[e][1]];
-      var depth = Math.min(pA.sc, pB.sc);
-      ctx.strokeStyle = "rgba(226,168,92," + Math.max(0.06, 0.16 + 0.4 * (depth - 0.6)) + ")";
-      ctx.beginPath(); ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // The sweep: a soft wedge of light turning through the night.
+    var grad = ctx.createConicGradient
+      ? ctx.createConicGradient(sweep, cx, cy)
+      : null;
+    if (grad) {
+      grad.addColorStop(0, "rgba(226,168,92,.16)");
+      grad.addColorStop(0.08, "rgba(226,168,92,.05)");
+      grad.addColorStop(0.16, "rgba(226,168,92,0)");
+      grad.addColorStop(1, "rgba(226,168,92,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fill();
     }
-    for (var j = 0; j < N; j++) {
-      var pt = pts[j], nd = nodes[j];
-      var rad = nd.s * pt.sc;
-      ctx.fillStyle = nd.warm
-        ? "rgba(230,175,100," + (0.5 + 0.5 * (pt.sc - 0.55)) + ")"
-        : "rgba(242,239,233," + (0.28 + 0.55 * (pt.sc - 0.55)) + ")";
-      ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.6, rad), 0, 6.2832); ctx.fill();
+    // The beam edge.
+    ctx.strokeStyle = "rgba(238,189,119,.35)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(sweep) * R, cy + Math.sin(sweep) * R); ctx.stroke();
+
+    // Signals: lit as the beam passes, cooling slowly after.
+    for (var j = 0; j < SIGNALS; j++) {
+      var sig = signals[j];
+      var diff = ((sweep - sig.a) % 6.2832 + 6.2832) % 6.2832;
+      if (diff < 0.1) sig.hit = 1;
+      sig.hit *= 0.985;
+      var x = cx + Math.cos(sig.a) * R * sig.r;
+      var y = cy + Math.sin(sig.a) * R * sig.r;
+      var t = sig.tone;
+      var base = 0.16 + sig.hit * 0.8;
+      if (sig.hit > 0.03) {
+        var halo = ctx.createRadialGradient(x, y, 0, x, y, sig.size * (4 + sig.hit * 8));
+        halo.addColorStop(0, "rgba(" + t[0] + "," + t[1] + "," + t[2] + "," + (sig.hit * 0.4) + ")");
+        halo.addColorStop(1, "rgba(" + t[0] + "," + t[1] + "," + t[2] + ",0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(x, y, sig.size * (4 + sig.hit * 8), 0, 6.2832); ctx.fill();
+      }
+      ctx.fillStyle = "rgba(" + t[0] + "," + t[1] + "," + t[2] + "," + base + ")";
+      ctx.beginPath(); ctx.arc(x, y, sig.size, 0, 6.2832); ctx.fill();
     }
-    // The embers ride over the constellation.
-    var now = angle * 600;
+
+    // Embers drift up through the scene.
+    var now = sweep * 600;
     for (var w = 0; w < EMBERS; w++) {
       var em = embers[w];
       em.v += em.speed * (REDUCED ? 0 : 1);
@@ -1958,7 +1967,7 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
       var ey = H * (1 - em.v);
       var flicker = 0.45 + 0.55 * Math.abs(Math.sin(now * 0.02 + em.phase));
       var fade = em.v < 0.12 ? em.v / 0.12 : em.v > 0.85 ? (1.15 - em.v) / 0.3 : 1;
-      var alpha = 0.55 * flicker * Math.max(0, fade);
+      var alpha = 0.5 * flicker * Math.max(0, fade);
       var g = ctx.createRadialGradient(ex, ey, 0, ex, ey, em.size * 4);
       g.addColorStop(0, "rgba(255,214,150," + alpha + ")");
       g.addColorStop(0.4, "rgba(232,140,60," + alpha * 0.55 + ")");
@@ -1969,12 +1978,15 @@ if (matchMedia('(pointer:fine)').matches && !reduceMotion) {
   }
   function tick() {
     if (!running) return;
-    angle += 0.0016 + mouseX * 0.0025;
-    tilt += ((mouseY * 0.5) - tilt) * 0.03;
+    sweep += 0.004;
     draw();
     if (!REDUCED) requestAnimationFrame(tick);
   }
-  if (REDUCED) { angle = 0.8; tilt = 0.18; draw(); } else { tick(); }
+  if (REDUCED) {
+    // A still frame with a handful of signals lit, so the scene still reads.
+    for (var k = 0; k < SIGNALS; k += 4) signals[k].hit = 0.7;
+    draw();
+  } else { tick(); }
 })();
 </script>
 </body>
