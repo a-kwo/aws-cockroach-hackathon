@@ -4249,3 +4249,22 @@ def test_the_demo_orders_through_the_preview_quartermaster():
     # The chat tries the preview engine before refusing to act.
     branch = html.split("if (!chatLive) {", 1)[1][:1200]
     assert "__btPreviewAsk" in branch
+
+
+def test_demo_decisions_take_the_local_path():
+    """Do it / Pass must work while exploring the demo. On the deployed build
+    the buttons waited for a live decision sync the placeholder session can
+    never reach -- rendered disabled, "Checking latest decision status" forever
+    -- and decide() would have refused or POSTed a 401 anyway. In tour mode the
+    buttons enable and the decision takes the demoOnly local path, exactly like
+    a build with no decision API."""
+    html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
+
+    assert 'const DEMO_TOUR = Boolean(appQuery.get("tour"));' in html
+    # The buttons enable in the demo.
+    assert "decisionApiConfigured && workflowApiConfigured && !DEMO_TOUR" in html
+    # decide() skips both live-verification refusals.
+    assert 'if (!DEMO_TOUR && workflowApiConfigured && workflowRefreshState !== "live")' in html
+    assert "if (!DEMO_TOUR && decisionApiConfigured && workflowApiConfigured && !post.serverVerified)" in html
+    # And the decision is stored locally, never POSTed on a placeholder session.
+    assert "if (!base || DEMO_TOUR) return { demoOnly: true };" in html

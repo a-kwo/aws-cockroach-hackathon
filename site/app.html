@@ -23813,6 +23813,10 @@
     //  whole window to the right session, and signing out of one leaves the
     //  other untouched.
     const ADMIN_VIEW = appQuery.get("workspace") === "admin";
+    //  A guided/interactive demo runs on a placeholder session. Anything that
+    //  would wait on, verify against, or write to the live APIs must take its
+    //  local path instead — the demo has to WORK, not scold.
+    const DEMO_TOUR = Boolean(appQuery.get("tour"));
     // SES review emails link to a specific durable task. The first live
     // /workflow read resolves that task inside the authenticated tenant and
     // opens its exact recommendation/draft; the URL never carries credentials.
@@ -26172,7 +26176,7 @@
       //  which in a scroll layout means an owner could see a move they could
       //  not approve. The guided tour still toggles `.is-current` itself, as a
       //  scope for its spotlight — that is the class's only remaining job.
-      const decisionSyncPending = decisionApiConfigured && workflowApiConfigured &&
+      const decisionSyncPending = decisionApiConfigured && workflowApiConfigured && !DEMO_TOUR &&
         (workflowRefreshState !== "live" || !post.serverVerified);
       const decisionDisabled = decisionSyncPending
         ? ' disabled aria-busy="true" title="Waiting for the live owner-specific recommendation"'
@@ -26722,7 +26726,9 @@
 
     async function persistDecision(post, status) {
       const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
-      if (!base) return { demoOnly: true };
+      //  A tour's placeholder session must never write a decision to the live
+      //  API — the demo records it locally, same as a build with no endpoint.
+      if (!base || DEMO_TOUR) return { demoOnly: true };
       const response = await fetch(`${base}/finds/${encodeURIComponent(post.databaseId || post.id)}/decision`, {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
@@ -26887,7 +26893,8 @@
 
       // Never write a UUID from an unverified build snapshot. The live read is
       // owner-scoped and removes stale/already-decided cards before the POST.
-      if (workflowApiConfigured && workflowRefreshState !== "live") {
+      // A demo decision is local-only, so there is nothing to verify against.
+      if (!DEMO_TOUR && workflowApiConfigured && workflowRefreshState !== "live") {
         showToast("Checking the latest decision status…", "approved");
         await refreshWorkflowSnapshot({ force: true, silent: true });
         if (workflowRefreshState !== "live") {
@@ -26902,7 +26909,7 @@
 
       const post = posts.find(item => item.id === postId);
       if (!post) return;
-      if (decisionApiConfigured && workflowApiConfigured && !post.serverVerified) {
+      if (!DEMO_TOUR && decisionApiConfigured && workflowApiConfigured && !post.serverVerified) {
         showToast("This recommendation is still loading from your live workspace.", "rejected");
         await refreshWorkflowSnapshot({ force: true, silent: true });
         return;
@@ -26952,9 +26959,15 @@
           isAnimating = false;
           const message = status === "approved"
             ? (receipt.demoOnly
-                ? "Approved in demo. Add DECISION_API_ENDPOINT to save it."
+                ? (DEMO_TOUR
+                    ? "Approved — in the demo this stays local. Live, the Maker would start drafting it."
+                    : "Approved in demo. Add DECISION_API_ENDPOINT to save it.")
                 : makerHandoffMessage(receipt.maker))
-            : (receipt.demoOnly ? "Passed in demo. Maker was not requested." : "Passed. Saved to memory; Maker was not requested.");
+            : (receipt.demoOnly
+                ? (DEMO_TOUR
+                    ? "Passed — in the demo this stays local. Live, it goes to your Passed list on Growth."
+                    : "Passed in demo. Maker was not requested.")
+                : "Passed. Saved to memory; Maker was not requested.");
           showToast(message, status);
           renderApp();
           // The optimistic overlay makes the handoff immediate. This read then
