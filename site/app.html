@@ -23339,6 +23339,13 @@
       color: #171006 !important;
     }
 
+    /* The rows carry no chevron; the row itself is the affordance. */
+    body.autopilot-mode .feed-plan::after,
+    body.autopilot-mode .feed-more::after,
+    body.autopilot-mode .feed-detail-evidence::after,
+    body.autopilot-mode .feed-plan > summary::after,
+    body.autopilot-mode .feed-more > summary::after { content: none !important; }
+
     /* Do it stays readable in EVERY state — hover included. */
     body.autopilot-mode .decision-button.approve:hover {
       background: #ffffff !important;
@@ -24725,12 +24732,12 @@
       const confidence = Number.isFinite(rawConfidence)
         ? Math.max(0, Math.min(100, Math.round(rawConfidence)))
         : 0;
-      const confidenceLabel = `${confidence}% confidence`;
+      const confidenceLabel = `${confidence}%`;
       // Evidence moved to the KEY DETAILS panel (see renderFeedDetailPanel);
       // the strip now carries the two read-only measures.
       const items = [
         { icon: "confidence", value: confidenceLabel, label: "Analyst confidence" },
-        { icon: "calendar", value: post.measurementWindowLabel, label: "Measurement window" },
+        { icon: "calendar", value: String(post.measurementWindowLabel || "").replace(/\s*measurement$/i, ""), label: "Measurement window" },
       ];
       //  The value alone, at reading size; the explanatory label lives in the
       //  accessible name rather than a second line of small print.

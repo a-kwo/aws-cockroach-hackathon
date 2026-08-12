@@ -4261,9 +4261,10 @@ def test_the_card_detail_panel_is_three_uniform_rows():
     assert 'class="feed-more"' in panel
     assert 'class="feed-detail-evidence"' in panel
 
-    chevron = html.split("body.autopilot-mode .feed-detail-evidence::after", 1)[1].split(
-        "}", 1)[0]
-    assert "rotate(45deg)" in chevron
+    # The rows carry no chevron at all any more -- the row itself is the
+    # affordance, and the sheet opens on tap.
+    face = html.split('<style id="facelift-sly-v70">', 1)[1].split("</style>", 1)[0]
+    assert "content: none !important" in face
 
     # And the panel is boxless: the rows are the shapes, the container is not.
     # A bordered panel wrapping three bordered rows was a box in a box.
