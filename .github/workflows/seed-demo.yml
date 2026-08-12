@@ -196,8 +196,12 @@ jobs:
             GOOGLE_OAUTH_ENABLED=
           fi
 
+          # Match by CloudFront domain OR any alias, so a custom-domain
+          # SiteUrl still resolves; `|| []` guards alias-less distributions.
+          HOST="${SITE_URL#https://}"
+          HOST="${HOST%%/*}"
           DISTRIBUTION_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?DomainName=='${SITE_URL#https://}'].Id | [0]" \
+            --query "DistributionList.Items[?DomainName=='${HOST}' || contains(Aliases.Items || \`[]\`, '${HOST}')].Id | [0]" \
             --output text)
 
           echo "site_bucket=$SITE_BUCKET" >> "$GITHUB_OUTPUT"
@@ -217,16 +221,32 @@ jobs:
       - name: Validate deployment values
         shell: bash
         run: |
-          for value in \
-            "${{ steps.outputs.outputs.site_bucket }}" \
-            "${{ steps.outputs.outputs.site_url }}" \
-            "${{ steps.outputs.outputs.distribution_id }}"
-          do
-            if [ -z "$value" ] || [ "$value" = "None" ]; then
-              echo "A required stack output was not found."
-              exit 1
+          fail=0
+          check() {
+            if [ -z "$2" ] || [ "$2" = "None" ]; then
+              echo "::error::$1 was not found."
+              fail=1
+            else
+              echo "$1 = $2"
             fi
-          done
+          }
+          check "SiteBucketName (stack output)" "${{ steps.outputs.outputs.site_bucket }}"
+          check "SiteUrl (stack output)" "${{ steps.outputs.outputs.site_url }}"
+          check "CloudFront distribution for SiteUrl" "${{ steps.outputs.outputs.distribution_id }}"
+
+          if [ "$fail" = "1" ]; then
+            echo ""
+            echo "Outputs present on stack 'brasstacks' in us-east-1:"
+            aws cloudformation describe-stacks \
+              --stack-name brasstacks --region us-east-1 \
+              --query "Stacks[0].Outputs[].OutputKey" --output text || true
+            echo ""
+            echo "CloudFront distributions on this account:"
+            aws cloudfront list-distributions \
+              --query "DistributionList.Items[].{Id:Id,Domain:DomainName,Aliases:Aliases.Items}" \
+              --output table || true
+            exit 1
+          fi
 
       - name: Build connected frontend
         env:
