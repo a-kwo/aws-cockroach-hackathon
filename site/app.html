@@ -22521,7 +22521,9 @@
       animation: none !important;
       scroll-snap-align: none !important;
       scroll-snap-stop: normal !important;
-      scroll-margin-top: 84px;
+      /* Snapped so the previous card's action row is a sliver, not a banner:
+         the Do it button peeks just enough to say there is history above. */
+      scroll-margin-top: 54px;
     }
     .swipe-cue { display: none !important; }
 
@@ -22613,7 +22615,8 @@
     }
 
     /* The rail: real counts beside the stream, sticky while the feed scrolls. */
-    .feed-rail { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 14px; }
+    /* 54px puts "At a glance" level with the top of the snapped card. */
+    .feed-rail { position: sticky; top: 54px; display: flex; flex-direction: column; gap: 14px; }
     .feed-rail-card {
       border: 1px solid var(--owner-line, rgba(242, 239, 233, .13));
       border-radius: 16px;
@@ -27450,6 +27453,105 @@
         goToPost(currentIndex + 1);
       }
     });
+
+    /**
+     * The wheel pages the queue one card at a time.
+     *
+     * Left to the browser, a wheel over the feed was plain document scroll,
+     * and stopping between cards was the owner's job. Now the gesture is the
+     * unit: pass the threshold and the feed glides to the next card, the way
+     * a phone feed advances. Bound once on document for the same reason as
+     * the arrow keys above; non-passive because stepping only works if the
+     * native scroll never happens. The settle flag exists for trackpads,
+     * whose momentum keeps sending events long after the finger stopped —
+     * without it one flick pages through half the queue.
+     */
+    const WHEEL_STEP_THRESHOLD = 70;
+    const WHEEL_STEP_LOCK_MS = 620;
+    const WHEEL_GESTURE_GAP_MS = 170;
+    let wheelAccum = 0;
+    let wheelLastAt = 0;
+    let wheelLockUntil = 0;
+    let wheelSettling = false;
+
+    //  Stepping starts from the card actually nearest the top of the view,
+    //  not from currentIndex: a scrollbar drag or an in-page anchor can move
+    //  the feed without going through goToPost, and stepping from a stale
+    //  index would teleport rather than advance.
+    function nearestFeedCardIndex() {
+      const cards = document.querySelectorAll(".feed-card");
+      let best = 0;
+      let bestDistance = Infinity;
+      cards.forEach((card, index) => {
+        const distance = Math.abs(card.getBoundingClientRect().top - 62);
+        if (distance < bestDistance) { bestDistance = distance; best = index; }
+      });
+      return { index: best, count: cards.length };
+    }
+
+    document.addEventListener("wheel", event => {
+      if (activeView !== "autopilot" || usesNativeMobileFeed()) return;
+      if (detailDrawer.classList.contains("open")) return;
+      const deck = event.target instanceof Element ? event.target.closest(".feed-scroll-deck") : null;
+      if (!deck) return;
+
+      //  A scrollable region inside the deck (an open plan, a long evidence
+      //  list) keeps its own wheel until it runs out of room in the gesture's
+      //  direction — the feed only steps when the scroll has nowhere else to go.
+      for (let el = event.target; el instanceof Element && el !== deck; el = el.parentElement) {
+        const overflowY = getComputedStyle(el).overflowY;
+        if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1) {
+          const scrollingUp = event.deltaY < 0;
+          if (scrollingUp ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1) return;
+        }
+      }
+
+      const now = performance.now();
+      const gap = now - wheelLastAt;
+      wheelLastAt = now;
+      const { index, count } = nearestFeedCardIndex();
+      if (!count) return;
+
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+
+      //  Hard lock while the glide is in flight: these events are almost
+      //  always the tail of the gesture that started it.
+      if (now < wheelLockUntil) {
+        event.preventDefault();
+        return;
+      }
+
+      //  A quiet spell ends the previous gesture; anything sooner is its
+      //  momentum tail, which must clear a much higher bar to step again —
+      //  that bar is what lets a deliberate fast spin keep advancing while a
+      //  decaying trackpad tail dies out.
+      let inTail = false;
+      if (wheelSettling) {
+        if (gap >= WHEEL_GESTURE_GAP_MS) {
+          wheelSettling = false;
+          wheelAccum = 0;
+        } else {
+          inTail = true;
+        }
+      }
+
+      //  First card, wheeling up, between gestures: nothing above to step
+      //  to, so the page keeps its native scroll and the top stays reachable.
+      if (!inTail && index === 0 && delta < 0) return;
+
+      event.preventDefault();
+
+      if (!inTail && gap > WHEEL_GESTURE_GAP_MS * 2) wheelAccum = 0;
+      wheelAccum += delta;
+      if (Math.abs(wheelAccum) < WHEEL_STEP_THRESHOLD * (inTail ? 3 : 1)) return;
+
+      const direction = wheelAccum > 0 ? 1 : -1;
+      wheelAccum = 0;
+      wheelLockUntil = now + WHEEL_STEP_LOCK_MS;
+      wheelSettling = true;
+      //  At the ends this re-snaps the edge card instead of stepping past it.
+      goToPost(Math.max(0, Math.min(count - 1, index + direction)));
+    }, { passive: false });
 
     async function persistDecision(post, status) {
       const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
