@@ -697,6 +697,7 @@ def build_workspace(data: dict[str, Any]) -> dict[str, Any]:
                 "kind": item.get("kind"),
                 "source": SOURCE_LABEL.get(item.get("kind"), item.get("kind") or "memory"),
                 "sourceName": item.get("source_name"),
+                "sourceUrl": (item.get("source_url") or "").strip() or None,
                 "subject": item.get("subject"),
                 "when": when(item.get("observed_at")),
                 "similarity": round(_float(item.get("similarity")), 3),
@@ -927,7 +928,7 @@ def load_workspaces(conn: Any, business_ids: Sequence[str], *, runs_per_agent: i
         evidence = _rows(cursor, f"""
             SELECT f.business_id, fe.find_id, fe.rank, fe.similarity,
                    o.id AS observation_id, o.content, o.kind,
-                   o.source_name, o.subject, o.observed_at
+                   o.source_name, o.source_url, o.subject, o.observed_at
             FROM find_evidence fe
             JOIN find f ON f.id = fe.find_id
             JOIN observation o ON o.id = fe.observation_id

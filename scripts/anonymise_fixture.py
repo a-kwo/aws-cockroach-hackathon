@@ -79,6 +79,10 @@ def scrub(value, mapping: dict):
 
     Keys are redacted too: a find id is a UUID, but an observation's source name
     is free text and has carried the host name.
+
+    `source_url` (and its camel-case twin) is DROPPED rather than redacted: the
+    URL points at the real tenant's listing, so a "View source" link on an
+    anonymised row would undo the anonymising in one click. No URL survives.
     """
     if isinstance(value, str):
         return redact(value, mapping)
@@ -86,7 +90,8 @@ def scrub(value, mapping: dict):
         return [scrub(v, mapping) for v in value]
     if isinstance(value, dict):
         return {redact(k, mapping) if isinstance(k, str) else k: scrub(v, mapping)
-                for k, v in value.items()}
+                for k, v in value.items()
+                if k not in ("source_url", "sourceUrl")}
     return value
 
 
