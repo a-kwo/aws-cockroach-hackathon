@@ -23042,17 +23042,21 @@
     body.day-mode .evidence-sheet-prose .feed-cost-note { color: #3f4149 !important; }
 
     /* The chat-about-this-move button sits in the card's top-right corner,
-       not mid-card at the copy column's edge. The surface anchors it. */
-    body.autopilot-mode .feed-card .post-surface { position: relative; }
+       not mid-card at the copy column's edge. The button is absolute, so its
+       anchor is the nearest positioned ancestor — which was .post-copy, i.e.
+       the text column. Make the column static (its art-layering z-index is
+       moot now the art is hidden) so the full-width body anchors it instead. */
+    body.autopilot-mode .feed-card .post-copy { position: static !important; z-index: auto !important; }
+    body.autopilot-mode .feed-card .post-body { position: relative !important; }
     body.autopilot-mode .feed-card .top-details-button {
       position: absolute !important;
-      top: 16px;
-      right: 18px;
+      top: 14px !important;
+      right: 16px !important;
       z-index: 6;
       margin: 0 !important;
     }
     @media (max-width: 640px) {
-      body.autopilot-mode .feed-card .top-details-button { top: 12px; right: 12px; }
+      body.autopilot-mode .feed-card .top-details-button { top: 10px !important; right: 10px !important; }
     }
   </style>
 
