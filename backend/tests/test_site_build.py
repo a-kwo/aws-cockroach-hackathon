@@ -4334,3 +4334,7 @@ def test_the_sly_facelift_dresses_both_surfaces():
     # The hero carries the living-network canvas, motion-respectful.
     assert 'id="netMap"' in landing
     assert "prefers-reduced-motion" in landing.split('<script id="net-map">', 1)[1]
+    # The burn pass: drifting embers in the same canvas, and a cursor glow
+    # that only follows a fine pointer and never runs under reduced motion.
+    assert "embers" in landing.split('<script id="net-map">', 1)[1]
+    assert 'id="burnGlow"' in landing
