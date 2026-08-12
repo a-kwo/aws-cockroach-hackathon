@@ -23091,6 +23091,90 @@
     }
   </style>
 
+  <style id="facelift-sly-v70">
+    /* ==== The face-lift: cinematic mono + one brass accent ================
+       The owner's night surfaces move from midnight purple to warm near-black
+       with bone ink and a single brass accent — hairline borders, quiet
+       panels, one warm glow. A token override, so every earlier block keeps
+       its text and every honesty rule its teeth. Day mode is untouched: its
+       own variables outrank :root. */
+    :root {
+      --owner-shell: #0c0b09;
+      --owner-shell-2: #13110d;
+      --owner-panel: rgba(21, 20, 16, .94);
+      --owner-panel-raised: rgba(29, 27, 21, .95);
+      --owner-panel-soft: rgba(242, 239, 233, .035);
+      --owner-line: rgba(242, 239, 233, .13);
+      --owner-line-strong: 1px solid rgba(242, 239, 233, .22);
+      --owner-ink: #f2efe9;
+      --owner-copy: #c9c5bb;
+      --owner-muted: #8f8b83;
+      --owner-accent: #e2a85c;
+      --owner-gradient: linear-gradient(135deg, #eebd77 0%, #c9893c 100%);
+      --owner-gradient-soft: rgba(226, 168, 92, .13);
+      --owner-shadow: 0 26px 64px rgba(0, 0, 0, .5);
+      --owner-success: #3dbf82;
+      --owner-violet: #e2a85c;
+      --owner-pink: #e2a85c;
+      --owner-blue: #9aa39b;
+    }
+    body.autopilot-mode, body.growth-mode, body.chat-mode, body.orders-mode {
+      background:
+        radial-gradient(1100px 640px at 50% -160px, rgba(226, 168, 92, .06), transparent 70%),
+        var(--owner-shell) !important;
+    }
+    /* One accent across every card and sheet — mono + brass, not four hues. */
+    body.autopilot-mode .feed-card,
+    .evidence-sheet {
+      --accent: #e2a85c !important;
+      --accent-rgb: 226, 168, 92 !important;
+    }
+    /* Decisions: the primary action is a bone pill, the pass a quiet ghost. */
+    body.autopilot-mode .decision-button.approve {
+      background: #f2efe9 !important;
+      color: #0c0b09 !important;
+      border: 1px solid transparent !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .4) !important;
+    }
+    body.autopilot-mode .decision-button.approve:hover { background: #ffffff !important; }
+    body.autopilot-mode .decision-button.reject {
+      background: transparent !important;
+      border: 1px solid rgba(242, 239, 233, .18) !important;
+      color: #c9c5bb !important;
+    }
+    /* Tags go quiet: hairline chips, one type colour. */
+    body.autopilot-mode .feed-tag-list span {
+      background: rgba(242, 239, 233, .05) !important;
+      border: 1px solid rgba(242, 239, 233, .14) !important;
+      color: #d8d4ca !important;
+    }
+    /* The rail's topic dots join the brass ramp. */
+    .feed-rail-topic i { background: #e2a85c !important; }
+    .feed-rail-topic i[data-tone="2"] { background: #b98a4e !important; }
+    .feed-rail-topic i[data-tone="3"] { background: #8f8b83 !important; }
+    .feed-rail-topic i[data-tone="4"] { background: #6f6b62 !important; }
+    .feed-rail-topic i[data-tone="5"] { background: #d8d4ca !important; }
+    /* Micro-label typography on the quiet labels. */
+    .feed-group-label { letter-spacing: .26em !important; font-size: 10.5px !important; }
+    .feed-rail-card h3 { letter-spacing: .04em; }
+    /* Chat: the send action matches the brass system. */
+    body.chat-mode .chat-send { background: var(--owner-gradient) !important; color: #0c0b09 !important; }
+    /* The card and sheet surfaces hard-coded the old midnight navy. */
+    body.autopilot-mode .feed-card .post-surface {
+      background:
+        radial-gradient(420px 260px at 100% 0%, rgba(226, 168, 92, .08), transparent 72%),
+        linear-gradient(160deg, #18160f, #0e0d0a 78%) !important;
+      border-color: rgba(242, 239, 233, .12) !important;
+    }
+    .evidence-sheet-panel {
+      background:
+        radial-gradient(420px 260px at 100% 0%, rgba(226, 168, 92, .10), transparent 72%),
+        linear-gradient(160deg, #191712, #0f0e0b 78%) !important;
+      border-color: rgba(242, 239, 233, .16) !important;
+    }
+    body.autopilot-mode .post-footer { background: rgba(242, 239, 233, .025) !important; border-top-color: rgba(242, 239, 233, .1) !important; }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>

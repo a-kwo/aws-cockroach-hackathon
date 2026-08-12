@@ -1370,7 +1370,69 @@ body[data-chapter="final"] .ambient::after { opacity: .12; }
 
 
 </style>
+<style id="facelift-sly-v1">
+/* ==== The face-lift: cinematic mono + one brass accent ==================
+   Warm near-black, bone ink, hairline borders, huge tight display type,
+   micro-labels, an italic-serif accent word. Applied as a token override so
+   every section keeps its structure and behaviour; only the skin changes. */
+:root {
+  --bg: #0c0b09;
+  --paper: rgba(242, 239, 233, .04);
+  --paper-solid: #15140f;
+  --ink: #f2efe9;
+  --soft: #b8b4aa;
+  --muted: #8f8b83;
+  --line: rgba(242, 239, 233, .13);
+  --gold: #e2a85c;
+  --gold-soft: rgba(226, 168, 92, .13);
+  --green: #3dbf82;
+  --green-soft: rgba(61, 191, 130, .13);
+  --red: #e06a55;
+  --red-soft: rgba(224, 106, 85, .12);
+  --night: #080706;
+  --dawn: #e2a85c;
+  --blue: #98a09a;
+}
+body {
+  background:
+    radial-gradient(1100px 680px at 50% -140px, rgba(226, 168, 92, .07), transparent 70%),
+    var(--bg);
+  color: var(--ink);
+}
+/* Cinematic display type. */
+h1, h2 { letter-spacing: -.045em; }
+.hero h1 { font-size: clamp(46px, 7vw, 94px); line-height: .99; font-weight: 780; }
+.hero h1 em, h2 em {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -.015em;
+  color: var(--gold);
+}
+.eyebrow { font-size: 10.5px; letter-spacing: .3em; }
+/* Buttons: bone pill, quiet ghost. */
+.primary { background: var(--ink) !important; color: #0c0b09 !important; box-shadow: 0 18px 44px rgba(0, 0, 0, .45) !important; }
+.primary:hover { background: #ffffff !important; }
+.final .primary { background: var(--ink) !important; color: #0c0b09 !important; }
+/* Topbar goes glass-dark. */
+.topbar, header.topbar { background: rgba(12, 11, 9, .72) !important; border-bottom-color: var(--line) !important; }
+/* Surfaces that hard-coded paper go dark with hairlines. */
+.rail-pulse, .morning-note, .rail-signal, .clue-chip, .orbit-node, .move-card,
+.relief-card, .relief-badge, .category, .signal-icon, .flow-end, .dark .flow-icon {
+  background: #15140f !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, .45) !important;
+}
+.category:hover, .category.active { background: #1d1b15 !important; }
+/* The dawn sky reads as the one cinematic visual; dim it into the black. */
+.hero-sky { opacity: .5; filter: saturate(.85) brightness(.75); }
+/* The bare <header> carried the old paper glass. */
+header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid var(--line) !important; }
+.nav-cta { background: var(--ink) !important; color: #0c0b09 !important; }
+</style>
 </head>
+
 <body data-chapter="hero">
 <div class="ambient" aria-hidden="true"></div>
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -1398,7 +1460,7 @@ body[data-chapter="final"] .ambient::after { opacity: .12; }
 
     <div class="wrap hero-inner">
       <div class="eyebrow reveal">For the owner who already does everything</div>
-      <h1 class="reveal">Your business keeps running after you lock the door.</h1>
+      <h1 class="reveal">Your business keeps <em>running</em> after you lock the door.</h1>
       <p class="hero-copy reveal">Reviews change. Competitors move. Demand shifts. Brass Tacks listens overnight and leaves one clear move for morning.</p>
 
       <div class="hero-actions reveal">
