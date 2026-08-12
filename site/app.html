@@ -23223,7 +23223,9 @@
     body.autopilot-mode .decision-button.approve,
     body.autopilot-mode .decision-button.approve span { color: #0c0b09 !important; }
     body.autopilot-mode .decision-button.approve svg { stroke: #0c0b09 !important; }
-    /* The logo joins the brass system. */
+    /* The logo joins the brass system — and is the way home. */
+    a.brand-mark { text-decoration: none; cursor: pointer; }
+    a.brand-mark:hover { filter: brightness(1.08); }
     .brand-mark {
       background: linear-gradient(135deg, #eebd77 0%, #c9893c 100%) !important;
       color: #0c0b09 !important;
@@ -23394,13 +23396,13 @@
                 aria-label="Open profile menu" aria-controls="profilePanel" aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <div class="brand-mark" aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <a class="brand-mark" href="../" aria-label="Back to the Brass Tacks landing page">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="7.6" r="4.3" />
             <path d="M8.8 11.5h6.4" />
             <path d="M12 11.5v8.1" />
           </svg>
-        </div>
+        </a>
         <div class="brand-copy">
           <strong>Brass Tacks</strong>
           <span id="brandBusinessName">Business workspace</span>
