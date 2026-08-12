@@ -23076,6 +23076,24 @@
       cursor: pointer;
     }
     .exhibit-expand:hover { text-decoration: underline; }
+    /* The document centres at a readable measure instead of hugging a 58ch
+       column against the canvas's full width — the circled dead space. */
+    .chat-canvas-details #detailDrawer .drawer-body > *,
+    #chatCanvasDetails #detailDrawer .drawer-body > * {
+      max-width: 820px;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      width: 100%;
+    }
+    .chat-canvas-details #detailDrawer .detail-section h3,
+    #chatCanvasDetails #detailDrawer .detail-section h3,
+    .chat-canvas-details #detailDrawer .detail-section p,
+    #chatCanvasDetails #detailDrawer .detail-section p {
+      max-width: none !important;
+    }
+    /* The move canvas's route map sits inside the guide block. */
+    .chat-move-guide .plan-map { margin-top: 10px; }
+
     #detailDrawer .evidence-sheet-list { margin: 0; padding: 0; list-style: none; overflow: visible; }
     #detailDrawer .evidence-sheet-empty { color: var(--owner-muted, #8f8b83); font-size: 13px; }
     #detailDrawer .drawer-costs .feed-detail-list { margin-top: 2px; }
@@ -34873,7 +34891,7 @@ ledger_entry · artifact · agent_run`,
                   Open ${escapeHtml(siteLabel(url))}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
                 </a>` : ""}
-                ${steps.length ? `<ol class="chat-move-steps">${steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ol>` : ""}
+                ${steps.length ? planMapHtml(post) : ""}
                 <p class="chat-move-guide-note">This opens the real page in a new tab. I can't log in or click for you — your approval keeps every action yours.</p>
               </div>` : ""}
           </article>`;
