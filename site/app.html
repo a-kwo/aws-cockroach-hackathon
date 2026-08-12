@@ -23277,9 +23277,10 @@
         <div class="view-inner chat-inner">
           <div class="chat-shell">
             <aside class="chat-pane" aria-labelledby="chatHeading">
-              <header class="chat-pane-head">
-                <h1 id="chatHeading">My agent</h1>
-              </header>
+              <!-- The nav tab already says My agent; repeating it inside the
+                   pane bought a heading and a divider for zero information.
+                   The name stays for screen readers only. -->
+              <h1 id="chatHeading" class="sr-only">My agent</h1>
               <div class="chat-thread" id="chatThread" aria-live="polite"></div>
               <div class="chat-hints" id="chatHints">
                 <span class="chat-hints-label">Try asking</span>
@@ -23320,7 +23321,6 @@
                     <button type="button" data-canvas="supplies" id="chatCanvasSuppliesTab">Supplies</button>
                     <button type="button" data-canvas="details" id="chatCanvasDetailsTab" hidden>Details</button>
                   </nav>
-                  <span id="chatCanvasStatus">Live from your memory</span>
                 </header>
                 <div class="chat-canvas-move" id="chatCanvasMove" hidden></div>
                 <div class="chat-canvas-details" id="chatCanvasDetails" hidden></div>
@@ -26405,7 +26405,6 @@
                     <small>${decisionSyncPending ? "Checking latest decision status…" : post.amount > 0 ? "Nothing changes until approved" : "Value confirmed once you measure it"}</small>
                   </span>
                 </div>
-                <span class="feed-read-time">${feedDetailIcon("clock")} ${post.readMinutes || 2} min read</span>
               </div>
 
               <div class="decision-actions" aria-label="Respond to this recommendation">
@@ -30051,9 +30050,6 @@ ledger_entry · artifact · agent_run`,
               </label>
             </div>
             <div class="outcome-actions">
-              <p class="outcome-caveat">Nothing here moves your record. The Meter
-                judges this against what it predicted and publishes the verdict
-                either way.</p>
               <button class="outcome-save" type="button" data-save-outcome="${escapeHtml(post.id)}">Save result</button>
             </div>
           </div>
