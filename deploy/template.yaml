@@ -78,6 +78,31 @@ Parameters:
       Keep the Maker reconciliation safety net active. An empty sweep performs
       only CockroachDB reads and consumes zero reasoning-model tokens.
 
+  SiteDomainName:
+    Type: String
+    Default: ""
+    Description: >
+      Custom domain for the board, e.g. trybrasstacks.com. Empty serves the
+      site from the CloudFront domain alone, so a fresh clone deploys without
+      owning any domain. Set together with SiteCertificateArn — the alias only
+      attaches when both are present.
+
+  SiteCertificateArn:
+    Type: String
+    Default: ""
+    Description: >
+      ACM certificate ARN covering SiteDomainName and its www variant. Must
+      live in us-east-1 — CloudFront reads certificates from no other region,
+      wherever the stack itself is deployed.
+
+Conditions:
+  # One condition guarding both settings: an alias without a certificate, or
+  # a certificate without an alias, is a CloudFront validation error — half a
+  # configuration must behave exactly like none.
+  HasSiteDomain: !And
+    - !Not [!Equals [!Ref SiteDomainName, ""]]
+    - !Not [!Equals [!Ref SiteCertificateArn, ""]]
+
 Globals:
   Function:
     MemorySize: 1024
@@ -1239,6 +1264,19 @@ Resources:
         Comment: !Sub ${AWS::StackName} board
         DefaultRootObject: index.html
         HttpVersion: http2
+        # Both the bare domain and www: judges type URLs by hand, and the
+        # certificate already covers the pair.
+        Aliases: !If
+          - HasSiteDomain
+          - - !Ref SiteDomainName
+            - !Sub www.${SiteDomainName}
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasSiteDomain
+          - AcmCertificateArn: !Ref SiteCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref AWS::NoValue
         # US/Europe only. This is a demo URL, not a global product, and the
         # cheapest class is a third of the price of full coverage.
         PriceClass: PriceClass_100
@@ -1265,7 +1303,13 @@ Resources:
 Outputs:
   SiteUrl:
     Description: The board. Landing at /, dashboard at /app/, onboarding at /signup/.
-    Value: !Sub https://${SiteDistribution.DomainName}
+    # The custom domain when one is configured — this output is what the
+    # deploy scripts print and verify against, so it must name the URL a
+    # visitor actually uses.
+    Value: !If
+      - HasSiteDomain
+      - !Sub https://${SiteDomainName}
+      - !Sub https://${SiteDistribution.DomainName}
 
   SiteBucketName:
     Description: >

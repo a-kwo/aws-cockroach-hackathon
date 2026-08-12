@@ -84,7 +84,9 @@ KNOWN_LOCATIONS = {
 # ---------------------------------------------------------------------------
 
 def overrides_argument(*, bucket: str, schedule_state: str | None,
-                       schedule_expression: str | None) -> str:
+                       schedule_expression: str | None,
+                       site_domain: str | None = None,
+                       site_certificate_arn: str | None = None) -> str:
     """The single `--parameter-overrides` argument, quoted the way SAM reads it.
 
     Every value is quoted, not only the one that currently contains a space. A
@@ -98,6 +100,13 @@ def overrides_argument(*, bucket: str, schedule_state: str | None,
         pairs.append(f'ScheduleState="{schedule_state}"')
     if schedule_expression:
         pairs.append(f'ScheduleExpression="{schedule_expression}"')
+    # Same rule for the custom domain: sam reuses the previous value for any
+    # parameter not sent, so saying nothing keeps the domain attached — and
+    # sending "" is how it would silently detach.
+    if site_domain:
+        pairs.append(f'SiteDomainName="{site_domain}"')
+    if site_certificate_arn:
+        pairs.append(f'SiteCertificateArn="{site_certificate_arn}"')
     return " ".join(pairs)
 
 
@@ -143,20 +152,21 @@ class Plan:
 
 
 def plan_for(target: str, *, backend_changed: bool, force: bool = False,
-             schedule_change: bool = False) -> Plan:
+             parameter_change: bool = False) -> Plan:
     """What this invocation will actually do.
 
-    `schedule_change` forces the backend deploy regardless of the fingerprint.
-    The nightly schedule is a CloudFormation parameter, so the only way to move
-    it is a stack update — and the fingerprint check exists to skip exactly
-    that when no code changed. Without this, `--schedule DISABLED` succeeds,
-    prints nothing alarming, deploys nothing, and the agents run again at 18:00.
-    An off-switch that quietly does nothing is worse than no off-switch.
+    `parameter_change` forces the backend deploy regardless of the fingerprint.
+    The nightly schedule and the site domain are CloudFormation parameters, so
+    the only way to move either is a stack update — and the fingerprint check
+    exists to skip exactly that when no code changed. Without this,
+    `--schedule DISABLED` succeeds, prints nothing alarming, deploys nothing,
+    and the agents run again at 18:00. An off-switch that quietly does nothing
+    is worse than no off-switch.
     """
     return Plan(
         deploy_backend=(
             (target in {"backend", "all", "auto"} and (backend_changed or force))
-            or schedule_change
+            or parameter_change
         ),
         publish_site=target in {"site", "all", "auto"},
     )
@@ -246,6 +256,12 @@ def main(argv: list[str] | None = None) -> int:
                              "the stack's current setting alone")
     parser.add_argument("--schedule-expression",
                         help="e.g. 'cron(0 18 * * ? *)'; omitted leaves it alone")
+    parser.add_argument("--site-domain",
+                        help="custom domain for the board, e.g. "
+                             "trybrasstacks.com; omitted leaves it alone")
+    parser.add_argument("--site-certificate-arn",
+                        help="us-east-1 ACM certificate ARN covering the "
+                             "domain and its www variant")
     parser.add_argument("--skip-tests", action="store_true",
                         help="skip the suite (it is the only gate here)")
     parser.add_argument("--force", action="store_true",
@@ -258,14 +274,16 @@ def main(argv: list[str] | None = None) -> int:
 
     fingerprint = image_fingerprint()
     previous = STAMP.read_text(encoding="utf-8").strip() if STAMP.exists() else ""
-    schedule_change = bool(args.schedule or args.schedule_expression)
+    parameter_change = bool(args.schedule or args.schedule_expression
+                            or args.site_domain or args.site_certificate_arn)
     plan = plan_for(args.target, backend_changed=fingerprint != previous,
-                    force=args.force, schedule_change=schedule_change)
+                    force=args.force, parameter_change=parameter_change)
 
     print(f"deploying: {args.target}")
-    if schedule_change:
-        print("  schedule  changing the nightly schedule needs a stack update, "
-              "so the backend deploys even though nothing changed")
+    if parameter_change:
+        print("  stack     changing a stack parameter (schedule or domain) "
+              "needs a stack update, so the backend deploys even though no "
+              "code changed")
     if args.target in {"auto", "backend"} and not plan.deploy_backend:
         print("  backend   unchanged since the last deploy — skipping the image "
               "build (--force to override)")
@@ -300,7 +318,9 @@ def main(argv: list[str] | None = None) -> int:
              "--parameter-overrides", overrides_argument(
                  bucket=artifact_bucket(aws),
                  schedule_state=args.schedule,
-                 schedule_expression=args.schedule_expression)],
+                 schedule_expression=args.schedule_expression,
+                 site_domain=args.site_domain,
+                 site_certificate_arn=args.site_certificate_arn)],
             label="sam deploy", dry=args.dry_run)
 
         if not args.dry_run:

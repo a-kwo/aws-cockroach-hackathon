@@ -69,6 +69,23 @@ class TestParameterOverrides:
                                              schedule_expression=None)
         assert sam_would_parse(argument) == {"ArtifactBucket": "b"}
 
+    def test_the_site_domain_rides_along_when_given(self):
+        parsed = sam_would_parse(deploy.overrides_argument(
+            bucket="b", schedule_state=None, schedule_expression=None,
+            site_domain="trybrasstacks.com",
+            site_certificate_arn="arn:aws:acm:us-east-1:1:certificate/x"))
+        assert parsed["SiteDomainName"] == "trybrasstacks.com"
+        assert parsed["SiteCertificateArn"] == "arn:aws:acm:us-east-1:1:certificate/x"
+
+    def test_an_omitted_domain_leaves_the_stack_alone(self):
+        # Same rule as the schedule: `sam deploy` reuses the previous value
+        # for any parameter not sent, so a deploy that says nothing about the
+        # domain must not mention it — sending "" would detach the alias.
+        argument = deploy.overrides_argument(bucket="b", schedule_state=None,
+                                             schedule_expression=None)
+        assert "SiteDomainName" not in argument
+        assert "SiteCertificateArn" not in argument
+
 
 class TestFindingTheTools:
     def test_a_path_with_spaces_is_returned_whole(self, tmp_path, monkeypatch):
@@ -172,11 +189,18 @@ class TestTheOffSwitchActuallyFires:
 
     def test_asking_for_a_schedule_change_forces_the_deploy(self):
         assert deploy.plan_for("auto", backend_changed=False,
-                               schedule_change=True).deploy_backend is True
+                               parameter_change=True).deploy_backend is True
 
     def test_a_schedule_expression_alone_forces_it_too(self):
         assert deploy.plan_for("site", backend_changed=False,
-                               schedule_change=True).deploy_backend is True
+                               parameter_change=True).deploy_backend is True
+
+    def test_a_domain_change_is_also_a_stack_update(self):
+        # The site domain is a CloudFormation parameter exactly like the
+        # schedule: without the force, `--site-domain` succeeds, deploys
+        # nothing, and the judges keep typing d2iudn7nc8ezqu.cloudfront.net.
+        assert deploy.plan_for("site", backend_changed=False,
+                               parameter_change=True).deploy_backend is True
 
     def test_without_a_schedule_change_the_skip_still_applies(self):
         assert deploy.plan_for("auto", backend_changed=False).deploy_backend is False

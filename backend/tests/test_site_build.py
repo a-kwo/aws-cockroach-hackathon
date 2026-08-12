@@ -1209,6 +1209,41 @@ def test_deploy_template_exposes_the_workflow_read_route():
     assert "WorkflowEndpoint:" in template
 
 
+def test_deploy_template_supports_a_custom_site_domain():
+    """The demo URL judges type must be a real domain, not d2xxxx.cloudfront.net.
+
+    Both parameters default to empty so a fresh clone still deploys with the
+    CloudFront domain and no certificate — the alias only attaches when both
+    values are supplied, and `sam deploy` reuses previous parameter values, so
+    CI deploys that never mention the domain cannot detach it.
+    """
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+
+    # The two optional parameters, defaulting to off.
+    assert "SiteDomainName:" in template
+    assert "SiteCertificateArn:" in template
+    for parameter in ("SiteDomainName:", "SiteCertificateArn:"):
+        block = template.split(parameter, 1)[1]
+        assert 'Default: ""' in block.split("Description:", 1)[0]
+
+    # One condition guards both: an alias without a certificate (or the
+    # reverse) is a CloudFront validation error at deploy time.
+    assert "HasSiteDomain:" in template
+
+    distribution = template.split("SiteDistribution:", 1)[1].split("Outputs:", 1)[0]
+    assert "Aliases:" in distribution
+    assert "!Ref SiteDomainName" in distribution
+    assert "ViewerCertificate:" in distribution
+    assert "AcmCertificateArn: !Ref SiteCertificateArn" in distribution
+    assert "sni-only" in distribution
+    assert "MinimumProtocolVersion:" in distribution
+
+    # The SiteUrl output — what deploy scripts print and verify against —
+    # must name the custom domain when one is configured.
+    site_url = template.split("SiteUrl:", 1)[1].split("SiteBucketName:", 1)[0]
+    assert "!If" in site_url and "HasSiteDomain" in site_url
+
+
 def test_the_sweep_wakes_while_the_businesses_it_watches_are_open():
     """Every observation in the corpus was captured before its tenant opened.
 
