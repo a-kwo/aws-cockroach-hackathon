@@ -137,3 +137,20 @@ def test_the_committed_fixture_names_nobody():
         "db/fixtures/demo.json still identifies the real tenant: "
         + ", ".join(left) + " — run python scripts/anonymise_fixture.py"
     )
+
+
+def test_source_urls_never_survive_anonymising():
+    """A View-source link on an anonymised row would deanonymise the tenant in
+    one click, so the scrubber drops the URL fields entirely -- absent, not
+    redacted."""
+    from anonymise_fixture import scrub
+
+    model = {"finds": [{"evidence": [{
+        "content": "a review", "source_url": "https://realplace.example/x",
+        "sourceUrl": "https://realplace.example/x", "kind": "review",
+    }]}]}
+    out = scrub(model, {"replacements": []})
+    row = out["finds"][0]["evidence"][0]
+    assert "source_url" not in row
+    assert "sourceUrl" not in row
+    assert row["content"] == "a review"
