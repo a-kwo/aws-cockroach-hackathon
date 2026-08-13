@@ -23469,6 +23469,37 @@
       border-radius: 14px !important;
     }
 
+    /* The disclosure chip lives in the canvas header — right-aligned, tiny,
+       and its expanded claims drop over the board instead of pushing it. */
+    .orders-mock-banner.in-canvas-head {
+      margin-left: auto !important;
+      position: relative;
+      width: fit-content !important;
+    }
+    .orders-mock-banner.in-canvas-head[open] {
+      width: fit-content !important;
+      border-radius: 999px !important;
+    }
+    .orders-mock-banner.in-canvas-head[open] > p {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      width: min(440px, 82vw);
+      z-index: 40;
+      margin: 0;
+      padding: 14px 16px;
+      border: 1px solid rgba(242, 239, 233, .16);
+      border-radius: 14px;
+      background: #191712;
+      color: #d8d4ca;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+    }
+    body.day-mode .orders-mock-banner.in-canvas-head[open] > p {
+      background: #ffffff;
+      color: #3f4149;
+      border-color: #e7e8ec;
+    }
+
     /* Decisions on the left, navigation on the right. */
     .chat-move-actions [data-chat-full-details] { margin-left: auto !important; }
 
@@ -35828,6 +35859,15 @@ ledger_entry · artifact · agent_run`,
         const board = document.getElementById("ordersBoard");
         const host = document.getElementById("chatCanvasSupplies");
         if (board && host && board.parentElement !== host) host.appendChild(board);
+        //  The sample/live disclosure rides the canvas header instead of
+        //  costing the board a row — same element, same expandable claims,
+        //  zero vertical space.
+        const banner = board?.querySelector(".orders-mock-banner");
+        const tabsRow = document.getElementById("chatCanvasTabs")?.parentElement;
+        if (banner && tabsRow && banner.parentElement !== tabsRow) {
+          banner.classList.add("in-canvas-head");
+          tabsRow.appendChild(banner);
+        }
         const oldView = document.getElementById("view-orders");
         if (oldView && !oldView.contains(document.getElementById("ordersBoard"))) oldView.remove();
       })();
