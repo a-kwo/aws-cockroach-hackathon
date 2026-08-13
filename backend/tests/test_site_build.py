@@ -4440,6 +4440,12 @@ def test_the_sly_facelift_dresses_both_surfaces():
     assert "--owner-shell: #0c0b09" in owner.lower()
     # The second token family is retuned on the mode bodies too.
     assert "--owner-surface-raised: #1d1b14" in owner
+    # Day mode gets its own last word: the night card surfaces must never
+    # leak into the light theme.
+    assert '<style id="daylight-linea-v71">' in app
+    day = app.split('<style id="daylight-linea-v71">', 1)[1].split("</style>", 1)[0]
+    assert "body.day-mode.autopilot-mode .feed-card .post-surface" in day
+    assert "#ffffff" in day
     # The hero carries the living-network canvas, motion-respectful.
     assert 'id="netMap"' in landing
     assert "prefers-reduced-motion" in landing.split('<script id="net-map">', 1)[1]
