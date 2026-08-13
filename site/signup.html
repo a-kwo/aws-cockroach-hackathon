@@ -282,7 +282,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
 <div class="page-shell">
   <header class="topbar">
     <a class="brand" href="../" aria-label="Brass Tacks home"><span class="brand-dot"></span><span>Brass Tacks</span></a>
-    <a class="demo-link" href="../app/?demo=1"><span>Explore the sample workspace</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
+    <a class="demo-link" href="../app/?demo=1"><span>Explore demo</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
   </header>
 
   <main class="onboarding">
@@ -290,7 +290,6 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
       <header class="form-head">
         <span class="setup-kicker"><i aria-hidden="true"></i>Workspace setup</span>
         <h1 id="signupTitle">Teach the agents what matters.</h1>
-        <p>Give Brass Tacks the minimum context it needs to search the right market, recognize the right buyers, and recommend moves that fit your business.</p>
         <div class="progress" aria-label="Onboarding progress">
           <span class="progress-step active" data-progress="1">1 · Business</span>
           <span class="progress-step" data-progress="2">2 · Buyers</span>
@@ -301,8 +300,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
       <form class="form-body" id="onboardingForm" novalidate>
         <section class="form-step active" data-step="1" aria-labelledby="businessStepTitle">
           <div class="step-heading">
-            <div><h2 id="businessStepTitle">Your business</h2><p>This defines the market boundary Radar watches every night.</p></div>
-            <span class="step-time">About 45 seconds</span>
+            <div><h2 id="businessStepTitle">Your business</h2></div>
           </div>
 
           <div class="field-grid">
@@ -344,18 +342,15 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
               <label for="location">Street address</label>
               <input id="location" name="location" type="text" autocomplete="street-address" placeholder="Business address" maxlength="200" required>
               <span class="field-error">Enter the street address.</span>
-              <p class="field-help">Radar looks for competitors around this address, so the more exact it is, the more useful they are. Do not repeat the business name here.</p>
             </div>
             <div class="field wide" data-field="website">
               <label for="website">Website or review page <small>Optional</small></label>
               <input id="website" name="website" type="url" inputmode="url" autocomplete="url" placeholder="https://yourbusiness.com" maxlength="300">
               <span class="field-error">Enter a full web address beginning with http:// or https://.</span>
-              <p class="field-help">This helps Radar distinguish your business from similarly named competitors.</p>
             </div>
           </div>
 
           <div class="form-actions">
-            <span class="action-note">No password yet. This step creates the agent brief.</span>
             <div class="action-buttons">
               <button class="button primary" type="button" data-next="2">Continue<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></button>
             </div>
@@ -364,12 +359,11 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
 
         <section class="form-step" data-step="2" aria-labelledby="buyersStepTitle">
           <div class="step-heading">
-            <div><h2 id="buyersStepTitle">Your buyers</h2><p>A small amount of context keeps the agents from chasing generic trends that do not fit your customers.</p></div>
-            <span class="step-time">About 60 seconds</span>
+            <div><h2 id="buyersStepTitle">Your buyers</h2></div>
           </div>
 
           <div class="question" data-question="segments">
-            <div class="question-head"><h3>Who buys from you most often?</h3><p>Choose up to three. Analyst uses these segments to interpret reviews, demand, and nearby competition.</p></div>
+            <div class="question-head"><h3>Who buys from you most often?</h3><p>Choose up to three.</p></div>
             <div class="choice-grid" role="group" aria-label="Primary buyer segments">
               <button class="choice" type="button" data-multi="segments" data-value="Local residents" aria-pressed="false"><i></i>Local residents</button>
               <button class="choice" type="button" data-multi="segments" data-value="Working professionals" aria-pressed="false"><i></i>Working professionals</button>
@@ -393,7 +387,6 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
           <div class="question" data-question="menu">
             <div class="question-head">
               <h3>Scan your menu or price list <small>Optional</small></h3>
-              <p>Photograph it and Brass&nbsp;Tacks reads the items and prices. Analyst uses your real prices when it compares you to nearby competitors, so this is the difference between "raise prices" and "your margherita is $3 under the two places on your street".</p>
             </div>
             <div class="scan-row">
               <!-- `capture="environment"` opens the rear camera on a phone
@@ -408,7 +401,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
           </div>
 
           <div class="question" data-question="channels">
-            <div class="question-head"><h3>How do customers buy?</h3><p>Select every channel that matters today.</p></div>
+            <div class="question-head"><h3>How do customers buy?</h3></div>
             <div class="choice-grid" role="group" aria-label="Sales channels">
               <button class="choice" type="button" data-multi="channels" data-value="In person" aria-pressed="false"><i></i>In person</button>
               <button class="choice" type="button" data-multi="channels" data-value="Online" aria-pressed="false"><i></i>Online</button>
@@ -419,7 +412,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
           </div>
 
           <div class="question" data-question="goal">
-            <div class="question-head"><h3>What should Brass Tacks improve first?</h3><p>This sets the ranking priority. You can change it later.</p></div>
+            <div class="question-head"><h3>What should Brass Tacks improve first?</h3></div>
             <div class="goal-grid" role="radiogroup" aria-label="Primary business goal">
               <button class="goal-card" type="button" role="radio" data-goal="More demand" aria-checked="false" aria-pressed="false"><b>✓</b><strong>More demand</strong><span>Find new reasons and times for buyers to choose you.</span></button>
               <button class="goal-card" type="button" role="radio" data-goal="Higher spend" aria-checked="false" aria-pressed="false"><b>✓</b><strong>Higher spend</strong><span>Improve pricing, bundles, and mix without guessing.</span></button>
@@ -431,7 +424,6 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
 
           <div class="submit-error" id="submitError" role="alert"></div>
           <div class="form-actions">
-            <span class="action-note">The owner keeps final approval for every recommendation.</span>
             <div class="action-buttons">
               <button class="button secondary" type="button" data-back="1">Back</button>
               <button class="button primary" id="createWorkspace" type="submit">Create workspace<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></button>
@@ -463,7 +455,6 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
       <header class="brief-head">
         <span class="brief-eyebrow">Live agent brief</span>
         <h2 id="briefTitle">What the agents will understand</h2>
-        <p>Your answers become private, business-scoped memory—not a generic prompt repeated on every run.</p>
       </header>
 
       <div class="agent-scope">
@@ -490,21 +481,18 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
 
       <section class="brief-section">
         <span>Search scope</span>
-        <p class="brief-sentence" id="scopeSentence">Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.</p>
         <div class="brief-pills" id="scopePills"><span class="brief-pill placeholder">Business type</span><span class="brief-pill placeholder">Street address</span></div>
       </section>
 
       <section class="brief-section">
         <span>Buyer relevance</span>
-        <p class="brief-sentence" id="buyerSentence">Add your primary buyers and offers. Analyst will rank signals against this profile before it recommends a move.</p>
         <div class="brief-pills" id="buyerPills"><span class="brief-pill placeholder">Buyer segments</span><span class="brief-pill placeholder">Top offers</span></div>
       </section>
 
-      <div class="trust-row"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.4 7 10 4.2-1.6 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span><b>You keep control.</b> Profile memory is isolated by business owner, and no recommendation is executed until the owner chooses Do it.</span></div>
+      
     </aside>
   </main>
 
-  <footer>The public sample workspace uses fictional data. A locally created profile stays in this browser until the secure onboarding API is connected.</footer>
 </div>
 
 <script id="bt-data" type="application/json">{}</script>
@@ -757,7 +745,7 @@ function syncChoices() {
   document.getElementById("segmentHint").textContent = selections.segments.length
     ? `${selections.segments.length} of 3 selected`
     : "Choose at least one · 0 of 3 selected";
-  document.getElementById("goalHint").textContent = selections.goal || "Choose one priority.";
+  document.getElementById("goalHint").textContent = selections.goal ? "" : "Choose one priority.";
 }
 
 function showStep(step) {
@@ -852,7 +840,7 @@ function updateBrief() {
   document.getElementById("radarNodeCopy").textContent = category && location ? `${categoryLabel} around ${location}` : "Category + local market";
   document.getElementById("analystNodeCopy").textContent = buyerReady ? `${selections.segments[0]} · ${selections.goal}` : "Buyers + offers + goal";
 
-  document.getElementById("scopeSentence").textContent = category && location
+  var scopeSentenceEl = document.getElementById("scopeSentence"); if (scopeSentenceEl) scopeSentenceEl.textContent = category && location
     ? `Radar will monitor ${categoryLabel.toLowerCase()} signals around ${location}, then store only business-scoped market evidence.`
     : "Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.";
   document.getElementById("scopePills").innerHTML = [
@@ -861,7 +849,7 @@ function updateBrief() {
     fieldValue("website") ? "Known website" : "Website optional",
   ].map((text,index) => `<span class="brief-pill ${(!category && index===0) || (!location && index===1) ? "placeholder" : ""}">${escapeHtml(text)}</span>`).join("");
 
-  document.getElementById("buyerSentence").textContent = buyerReady
+  var buyerSentenceEl = document.getElementById("buyerSentence"); if (buyerSentenceEl) buyerSentenceEl.textContent = buyerReady
     ? `Analyst will rank market signals for ${selections.segments.join(", ")} and prioritize ${selections.goal.toLowerCase()} across ${offers.join(", ")}.`
     : "Add your primary buyers and offers. Analyst will rank signals against this profile before it recommends a move.";
   const buyerPills = [
