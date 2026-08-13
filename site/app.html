@@ -36614,7 +36614,10 @@ ledger_entry · artifact · agent_run`,
       goTo(0);
     }
 
-    if(tour === "owner"){
+    //  Arriving from the onboarding walkthrough, the demo is already rolling
+    //  — a second welcome card would be a speed bump, so the beats begin at
+    //  once. A direct visit to ?tour=owner still gets the card.
+    if(tour === "owner" && q.get("from") !== "onboarding"){
       card("Interactive demo", "Brass Tacks", "Found money, on autopilot.",
         "You drive this one. The app stays live underneath — click anything you like, "
         + "and use Next when you want the tour to move on.",

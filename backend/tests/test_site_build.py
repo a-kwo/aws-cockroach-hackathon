@@ -299,19 +299,34 @@ def test_templates_carry_the_data_placeholder():
 def test_landing_routes_directly_to_the_demo():
     """The nav offers signup; the page itself opens the interactive demo.
 
-    Both calls to action deliberately bypass onboarding. A judge — or anyone
-    else — must reach the working product without handing over a name.
-
-    They used to drop the visitor into a bare `app/` with no session and no
-    explanation, which showed the board with none of the reasoning behind it.
-    Both now open the guided-but-interactive demo instead, so the raw
-    unexplained entry is gone rather than merely relabelled.
+    The demo now begins on the signup page in tour mode: a walkthrough of
+    onboarding with sample answers that types itself in, then hands off to
+    the board. A judge still reaches the working product without handing
+    over a name — tour mode pre-fills every field, holds no session, and
+    never POSTs — so the original principle stands even though the demo
+    now shows what onboarding looks like first.
     """
     html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
     assert 'class="nav-cta" href="register/">Sign up</a>' in html
-    assert html.count('href="app/?tour=owner"><span>Try the interactive demo</span>') == 2
+    assert html.count('href="signup/?tour=owner"><span>Try the interactive demo</span>') == 2
     # The unguided drop-in is retired, not just renamed.
     assert 'href="app/">' not in html
+
+
+def test_signup_tour_mode_shows_onboarding_without_writing_anything():
+    """?tour= walks the signup page as the demo's opening chapter. Three
+    things make that safe to show a stranger: no session is required (the
+    register redirect is tour-guarded), nothing the walkthrough types is
+    drafted into localStorage, and submit never reaches the onboarding API —
+    the success step renders locally and hands off to the app tour.
+    """
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    assert "const TOUR" in html
+    assert "if (!currentSession() && !TOUR) window.location.replace" in html
+    # The draft writer and the submit path both bail out in tour mode.
+    assert html.count("if (TOUR) return;") >= 2
+    assert "Interactive demo · nothing was saved." in html
+    assert "../app/?tour=owner&from=onboarding" in html
 
 
 def test_signup_collects_the_agent_scope():
@@ -1592,10 +1607,11 @@ def test_the_profile_page_no_longer_touches_the_password():
 
 def test_the_profile_page_requires_a_session():
     """Without one the API answers 401, so filling in three steps first would
-    lose the lot."""
+    lose the lot. The one exception is the guided demo's walkthrough (?tour=),
+    which needs no session precisely because it never calls the API."""
     html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
 
-    assert 'if (!currentSession()) window.location.replace("../register/");' in html
+    assert 'if (!currentSession() && !TOUR) window.location.replace("../register/");' in html
     assert "Bearer ${session.token}" in html
 
 

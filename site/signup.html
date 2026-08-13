@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Create a Brass Tacks workspace and teach its agents who your customers are, where you compete, and what your business sells.">
 <meta name="theme-color" content="#f4f1eb">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='34' fill='%23e2a85c'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23101114'/%3E%3C/svg%3E" />
 <title>Sign up — Brass Tacks</title>
 <style>
 :root {
@@ -529,7 +530,11 @@ function currentSession() {
   } catch (_) { return null; }
 }
 
-if (!currentSession()) window.location.replace("../register/");
+//  ?tour= : the guided demo's opening chapter walks this page with sample
+//  answers. No session exists and none is needed — and nothing in tour mode
+//  may write or POST: no draft, no profile, no onboarding call.
+const TOUR = Boolean(new URLSearchParams(window.location.search).get("tour"));
+if (!currentSession() && !TOUR) window.location.replace("../register/");
 const DRAFT_KEY = "brass-tacks-onboarding-draft-v1";
 const endpoint = String(DATA.api?.onboardingEndpoint || "").trim();
 const form = document.getElementById("onboardingForm");
@@ -708,6 +713,8 @@ function normalizeWebsite(value) {
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char])); }
 
 function saveDraft() {
+  //  The walkthrough's sample answers are not the visitor's draft.
+  if (TOUR) return;
   const draft = {
     ownerName: fieldValue("ownerName"), email: fieldValue("email"),
     businessName: fieldValue("businessName"), category: fieldValue("category"),
@@ -721,6 +728,8 @@ function saveDraft() {
 }
 
 function restoreDraft() {
+  //  Nor does a visitor's half-finished draft belong inside the walkthrough.
+  if (TOUR) return;
   let draft = null;
   try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (_) {}
   if (!draft || typeof draft !== "object") return;
@@ -972,9 +981,27 @@ form.addEventListener("submit", async event => {
   if (!validateStep2()) return;
 
   const button = document.getElementById("createWorkspace");
+  const profile = buildProfile();
+
+  //  The walkthrough shows what creating a workspace looks like without
+  //  creating one: the success step renders locally, nothing is stored,
+  //  and the way forward is the app tour on its sample workspace.
+  if (TOUR) {
+    document.getElementById("successBusiness").textContent = profile.business.name;
+    document.getElementById("successMarket").textContent = profile.business.location;
+    document.getElementById("successGoal").textContent = profile.objective;
+    document.getElementById("successCopy").textContent =
+      "In the live product this profile is written to CockroachDB as business-scoped memory. "
+      + "The demo continues on the sample workspace instead.";
+    document.getElementById("successMode").textContent = "Interactive demo · nothing was saved.";
+    const open = document.getElementById("openWorkspace");
+    open.href = "../app/?tour=owner&from=onboarding";
+    showStep(3);
+    return;
+  }
+
   button.disabled = true;
   button.firstChild.textContent = "Creating workspace";
-  const profile = buildProfile();
 
   try {
     const receipt = await persistProfile(profile);
@@ -1066,4 +1093,199 @@ function wireFirstNight() {
     }
   });
 }
+</script>
+
+<script>
+//  The guided demo's opening chapter. With ?tour= the page walks itself in
+//  the same beat grammar as the app tour — streamed caption on a dark pill,
+//  a bobbing gold Next — typing sample answers into the real form so the
+//  visitor sees exactly what onboarding asks, while the guards above keep
+//  it from writing anything anywhere.
+(function signupTour(){
+  if (!new URLSearchParams(window.location.search).get("tour")) return;
+  var REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var style = document.createElement("style");
+  style.textContent =
+    ".bt-demo-topcap{position:fixed;z-index:9999;top:88px;left:50%;transform:translateX(-50%);"
+    + "max-width:min(720px,calc(100vw - 32px));margin:0;text-align:center;"
+    + "font:700 clamp(12.5px,1.15vw,15px)/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;"
+    + "color:#f4f2ec;background:rgba(10,11,14,.85);padding:8px 16px;border-radius:12px;"
+    + "border:1px solid rgba(242,239,233,.13);backdrop-filter:blur(8px);"
+    + "box-shadow:0 12px 34px rgba(0,0,0,.45);opacity:0;transition:opacity .5s ease;pointer-events:none;}"
+    + ".bt-demo-topcap.show{opacity:1;}"
+    + ".bt-demo-topcap.typing::after{content:'\258B';color:#e8b94a;margin-left:2px;"
+    + "animation:btCaret 1s steps(1) infinite;}@keyframes btCaret{50%{opacity:0;}}"
+    + ".bt-demo-nextfab{position:fixed;z-index:9999;right:26px;top:50%;transform:translateY(-50%);"
+    + "opacity:0;transition:opacity .4s ease;}.bt-demo-nextfab.show{opacity:1;}"
+    + ".bt-demo-nextfab button{font:700 15px -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;"
+    + "border-radius:999px;cursor:pointer;padding:12px 22px;border:1px solid #D9A93F;"
+    + "background:#D9A93F;color:#14161c;box-shadow:0 10px 30px rgba(0,0,0,.25);}"
+    + ".bt-demo-nextfab.bounce button{animation:btNextBounce 1.7s ease-in-out infinite;}"
+    + "@keyframes btNextBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}"
+    + "@media (max-width:760px){.bt-demo-nextfab{top:auto;bottom:18px;transform:none;}}";
+  document.head.appendChild(style);
+
+  var cap = document.createElement("p");
+  cap.className = "bt-demo-topcap";
+  document.body.appendChild(cap);
+  var fab = document.createElement("div");
+  fab.className = "bt-demo-nextfab";
+  fab.innerHTML = '<button type="button">Next →</button>';
+  fab.hidden = true;
+  document.body.appendChild(fab);
+  var fabBtn = fab.querySelector("button");
+
+  var streamTimer = 0;
+  function stream(text, done){
+    window.clearInterval(streamTimer);
+    cap.classList.remove("typing");
+    if (REDUCED){ cap.textContent = text; if (done) done(); return; }
+    cap.textContent = "";
+    cap.classList.add("typing");
+    var k = 0;
+    streamTimer = window.setInterval(function(){
+      k += 1;
+      cap.textContent = text.slice(0, k);
+      if (k >= text.length){
+        window.clearInterval(streamTimer);
+        cap.classList.remove("typing");
+        if (done) done();
+      }
+    }, 46);
+  }
+
+  //  A beat streams its caption while its actions play out on the form, and
+  //  the pill only appears once BOTH are finished — a Next over a form still
+  //  typing itself would invite skipping the very thing being shown.
+  function beat(text, label, actions, onNext){
+    fab.hidden = true;
+    fab.classList.remove("show", "bounce");
+    cap.hidden = false;
+    cap.classList.add("show");
+    fabBtn.onclick = onNext;
+    var actionsDone = !actions || !actions.length;
+    var captionDone = false;
+    var maybePill = function(){
+      if (!actionsDone || !captionDone) return;
+      fabBtn.textContent = label;
+      fab.hidden = false;
+      if (!REDUCED) fab.classList.add("bounce");
+      requestAnimationFrame(function(){ fab.classList.add("show"); });
+    };
+    if (!actionsDone) seqRun(actions.slice(), function(){ actionsDone = true; maybePill(); });
+    stream(text, function(){
+      window.setTimeout(function(){
+        cap.classList.remove("show");
+        window.setTimeout(function(){ captionDone = true; maybePill(); }, 500);
+      }, 2100);
+    });
+  }
+
+  //  Through the page's own handlers, so the live brief on the right fills
+  //  in exactly as it would for a real owner.
+  function set(id, value){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  function pick(selector){
+    var el = document.querySelector(selector);
+    if (el) el.click();
+  }
+
+  //  The form types itself in, field by field, through the page's own input
+  //  events — so the live brief on the right fills exactly as it would for a
+  //  real owner, and the visitor watches the answers arrive rather than
+  //  finding them already there.
+  function typeInto(id, text, done){
+    var el = document.getElementById(id);
+    if (!el){ if (done) done(); return; }
+    if (REDUCED){
+      el.value = text;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      if (done) done();
+      return;
+    }
+    var k = 0;
+    var timer = window.setInterval(function(){
+      k += 1;
+      el.value = text.slice(0, k);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      if (k >= text.length){
+        window.clearInterval(timer);
+        if (done) done();
+      }
+    }, 28);
+  }
+
+  //  One action at a time, and the page travels with the work: each field
+  //  or choice is scrolled to centre before it fills, so the viewer's eye
+  //  follows the form instead of watching answers appear below the fold.
+  function seqRun(actions, done){
+    if (!actions.length){ if (done) done(); return; }
+    var action = actions.shift();
+    var el = action.id
+      ? document.getElementById(action.id)
+      : (action.sel ? document.querySelector(action.sel) : null);
+    if (el && !REDUCED){
+      var box = el.closest(".field, .question, .choice-grid, .goal-grid") || el;
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    var proceed = function(){
+      window.setTimeout(function(){ seqRun(actions, done); }, REDUCED ? 0 : (action.pause || 200));
+    };
+    if (action.text !== undefined){
+      window.setTimeout(function(){ typeInto(action.id, action.text, proceed); }, REDUCED ? 0 : 380);
+    } else if (action.value !== undefined){
+      //  A <select> has nothing to type: it snaps to its choice mid-sequence.
+      window.setTimeout(function(){ set(action.id, action.value); proceed(); }, REDUCED ? 0 : 420);
+    } else if (el){
+      window.setTimeout(function(){ el.click(); proceed(); }, REDUCED ? 0 : 340);
+    } else proceed();
+  }
+
+  function beatOne(){
+    beat("First, the business — the boundary Radar searches every night.",
+      "Next →", [
+        { id: "ownerName", text: "Maya Chen" },
+        { id: "email", text: "maya@harborviewjapanese.com" },
+        { id: "businessName", text: "Harborview Japanese" },
+        { id: "category", value: "restaurant_cafe" },
+        { id: "location", text: "18 Harbor Point Road, Ocean City" },
+        { id: "website", text: "https://harborviewjapanese.example.com" },
+      ], function(){
+        pick('[data-next="2"]');
+        window.setTimeout(beatTwo, 500);
+      });
+  }
+
+  function beatTwo(){
+    beat("Then the buyers and a goal — the facts the agents reason from.",
+      "Next →", [
+        { sel: '[data-multi="segments"][data-value="Local residents"]' },
+        { sel: '[data-multi="segments"][data-value="Families"]' },
+        { sel: '[data-multi="segments"][data-value="Visitors and tourists"]' },
+        { id: "offers", text: "sushi, patio dining, takeout" },
+        { sel: '[data-multi="channels"][data-value="In person"]' },
+        { sel: '[data-multi="channels"][data-value="Phone"]' },
+        { sel: '[data-multi="channels"][data-value="Delivery"]' },
+        { sel: '[data-goal="More demand"]' },
+      ], function(){
+        document.getElementById("onboardingForm").requestSubmit();
+        window.setTimeout(beatThree, 500);
+      });
+  }
+
+  function beatThree(){
+    beat("That's it. The agents take the night shift from here.",
+      "See the morning board →", null, function(){
+        window.location.href = "../app/?tour=owner&from=onboarding";
+      });
+  }
+
+  //  Give the page's own script a beat to finish wiring before typing.
+  window.setTimeout(beatOne, 500);
+})();
 </script>
