@@ -24123,6 +24123,29 @@
             <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
           </section>
 
+          <!-- The humans who supply the store, and the messages the agent
+               drafts for them. A draft costs nothing and no model writes to
+               a human: the owner's words travel verbatim, and only the
+               owner's Send moves them. -->
+          <section class="orders-zone" aria-labelledby="ordersRepsHeading" data-enter>
+            <header class="orders-zone-head">
+              <div class="orders-zone-title">
+                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="7.5" cy="7" r="4" /><path d="M22 7.5l-5.5 5.5-2.5-2.5" /></svg></span>
+                <h2 id="ordersRepsHeading">Your reps</h2>
+              </div>
+              <span class="orders-count" id="ordersRepsCount">0</span>
+            </header>
+            <div id="ordersRepsList" class="orders-list"></div>
+            <form class="orders-form" id="ordersRepForm">
+              <label>Name<input type="text" name="name" placeholder="Dana Cruz" required /></label>
+              <label>Email<input type="email" name="email" placeholder="dana@supplier.com" required /></label>
+              <label>Supplies<input type="text" name="category" placeholder="produce" /></label>
+              <button class="orders-btn primary small" type="submit">Add rep</button>
+            </form>
+            <div id="ordersMessagesList" class="orders-list"></div>
+            <p class="orders-empty" id="ordersRepsEmpty">Add the rep you order produce from — then tell the agent &ldquo;ask my produce rep&hellip;&rdquo; in Chat and review the draft here.</p>
+          </section>
+
           <!-- The rules that make it automatic, one pane at a time. -->
           <section class="orders-zone" aria-label="On autopilot" data-enter>
             <header class="orders-zone-head">
@@ -34541,12 +34564,71 @@ ledger_entry · artifact · agent_run`,
               it.unit_cents != null ? `<span>${money(it.unit_cents)}</span>` : ""}</button>`).join("");
         }
 
+        /* The humans who supply the store. The category tag is what lets
+           "ask my produce rep" in Chat resolve to a person. */
+        function renderReps() {
+          const list = el("ordersRepsList");
+          if (!list) return;
+          const rows = state.contacts || [];
+          const countEl = el("ordersRepsCount");
+          if (countEl) countEl.textContent = String(rows.length);
+          const empty = el("ordersRepsEmpty");
+          if (empty) empty.hidden = rows.length > 0;
+          list.innerHTML = rows.map(c => `
+            <div class="orders-arow">
+              <span class="orders-arow-main">
+                <span class="orders-arow-title">${escapeHtml(c.name)}</span>
+                ${c.category ? `<span class="orders-tag auto">${escapeHtml(c.category)}</span>` : ""}
+              </span>
+              <span class="orders-arow-side">
+                <span class="orders-arow-date">${escapeHtml(c.email)}</span>
+                <button type="button" class="orders-btn ghost small" data-live-contact-remove="${escapeHtml(c.id)}">Remove</button>
+              </span>
+            </div>`).join("");
+        }
+
+        /* Drafts wait for the owner's Send; sent rows keep the provider
+           reference an owner quotes when chasing a reply. */
+        function renderRepMessages() {
+          const list = el("ordersMessagesList");
+          if (!list) return;
+          const contacts = new Map((state.contacts || []).map(c => [c.id, c]));
+          const rows = (state.messages || []).filter(m => m.status !== "discarded");
+          list.innerHTML = rows.map(m => {
+            const who = contacts.get(m.contact_id);
+            const name = who ? who.name : "a removed contact";
+            if (m.status === "draft") return `
+              <article class="orders-row pending">
+                <div class="orders-row-top">
+                  <span class="orders-row-title">Draft to ${escapeHtml(name)}</span>
+                  <span class="orders-tag">waiting on you</span>
+                </div>
+                <p class="orders-why">${escapeHtml(m.body)}</p>
+                <div class="orders-actions">
+                  <button type="button" class="orders-btn approve" data-live-message-send="${escapeHtml(m.id)}">Send to ${escapeHtml(name)}</button>
+                  <button type="button" class="orders-btn ghost" data-live-message-discard="${escapeHtml(m.id)}">Discard</button>
+                </div>
+              </article>`;
+            return `
+              <div class="orders-arow">
+                <span class="orders-arow-main">
+                  <span class="orders-arow-title">${escapeHtml(name)}</span>
+                  <span class="orders-pill p-ok">Sent</span>
+                </span>
+                <span class="orders-arow-side">
+                  <span class="orders-arow-date">${escapeHtml(String(m.external_reference || ""))}</span>
+                </span>
+              </div>`;
+          }).join("");
+        }
+
         function renderAll() {
           if (!state) return;
           window.__btOrdersLastState = state;
           applyChrome();
           renderPending(); renderStanding(); renderStock();
           renderLimits(); renderHistory(); renderExamples(); renderCatalogue();
+          renderReps(); renderRepMessages();
           // A board with nothing on it gets the three moves; any row at all
           // and the guidance yields the space back.
           const firstRun = el("ordersFirstRun");
@@ -34624,6 +34706,17 @@ ledger_entry · artifact · agent_run`,
         });
         el("ordersSupplierSave")?.addEventListener("click", () => saveSupplier("email"));
 
+        el("ordersRepForm")?.addEventListener("submit", async event => {
+          event.preventDefault();
+          const form = event.target;
+          const answer = await act("contacts", {
+            name: form.name.value.trim(),
+            email: form.email.value.trim(),
+            category: form.category.value.trim() || null,
+          });
+          if (answer) form.reset();
+        });
+
         // The chat pane drives this board from outside: after a chat order,
         // it hands the fresh state straight in rather than re-fetching.
         window.__btOrdersApplyState = fresh => { state = fresh; renderAll(); };
@@ -34689,7 +34782,7 @@ ledger_entry · artifact · agent_run`,
             else { el("ordersAskInput").value = `order 1 ${orderItem.dataset.order}`; el("ordersAskInput").focus(); }
             return;
           }
-          const target = event.target.closest("[data-live-approve],[data-live-reject],[data-live-pause],[data-live-run],[data-live-restock],[data-example]");
+          const target = event.target.closest("[data-live-approve],[data-live-reject],[data-live-pause],[data-live-run],[data-live-restock],[data-example],[data-live-message-send],[data-live-message-discard],[data-live-contact-remove]");
           if (!target) return;
           if (target.dataset.example != null) {
             el("ordersAskInput").value = target.dataset.example;
@@ -34714,6 +34807,19 @@ ledger_entry · artifact · agent_run`,
           if (target.dataset.liveRestock) {
             const answer = await act("stock/draft", { stock_id: target.dataset.liveRestock }, target);
             if (answer?.kind === "needs_approval") note("Drafted — it is waiting for your approval above.");
+            return;
+          }
+          if (target.dataset.liveMessageSend) {
+            const answer = await act("message/send", { id: target.dataset.liveMessageSend }, target);
+            if (answer?.kind === "message_sent") note("Sent. The rep's reply lands in your own inbox.");
+            return;
+          }
+          if (target.dataset.liveMessageDiscard) {
+            await act("message/discard", { id: target.dataset.liveMessageDiscard }, target);
+            return;
+          }
+          if (target.dataset.liveContactRemove) {
+            await act("contacts/remove", { id: target.dataset.liveContactRemove }, target);
           }
         });
 
@@ -34755,6 +34861,30 @@ ledger_entry · artifact · agent_run`,
         { title: "The weekly pantry", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing", payRef: "pi_test_60417" },
         { title: "Sushi rice, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked", payRef: "pi_test_60318" },
       ];
+
+      //  The humans who supply the sample store, and messages to them —
+      //  mirrors of the live board's rep rows, local to this browser.
+      const repContacts = [
+        { id: "rep-1", name: "Dana Cruz", email: "dana@harborproduce.example", category: "produce" },
+      ];
+      const repMessages = [];
+
+      function matchRepIntent(text) {
+        const cleaned = String(text || "").trim();
+        let explicit = true;
+        let m = /^(?:message|tell|ask|email)\s+(?:my\s+)?(.+?)\s+reps?\b\s*[:,\-—]?\s*([\s\S]*)$/i.exec(cleaned);
+        if (!m) {
+          explicit = false;
+          m = /^(?:message|tell|ask|email)\s+([^:]{1,60}?)\s*:\s*([\s\S]+)$/i.exec(cleaned);
+        }
+        if (!m) return null;
+        const target = m[1].trim().toLowerCase();
+        const contact = repContacts.find(c =>
+          target === String(c.category || "").toLowerCase()
+          || c.name.toLowerCase().includes(target));
+        if (!contact && !explicit) return null;
+        return { target: m[1].trim(), contact, gist: m[2].trim() };
+      }
 
       // Deterministic test-mode Stripe references, like the fake payment
       // tool's: derived from a counter, never random.
@@ -34914,8 +35044,61 @@ ledger_entry · artifact · agent_run`,
                   title="Order ${escapeHtml(name)}"><b>${escapeHtml(name)}</b><span>${money(CATALOGUE[name])}</span></button>`).join("");
       }
 
+      function renderReps() {
+        const list = el("ordersRepsList");
+        if (!list) return;
+        const countEl = el("ordersRepsCount");
+        if (countEl) countEl.textContent = String(repContacts.length);
+        const empty = el("ordersRepsEmpty");
+        if (empty) empty.hidden = repContacts.length > 0;
+        list.innerHTML = repContacts.map(c => `
+          <div class="orders-arow">
+            <span class="orders-arow-main">
+              <span class="orders-arow-title">${escapeHtml(c.name)}</span>
+              ${c.category ? `<span class="orders-tag auto">${escapeHtml(c.category)}</span>` : ""}
+            </span>
+            <span class="orders-arow-side">
+              <span class="orders-arow-date">${escapeHtml(c.email)}</span>
+              <button type="button" class="orders-btn ghost small" data-rep-remove="${escapeHtml(c.id)}">Remove</button>
+            </span>
+          </div>`).join("");
+      }
+
+      function renderRepMessages() {
+        const list = el("ordersMessagesList");
+        if (!list) return;
+        const rows = repMessages.filter(m => m.status !== "discarded");
+        list.innerHTML = rows.map(m => {
+          const who = repContacts.find(c => c.id === m.contact_id);
+          const name = who ? who.name : "a removed contact";
+          if (m.status === "draft") return `
+            <article class="orders-row pending">
+              <div class="orders-row-top">
+                <span class="orders-row-title">Draft to ${escapeHtml(name)}</span>
+                <span class="orders-tag">waiting on you</span>
+              </div>
+              <p class="orders-why">${escapeHtml(m.body)}</p>
+              <div class="orders-actions">
+                <button type="button" class="orders-btn approve" data-rep-send="${escapeHtml(m.id)}">Send to ${escapeHtml(name)}</button>
+                <button type="button" class="orders-btn ghost" data-rep-discard="${escapeHtml(m.id)}">Discard</button>
+              </div>
+            </article>`;
+          return `
+            <div class="orders-arow">
+              <span class="orders-arow-main">
+                <span class="orders-arow-title">${escapeHtml(name)}</span>
+                <span class="orders-pill p-ok">Sent</span>
+              </span>
+              <span class="orders-arow-side">
+                <span class="orders-arow-date">${escapeHtml(m.ref || "")}</span>
+              </span>
+            </div>`;
+        }).join("");
+      }
+
       function renderAll() {
         renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory(); renderCatalogue();
+        renderReps(); renderRepMessages();
         // Sample figures, like everything else on the preview board — the
         // banner above them already says so.
         renderAutoSummary([
@@ -34958,6 +35141,38 @@ ledger_entry · artifact · agent_run`,
       //  The chat orders through this in preview and demo mode — same parse,
       //  same purchase authority, same board updates as the ask form below.
       window.__btPreviewAsk = text => {
+        //  A named rep outranks the order parser, mirroring the live API:
+        //  the wrong guess in either direction costs a human an email.
+        const repIntent = matchRepIntent(text);
+        if (repIntent) {
+          if (!repIntent.contact) {
+            return { kind: "failed", reason: `There's no ${repIntent.target} `
+              + "rep on file — add them under Your reps on the Supplies "
+              + "board first." };
+          }
+          if (!repIntent.gist) {
+            return { kind: "failed",
+                     reason: `Tell me what to say to ${repIntent.contact.name}.` };
+          }
+          repMessages.unshift({
+            id: `rep-msg-${repMessages.length + 1}`,
+            contact_id: repIntent.contact.id,
+            status: "draft",
+            body: `Hello ${repIntent.contact.name},
+
+A message from `
+              + `Harborview Japanese:
+
+${repIntent.gist}
+
+Sent by the `
+              + "owner's Brass Tacks supply agent, after the owner approved "
+              + "this message. Replies go to the owner.",
+          });
+          renderAll();
+          return { kind: "message_drafted",
+                   reason: `Drafted a message to ${repIntent.contact.name}.` };
+        }
         const items = readRequest(text);
         if (!items.length) {
           //  Only claim it as an order if it reads like one; anything else is
@@ -35009,13 +35224,54 @@ ledger_entry · artifact · agent_run`,
         el("ordersAskInput").value = "";
       });
 
+      el("ordersRepForm")?.addEventListener("submit", event => {
+        event.preventDefault();
+        const form = event.target;
+        const name = form.name.value.trim();
+        const email = form.email.value.trim();
+        if (!name || !email.includes("@")) {
+          note("A rep needs a name and a real email address.", true);
+          return;
+        }
+        repContacts.push({
+          id: `rep-${repContacts.length + 2}`,
+          name,
+          email,
+          category: form.category.value.trim().toLowerCase() || null,
+        });
+        form.reset();
+        renderAll();
+      });
+
       view.addEventListener("click", event => {
-        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example],[data-order]");
+        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example],[data-order],[data-rep-send],[data-rep-discard],[data-rep-remove]");
         if (!target) return;
 
         if (target.dataset.example != null) {
           el("ordersAskInput").value = target.dataset.example;
           el("ordersAskInput").focus();
+          return;
+        }
+        //  Rep messages: the sample board sends nothing anywhere — Send just
+        //  marks the row, exactly as the banner's sample-data claims say.
+        if (target.dataset.repSend != null) {
+          const row = repMessages.find(m => m.id === target.dataset.repSend);
+          if (row && row.status === "draft") {
+            row.status = "sent";
+            row.ref = `email:sample-${row.id}`;
+            note("Sent (sample) — live, this emails the rep and their reply lands in your inbox.");
+            renderAll();
+          }
+          return;
+        }
+        if (target.dataset.repDiscard != null) {
+          const row = repMessages.find(m => m.id === target.dataset.repDiscard);
+          if (row && row.status === "draft") { row.status = "discarded"; renderAll(); }
+          return;
+        }
+        if (target.dataset.repRemove != null) {
+          const index = repContacts.findIndex(c => c.id === target.dataset.repRemove);
+          if (index >= 0) { repContacts.splice(index, 1); renderAll(); }
           return;
         }
         //  A tap on a price-list item orders one of it through the same
@@ -35644,6 +35900,9 @@ ledger_entry · artifact · agent_run`,
             } else if (verdict.kind === "needs_approval") {
               replaceLoading("I priced it, and it needs your OK — it's waiting "
                 + `on Supplies under Needs you. ${verdict.reason}`, toSupplies);
+            } else if (verdict.kind === "message_drafted") {
+              replaceLoading(`${verdict.reason} The draft is on Supplies under `
+                + "Your reps — nothing goes out until you press Send.", toSupplies);
             } else {
               replaceLoading(`That didn't go through: ${verdict.reason}`, { error: true });
             }

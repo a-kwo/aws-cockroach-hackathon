@@ -40,6 +40,18 @@ def _validate_supplier(supplier: str, supplier_email: str | None) -> str | None:
                 "the email supplier needs your supplier's email address")
     return email
 
+def _validate_contact(name: str, email: str,
+                      category: str | None) -> tuple[str, str, str | None]:
+    cleaned_name = str(name or "").strip()
+    if not cleaned_name:
+        raise ValueError("a contact needs a name")
+    cleaned_email = str(email or "").strip()
+    if not cleaned_email or "@" not in cleaned_email:
+        raise ValueError(f"{cleaned_name} needs a real email address")
+    cleaned_category = str(category or "").strip().lower() or None
+    return cleaned_name, cleaned_email, cleaned_category
+
+
 #: The only fields update_order may touch. Anything else is a caller typo, and
 #: silently dropping it would report an update that never happened.
 ORDER_UPDATE_FIELDS = {
@@ -111,6 +123,8 @@ class InMemoryOrdersStore:
         self._stock: list[dict[str, Any]] = []
         self._orders: list[dict[str, Any]] = []
         self._suppliers: dict[str, dict[str, Any]] = {}
+        self._contacts: list[dict[str, Any]] = []
+        self._messages: list[dict[str, Any]] = []
 
     # -- supplier setting --------------------------------------------------
 
@@ -303,6 +317,85 @@ class InMemoryOrdersStore:
                    if r["business_id"] == business_id
                    and r["status"] == "placed"
                    and r["created_at"] >= since)
+
+    # -- supplier contacts ---------------------------------------------------
+
+    def add_contact(self, business_id: str, *, name: str, email: str,
+                    category: str | None = None) -> dict[str, Any]:
+        cleaned_name, cleaned_email, cleaned_category = _validate_contact(
+            name, email, category)
+        row = {
+            "id": str(uuid.uuid4()),
+            "business_id": business_id,
+            "name": cleaned_name,
+            "email": cleaned_email,
+            "category": cleaned_category,
+        }
+        self._contacts.append(row)
+        return {k: v for k, v in row.items() if k != "business_id"}
+
+    def list_contacts(self, business_id: str) -> list[dict[str, Any]]:
+        return [{k: v for k, v in row.items() if k != "business_id"}
+                for row in self._contacts
+                if row["business_id"] == business_id]
+
+    def remove_contact(self, business_id: str, contact_id: str) -> bool:
+        for index, row in enumerate(self._contacts):
+            if row["id"] == contact_id and row["business_id"] == business_id:
+                del self._contacts[index]
+                return True
+        return False
+
+    # -- rep messages ----------------------------------------------------------
+
+    def create_message(self, business_id: str, *, contact_id: str,
+                       subject: str, body: str) -> dict[str, Any]:
+        row = {
+            "id": str(uuid.uuid4()),
+            "business_id": business_id,
+            "contact_id": contact_id,
+            "subject": str(subject or "").strip(),
+            "body": str(body or ""),
+            "status": "draft",
+            "external_reference": None,
+            "created_at": datetime.now(),
+        }
+        self._messages.append(row)
+        return {k: v for k, v in row.items() if k != "business_id"}
+
+    def list_messages(self, business_id: str,
+                      *, limit: int = 50) -> list[dict[str, Any]]:
+        rows = [r for r in self._messages if r["business_id"] == business_id]
+        rows.sort(key=lambda r: r["created_at"], reverse=True)
+        return [{k: v for k, v in row.items() if k != "business_id"}
+                for row in rows[:limit]]
+
+    def get_message(self, business_id: str,
+                    message_id: str) -> dict[str, Any] | None:
+        for row in self._messages:
+            if row["id"] == message_id and row["business_id"] == business_id:
+                return {k: v for k, v in row.items() if k != "business_id"}
+        return None
+
+    def mark_message_sent(self, business_id: str, message_id: str, *,
+                          external_reference: str) -> bool:
+        """Draft → sent, exactly once. A second call returns False so the
+        caller can refuse instead of the rep receiving the email twice."""
+        for row in self._messages:
+            if row["id"] == message_id and row["business_id"] == business_id \
+                    and row["status"] == "draft":
+                row["status"] = "sent"
+                row["external_reference"] = external_reference
+                return True
+        return False
+
+    def discard_message(self, business_id: str, message_id: str) -> bool:
+        for row in self._messages:
+            if row["id"] == message_id and row["business_id"] == business_id \
+                    and row["status"] == "draft":
+                row["status"] = "discarded"
+                return True
+        return False
 
 
 class PostgresOrdersStore:
@@ -609,6 +702,144 @@ class PostgresOrdersStore:
                 (business_id, since),
             )
             return int(cur.fetchone()[0])
+
+    # -- supplier contacts ---------------------------------------------------
+
+    def add_contact(self, business_id, *, name, email,
+                    category=None) -> dict[str, Any]:
+        cleaned_name, cleaned_email, cleaned_category = _validate_contact(
+            name, email, category)
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO supplier_contact (business_id, name, email,
+                                              category)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (business_id, cleaned_name, cleaned_email, cleaned_category),
+            )
+            contact_id = str(cur.fetchone()[0])
+        self._conn.commit()
+        return {"id": contact_id, "name": cleaned_name,
+                "email": cleaned_email, "category": cleaned_category}
+
+    def list_contacts(self, business_id) -> list[dict[str, Any]]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, name, email, category FROM supplier_contact
+                WHERE business_id = %s
+                ORDER BY created_at
+                """,
+                (business_id,),
+            )
+            return [{"id": str(row[0]), "name": row[1], "email": row[2],
+                     "category": row[3]} for row in cur.fetchall()]
+
+    def remove_contact(self, business_id, contact_id) -> bool:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM supplier_contact
+                WHERE business_id = %s AND id = %s
+                """,
+                (business_id, contact_id),
+            )
+            removed = cur.rowcount > 0
+        self._conn.commit()
+        return removed
+
+    # -- rep messages ----------------------------------------------------------
+
+    def create_message(self, business_id, *, contact_id, subject,
+                       body) -> dict[str, Any]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO supplier_message (business_id, contact_id,
+                                              subject, body, status)
+                VALUES (%s, %s, %s, %s, 'draft')
+                RETURNING id, created_at
+                """,
+                (business_id, contact_id,
+                 str(subject or "").strip(), str(body or "")),
+            )
+            message_id, created_at = cur.fetchone()
+        self._conn.commit()
+        return {"id": str(message_id), "contact_id": contact_id,
+                "subject": str(subject or "").strip(),
+                "body": str(body or ""), "status": "draft",
+                "external_reference": None, "created_at": created_at}
+
+    def list_messages(self, business_id, *, limit=50) -> list[dict[str, Any]]:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, contact_id, subject, body, status,
+                       external_reference, created_at
+                FROM supplier_message
+                WHERE business_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (business_id, limit),
+            )
+            return [{"id": str(row[0]), "contact_id": str(row[1]),
+                     "subject": row[2], "body": row[3], "status": row[4],
+                     "external_reference": row[5], "created_at": row[6]}
+                    for row in cur.fetchall()]
+
+    def get_message(self, business_id, message_id) -> dict[str, Any] | None:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, contact_id, subject, body, status,
+                       external_reference, created_at
+                FROM supplier_message
+                WHERE business_id = %s AND id = %s
+                """,
+                (business_id, message_id),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {"id": str(row[0]), "contact_id": str(row[1]),
+                "subject": row[2], "body": row[3], "status": row[4],
+                "external_reference": row[5], "created_at": row[6]}
+
+    def mark_message_sent(self, business_id, message_id, *,
+                          external_reference) -> bool:
+        #  The WHERE status = 'draft' clause is the once-only guarantee: a
+        #  concurrent or repeated send matches zero rows instead of emailing
+        #  the rep twice.
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE supplier_message
+                SET status = 'sent', external_reference = %s,
+                    sent_at = clock_timestamp()
+                WHERE business_id = %s AND id = %s AND status = 'draft'
+                """,
+                (external_reference, business_id, message_id),
+            )
+            updated = cur.rowcount > 0
+        self._conn.commit()
+        return updated
+
+    def discard_message(self, business_id, message_id) -> bool:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE supplier_message
+                SET status = 'discarded'
+                WHERE business_id = %s AND id = %s AND status = 'draft'
+                """,
+                (business_id, message_id),
+            )
+            updated = cur.rowcount > 0
+        self._conn.commit()
+        return updated
 
 
 __all__ = [

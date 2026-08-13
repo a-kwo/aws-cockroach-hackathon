@@ -835,3 +835,33 @@ CREATE TABLE IF NOT EXISTS orders_setting (
   supplier_email STRING,
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
+
+-- The humans who supply the business: the produce rep, the fish guy. A row
+-- here is what lets the agent draft them a message; the category is how
+-- "my produce rep" resolves to a person.
+CREATE TABLE IF NOT EXISTS supplier_contact (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  name        STRING NOT NULL,
+  email       STRING NOT NULL,
+  category    STRING,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  INDEX supplier_contact_by_business (business_id)
+);
+
+-- Messages the agent drafted for a rep. status: draft | sent | discarded.
+-- A draft costs nothing; only the owner's explicit send moves it to 'sent',
+-- and the transition is guarded WHERE status = 'draft' so it happens once.
+CREATE TABLE IF NOT EXISTS supplier_message (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id        UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
+  contact_id         UUID NOT NULL REFERENCES supplier_contact(id)
+                     ON DELETE CASCADE,
+  subject            STRING NOT NULL,
+  body               STRING NOT NULL,
+  status             STRING NOT NULL DEFAULT 'draft',
+  external_reference STRING,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  sent_at            TIMESTAMPTZ,
+  INDEX supplier_message_by_business (business_id, created_at DESC)
+);

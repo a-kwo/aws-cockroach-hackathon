@@ -41,6 +41,7 @@ from brasstacks.handlers.login import bearer_token
 from brasstacks.order_intent import NotAnOrderRequest, parse_order_request
 from brasstacks.ordering import Cart, FakeOrderingTool
 from brasstacks.purchase_authority import Level, PurchaseAuthority
+from brasstacks.rep_messages import compose_rep_message, match_rep_message
 from brasstacks.secrets import hydrate_environment
 from brasstacks.stock import StockItem, estimate_remaining
 
@@ -240,7 +241,18 @@ def _state(store, business_id, *, payment_provider: str,
             "catalogue": [{"name": name, "unit_cents": cents}
                           for name, cents in sorted(CATALOGUE.items())],
         },
+        "contacts": store.list_contacts(business_id),
+        "messages": [_message_json(row)
+                     for row in store.list_messages(business_id)],
     }
+
+
+def _message_json(row: dict[str, Any]) -> dict[str, Any]:
+    fields = dict(row)
+    created = fields.get("created_at")
+    if isinstance(created, datetime):
+        fields["created_at"] = created.isoformat()
+    return fields
 
 
 def _record_plan(store, business_id, *, plan, title, trigger, items, category,
@@ -388,6 +400,38 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         text = str(payload.get("text") or "").strip()
         if not text:
             return respond(400, {"error": "say what you would like to order"})
+
+        #  A named rep outranks the order parser: "ask my produce rep …" is
+        #  unambiguous without a model, and the wrong guess in either
+        #  direction costs an email a human actually reads.
+        intent = match_rep_message(text, store.list_contacts(business_id))
+        if intent is not None:
+            if intent.get("contact") is None:
+                return respond(200, {
+                    "kind": "failed",
+                    "reason": (f"There's no {intent['unknown_target']} rep "
+                               "on file — add them under Reps on the "
+                               "Supplies board first."),
+                    "state": state()})
+            contact = intent["contact"]
+            if not intent["gist"]:
+                return respond(200, {
+                    "kind": "failed",
+                    "reason": f"Tell me what to say to {contact['name']}.",
+                    "state": state()})
+            business = repo.get_business(business_id) or {}
+            composed = compose_rep_message(
+                contact_name=contact["name"], gist=intent["gist"],
+                business_name=str(business.get("name") or ""))
+            store.create_message(business_id, contact_id=contact["id"],
+                                 subject=composed["subject"],
+                                 body=composed["body"])
+            return respond(200, {
+                "kind": "message_drafted",
+                "reason": (f"Drafted a message to {contact['name']} — "
+                           "review it on the Supplies board and press Send. "
+                           "Nothing goes out until you do."),
+                "state": state()})
 
         request = None
         if reasoner is not None:
@@ -596,6 +640,83 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         supplier_block["active"] = setting["supplier"]
         supplier_block["email"] = setting["supplier_email"]
         return respond(200, {"kind": "supplier_set", "state": state()})
+
+    # -- sales reps, and messages to them ----------------------------------
+    #  The rep is the one supplier integration every business already has.
+    #  The agent may draft a message at any time; nothing reaches a human
+    #  inbox until the owner presses send — the same doctrine as ordering,
+    #  with the same single dangerous verb.
+
+    if action == "contacts":
+        try:
+            store.add_contact(
+                business_id,
+                name=str(payload.get("name") or ""),
+                email=str(payload.get("email") or ""),
+                category=payload.get("category"),
+            )
+        except ValueError as exc:
+            return respond(400, {"error": str(exc)})
+        return respond(200, {"kind": "contact_added", "state": state()})
+
+    if action == "contacts/remove":
+        if not store.remove_contact(business_id,
+                                    str(payload.get("id") or "")):
+            return respond(404, {"error": "no such contact"})
+        return respond(200, {"kind": "contact_removed", "state": state()})
+
+    if action == "message":
+        text = str(payload.get("text") or "").strip()
+        if not text:
+            return respond(400, {"error": "say what the message should say"})
+        contact = next(
+            (row for row in store.list_contacts(business_id)
+             if row["id"] == str(payload.get("contact_id") or "")), None)
+        if contact is None:
+            return respond(404, {"error": "no such contact"})
+        business = repo.get_business(business_id) or {}
+        composed = compose_rep_message(
+            contact_name=contact["name"], gist=text,
+            business_name=str(business.get("name") or ""))
+        store.create_message(business_id, contact_id=contact["id"],
+                             subject=composed["subject"],
+                             body=composed["body"])
+        return respond(200, {"kind": "message_drafted", "state": state()})
+
+    if action == "message/send":
+        message_id = str(payload.get("id") or "")
+        message = store.get_message(business_id, message_id)
+        if message is None:
+            return respond(404, {"error": "no such message"})
+        if message["status"] != "draft":
+            return respond(409, {"error": "this message was already "
+                                 + ("sent" if message["status"] == "sent"
+                                    else "discarded")})
+        if not email_ok:
+            return respond(400, {
+                "error": ("Sending email isn't available on this deployment "
+                          "yet — it needs a verified sending address.")})
+        contact = next(
+            (row for row in store.list_contacts(business_id)
+             if row["id"] == message["contact_id"]), None)
+        if contact is None:
+            return respond(404, {"error": "that contact no longer exists"})
+        try:
+            provider_id = email_sender(
+                source=email_source, recipient=contact["email"],
+                subject=message["subject"], body=message["body"])
+        except Exception as exc:
+            return respond(502, {
+                "error": f"the message could not be sent: {exc}"})
+        store.mark_message_sent(business_id, message_id,
+                                external_reference=f"email:{provider_id}")
+        return respond(200, {"kind": "message_sent", "state": state()})
+
+    if action == "message/discard":
+        if not store.discard_message(business_id,
+                                     str(payload.get("id") or "")):
+            return respond(404, {"error": "no draft to discard"})
+        return respond(200, {"kind": "message_discarded", "state": state()})
 
     return respond(404, {"error": f"unknown orders action {action!r}"})
 
