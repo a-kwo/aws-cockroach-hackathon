@@ -328,6 +328,80 @@ h1#signupTitle em {
 button[type="submit"], .primary-action, .form-actions .continue, #createWorkspace {
   border-radius: 999px !important;
 }
+/* The brief panel IS the agent: while you write on paper, it thinks in the
+   dark — the app's night canvas looking back at you as you type. */
+.brief-card {
+  background:
+    radial-gradient(420px 260px at 100% 0%, rgba(226, 168, 92, .1), transparent 70%),
+    linear-gradient(165deg, #191712, #100f0c) !important;
+  border: 1px solid rgba(242, 239, 233, .12) !important;
+  box-shadow: 0 30px 70px rgba(23, 24, 28, .28), 0 26px 60px -24px rgba(226, 168, 92, .3) !important;
+}
+.brief-card h2, .brief-card .scope-copy strong { color: #f2efe9 !important; }
+.brief-eyebrow { color: #e2a85c !important; letter-spacing: .26em !important; font-size: 10px !important; }
+.scope-node {
+  background: rgba(242, 239, 233, .035) !important;
+  border: 1px solid rgba(242, 239, 233, .1) !important;
+}
+.scope-copy span { color: #98948a !important; }
+.scope-icon { color: #e2a85c !important; background: rgba(226, 168, 92, .12) !important; border-color: rgba(226, 168, 92, .3) !important; }
+.scope-status {
+  color: #e6c391 !important;
+  background: rgba(226, 168, 92, .13) !important;
+  border: 1px solid rgba(226, 168, 92, .3) !important;
+}
+.scope-line { background: rgba(226, 168, 92, .35) !important; }
+.brief-section > span { color: #e2a85c !important; letter-spacing: .2em; }
+.brief-section, .brief-head { border-color: rgba(242, 239, 233, .1) !important; }
+.brief-pill {
+  background: rgba(242, 239, 233, .05) !important;
+  border: 1px solid rgba(242, 239, 233, .16) !important;
+  color: #d8d4ca !important;
+}
+.brief-pill.placeholder { color: #6f6b62 !important; border-style: dashed !important; }
+.trust-row, .trust-row span { color: #98948a !important; }
+
+/* Progress reads as the route: brass nodes on a hairline, not underlines. */
+.progress { gap: 0; grid-template-columns: repeat(3, auto); justify-content: start; align-items: center; }
+.progress-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 26px 0 0;
+  position: relative;
+  font-size: 10.5px;
+  letter-spacing: .12em;
+}
+.progress-step::before {
+  content: "";
+  position: static;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.7px solid #cfccc4;
+  background: transparent;
+  transition: all .3s var(--ease);
+}
+.progress-step.active { color: var(--ink) !important; }
+.progress-step.active::before { background: var(--gold); border-color: var(--gold); }
+.progress-step:not(:last-child)::after {
+  content: "";
+  width: 18px;
+  height: 1.4px;
+  background: #e0ddd6;
+  position: absolute;
+  right: 3px;
+  top: 50%;
+}
+/* Inputs: calm, roomy, brass focus. */
+input[type="text"], input[type="email"], input[type="url"], select, textarea {
+  border-radius: 13px !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(168, 117, 36, .6) !important;
+  box-shadow: 0 0 0 4px rgba(168, 117, 36, .1) !important;
+  outline: 0 !important;
+}
 /* The brief panel is the product talking — warm it. */
 .brief-pill { border-radius: 999px !important; }
 </style>
