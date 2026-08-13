@@ -23444,6 +23444,9 @@
       color: #171006 !important;
     }
 
+    /* Decisions on the left, navigation on the right. */
+    .chat-move-actions [data-chat-full-details] { margin-left: auto !important; }
+
     /* The category chip loses its pill box — icon and words on the card,
        nothing framed. */
     body.autopilot-mode .social-context,
@@ -23797,7 +23800,7 @@
                   <section class="growth-chart" id="growthChart" aria-labelledby="growthChartHeading" hidden>
                     <header class="growth-chart-head">
                       <div>
-                        <span class="growth-story-kicker">Your progress</span>
+                        
                         <h2 id="growthChartHeading" class="sr-only">Growth history</h2>
                         <p id="growthChartSub">Month by month</p>
                       </div>
@@ -35155,7 +35158,7 @@ ledger_entry · artifact · agent_run`,
                 <button type="button" class="orders-btn approve" data-chat-decide="approved" data-post-id="${escapeHtml(post.id)}">Do it</button>
                 <button type="button" class="orders-btn ghost" data-chat-decide="rejected" data-post-id="${escapeHtml(post.id)}">Pass</button>
               ` : ""}
-              <button type="button" class="orders-btn ghost small" data-chat-full-details data-post-id="${escapeHtml(post.id)}">Full details &amp; evidence</button>
+              <button type="button" class="orders-btn ghost small" data-chat-full-details data-post-id="${escapeHtml(post.id)}">Full details</button>
               <button type="button" class="orders-btn ghost small" data-goto-view="autopilot">&larr; Back to For You</button>
             </div>
             ${(url || steps.length) ? `
@@ -35166,7 +35169,6 @@ ledger_entry · artifact · agent_run`,
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
                 </a>` : ""}
                 ${steps.length ? planMapHtml(post) : ""}
-                <p class="chat-move-guide-note">This opens the real page in a new tab. I can't log in or click for you — your approval keeps every action yours.</p>
               </div>` : ""}
           </article>`;
       }
