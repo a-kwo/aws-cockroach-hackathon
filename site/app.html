@@ -23444,6 +23444,31 @@
       color: #171006 !important;
     }
 
+    /* The autopilot header carries a computed fact line, not narration. */
+    .orders-auto-summary {
+      margin-left: 4px;
+      color: var(--owner-muted, #8f8b83);
+      font-size: 12px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+    /* The sample/live disclosure is a chip, not a bar — still there, still
+       expandable, no longer a full-width row shouting. */
+    body.orders-mode .orders-mock-banner,
+    body.chat-mode .orders-mock-banner {
+      width: fit-content !important;
+      padding: 6px 12px !important;
+      border-radius: 999px !important;
+      font-size: 11px !important;
+    }
+    body.orders-mode .orders-mock-banner > summary,
+    body.chat-mode .orders-mock-banner > summary { font-size: 11px !important; }
+    body.orders-mode .orders-mock-banner[open],
+    body.chat-mode .orders-mock-banner[open] {
+      width: 100% !important;
+      border-radius: 14px !important;
+    }
+
     /* Decisions on the left, navigation on the right. */
     .chat-move-actions [data-chat-full-details] { margin-left: auto !important; }
 
@@ -24073,6 +24098,7 @@
               <div class="orders-zone-title">
                 <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg></span>
                 <h2 id="ordersStandingHeading">On autopilot</h2>
+                <span class="orders-auto-summary" id="ordersAutoSummary"></span>
               </div>
               <nav class="orders-seg" id="ordersSeg" role="tablist" aria-label="Automation rules">
                 <button type="button" class="active" data-otab="standing" role="tab" aria-selected="true">Repeats</button>
@@ -24083,7 +24109,6 @@
 
             <div class="orders-pane" data-opane="standing">
               <div class="orders-pane-bar">
-                <p class="orders-pane-hint">The usual basket, on a schedule.</p>
                 <button type="button" class="orders-btn ghost small" id="ordersAddStanding">Add</button>
               </div>
               <form class="orders-form" id="ordersStandingForm" hidden>
@@ -24115,7 +24140,6 @@
 
             <div class="orders-pane" data-opane="stock" hidden>
               <div class="orders-pane-bar">
-                <p class="orders-pane-hint">Estimated from what you buy. Low items always ask first.</p>
                 <button type="button" class="orders-btn ghost small" id="ordersAddStock" hidden>Add</button>
               </div>
               <form class="orders-form" id="ordersStockForm" hidden>
@@ -24134,7 +24158,7 @@
 
             <div class="orders-pane" data-opane="limits" hidden>
               <div class="orders-pane-bar">
-                <p class="orders-pane-hint" id="ordersLimitsHeading">What it may buy without asking.</p>
+                <p class="sr-only" id="ordersLimitsHeading">What it may buy without asking.</p>
                 <button type="button" class="orders-btn ghost small" id="ordersAddLimit">Add</button>
               </div>
               <form class="orders-form" id="ordersLimitsForm" hidden>
@@ -34087,6 +34111,11 @@ ledger_entry · artifact · agent_run`,
       //  refuse every call. The preview engine is the demo: the local mirror
       //  of the tested Python, where ordering, authority and approvals all
       //  work — and the sample-data banner already discloses it.
+
+      function renderAutoSummary(parts) {
+        const el = document.getElementById("ordersAutoSummary");
+        if (el) el.textContent = parts.filter(Boolean).join(" · ");
+      }
       const TOUR_DEMO = Boolean(new URLSearchParams(window.location.search).get("tour"));
       if (ordersEndpoint && readSession() && !TOUR_DEMO) {
         ordersLive();
@@ -34186,6 +34215,14 @@ ledger_entry · artifact · agent_run`,
           if (window.__btChatCatalogue && state?.store?.catalogue) {
             window.__btChatCatalogue(state.store.catalogue);
           }
+          renderAutoSummary([
+            `${(state.standing || []).length} repeat${(state.standing || []).length === 1 ? "" : "s"}`,
+            `${(state.stock || []).filter(row => row.is_low).length} low`,
+            (() => {
+              const capped = (state.limits || []).find(l => l.period_cap_cents != null);
+              return capped ? `${money(capped.spent_in_period_cents || 0)} of ${money(capped.period_cap_cents)} this week` : "";
+            })(),
+          ]);
           renderOrdersStats({
             needsYou: (state.pending || []).length + pendingMoveCount(),
             spentWeekCents: state.spent_week_cents || 0,
@@ -34850,6 +34887,14 @@ ledger_entry · artifact · agent_run`,
         renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory(); renderCatalogue();
         // Sample figures, like everything else on the preview board — the
         // banner above them already says so.
+        renderAutoSummary([
+          `${standing.length} repeat${standing.length === 1 ? "" : "s"}`,
+          `${stock.filter(row => row.remaining <= row.reorderAt).length} low`,
+          (() => {
+            const capped = limits.find(l => l.periodCap != null);
+            return capped ? `${money(capped.spent)} of ${money(capped.periodCap)} this week` : "";
+          })(),
+        ]);
         renderOrdersStats({
           needsYou: pending.length + pendingMoveCount(),
           spentWeekCents: history.reduce((sum, row) => sum + row.total, 0),
