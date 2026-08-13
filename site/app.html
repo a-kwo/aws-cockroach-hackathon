@@ -22525,7 +22525,7 @@
       scroll-snap-stop: normal !important;
       /* Snapped so the previous card's action row is a sliver, not a banner:
          the Do it button peeks just enough to say there is history above. */
-      scroll-margin-top: 54px;
+      scroll-margin-top: 42px;
     }
     .swipe-cue { display: none !important; }
 
@@ -22617,8 +22617,8 @@
     }
 
     /* The rail: real counts beside the stream, sticky while the feed scrolls. */
-    /* 54px puts "At a glance" level with the top of the snapped card. */
-    .feed-rail { position: sticky; top: 54px; display: flex; flex-direction: column; gap: 14px; }
+    /* 42px puts "At a glance" level with the top of the snapped card. */
+    .feed-rail { position: sticky; top: 42px; display: flex; flex-direction: column; gap: 14px; }
     .feed-rail-card {
       border: 1px solid var(--owner-line, rgba(242, 239, 233, .13));
       border-radius: 16px;
@@ -27522,7 +27522,7 @@
       let best = 0;
       let bestDistance = Infinity;
       cards.forEach((card, index) => {
-        const distance = Math.abs(card.getBoundingClientRect().top - 62);
+        const distance = Math.abs(card.getBoundingClientRect().top - 50);
         if (distance < bestDistance) { bestDistance = distance; best = index; }
       });
       return { index: best, count: cards.length };
@@ -35834,7 +35834,7 @@ ledger_entry · artifact · agent_run`,
     style.textContent +=
       /* Small enough to live in the band between the topbar and the card's
          top edge, so it never sits over the recommendation itself. */
-      '.bt-demo-topcap{position:fixed;z-index:99999;top:60px;left:50%;'
+      '.bt-demo-topcap{position:fixed;z-index:99999;top:68px;left:50%;'
       + 'transform:translateX(-50%);max-width:min(760px,calc(100vw - 32px));margin:0;'
       + 'text-align:center;font:700 clamp(12.5px,1.15vw,15px)/1.4 -apple-system,'
       + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#f4f2ec;'
@@ -35843,6 +35843,9 @@ ledger_entry · artifact · agent_run`,
       + '.bt-demo-topcap.show{opacity:1;}'
       + '.bt-demo-topcap.typing::after{content:"\\258B";color:#e8b94a;margin-left:2px;'
       + 'animation:btSideCaret 1s steps(1) infinite;}'
+      + '.bt-demo-topcap.boxed{background:rgba(10,11,14,.85);padding:8px 16px;'
+      + 'border-radius:12px;border:1px solid rgba(242,239,233,.13);'
+      + 'backdrop-filter:blur(8px);box-shadow:0 12px 34px rgba(0,0,0,.45);}'
       + '@keyframes btSideCaret{50%{opacity:0;}}'
       + '.bt-demo-nextfab{position:fixed;z-index:99999;right:26px;top:50%;'
       + 'transform:translateY(-50%);opacity:0;transition:opacity .4s ease;}'
@@ -35859,7 +35862,28 @@ ledger_entry · artifact · agent_run`,
       + '50%{transform:translateY(-8px);}}'
       + '@media (max-width:760px){'
       + '.bt-demo-topcap{top:66px;}'
-      + '.bt-demo-nextfab{top:auto;bottom:18px;transform:none;}}';
+      + '.bt-demo-nextfab{top:auto;bottom:18px;transform:none;}}'
+      /* The beacon: a small brass dot with rings that swell and die, pinned
+         to the corner of whatever the viewer is being asked to press. */
+      /* Clickable, and it forwards the click to the control it marks — a
+         viewer aiming at the dot or the label must not land on nothing. */
+      + '.bt-demo-beacon{position:fixed;z-index:99999;width:10px;height:10px;'
+      + 'cursor:pointer;opacity:0;transition:opacity .3s ease;}'
+      + '.bt-demo-beacon.show{opacity:1;}'
+      + '.bt-demo-beacon i{position:absolute;inset:0;border-radius:50%;'
+      + 'background:#e8b94a;box-shadow:0 0 12px rgba(232,185,74,.85);}'
+      + '.bt-demo-beacon span{position:absolute;inset:0;border-radius:50%;'
+      + 'border:2px solid rgba(232,185,74,.7);opacity:0;}'
+      + '.bt-demo-beacon.ping span{animation:btBeaconPing 1.8s ease-out infinite;}'
+      + '.bt-demo-beacon.ping span:nth-child(2){animation-delay:.9s;}'
+      + '@keyframes btBeaconPing{0%{transform:scale(1);opacity:.85;}'
+      + '100%{transform:scale(3.6);opacity:0;}}'
+      + '.bt-demo-beacon.quiet em{display:none;}'
+      + '.bt-demo-beacon em{position:absolute;left:50%;bottom:18px;'
+      + 'transform:translateX(-50%);'
+      + 'font:700 12px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'font-style:normal;color:#f4e9d0;white-space:nowrap;'
+      + 'text-shadow:0 1px 8px rgba(0,0,0,.9);}';
 
     // ---- defensive drivers: a missing target is skipped, never thrown --------
     function scrollTo(sel){ try{ var el=document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }
@@ -35881,12 +35905,21 @@ ledger_entry · artifact · agent_run`,
     //  scrolling it into view AND moving `.is-current` onto it, so the CURRENT
     //  selector (and the spotlight) follows the card the caption talks about.
     //  Absolute state, so Back re-running a step lands on the same card.
+    //  The opening beat starts from the top of the feed — day label and all —
+    //  rather than from wherever a snap position would put the first card.
+    function feedTop(){ try{
+      var v = document.getElementById("view-autopilot");
+      if(v) v.scrollTo({ top: 0, behavior: "smooth" });
+    }catch(e){} }
     function focusCard(n){ try{
       var cards = document.querySelectorAll(".feed-card");
       if(!cards.length) return;
       var i = Math.max(0, Math.min(cards.length - 1, n));
       cards.forEach(function(card, k){ card.classList.toggle("is-current", k === i); });
-      cards[i].scrollIntoView({ behavior: "smooth", block: "center" });
+      //  "start", not "center": centring left the previous card's white
+      //  Do it row sitting exactly where the beat captions stream. This
+      //  lands the card at the same snap position the wheel uses.
+      cards[i].scrollIntoView({ behavior: "smooth", block: "start" });
     }catch(e){} }
     //  The sheet is inserted into the DOM when it opens, so its presence IS its
     //  state -- no class to guess at.
@@ -35987,29 +36020,68 @@ ledger_entry · artifact · agent_run`,
         //  offers Next — the opening beat teaches the feed gesture.
         side:true,
         sideCaption:"The Brass Tacks agent team curates specific recs each night. Scroll to see more.",
-        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); }, target:CURRENT.trim(), settle:400 },
+        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); feedTop(); }, target:CURRENT.trim(), settle:400 },
       //  The "each card is one finding, scroll the feed" step is gone: the
       //  opening beat already says it and waits while the viewer scrolls.
-      { ch:0, caption:"Open it and it isn't a hunch. Weekend patio bookings: a specific move, $9 a day, and a date it gets checked.",
-        run:function(){ view("autopilot"); evidence(false); focusCard(7); planSheet(true); }, target:CURRENT + ".feed-plan", settle:350 },
-      { ch:0, caption:"And its evidence: the real reviews the vector search returned, each scored by how closely it matched. Guests naming the patio, and one warning about the wait.",
-        run:function(){ view("autopilot"); focusCard(7); evidence(true); }, settle:400 },
-      { ch:0, caption:"That similarity score is stored with every recommendation. Retrieval you can audit, not a black box.",
-        run:function(){ view("autopilot"); evidence(false); }, target:CURRENT + ".feed-plan", settle:300 },
+      //  The plan beat: same grammar as the opening. The caption streams and
+      //  fades, then a pinging beacon lands on the Execution plan row and
+      //  waits for the viewer to open it themselves — the Next pill only
+      //  appears once the sheet is up. Nothing opens on the viewer's behalf.
+      { ch:0, caption:"Each move has a clear execution plan attached.",
+        side:true,
+        sideCaption:"Each move has a clear execution plan attached.",
+        sideAwait:"plan",
+        run:function(){ view("autopilot"); evidence(false); focusCard(7); }, target:CURRENT + ".feed-plan", settle:350 },
+      //  The evidence beat: nothing opens on the viewer's behalf. The dot
+      //  lands on the plan sheet's × first, then the ring and the dot move
+      //  to the evidence row, and the beat ends when the viewer opens it.
+      { ch:0, caption:"Evidence that led to this find is kept for the user to see.",
+        side:true,
+        sideCaption:"Evidence that led to this find is kept for the user to see.",
+        sideEvidence:true,
+        //  evidence(false): arriving by Back re-plays the beat, and the beat
+        //  must start with the document closed or it bounces straight out.
+        run:function(){ view("autopilot"); focusCard(7); evidence(false); }, settle:400 },
+      //  Spoken over the open evidence panel, ring on a similarity score:
+      //  the number is CockroachDB's cosine similarity for that row, stored
+      //  with the find — the audit trail the demo keeps pointing at.
+      { ch:0, caption:"Each score is how closely CockroachDB's vector search matched that review to this find — stored with the recommendation, so retrieval can be audited.",
+        side:true,
+        sideCaption:"Each score is how closely CockroachDB's vector search matched that review to this find — stored so retrieval can be audited.",
+        run:function(){ view("autopilot"); focusCard(7); evidence(true); }, target:"#evidenceSheet .evidence-similarity", settle:500 },
 
+      //  From here on, every step is a beat: the caption streams on a pill
+      //  under the topbar (nothing in these views to anchor above), the ring
+      //  marks what the caption is about, and the bobbing pill carries on.
+      //  View-sized rings are gone — a golden box around the whole screen
+      //  said nothing the view itself didn't.
       { ch:1, caption:"She doesn't hunt through menus. She just asks — this is the same agent, in conversation.",
-        run:function(){ view("chat"); }, target:"#view-chat", settle:450 },
+        side:true,
+        sideCaption:"No menus to hunt through — the owner just asks the same agent, in conversation.",
+        run:function(){ view("chat"); evidence(false); }, settle:450 },
       { ch:1, caption:"Ask what needs a decision, and it answers from the work it has already done.",
+        side:true,
+        sideCaption:"Ask what needs a decision, and it answers from the work it has already done.",
         run:function(){ view("chat"); sayOnce("approve-q", function(){ owner("What needs my approval?"); }); }, settle:300 },
       { ch:1, caption:"It drafts every move and then waits. It never spends money or publishes anything without an explicit yes.",
+        side:true,
+        sideCaption:"It drafts every move and then waits — nothing is spent or published without an explicit yes.",
         run:function(){ view("chat"); sayOnce("approve-a", function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }); }, settle:300 },
       { ch:1, caption:"It runs the supply side too. Ask it to order, and it opens a priced catalogue.",
+        side:true,
+        sideCaption:"It runs the supply side too — ask it to order, and a priced catalogue opens.",
         run:function(){ view("chat"); sayOnce("supply-q", function(){ owner("Order supplies for me"); }); }, settle:300 },
       { ch:1, caption:"A real price list, what's on auto-stock, and every order it has already placed — charged only when an order actually ships.",
+        side:true,
+        sideCaption:"A real price list, what's on auto-stock, and every order placed — charged only when an order ships.",
         run:function(){ view("chat"); sayOnce("supply-a", function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); }); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersCatalogue"); }, target:"#ordersCatalogue", settle:600 },
       { ch:1, caption:"Auto-stock reorders what runs low — always under a spending cap the owner sets, which no model can talk its way past.",
+        side:true,
+        sideCaption:"Auto-stock reorders what runs low — always under a spending cap the owner sets.",
         run:function(){ view("chat"); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersStandingList"); }, target:"#ordersStandingList", settle:500 },
       { ch:1, caption:"And a receipt for everything it bought, with what it actually paid.",
+        side:true,
+        sideCaption:"And a receipt for everything it bought, with what it actually paid.",
         run:function(){ view("chat"); orders(TOUR_STORE); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
 
       // No verdict exists yet for this tenant: the earliest measurement window
@@ -36018,18 +36090,28 @@ ledger_entry · artifact · agent_run`,
       // version -- and the Growth chart is deliberately not a target here,
       // because it needs two months of ledger and there are none.
       { ch:2, caption:"Here is what makes this different from a chatbot. Every move the owner approves is stored with what the agent expects it to earn.",
-        run:function(){ view("growth"); }, target:"#view-growth", settle:500 },
+        side:true,
+        sideCaption:"What makes this different from a chatbot: every approved move is stored with what the agent expects it to earn.",
+        run:function(){ view("growth"); }, settle:500 },
       //  #growthInflight, not #approvedList: the Approved list holds this
       //  session's clicks and is empty on a fresh tour, so these three steps
       //  used to point their ring at nothing. The In flight panel shows the
       //  measuring moves the captions are counting.
       { ch:2, caption:"Seven moves are in flight right now. The biggest — lead every listing with the ocean-view patio — predicts $22 a day.",
+        side:true,
+        sideCaption:"Seven moves are in flight right now. The biggest — the ocean-view patio — predicts $22 a day.",
         run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:550 },
       { ch:2, caption:"That number was written to CockroachDB the night it was proposed, with the date it gets graded: 1 September. Nobody can edit it between now and then.",
+        side:true,
+        sideCaption:"That number was written to CockroachDB the night it was proposed, with its grading date. Nobody can edit it between now and then.",
         run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:450 },
       { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so it published none. The owner ran it anyway and reported $500 a week.",
+        side:true,
+        sideCaption:"One already came back: the agent published no figure for the lunch bento — the owner ran it anyway and reported $500 a week.",
         run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:450 },
       { ch:2, caption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
+        side:true,
+        sideCaption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
         run:function(){ view("growth"); }, settle:200 }
     ];
 
@@ -36119,6 +36201,150 @@ ledger_entry · artifact · agent_run`,
 
     var REDUCED_TOUR = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    //  The beacon: pinned to the top-right corner of the element the viewer
+    //  is being asked to press, with a "Click here" label. It watches the
+    //  shared sheet; the moment the right kind opens, the Next pill takes
+    //  over. Positioned by polling AND on scroll, so it rides its element.
+    var beacon = document.createElement("div");
+    beacon.className = "bt-demo-beacon";
+    beacon.innerHTML = '<span></span><span></span><i></i><em>Click here</em>';
+    document.body.appendChild(beacon);
+    beacon.hidden = true;
+    var beaconSel = null;
+    var beaconPoll = 0;
+    beacon.addEventListener("click", function(){
+      try{
+        var el = beaconSel && document.querySelector(beaconSel);
+        if(el) el.click();
+      }catch(e){}
+    });
+
+    function positionBeacon(){
+      if(beacon.hidden || !beaconSel) return;
+      var el = document.querySelector(beaconSel);
+      if(!el){ beacon.classList.remove("show"); return; }
+      var r = el.getBoundingClientRect();
+      if(!r.width || r.bottom < 0 || r.top > window.innerHeight){
+        beacon.classList.remove("show"); return;
+      }
+      //  Inside the box's top-right corner, not straddling it: the dot sits
+      //  over the control itself, so aiming at it lands on something real.
+      //  A control too small for a corner seat gets the dot dead centre.
+      if(r.width < 48 || r.height < 30){
+        beacon.style.left = (r.left + r.width / 2 - 5) + "px";
+        beacon.style.top = (r.top + r.height / 2 - 5) + "px";
+      } else {
+        beacon.style.left = (r.right - 22) + "px";
+        beacon.style.top = (r.top + 10) + "px";
+      }
+      beacon.classList.add("show");
+    }
+
+    function showFab(){
+      //  The pill wears whatever label the bar's Next would: the last owner
+      //  step reads "Open the Memory Engine →", not a generic Next.
+      nextFab.querySelector("button").innerHTML = nextBtn.innerHTML;
+      nextFab.hidden = false;
+      if(!REDUCED_TOUR) nextFab.classList.add("bounce");
+      requestAnimationFrame(function(){ nextFab.classList.add("show"); });
+    }
+
+    function hideBeacon(){
+      window.clearInterval(beaconPoll); beaconPoll = 0;
+      beacon.classList.remove("show", "ping", "quiet");
+      beacon.hidden = true;
+      beaconSel = null;
+    }
+
+    //  Once the sheet is up it IS the focus — a spotlight ring left on the
+    //  button underneath reads as a stray golden box floating behind it.
+    function dropRing(){
+      spotTarget = null;
+      spot.classList.remove("on");
+    }
+
+    //  Open, read, put away, then Next: while the awaited sheet is up the
+    //  pill stays hidden and the dot (label-less) waits on the sheet's × —
+    //  the way out is always marked. The pill appears once the sheet closes.
+    function showBeacon(sel, awaitKind){
+      var phase = null;    // "target" — the control to open; "close" — the sheet's ×
+      var opened = false;
+      var applyPhase = function(want){
+        phase = want;
+        if(phase === "close"){
+          beacon.classList.add("quiet");
+          beaconSel = "#evidenceSheet .evidence-sheet-close";
+          dropRing();
+        } else {
+          beacon.classList.remove("quiet");
+          beaconSel = sel;
+        }
+        beacon.hidden = false;
+        if(!REDUCED_TOUR) beacon.classList.add("ping");
+        positionBeacon();
+      };
+      var tick = function(){
+        var kind = sheetKind();
+        if(kind === awaitKind){
+          opened = true;
+          if(phase !== "close") applyPhase("close");
+          positionBeacon();
+          return;
+        }
+        if(opened && !kind){ hideBeacon(); showFab(); return; }
+        if(phase !== "target" && !kind) applyPhase("target");
+        positionBeacon();
+      };
+      tick();
+      if(!beaconPoll) beaconPoll = window.setInterval(tick, 250);
+    }
+
+    //  The evidence beat is two hops: while the plan sheet is still up, the
+    //  dot (label-less) sits on its × so the viewer puts it away; the moment
+    //  the sheet is gone, the ring and the "Click here" dot move to the
+    //  evidence row. Opening the evidence document ends the beat by handing
+    //  the tour back to the classic bar — Back, Next and the step count are
+    //  on screen while the viewer reads, and Next carries on from there.
+    function evidenceBeat(){
+      var phase = null;
+      var applyPhase = function(want){
+        phase = want;
+        if(phase === "close"){
+          beacon.classList.add("quiet");
+          beaconSel = "#evidenceSheet .evidence-sheet-close";
+          dropRing();
+        } else {
+          beacon.classList.remove("quiet");
+          beaconSel = CURRENT + ".feed-detail-evidence";
+          spotTarget = beaconSel;
+          placeSpot();
+        }
+        beacon.hidden = false;
+        if(!REDUCED_TOUR) beacon.classList.add("ping");
+        positionBeacon();
+      };
+      //  Re-entering the beat with the document already open (Back from the
+      //  similarity step) closes it first, so the beat replays from its
+      //  invitation instead of instantly bouncing forward again.
+      if(sheetKind() === "evidence") evidence(false);
+      var tick = function(){
+        var kind = sheetKind();
+        if(kind === "evidence"){
+          //  The viewer opened the document: no landing on this step's bar —
+          //  the tour moves straight to the similarity step, which speaks
+          //  over the open panel.
+          hideBeacon();
+          goTo(i + 1);
+          return;
+        }
+        var want = kind === "plan" ? "close" : "evidence";
+        if(want !== phase) applyPhase(want);
+        positionBeacon();
+      };
+      tick();
+      if(!beaconPoll && sideModeOn) beaconPoll = window.setInterval(tick, 250);
+    }
+
     function stream(el, text, done){
       if(el.__btStream) window.clearInterval(el.__btStream);
       el.classList.remove("typing");
@@ -36138,7 +36364,37 @@ ledger_entry · artifact · agent_run`,
       }, 46);
     }
 
+    //  The caption's band moves with the layout: it sits just above the
+    //  focused card's top edge, which keeps it off the card below it AND off
+    //  the previous card's white action row above it, at every viewport.
+    function positionTopcap(){
+      if(topcap.hidden) return;
+      var chrome = document.querySelector(".topbar");
+      var floor = (chrome ? chrome.getBoundingClientRect().bottom : 50) + 4;
+      //  Anchor above whatever the step is showing: an open sheet outranks
+      //  the card behind it, and the card only counts while its view is up.
+      var anchor = document.querySelector("#evidenceSheet .evidence-sheet-panel");
+      if(!anchor){
+        var board = document.getElementById("view-autopilot");
+        if(board && board.classList.contains("active")){
+          anchor = document.querySelector(".feed-card.is-current");
+        }
+      }
+      var r = anchor ? anchor.getBoundingClientRect() : null;
+      var h = topcap.offsetHeight || 20;
+      if(r && r.width){
+        topcap.classList.remove("boxed");
+        topcap.style.top = Math.max(floor, r.top - h - 16) + "px";
+      } else {
+        //  Nothing to sit above (chat, Growth): dock under the topbar on a
+        //  legible pill instead of shadow-text over live content.
+        topcap.classList.add("boxed");
+        topcap.style.top = floor + "px";
+      }
+    }
+
     var sideModeOn = false;
+    var sideFollowCards = false;
     var sideTimers = [];
     function clearSideTimers(){
       sideTimers.forEach(function(t){ window.clearTimeout(t); });
@@ -36148,28 +36404,40 @@ ledger_entry · artifact · agent_run`,
     function enterSide(s){
       bar.hidden = true; syncInset();
       sideModeOn = true;
+      //  Only the opening beat lets the ring roam with the scroll; a beat
+      //  that points at one specific control keeps the ring (and beacon) on
+      //  it whatever the viewer does.
+      sideFollowCards = !s.sideAwait;
       clearSideTimers();
+      hideBeacon();
       nextFab.hidden = true; nextFab.classList.remove("show", "bounce");
       topcap.hidden = false;
-      requestAnimationFrame(function(){ topcap.classList.add("show"); });
+      requestAnimationFrame(function(){ topcap.classList.add("show"); positionTopcap(); });
+      //  Re-seat the caption once the step's entry scroll has settled.
+      sideTimers.push(window.setTimeout(positionTopcap, 500));
+      sideTimers.push(window.setTimeout(positionTopcap, 1100));
       stream(topcap, s.sideCaption || s.caption, function(){
-        //  Read, hold, fade — then hand the stage back to the board and let
-        //  the pill do the asking.
+        //  Read, hold, fade. A beat that ends in a beacon starts it the
+        //  moment the fade begins — the dot should not keep the viewer
+        //  waiting on an empty screen.
+        var beaconBeat = Boolean(s.sideAwait || s.sideEvidence);
         sideTimers.push(window.setTimeout(function(){
           topcap.classList.remove("show");
+          if(s.sideEvidence) evidenceBeat();
+          else if(s.sideAwait) showBeacon(s.target, s.sideAwait);
           sideTimers.push(window.setTimeout(function(){
             topcap.hidden = true;
-            nextFab.hidden = false;
-            if(!REDUCED_TOUR) nextFab.classList.add("bounce");
-            requestAnimationFrame(function(){ nextFab.classList.add("show"); });
+            if(!beaconBeat) showFab();
           }, 550));
-        }, 5600));
+        }, beaconBeat ? 400 : 2100));
       });
     }
 
     function exitSide(){
       sideModeOn = false;
+      sideFollowCards = false;
       clearSideTimers();
+      hideBeacon();
       if(topcap.__btStream){ window.clearInterval(topcap.__btStream); topcap.__btStream = 0; }
       topcap.classList.remove("typing", "show");
       topcap.hidden = true;
@@ -36180,18 +36448,27 @@ ledger_entry · artifact · agent_run`,
       }
     }
 
-    //  While the beat is on: move `.is-current` (and with it the ring) onto
-    //  the card nearest the top of the view as the viewer scrolls.
+    //  While the beat is on: keep the beacon riding its element, and — on
+    //  the opening beat only — move `.is-current` (and with it the ring)
+    //  onto the card nearest the top of the view as the viewer scrolls.
     var sideScrollFrame = 0;
     window.addEventListener("scroll", function(){
       if(!sideModeOn || sideScrollFrame) return;
       sideScrollFrame = requestAnimationFrame(function(){
         sideScrollFrame = 0;
+        positionBeacon();
+        positionTopcap();
+        if(!sideFollowCards) return;
+        //  Card-following only means anything while the board is on screen —
+        //  in chat or Growth the cards all measure zero and the nearest-card
+        //  arithmetic would shuffle .is-current at random.
+        var board = document.getElementById("view-autopilot");
+        if(!board || !board.classList.contains("active")) return;
         var cards = document.querySelectorAll(".feed-card");
         if(!cards.length) return;
         var best = 0, bestD = Infinity;
         cards.forEach(function(c, n){
-          var d = Math.abs(c.getBoundingClientRect().top - 62);
+          var d = Math.abs(c.getBoundingClientRect().top - 50);
           if(d < bestD){ bestD = d; best = n; }
         });
         cards.forEach(function(c, n){ c.classList.toggle("is-current", n === best); });
