@@ -23545,6 +23545,107 @@
     body.day-mode .feed-rail-gauge span { color: #77787e; }
   </style>
 
+  <style id="daylight-linea-v71">
+    /* ==== Daylight: the light theme's last word =========================
+       Modelled on the linea reference: near-white ground, pure white cards
+       with hairlines, near-black type, deep brass doing all the accent work,
+       soft shadows. Scoped day-mode and placed last, so no night !important
+       rule can leak a dark surface into the light theme again. */
+
+    body.day-mode.autopilot-mode {
+      background: #f7f8fa !important;
+    }
+
+    /* The card is a white document. */
+    body.day-mode.autopilot-mode .feed-card,
+    body.day-mode.autopilot-mode .feed-card.is-current { --accent: #a87524 !important; --accent-rgb: 168, 117, 36 !important; }
+    body.day-mode.autopilot-mode .feed-card .post-surface {
+      background: #ffffff !important;
+      border: 1px solid #e7e8ec !important;
+      border-left: 3px solid #a87524 !important;
+      box-shadow: 0 1px 2px rgba(15, 17, 21, .04), 0 10px 30px rgba(15, 17, 21, .05) !important;
+    }
+    body.day-mode.autopilot-mode .post-copy h2,
+    body.day-mode.autopilot-mode .post-copy h2.post-title { color: #101114 !important; }
+    body.day-mode.autopilot-mode .signal-text { color: #3f4149 !important; }
+    body.day-mode.autopilot-mode .social-context strong { color: #101114 !important; }
+    body.day-mode.autopilot-mode .social-context small { color: #787c85 !important; }
+    body.day-mode.autopilot-mode .context-avatar {
+      background: rgba(168, 117, 36, .1) !important;
+      color: #a87524 !important;
+      border: 0 !important;
+    }
+    body.day-mode.autopilot-mode .top-details-button {
+      background: #ffffff !important;
+      border: 1px solid #e7e8ec !important;
+      color: #3f4149 !important;
+    }
+    body.day-mode.autopilot-mode .feed-tag-list span {
+      background: #f7f8fa !important;
+      border: 1px solid #e7e8ec !important;
+      color: #3f4149 !important;
+    }
+    body.day-mode.autopilot-mode .feed-sources small { color: #a87524 !important; }
+    body.day-mode.autopilot-mode .feed-proof-strip { border-top: 1px solid #eef0f3; }
+    body.day-mode.autopilot-mode .feed-proof-item strong { color: #101114 !important; }
+    body.day-mode.autopilot-mode .feed-proof-item i,
+    body.day-mode.autopilot-mode .feed-proof-item svg { color: #a87524 !important; }
+
+    /* The three rows: white, hairline, ink. */
+    body.day-mode.autopilot-mode .feed-plan,
+    body.day-mode.autopilot-mode .feed-more,
+    body.day-mode.autopilot-mode .feed-detail-evidence {
+      background: #ffffff !important;
+      border: 1px solid #e7e8ec !important;
+      color: #101114 !important;
+    }
+    body.day-mode.autopilot-mode .feed-plan:hover,
+    body.day-mode.autopilot-mode .feed-more:hover,
+    body.day-mode.autopilot-mode .feed-detail-evidence:hover {
+      background: #f7f8fa !important;
+      border-color: #d9dbe1 !important;
+    }
+    body.day-mode.autopilot-mode .feed-plan small,
+    body.day-mode.autopilot-mode .feed-more small,
+    body.day-mode.autopilot-mode .feed-detail-evidence small,
+    body.day-mode.autopilot-mode .feed-plan:hover small,
+    body.day-mode.autopilot-mode .feed-more:hover small,
+    body.day-mode.autopilot-mode .feed-detail-evidence:hover small { color: #101114 !important; }
+
+    /* Footer and decisions: brass primary, quiet ghost. */
+    body.day-mode.autopilot-mode .post-footer {
+      background: #fbfbfc !important;
+      border-top: 1px solid #eef0f3 !important;
+    }
+    body.day-mode.autopilot-mode .impact-summary b,
+    body.day-mode.autopilot-mode .impact-summary strong { color: #101114 !important; }
+    body.day-mode.autopilot-mode .impact-summary small { color: #787c85 !important; }
+    body.day-mode.autopilot-mode .decision-button.approve,
+    body.day-mode.autopilot-mode .decision-button.approve:hover {
+      background: #a87524 !important;
+      border: 1px solid transparent !important;
+      box-shadow: 0 8px 22px rgba(168, 117, 36, .28) !important;
+    }
+    body.day-mode.autopilot-mode .decision-button.approve span,
+    body.day-mode.autopilot-mode .decision-button.approve:hover span { color: #ffffff !important; }
+    body.day-mode.autopilot-mode .decision-button.approve svg,
+    body.day-mode.autopilot-mode .decision-button.approve:hover svg { stroke: #ffffff !important; color: #ffffff !important; }
+    body.day-mode.autopilot-mode .decision-button.approve:hover { filter: brightness(1.07); }
+    body.day-mode.autopilot-mode .decision-button.reject {
+      background: #ffffff !important;
+      border: 1px solid #e7e8ec !important;
+      color: #3f4149 !important;
+    }
+    body.day-mode.autopilot-mode .decision-button.reject:hover {
+      background: #f7f8fa !important;
+      color: #101114 !important;
+    }
+
+    /* Group labels and the stream chrome. */
+    body.day-mode.autopilot-mode .feed-group-label { color: #787c85 !important; }
+    body.day-mode.autopilot-mode .feed-filter-empty { color: #787c85 !important; }
+  </style>
+
 </head>
 <body>
   <script>/* Re-apply the saved theme before first paint so day owners never see a dark flash. */try{if(localStorage.getItem("brasstacks-theme")==="day")document.body.classList.add("day-mode");}catch(e){}</script>
