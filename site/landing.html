@@ -6,6 +6,8 @@
 <meta name="description" content="Brass Tacks listens to your market overnight, gives you one clear move by morning, and checks what actually worked.">
 <meta name="theme-color" content="#f5f5f7">
 <title>Brass Tacks — Wake up knowing what to do</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='34' fill='%23e2a85c'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23101114'/%3E%3C/svg%3E" />
+
 <style>
 :root {
   --bg: #f5f5f7;
@@ -752,7 +754,7 @@ body[data-chapter="final"] .ambient::after { opacity: .12; }
   position: relative;
   overflow: hidden;
   min-height: 100svh;
-  padding: 132px 0 26px;
+  padding: clamp(88px, 15svh, 132px) 0 26px;
   display: grid;
   grid-template-rows: 1fr auto;
   align-items: center;
@@ -1401,7 +1403,7 @@ body {
 }
 /* Cinematic display type. */
 h1, h2 { letter-spacing: -.045em; }
-.hero h1 { font-size: clamp(46px, 7vw, 94px); line-height: .99; font-weight: 780; }
+.hero h1 { font-size: clamp(46px, min(7vw, 10.2svh), 94px); line-height: .99; font-weight: 780; }
 .hero h1 em, h2 em {
   font-family: Georgia, "Times New Roman", serif;
   font-style: italic;
@@ -1428,7 +1430,7 @@ h1, h2 { letter-spacing: -.045em; }
 /* The old trace curves fought the radar; one sky, one instrument. */
 .sky-traces { display: none !important; }
 /* Air between the call-to-action and the clue chips beneath it. */
-.hero-actions { margin-bottom: 54px !important; }
+.hero-actions { margin-bottom: clamp(24px, 6.5svh, 54px) !important; }
 
 /* The dawn sky reads as the one cinematic visual; on black the blue haze
    went milky, so both glows go warm and quiet. */
@@ -1469,7 +1471,7 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
 /* The living network: a slowly turning 3D constellation behind the hero —
    nodes and threads, brass on black, the memory graph as a picture. */
 #netMap { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: .9; }
-.hero > *:not(#netMap):not(.hero-sky) { position: relative; z-index: 2; }
+.hero > *:not(#netMap):not(.hero-sky):not(#burnGlow) { position: relative; z-index: 2; }
 /* The burn: a charred grain over the hero, and an ember glow that follows a
    fine pointer — the page smoulders where the visitor touches it. */
 .hero::after {
@@ -1527,7 +1529,7 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
       <p class="hero-copy reveal">Reviews change. Competitors move. Demand shifts. Brass Tacks listens overnight and leaves one clear move for morning.</p>
 
       <div class="hero-actions reveal">
-        <a class="primary" href="app/?tour=owner"><span>Try the interactive demo</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="primary" href="signup/?tour=owner"><span>Try the interactive demo</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
 
     </div>
@@ -1687,7 +1689,7 @@ header { background: rgba(12, 11, 9, .72) !important; border-bottom: 1px solid v
         <div class="relief-copy">
           <h2>Go home tonight.<br>Wake up ready.</h2>
           <p>You keep the final say. Brass Tacks keeps the watch.</p>
-          <div class="relief-actions"><a class="primary" href="app/?tour=owner"><span>Try the interactive demo</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+          <div class="relief-actions"><a class="primary" href="signup/?tour=owner"><span>Try the interactive demo</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
           <div class="relief-badge"><i></i><span>Nothing happens without your approval</span></div>
         </div>
       </div>

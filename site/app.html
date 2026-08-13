@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brass Tacks — Decision Lens</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='34' fill='%23e2a85c'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23101114'/%3E%3C/svg%3E" />
+
   <style>
     :root {
       color-scheme: light;
@@ -22521,7 +22523,9 @@
       animation: none !important;
       scroll-snap-align: none !important;
       scroll-snap-stop: normal !important;
-      scroll-margin-top: 84px;
+      /* Snapped so the previous card's action row is a sliver, not a banner:
+         the Do it button peeks just enough to say there is history above. */
+      scroll-margin-top: 42px;
     }
     .swipe-cue { display: none !important; }
 
@@ -22613,7 +22617,8 @@
     }
 
     /* The rail: real counts beside the stream, sticky while the feed scrolls. */
-    .feed-rail { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 14px; }
+    /* 42px puts "At a glance" level with the top of the snapped card. */
+    .feed-rail { position: sticky; top: 42px; display: flex; flex-direction: column; gap: 14px; }
     .feed-rail-card {
       border: 1px solid var(--owner-line, rgba(242, 239, 233, .13));
       border-radius: 16px;
@@ -23876,7 +23881,7 @@
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3 8-8" /><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" /></svg>
                   <span>What needs my approval?</span>
                 </button>
-                <button type="button" class="chat-hint" data-chat-hint="order 2 cases of tomatoes">
+                <button type="button" class="chat-hint" data-chat-hint="order 2 packs of nori">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6h15l-1.5 9h-13z" /><circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" /><path d="M6 6 5 3H2" /></svg>
                   <span>Order supplies for me</span>
                 </button>
@@ -24003,14 +24008,14 @@
             <h2 class="sr-only" id="ordersAskHeading">Ask for something</h2>
             <form class="orders-ask" id="ordersAskForm">
               <input type="text" id="ordersAskInput" autocomplete="off"
-                     placeholder="What do you need? &mdash; try &ldquo;2 cases of tomatoes&rdquo;"
+                     placeholder="What do you need? &mdash; try &ldquo;2 packs of nori&rdquo;"
                      aria-label="What would you like to order?" />
               <button type="submit" class="orders-btn primary">Order</button>
             </form>
             <div class="orders-ask-examples">
-              <button type="button" class="orders-example" data-example="order 20lb of tomatoes and a case of olive oil">20lb tomatoes + olive oil</button>
-              <button type="button" class="orders-example" data-example="get 3 bags of flour">3 bags of flour</button>
-              <button type="button" class="orders-example" data-example="order 1 tin of saffron">1 tin of saffron</button>
+              <button type="button" class="orders-example" data-example="order 8 packs of nori and a bottle of soy sauce">8 packs nori + soy sauce</button>
+              <button type="button" class="orders-example" data-example="get 3 bags of sushi rice">3 bags of sushi rice</button>
+              <button type="button" class="orders-example" data-example="order 1kg of bluefin tuna">1kg of bluefin tuna</button>
             </div>
             <!-- The store's full price list, collapsed by default so it never
                  crowds the board, one tap to see everything on offer. Filled by
@@ -24079,8 +24084,8 @@
                 <button type="button" class="orders-btn ghost small" id="ordersAddStanding">Add</button>
               </div>
               <form class="orders-form" id="ordersStandingForm" hidden>
-                <label>Name<input type="text" name="name" placeholder="The usual produce" required /></label>
-                <label>Items<input type="text" name="items" placeholder="tomatoes x8, flour x2" required /></label>
+                <label>Name<input type="text" name="name" placeholder="The weekly pantry" required /></label>
+                <label>Items<input type="text" name="items" placeholder="nori x8, sushi rice x2" required /></label>
                 <label>Repeats
                   <select name="schedule">
                     <option value="w1">Every Tuesday</option>
@@ -24111,7 +24116,7 @@
                 <button type="button" class="orders-btn ghost small" id="ordersAddStock" hidden>Add</button>
               </div>
               <form class="orders-form" id="ordersStockForm" hidden>
-                <label>Item<input type="text" name="name" placeholder="tomatoes" required /></label>
+                <label>Item<input type="text" name="name" placeholder="nori" required /></label>
                 <label>You get through per week<input type="number" name="usage_per_week" min="1" value="3" required /></label>
                 <label>Ask to reorder at<input type="number" name="reorder_at" min="0" value="2" required /></label>
                 <label>Reorder this many<input type="number" name="reorder_quantity" min="1" value="6" required /></label>
@@ -26364,7 +26369,10 @@
     }
 
     async function refreshWorkflowSnapshot({ force = false, silent = false } = {}) {
-      if (!workflowApiConfigured) {
+      //  The guided tour seeds a placeholder token, so the live call can only
+      //  401 — skip the round trip and stay on the committed fixture. A real
+      //  session that happens to be touring keeps its live data.
+      if (!workflowApiConfigured || readSession()?.token === "guided-tour") {
         workflowRefreshState = "static";
         updateWorkflowLiveStatus();
         return false;
@@ -27569,6 +27577,105 @@
       }
     });
 
+    /**
+     * The wheel pages the queue one card at a time.
+     *
+     * Left to the browser, a wheel over the feed was plain document scroll,
+     * and stopping between cards was the owner's job. Now the gesture is the
+     * unit: pass the threshold and the feed glides to the next card, the way
+     * a phone feed advances. Bound once on document for the same reason as
+     * the arrow keys above; non-passive because stepping only works if the
+     * native scroll never happens. The settle flag exists for trackpads,
+     * whose momentum keeps sending events long after the finger stopped —
+     * without it one flick pages through half the queue.
+     */
+    const WHEEL_STEP_THRESHOLD = 70;
+    const WHEEL_STEP_LOCK_MS = 620;
+    const WHEEL_GESTURE_GAP_MS = 170;
+    let wheelAccum = 0;
+    let wheelLastAt = 0;
+    let wheelLockUntil = 0;
+    let wheelSettling = false;
+
+    //  Stepping starts from the card actually nearest the top of the view,
+    //  not from currentIndex: a scrollbar drag or an in-page anchor can move
+    //  the feed without going through goToPost, and stepping from a stale
+    //  index would teleport rather than advance.
+    function nearestFeedCardIndex() {
+      const cards = document.querySelectorAll(".feed-card");
+      let best = 0;
+      let bestDistance = Infinity;
+      cards.forEach((card, index) => {
+        const distance = Math.abs(card.getBoundingClientRect().top - 50);
+        if (distance < bestDistance) { bestDistance = distance; best = index; }
+      });
+      return { index: best, count: cards.length };
+    }
+
+    document.addEventListener("wheel", event => {
+      if (activeView !== "autopilot" || usesNativeMobileFeed()) return;
+      if (detailDrawer.classList.contains("open")) return;
+      const deck = event.target instanceof Element ? event.target.closest(".feed-scroll-deck") : null;
+      if (!deck) return;
+
+      //  A scrollable region inside the deck (an open plan, a long evidence
+      //  list) keeps its own wheel until it runs out of room in the gesture's
+      //  direction — the feed only steps when the scroll has nowhere else to go.
+      for (let el = event.target; el instanceof Element && el !== deck; el = el.parentElement) {
+        const overflowY = getComputedStyle(el).overflowY;
+        if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1) {
+          const scrollingUp = event.deltaY < 0;
+          if (scrollingUp ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1) return;
+        }
+      }
+
+      const now = performance.now();
+      const gap = now - wheelLastAt;
+      wheelLastAt = now;
+      const { index, count } = nearestFeedCardIndex();
+      if (!count) return;
+
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+
+      //  Hard lock while the glide is in flight: these events are almost
+      //  always the tail of the gesture that started it.
+      if (now < wheelLockUntil) {
+        event.preventDefault();
+        return;
+      }
+
+      //  A quiet spell ends the previous gesture; anything sooner is its
+      //  momentum tail, which must clear a much higher bar to step again —
+      //  that bar is what lets a deliberate fast spin keep advancing while a
+      //  decaying trackpad tail dies out.
+      let inTail = false;
+      if (wheelSettling) {
+        if (gap >= WHEEL_GESTURE_GAP_MS) {
+          wheelSettling = false;
+          wheelAccum = 0;
+        } else {
+          inTail = true;
+        }
+      }
+
+      //  First card, wheeling up, between gestures: nothing above to step
+      //  to, so the page keeps its native scroll and the top stays reachable.
+      if (!inTail && index === 0 && delta < 0) return;
+
+      event.preventDefault();
+
+      if (!inTail && gap > WHEEL_GESTURE_GAP_MS * 2) wheelAccum = 0;
+      wheelAccum += delta;
+      if (Math.abs(wheelAccum) < WHEEL_STEP_THRESHOLD * (inTail ? 3 : 1)) return;
+
+      const direction = wheelAccum > 0 ? 1 : -1;
+      wheelAccum = 0;
+      wheelLockUntil = now + WHEEL_STEP_LOCK_MS;
+      wheelSettling = true;
+      //  At the ends this re-snaps the edge card instead of stepping past it.
+      goToPost(Math.max(0, Math.min(count - 1, index + direction)));
+    }, { passive: false });
+
     async function persistDecision(post, status) {
       const base = String(btData.api?.decisionEndpoint || "").replace(/\/$/, "");
       //  A tour's placeholder session must never write a decision to the live
@@ -27866,9 +27973,28 @@
         bindDynamicActions();
         return;
       }
-      const approved = getApprovedPosts();
+      const sessionApproved = getApprovedPosts();
       const rejected = getRejectedPosts();
       const pending = getPendingPosts();
+
+      //  The Approved list is the durable record, not a session log: the
+      //  moves CockroachDB says are accepted and still inside their
+      //  measurement window sit here beside anything approved just now.
+      //  Each row carries the outcome strip, so "Add what this move earned"
+      //  is available on every move the Meter has not yet scored.
+      const liveMine = Array.isArray(liveWorkflowWorkspaces) && liveWorkflowWorkspaces.length
+        ? liveWorkflowWorkspaces[0]
+        : null;
+      const growthWorkspace = liveMine || btData;
+      const sessionIds = new Set(sessionApproved.map(post => post.id));
+      growthDurablePosts = (growthWorkspace.finds || [])
+        .filter(found => !found.verdict && ["accepted", "live"].includes(found.status))
+        .filter(found => !sessionIds.has(found.id))
+        //  Largest prediction first, so the row the tour talks about leads.
+        .sort((a, b) => (Number(b.predictedDaily) || 0) - (Number(a.predictedDaily) || 0))
+        .map(found => findToPost(found, { serverVerified: true }));
+      const approved = growthDurablePosts.concat(sessionApproved);
+
       // Named for what it is. `approvedTotal` beside a green `+$690` was read,
       // reasonably, as a total the business had taken in; it is a sum of
       // predictions and never touches the ledger-backed summary.
@@ -30656,6 +30782,10 @@ ledger_entry · artifact · agent_run`,
     //  the figure away. Restored on render from here.
     const openOutcomePanels = new Set();
 
+    //  The durable approved rows (accepted in CockroachDB, still measuring)
+    //  are not in `posts`, so outcome saves need their own lookup table.
+    let growthDurablePosts = [];
+
     function outcomeStripHtml(post, status) {
       //  Only a move the owner accepted can have earned anything. A find that
       //  was passed over has no outcome to report and never will.
@@ -30685,7 +30815,7 @@ ledger_entry · artifact · agent_run`,
         : "";
 
       return `
-        <details class="outcome-panel" data-outcome-panel="${escapeHtml(post.id)}"${openOutcomePanels.has(post.id) ? " open" : ""}>
+        <details class="outcome-panel" data-outcome-panel="${escapeHtml(post.id)}"${reported ? ` data-reported="true"` : ""}${openOutcomePanels.has(post.id) ? " open" : ""}>
           <summary>
             <span class="outcome-summary-icon" aria-hidden="true">${reported ? "✓" : "＋"}</span>
             <span class="outcome-summary-copy">
@@ -30749,7 +30879,8 @@ ledger_entry · artifact · agent_run`,
     }
 
     async function saveOutcome(postId, button) {
-      const post = posts.find(item => item.id === postId);
+      const post = posts.find(item => item.id === postId)
+        || growthDurablePosts.find(item => item.id === postId);
       if (!post) return;
       const row = button.closest(".outcome-panel");
       const amount = String(row?.querySelector("[data-outcome-amount]")?.value || "").trim();
@@ -34526,33 +34657,36 @@ ledger_entry · artifact · agent_run`,
       const view = document.getElementById("ordersBoard");
       if (!view) return;
 
-      const CATALOGUE = { "tomatoes": 450, "olive oil": 1200, "flour": 325, "saffron": 4200 };
+      //  A sushi kitchen's pantry — the demo tenant is a coastal Japanese
+      //  restaurant, and the board it shows judges must read like its own.
+      const CATALOGUE = { "nori": 450, "soy sauce": 1200, "sushi rice": 325, "bluefin tuna": 4200,
+                          "wasabi paste": 950, "pickled ginger": 600, "green tea": 1800, "white miso": 2600 };
       const FEES = 299;
 
       // Mirrors purchase_authority.PurchaseAuthority.
       const limits = [
-        { scope: "produce", level: "auto", perOrder: 12000, periodCap: 20000, spent: 4850 },
-        { scope: "flour", level: "ask_if_over", perOrder: 8000, threshold: 2000, spent: 0 },
-        { scope: "saffron", level: "ask_always", perOrder: 50000, spent: 0 },
+        { scope: "pantry", level: "auto", perOrder: 12000, periodCap: 20000, spent: 4850 },
+        { scope: "sushi rice", level: "ask_if_over", perOrder: 8000, threshold: 2000, spent: 0 },
+        { scope: "bluefin tuna", level: "ask_always", perOrder: 50000, spent: 0 },
       ];
 
       const standing = [
-        { name: "The usual produce", items: [["tomatoes", 8]], when: "Every Tuesday", next: "Tue 11 Aug", paused: false, category: "produce" },
-        { name: "Dry goods top-up", items: [["flour", 4]], when: "Every 14 days", next: "Thu 20 Aug", paused: false, category: null },
+        { name: "The weekly pantry", items: [["nori", 8]], when: "Every Tuesday", next: "Tue 11 Aug", paused: false, category: "pantry" },
+        { name: "Rice top-up", items: [["sushi rice", 4]], when: "Every 14 days", next: "Thu 20 Aug", paused: false, category: null },
       ];
 
       // Mirrors stock.StockEstimate — the basis sentence is shown, not hidden.
       const stock = [
-        { name: "tomatoes", remaining: 5, reorderAt: 7, reorderQty: 12, full: 14,
-          basis: "Last bought 9 days ago (14 units); you get through about 7 a week, so roughly 5 left." },
-        { name: "olive oil", remaining: 2, reorderAt: 3, reorderQty: 6, full: 8,
-          basis: "Last bought 12 days ago (8 units); you get through about 3 a week, so roughly 2 left." },
+        { name: "nori", remaining: 5, reorderAt: 7, reorderQty: 12, full: 14,
+          basis: "Last bought 9 days ago (14 packs); you get through about 7 a week, so roughly 5 left." },
+        { name: "soy sauce", remaining: 2, reorderAt: 3, reorderQty: 6, full: 8,
+          basis: "Last bought 12 days ago (8 bottles); you get through about 3 a week, so roughly 2 left." },
       ];
 
       const pending = [];
       const history = [
-        { title: "The usual produce", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing", payRef: "pi_test_60417" },
-        { title: "Flour, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked", payRef: "pi_test_60318" },
+        { title: "The weekly pantry", total: 3899, when: "Tue 4 Aug", ref: "dd-8841207", tag: "standing", payRef: "pi_test_60417" },
+        { title: "Sushi rice, 3 bags", total: 1274, when: "Fri 31 Jul", ref: "dd-8830994", tag: "you asked", payRef: "pi_test_60318" },
       ];
 
       // Deterministic test-mode Stripe references, like the fake payment
@@ -34696,8 +34830,25 @@ ledger_entry · artifact · agent_run`,
           </div>`).join("");
       }
 
+      /* The full price list, mirrored from the live board's disclosure. The
+         guided tour points its spotlight here when the captions talk about
+         supplies, so a preview build must actually render it — it used to
+         stay hidden, and the tour described a price list nobody could see. */
+      function renderCatalogue() {
+        const box = el("ordersCatalogue");
+        const grid = el("ordersCatalogueGrid");
+        if (!box || !grid) return;
+        const names = Object.keys(CATALOGUE).sort((a, b) => a.localeCompare(b));
+        box.hidden = false;
+        const countEl = box.querySelector(".orders-catalogue-count");
+        if (countEl) countEl.textContent = `${names.length} item${names.length === 1 ? "" : "s"}`;
+        grid.innerHTML = names.map(name => `
+          <button type="button" class="orders-catalogue-item" data-order="${escapeHtml(name)}"
+                  title="Order ${escapeHtml(name)}"><b>${escapeHtml(name)}</b><span>${money(CATALOGUE[name])}</span></button>`).join("");
+      }
+
       function renderAll() {
-        renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory();
+        renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory(); renderCatalogue();
         // Sample figures, like everything else on the preview board — the
         // banner above them already says so.
         renderOrdersStats({
@@ -34743,7 +34894,7 @@ ledger_entry · artifact · agent_run`,
             + Object.keys(CATALOGUE).join(", ") + "." };
         }
         const title = items.map(([name, qty]) => `${name} ×${qty}`).join(", ");
-        const category = items.every(([n]) => n === "tomatoes" || n === "olive oil") ? "produce" : null;
+        const category = items.every(([n]) => n === "nori" || n === "soy sauce") ? "pantry" : null;
         return submit(priceCart(items), title, category, "owner");
       };
 
@@ -34778,18 +34929,27 @@ ledger_entry · artifact · agent_run`,
           note("That didn't look like a request to buy anything I recognise. Try naming an item.", true);
           return;
         }
-        const category = items.every(([n]) => n === "tomatoes" || n === "olive oil") ? "produce" : null;
+        const category = items.every(([n]) => n === "nori" || n === "soy sauce") ? "pantry" : null;
         submit(priceCart(items), text, category, "owner");
         el("ordersAskInput").value = "";
       });
 
       view.addEventListener("click", event => {
-        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example]");
+        const target = event.target.closest("button[data-approve],button[data-reject],button[data-drift],button[data-pause],button[data-run],button[data-restock],[data-example],[data-order]");
         if (!target) return;
 
         if (target.dataset.example != null) {
           el("ordersAskInput").value = target.dataset.example;
           el("ordersAskInput").focus();
+          return;
+        }
+        //  A tap on a price-list item orders one of it through the same
+        //  purchase authority as everything else — tapping bluefin tuna is
+        //  the quickest way to see the approval gate work.
+        if (target.dataset.order != null) {
+          const name = target.dataset.order;
+          const category = (name === "nori" || name === "soy sauce") ? "pantry" : null;
+          submit(priceCart([[name, 1]]), `${name} ×1`, category, "owner");
           return;
         }
         if (target.dataset.approve != null) {
@@ -34845,9 +35005,9 @@ ledger_entry · artifact · agent_run`,
       // rather than an empty section. Saffron is set to ask every time, which
       // is the reason shown.
       pending.push({
-        title: "Saffron, 1 tin",
-        cart: priceCart([["saffron", 1]]),
-        reason: "saffron is set to ask every time.",
+        title: "Bluefin tuna, 1kg",
+        cart: priceCart([["bluefin tuna", 1]]),
+        reason: "bluefin tuna is set to ask every time.",
         category: null,
         trigger: "owner",
       });
@@ -35115,7 +35275,7 @@ ledger_entry · artifact · agent_run`,
            + "the board itself lives on Supplies.")
         : CHAT_TOUR_DEMO
         ? ("Hi — in this demo, ordering works for real against a sample store "
-           + "and a test card. Try “order 2 cases of tomatoes”; approvals land "
+           + "and a test card. Try “order 2 packs of nori”; approvals land "
            + "on the Supplies board.")
         : ("This build isn't connected to the agents, so I can't act or "
            + "answer from memory. When the deployed site loads this screen, "
@@ -35744,6 +35904,64 @@ ledger_entry · artifact · agent_run`,
       + 'body.bt-demo-on .app{height:auto;padding-top:104px;}}';
     document.head.appendChild(style);
 
+    // The opening beat: a step marked `side` retires the bottom bar. Its
+    // caption types itself out over the top of the board, holds a moment,
+    // fades — and then a lone Next pill appears at the right edge, bobbing
+    // gently until it is pressed.
+    style.textContent +=
+      /* Small enough to live in the band between the topbar and the card's
+         top edge, so it never sits over the recommendation itself. */
+      '.bt-demo-topcap{position:fixed;z-index:99999;top:68px;left:50%;'
+      + 'transform:translateX(-50%);max-width:min(760px,calc(100vw - 32px));margin:0;'
+      + 'text-align:center;font:700 clamp(12.5px,1.15vw,15px)/1.4 -apple-system,'
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#f4f2ec;'
+      + 'text-shadow:0 2px 18px rgba(0,0,0,.8),0 0 3px rgba(0,0,0,.9);'
+      + 'pointer-events:none;opacity:0;transition:opacity .5s ease;}'
+      + '.bt-demo-topcap.show{opacity:1;}'
+      + '.bt-demo-topcap.typing::after{content:"\\258B";color:#e8b94a;margin-left:2px;'
+      + 'animation:btSideCaret 1s steps(1) infinite;}'
+      + '.bt-demo-topcap.boxed{background:rgba(10,11,14,.85);padding:8px 16px;'
+      + 'border-radius:12px;border:1px solid rgba(242,239,233,.13);'
+      + 'backdrop-filter:blur(8px);box-shadow:0 12px 34px rgba(0,0,0,.45);}'
+      + '@keyframes btSideCaret{50%{opacity:0;}}'
+      + '.bt-demo-nextfab{position:fixed;z-index:99999;right:26px;top:50%;'
+      + 'transform:translateY(-50%);opacity:0;transition:opacity .4s ease;}'
+      + '.bt-demo-nextfab.show{opacity:1;}'
+      + '.bt-demo-nextfab button{font:700 15px -apple-system,BlinkMacSystemFont,'
+      + '"Segoe UI",Inter,sans-serif;border-radius:999px;cursor:pointer;'
+      + 'padding:12px 22px;border:1px solid #D9A93F;background:#D9A93F;color:#14161c;'
+      + 'box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 22px rgba(217,169,63,.35);}'
+      /* The bounce class is only ever added when the viewer has not asked
+         for reduced motion — the JS gate, same as the caption stream. */
+      + '.bt-demo-nextfab.bounce button{animation:btNextBounce 1.7s ease-in-out infinite;}'
+      + '.bt-demo-nextfab button:hover{background:#e8b94a;border-color:#e8b94a;}'
+      + '@keyframes btNextBounce{0%,100%{transform:translateY(0);}'
+      + '50%{transform:translateY(-8px);}}'
+      + '@media (max-width:760px){'
+      + '.bt-demo-topcap{top:66px;}'
+      + '.bt-demo-nextfab{top:auto;bottom:18px;transform:none;}}'
+      /* The beacon: a small brass dot with rings that swell and die, pinned
+         to the corner of whatever the viewer is being asked to press. */
+      /* Clickable, and it forwards the click to the control it marks — a
+         viewer aiming at the dot or the label must not land on nothing. */
+      + '.bt-demo-beacon{position:fixed;z-index:99999;width:10px;height:10px;'
+      + 'cursor:pointer;opacity:0;transition:opacity .3s ease;}'
+      + '.bt-demo-beacon.show{opacity:1;}'
+      + '.bt-demo-beacon i{position:absolute;inset:0;border-radius:50%;'
+      + 'background:#e8b94a;box-shadow:0 0 12px rgba(232,185,74,.85);}'
+      + '.bt-demo-beacon span{position:absolute;inset:0;border-radius:50%;'
+      + 'border:2px solid rgba(232,185,74,.7);opacity:0;}'
+      + '.bt-demo-beacon.ping span{animation:btBeaconPing 1.8s ease-out infinite;}'
+      + '.bt-demo-beacon.ping span:nth-child(2){animation-delay:.9s;}'
+      + '@keyframes btBeaconPing{0%{transform:scale(1);opacity:.85;}'
+      + '100%{transform:scale(3.6);opacity:0;}}'
+      + '.bt-demo-beacon.quiet em{display:none;}'
+      + '.bt-demo-beacon em{position:absolute;left:50%;bottom:18px;'
+      + 'transform:translateX(-50%);'
+      + 'font:700 12px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;'
+      + 'font-style:normal;color:#f4e9d0;white-space:nowrap;'
+      + 'text-shadow:0 1px 8px rgba(0,0,0,.9);}';
+
     // ---- defensive drivers: a missing target is skipped, never thrown --------
     function scrollTo(sel){ try{ var el=document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }
     function click(sel){ try{ var el=document.querySelector(sel); if(el) el.click(); }catch(e){} }
@@ -35764,12 +35982,21 @@ ledger_entry · artifact · agent_run`,
     //  scrolling it into view AND moving `.is-current` onto it, so the CURRENT
     //  selector (and the spotlight) follows the card the caption talks about.
     //  Absolute state, so Back re-running a step lands on the same card.
+    //  The opening beat starts from the top of the feed — day label and all —
+    //  rather than from wherever a snap position would put the first card.
+    function feedTop(){ try{
+      var v = document.getElementById("view-autopilot");
+      if(v) v.scrollTo({ top: 0, behavior: "smooth" });
+    }catch(e){} }
     function focusCard(n){ try{
       var cards = document.querySelectorAll(".feed-card");
       if(!cards.length) return;
       var i = Math.max(0, Math.min(cards.length - 1, n));
       cards.forEach(function(card, k){ card.classList.toggle("is-current", k === i); });
-      cards[i].scrollIntoView({ behavior: "smooth", block: "center" });
+      //  "start", not "center": centring left the previous card's white
+      //  Do it row sitting exactly where the beat captions stream. This
+      //  lands the card at the same snap position the wheel uses.
+      cards[i].scrollIntoView({ behavior: "smooth", block: "start" });
     }catch(e){} }
     //  The sheet is inserted into the DOM when it opens, so its presence IS its
     //  state -- no class to guess at.
@@ -35804,42 +36031,42 @@ ledger_entry · artifact · agent_run`,
 
     var TOUR_STORE = {
       store: { catalogue: [
-        { name: "San Marzano tomatoes (case)", unit_cents: 2400 },
-        { name: "Fresh mozzarella (5kg)", unit_cents: 3800 },
-        { name: "Extra-virgin olive oil (5L)", unit_cents: 5200 },
-        { name: "00 flour (25kg)", unit_cents: 2900 },
-        { name: "Espresso beans (1kg)", unit_cents: 1800 },
-        { name: "Mascarpone (2kg)", unit_cents: 2600 },
-        { name: "Fresh basil (bunch)", unit_cents: 320 },
-        { name: "Parmigiano wedge", unit_cents: 4400 }
+        { name: "Sushi rice (25kg)", unit_cents: 2400 },
+        { name: "Sushi-grade salmon (5kg)", unit_cents: 3800 },
+        { name: "Soy sauce (18L)", unit_cents: 5200 },
+        { name: "Nori sheets (10×100)", unit_cents: 2900 },
+        { name: "Green tea (1kg)", unit_cents: 1800 },
+        { name: "White miso (2kg)", unit_cents: 2600 },
+        { name: "Shiso leaves (bunch)", unit_cents: 320 },
+        { name: "Bluefin tuna (kg)", unit_cents: 4400 }
       ]},
       standing: [
-        { id:"s1", name:"Weekly tomatoes & mozzarella", enabled:true,
-          items:[["San Marzano tomatoes (case)",2],["Fresh mozzarella (5kg)",1]],
+        { id:"s1", name:"Weekly rice & salmon", enabled:true,
+          items:[["Sushi rice (25kg)",2],["Sushi-grade salmon (5kg)",1]],
           schedule:"Every Monday, 7am", next:"2026-08-11" },
-        { id:"s2", name:"Espresso beans", enabled:true,
-          items:[["Espresso beans (1kg)",3]], schedule:"Every 10 days", next:"2026-08-13" }
+        { id:"s2", name:"Green tea", enabled:true,
+          items:[["Green tea (1kg)",3]], schedule:"Every 10 days", next:"2026-08-13" }
       ],
       stock: [
-        { id:"k1", name:"Fresh mozzarella", known:true, gauge_full:10, remaining:2, is_low:true,
-          basis:"Using about 1.6kg a day over the last two weeks", reorder_quantity:"2 tubs" },
-        { id:"k2", name:"San Marzano tomatoes", known:true, gauge_full:12, remaining:7, is_low:false,
-          basis:"Steady at about a case a day" },
-        { id:"k3", name:"Mascarpone", known:true, gauge_full:8, remaining:6, is_low:false,
+        { id:"k1", name:"Sushi-grade salmon", known:true, gauge_full:10, remaining:2, is_low:true,
+          basis:"Using about 1.6kg a day over the last two weeks", reorder_quantity:"2 sides" },
+        { id:"k2", name:"Sushi rice", known:true, gauge_full:12, remaining:7, is_low:false,
+          basis:"Steady at about a bag a day" },
+        { id:"k3", name:"White miso", known:true, gauge_full:8, remaining:6, is_low:false,
           basis:"Slower midweek" }
       ],
       limits: [
-        { scope:"Produce & dairy", level:"auto", per_order_cap_cents:8000,
+        { scope:"Fish & produce", level:"auto", per_order_cap_cents:8000,
           period_cap_cents:20000, spent_in_period_cents:9600 },
         { scope:"Everything else", level:"ask_if_over", per_order_cap_cents:15000,
           auto_threshold_cents:5000 }
       ],
       history: [
-        { title:"Weekly tomatoes & mozzarella", status:"placed", total_cents:6200,
+        { title:"Weekly rice & salmon", status:"placed", total_cents:6200,
           created_at:"2026-08-04", trigger:"standing", cart:{lines:[]} },
-        { title:"Espresso beans x3", status:"placed", total_cents:5400,
+        { title:"Green tea x3", status:"placed", total_cents:5400,
           created_at:"2026-08-03", trigger:"standing", cart:{lines:[]} },
-        { title:"Olive oil x1", status:"placed", total_cents:5200,
+        { title:"Soy sauce x1", status:"placed", total_cents:5200,
           created_at:"2026-07-30", trigger:"ask", cart:{lines:[]} }
       ],
       pending: []
@@ -35862,29 +36089,76 @@ ledger_entry · artifact · agent_run`,
 
     var OWNER_STEPS = [
       { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, its agents work the night shift — and this is what the owner wakes up to.",
-        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); }, target:"#feedStage", settle:400 },
-      { ch:0, caption:"Each card is one finding from last night, grouped by the day it arrived. Scroll the feed — pricing, hours, reviews, supply.",
-        run:function(){ view("autopilot"); evidence(false); focusCard(1); }, target:CURRENT.trim(), settle:300 },
-      { ch:0, caption:"Open it and it isn't a hunch. Weekend patio bookings: a specific move, $9 a day, and a date it gets checked.",
-        run:function(){ view("autopilot"); evidence(false); focusCard(1); planSheet(true); }, target:CURRENT + ".feed-plan", settle:350 },
-      { ch:0, caption:"And its evidence: the real reviews the vector search returned, each scored by how closely it matched. Guests naming the patio, and one warning about the wait.",
-        run:function(){ view("autopilot"); focusCard(1); evidence(true); }, settle:400 },
-      { ch:0, caption:"That similarity score is stored with every recommendation. Retrieval you can audit, not a black box.",
-        run:function(){ view("autopilot"); evidence(false); }, target:CURRENT + ".feed-plan", settle:300 },
+        //  The card, not #feedStage: the stage is the whole scrolling column,
+        //  so its ring ran past the bottom of the viewport instead of framing
+        //  the recommendation the caption is talking about.
+        //  `side`: this step speaks from the right rail instead of the bottom
+        //  bar, streams its shorter caption, and waits for a scroll before it
+        //  offers Next — the opening beat teaches the feed gesture.
+        side:true,
+        sideCaption:"The Brass Tacks agent team curates specific recs each night. Scroll to see more.",
+        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); feedTop(); }, target:CURRENT.trim(), settle:400 },
+      //  The "each card is one finding, scroll the feed" step is gone: the
+      //  opening beat already says it and waits while the viewer scrolls.
+      //  The plan beat: same grammar as the opening. The caption streams and
+      //  fades, then a pinging beacon lands on the Execution plan row and
+      //  waits for the viewer to open it themselves — the Next pill only
+      //  appears once the sheet is up. Nothing opens on the viewer's behalf.
+      { ch:0, caption:"Each move has a clear execution plan attached.",
+        side:true,
+        sideCaption:"Each move has a clear execution plan attached.",
+        sideAwait:"plan",
+        run:function(){ view("autopilot"); evidence(false); focusCard(7); }, target:CURRENT + ".feed-plan", settle:350 },
+      //  The evidence beat: nothing opens on the viewer's behalf. The dot
+      //  lands on the plan sheet's × first, then the ring and the dot move
+      //  to the evidence row, and the beat ends when the viewer opens it.
+      { ch:0, caption:"Evidence that led to this find is kept for the user to see.",
+        side:true,
+        sideCaption:"Evidence that led to this find is kept for the user to see.",
+        sideEvidence:true,
+        //  evidence(false): arriving by Back re-plays the beat, and the beat
+        //  must start with the document closed or it bounces straight out.
+        run:function(){ view("autopilot"); focusCard(7); evidence(false); }, settle:400 },
+      //  Spoken over the open evidence panel, ring on a similarity score:
+      //  the number is CockroachDB's cosine similarity for that row, stored
+      //  with the find — the audit trail the demo keeps pointing at.
+      { ch:0, caption:"Each score is how closely CockroachDB's vector search matched that review to this find — stored with the recommendation, so retrieval can be audited.",
+        side:true,
+        sideCaption:"Each score is how closely CockroachDB's vector search matched that review to this find — stored so retrieval can be audited.",
+        run:function(){ view("autopilot"); focusCard(7); evidence(true); }, target:"#evidenceSheet .evidence-similarity", settle:500 },
 
+      //  From here on, every step is a beat: the caption streams on a pill
+      //  under the topbar (nothing in these views to anchor above), the ring
+      //  marks what the caption is about, and the bobbing pill carries on.
+      //  View-sized rings are gone — a golden box around the whole screen
+      //  said nothing the view itself didn't.
       { ch:1, caption:"She doesn't hunt through menus. She just asks — this is the same agent, in conversation.",
-        run:function(){ view("chat"); }, target:"#view-chat", settle:450 },
+        side:true,
+        sideCaption:"No menus to hunt through — the owner just asks the same agent, in conversation.",
+        run:function(){ view("chat"); evidence(false); }, settle:450 },
       { ch:1, caption:"Ask what needs a decision, and it answers from the work it has already done.",
+        side:true,
+        sideCaption:"Ask what needs a decision, and it answers from the work it has already done.",
         run:function(){ view("chat"); sayOnce("approve-q", function(){ owner("What needs my approval?"); }); }, settle:300 },
       { ch:1, caption:"It drafts every move and then waits. It never spends money or publishes anything without an explicit yes.",
+        side:true,
+        sideCaption:"It drafts every move and then waits — nothing is spent or published without an explicit yes.",
         run:function(){ view("chat"); sayOnce("approve-a", function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }); }, settle:300 },
       { ch:1, caption:"It runs the supply side too. Ask it to order, and it opens a priced catalogue.",
+        side:true,
+        sideCaption:"It runs the supply side too — ask it to order, and a priced catalogue opens.",
         run:function(){ view("chat"); sayOnce("supply-q", function(){ owner("Order supplies for me"); }); }, settle:300 },
       { ch:1, caption:"A real price list, what's on auto-stock, and every order it has already placed — charged only when an order actually ships.",
+        side:true,
+        sideCaption:"A real price list, what's on auto-stock, and every order placed — charged only when an order ships.",
         run:function(){ view("chat"); sayOnce("supply-a", function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); }); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersCatalogue"); }, target:"#ordersCatalogue", settle:600 },
       { ch:1, caption:"Auto-stock reorders what runs low — always under a spending cap the owner sets, which no model can talk its way past.",
+        side:true,
+        sideCaption:"Auto-stock reorders what runs low — always under a spending cap the owner sets.",
         run:function(){ view("chat"); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersStandingList"); }, target:"#ordersStandingList", settle:500 },
       { ch:1, caption:"And a receipt for everything it bought, with what it actually paid.",
+        side:true,
+        sideCaption:"And a receipt for everything it bought, with what it actually paid.",
         run:function(){ view("chat"); orders(TOUR_STORE); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
 
       // No verdict exists yet for this tenant: the earliest measurement window
@@ -35893,27 +36167,52 @@ ledger_entry · artifact · agent_run`,
       // version -- and the Growth chart is deliberately not a target here,
       // because it needs two months of ledger and there are none.
       { ch:2, caption:"Here is what makes this different from a chatbot. Every move the owner approves is stored with what the agent expects it to earn.",
-        run:function(){ view("growth"); }, target:"#view-growth", settle:500 },
-      { ch:2, caption:"Seven moves are in flight right now. The biggest — lead every listing with the ocean-view patio — predicts $22 a day.",
-        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:550 },
-      { ch:2, caption:"That number was written to CockroachDB the night it was proposed, with the date it gets graded: 1 September. Nobody can edit it between now and then.",
-        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:450 },
-      { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so it published none. The owner ran it anyway and reported $500 a week.",
-        run:function(){ view("growth"); scrollTo("#approvedList"); }, target:"#approvedList", settle:450 },
-      { ch:2, caption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
-        run:function(){ view("growth"); }, settle:200 }
+        side:true,
+        sideCaption:"What makes this different from a chatbot: every approved move is stored with what the agent expects it to earn.",
+        run:function(){ view("growth"); }, settle:500 },
+      //  The Approved list now holds the durable record — the measuring
+      //  moves from CockroachDB, largest prediction first — so these steps
+      //  ring real rows: the patio move, then the reported-outcome strip on
+      //  the lunch bento, which is the "Add what this move earned" feature.
+      //  One beat, not two: the CockroachDB claim rides with the row it is
+      //  about instead of holding the same ring for a second step.
+      { ch:2, caption:"Seven approved moves are still inside their measurement window. The biggest — the ocean-view patio — predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it between now and then.",
+        side:true,
+        sideCaption:"Seven approved moves are still being measured. The biggest — the ocean-view patio — predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it between now and then.",
+        run:function(){ view("growth"); scrollTo("#approvedList .decision-row-group:first-child"); }, target:"#approvedList .decision-row-group:first-child", settle:550 },
+      { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so the owner added what it earned: $500 a week.",
+        side:true,
+        sideCaption:"The agent published no figure for the lunch bento, so the owner added what it earned: $500 a week.",
+        run:function(){ view("growth"); scrollTo("#approvedList .outcome-panel[data-reported]"); }, target:"#approvedList .outcome-panel[data-reported]", settle:450 }
+      //  No closing homily: the bento beat is the last owner step, and its
+      //  pill reads "Open the Memory Engine →".
     ];
 
+    //  The operator half speaks the same language as the owner half now:
+    //  every step is a beat — streamed caption on the pill, ring only on
+    //  what the caption is about, bobbing pill to move on. The view-sized
+    //  ring on the whole console is gone for the same reason the chat and
+    //  Growth ones went.
     var CONSOLE_STEPS = [
       { ch:3, caption:"This is the Memory Engine — every business, every night, read live from the cluster.",
-        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#view-admin"); }, target:"#view-admin", settle:500 },
+        side:true,
+        sideCaption:"This is the Memory Engine — every business, every night, read live from the CockroachDB cluster.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#view-admin"); }, settle:500 },
       { ch:3, caption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
+        side:true,
+        sideCaption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memorySummary"); }, target:"#memorySummary", settle:400 },
       { ch:3, caption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
+        side:true,
+        sideCaption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="radar"]'); }, target:'[data-stage="radar"]', settle:400 },
       { ch:3, caption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
+        side:true,
+        sideCaption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="analyst"]'); }, target:'[data-stage="analyst"]', settle:400 },
       { ch:3, caption:"Switch to the live graph to watch each agent hand its work to the next.",
+        side:true,
+        sideCaption:"The live graph: watch each agent hand its work to the next.",
         // The graph stays empty until an owner is picked, so the step picks one
         // rather than leaving the viewer on "Select an owner to see where work
         // is moving" while the caption promises a live handoff.
@@ -35926,6 +36225,8 @@ ledger_entry · artifact · agent_run`,
           }, 260);
         }, target:"#memoryVisualPipeline", settle:900 },
       { ch:3, caption:"The memory isn't a cache sitting beside the app. It is the product — two CockroachDB tools, working at runtime.",
+        side:true,
+        sideCaption:"The memory isn't a cache beside the app. It is the product — two CockroachDB tools, working at runtime.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memoryEfficiencyHero"); }, target:"#memoryEfficiencyHero", settle:600 }
     ];
 
@@ -35969,6 +36270,301 @@ ledger_entry · artifact · agent_run`,
 
     var i = 0;
     var spotTarget = null;
+
+    // ---- the opening beat ---------------------------------------------------
+    //  A step marked `side` hides the bottom bar (the board gets its height
+    //  back). Its caption types itself out over the top of the board, holds
+    //  a few seconds, fades — then a single Next pill appears at the right
+    //  edge, bobbing until pressed. All the while the ring rides whatever
+    //  card the viewer scrolls to.
+    var topcap = document.createElement("p");
+    topcap.className = "bt-demo-topcap";
+    document.body.appendChild(topcap);
+    topcap.hidden = true;
+
+    var nextFab = document.createElement("div");
+    nextFab.className = "bt-demo-nextfab";
+    nextFab.innerHTML = '<button type="button">Next &#8594;</button>';
+    nextFab.querySelector("button").addEventListener("click", function(){ goTo(i + 1); });
+    document.body.appendChild(nextFab);
+    nextFab.hidden = true;
+
+    var REDUCED_TOUR = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    //  The beacon: pinned to the top-right corner of the element the viewer
+    //  is being asked to press, with a "Click here" label. It watches the
+    //  shared sheet; the moment the right kind opens, the Next pill takes
+    //  over. Positioned by polling AND on scroll, so it rides its element.
+    var beacon = document.createElement("div");
+    beacon.className = "bt-demo-beacon";
+    beacon.innerHTML = '<span></span><span></span><i></i><em>Click here</em>';
+    document.body.appendChild(beacon);
+    beacon.hidden = true;
+    var beaconSel = null;
+    var beaconPoll = 0;
+    beacon.addEventListener("click", function(){
+      try{
+        var el = beaconSel && document.querySelector(beaconSel);
+        if(el) el.click();
+      }catch(e){}
+    });
+
+    function positionBeacon(){
+      if(beacon.hidden || !beaconSel) return;
+      var el = document.querySelector(beaconSel);
+      if(!el){ beacon.classList.remove("show"); return; }
+      var r = el.getBoundingClientRect();
+      if(!r.width || r.bottom < 0 || r.top > window.innerHeight){
+        beacon.classList.remove("show"); return;
+      }
+      //  Inside the box's top-right corner, not straddling it: the dot sits
+      //  over the control itself, so aiming at it lands on something real.
+      //  A control too small for a corner seat gets the dot dead centre.
+      if(r.width < 48 || r.height < 30){
+        beacon.style.left = (r.left + r.width / 2 - 5) + "px";
+        beacon.style.top = (r.top + r.height / 2 - 5) + "px";
+      } else {
+        beacon.style.left = (r.right - 22) + "px";
+        beacon.style.top = (r.top + 10) + "px";
+      }
+      beacon.classList.add("show");
+    }
+
+    function showFab(){
+      //  The pill wears whatever label the bar's Next would: the last owner
+      //  step reads "Open the Memory Engine →", not a generic Next.
+      nextFab.querySelector("button").innerHTML = nextBtn.innerHTML;
+      nextFab.hidden = false;
+      if(!REDUCED_TOUR) nextFab.classList.add("bounce");
+      requestAnimationFrame(function(){ nextFab.classList.add("show"); });
+    }
+
+    function hideBeacon(){
+      window.clearInterval(beaconPoll); beaconPoll = 0;
+      beacon.classList.remove("show", "ping", "quiet");
+      beacon.hidden = true;
+      beaconSel = null;
+    }
+
+    //  Once the sheet is up it IS the focus — a spotlight ring left on the
+    //  button underneath reads as a stray golden box floating behind it.
+    function dropRing(){
+      spotTarget = null;
+      spot.classList.remove("on");
+    }
+
+    //  Open, read, put away, then Next: while the awaited sheet is up the
+    //  pill stays hidden and the dot (label-less) waits on the sheet's × —
+    //  the way out is always marked. The pill appears once the sheet closes.
+    function showBeacon(sel, awaitKind){
+      var phase = null;    // "target" — the control to open; "close" — the sheet's ×
+      var opened = false;
+      var applyPhase = function(want){
+        phase = want;
+        if(phase === "close"){
+          beacon.classList.add("quiet");
+          beaconSel = "#evidenceSheet .evidence-sheet-close";
+          dropRing();
+        } else {
+          beacon.classList.remove("quiet");
+          beaconSel = sel;
+        }
+        beacon.hidden = false;
+        if(!REDUCED_TOUR) beacon.classList.add("ping");
+        positionBeacon();
+      };
+      var tick = function(){
+        var kind = sheetKind();
+        if(kind === awaitKind){
+          opened = true;
+          if(phase !== "close") applyPhase("close");
+          positionBeacon();
+          return;
+        }
+        if(opened && !kind){ hideBeacon(); showFab(); return; }
+        if(phase !== "target" && !kind) applyPhase("target");
+        positionBeacon();
+      };
+      tick();
+      if(!beaconPoll) beaconPoll = window.setInterval(tick, 250);
+    }
+
+    //  The evidence beat is two hops: while the plan sheet is still up, the
+    //  dot (label-less) sits on its × so the viewer puts it away; the moment
+    //  the sheet is gone, the ring and the "Click here" dot move to the
+    //  evidence row. Opening the evidence document ends the beat by handing
+    //  the tour back to the classic bar — Back, Next and the step count are
+    //  on screen while the viewer reads, and Next carries on from there.
+    function evidenceBeat(){
+      var phase = null;
+      var applyPhase = function(want){
+        phase = want;
+        if(phase === "close"){
+          beacon.classList.add("quiet");
+          beaconSel = "#evidenceSheet .evidence-sheet-close";
+          dropRing();
+        } else {
+          beacon.classList.remove("quiet");
+          beaconSel = CURRENT + ".feed-detail-evidence";
+          spotTarget = beaconSel;
+          placeSpot();
+        }
+        beacon.hidden = false;
+        if(!REDUCED_TOUR) beacon.classList.add("ping");
+        positionBeacon();
+      };
+      //  Re-entering the beat with the document already open (Back from the
+      //  similarity step) closes it first, so the beat replays from its
+      //  invitation instead of instantly bouncing forward again.
+      if(sheetKind() === "evidence") evidence(false);
+      var tick = function(){
+        var kind = sheetKind();
+        if(kind === "evidence"){
+          //  The viewer opened the document: no landing on this step's bar —
+          //  the tour moves straight to the similarity step, which speaks
+          //  over the open panel.
+          hideBeacon();
+          goTo(i + 1);
+          return;
+        }
+        var want = kind === "plan" ? "close" : "evidence";
+        if(want !== phase) applyPhase(want);
+        positionBeacon();
+      };
+      tick();
+      if(!beaconPoll && sideModeOn) beaconPoll = window.setInterval(tick, 250);
+    }
+
+    function stream(el, text, done){
+      if(el.__btStream) window.clearInterval(el.__btStream);
+      el.classList.remove("typing");
+      if(REDUCED_TOUR){ el.textContent = text; if(done) done(); return; }
+      el.textContent = "";
+      el.classList.add("typing");
+      var k = 0;
+      el.__btStream = window.setInterval(function(){
+        k += 1;
+        el.textContent = text.slice(0, k);
+        if(k >= text.length){
+          window.clearInterval(el.__btStream);
+          el.__btStream = 0;
+          el.classList.remove("typing");
+          if(done) done();
+        }
+      }, 46);
+    }
+
+    //  The caption's band moves with the layout: it sits just above the
+    //  focused card's top edge, which keeps it off the card below it AND off
+    //  the previous card's white action row above it, at every viewport.
+    function positionTopcap(){
+      if(topcap.hidden) return;
+      var chrome = document.querySelector(".topbar");
+      var floor = (chrome ? chrome.getBoundingClientRect().bottom : 50) + 4;
+      //  Anchor above whatever the step is showing: an open sheet outranks
+      //  the card behind it, and the card only counts while its view is up.
+      var anchor = document.querySelector("#evidenceSheet .evidence-sheet-panel");
+      if(!anchor){
+        var board = document.getElementById("view-autopilot");
+        if(board && board.classList.contains("active")){
+          anchor = document.querySelector(".feed-card.is-current");
+        }
+      }
+      var r = anchor ? anchor.getBoundingClientRect() : null;
+      var h = topcap.offsetHeight || 20;
+      if(r && r.width){
+        topcap.classList.remove("boxed");
+        topcap.style.top = Math.max(floor, r.top - h - 16) + "px";
+      } else {
+        //  Nothing to sit above (chat, Growth): dock under the topbar on a
+        //  legible pill instead of shadow-text over live content.
+        topcap.classList.add("boxed");
+        topcap.style.top = floor + "px";
+      }
+    }
+
+    var sideModeOn = false;
+    var sideFollowCards = false;
+    var sideTimers = [];
+    function clearSideTimers(){
+      sideTimers.forEach(function(t){ window.clearTimeout(t); });
+      sideTimers = [];
+    }
+
+    function enterSide(s){
+      bar.hidden = true; syncInset();
+      sideModeOn = true;
+      //  Only the opening beat lets the ring roam with the scroll; a beat
+      //  that points at one specific control keeps the ring (and beacon) on
+      //  it whatever the viewer does.
+      sideFollowCards = !s.sideAwait;
+      clearSideTimers();
+      hideBeacon();
+      nextFab.hidden = true; nextFab.classList.remove("show", "bounce");
+      topcap.hidden = false;
+      requestAnimationFrame(function(){ topcap.classList.add("show"); positionTopcap(); });
+      //  Re-seat the caption once the step's entry scroll has settled.
+      sideTimers.push(window.setTimeout(positionTopcap, 500));
+      sideTimers.push(window.setTimeout(positionTopcap, 1100));
+      stream(topcap, s.sideCaption || s.caption, function(){
+        //  Read, hold, fade. A beat that ends in a beacon starts it the
+        //  moment the fade begins — the dot should not keep the viewer
+        //  waiting on an empty screen.
+        var beaconBeat = Boolean(s.sideAwait || s.sideEvidence);
+        sideTimers.push(window.setTimeout(function(){
+          topcap.classList.remove("show");
+          if(s.sideEvidence) evidenceBeat();
+          else if(s.sideAwait) showBeacon(s.target, s.sideAwait);
+          sideTimers.push(window.setTimeout(function(){
+            topcap.hidden = true;
+            if(!beaconBeat) showFab();
+          }, 550));
+        }, beaconBeat ? 400 : 2100));
+      });
+    }
+
+    function exitSide(){
+      sideModeOn = false;
+      sideFollowCards = false;
+      clearSideTimers();
+      hideBeacon();
+      if(topcap.__btStream){ window.clearInterval(topcap.__btStream); topcap.__btStream = 0; }
+      topcap.classList.remove("typing", "show");
+      topcap.hidden = true;
+      nextFab.classList.remove("show", "bounce");
+      nextFab.hidden = true;
+      if(document.body.classList.contains("bt-demo-on") && bar.hidden){
+        bar.hidden = false; syncInset();
+      }
+    }
+
+    //  While the beat is on: keep the beacon riding its element, and — on
+    //  the opening beat only — move `.is-current` (and with it the ring)
+    //  onto the card nearest the top of the view as the viewer scrolls.
+    var sideScrollFrame = 0;
+    window.addEventListener("scroll", function(){
+      if(!sideModeOn || sideScrollFrame) return;
+      sideScrollFrame = requestAnimationFrame(function(){
+        sideScrollFrame = 0;
+        positionBeacon();
+        positionTopcap();
+        if(!sideFollowCards) return;
+        //  Card-following only means anything while the board is on screen —
+        //  in chat or Growth the cards all measure zero and the nearest-card
+        //  arithmetic would shuffle .is-current at random.
+        var board = document.getElementById("view-autopilot");
+        if(!board || !board.classList.contains("active")) return;
+        var cards = document.querySelectorAll(".feed-card");
+        if(!cards.length) return;
+        var best = 0, bestD = Infinity;
+        cards.forEach(function(c, n){
+          var d = Math.abs(c.getBoundingClientRect().top - 50);
+          if(d < bestD){ bestD = d; best = n; }
+        });
+        cards.forEach(function(c, n){ c.classList.toggle("is-current", n === best); });
+        placeSpot();
+      });
+    }, true);
 
     function placeSpot(){
       if(!spotTarget){ spot.classList.remove("on"); return; }
@@ -36024,6 +36620,7 @@ ledger_entry · artifact · agent_run`,
       i = n;
       var s = steps[i];
       paint();
+      if(s.side) enterSide(s); else exitSide();
       spotTarget = null; spot.classList.remove("on");
       try{ if(s.run) s.run(); }catch(e){}
       if(s.target){
@@ -36045,6 +36642,11 @@ ledger_entry · artifact · agent_run`,
       bar.hidden = true;
       spot.classList.remove("on");
       document.body.classList.remove("bt-demo-on");
+      //  The last console step is a beat: its pill and caption must not
+      //  survive into the closing card. Ordered after the class removal so
+      //  exitSide cannot re-show the bar.
+      exitSide();
+      bar.hidden = true;
       card(
         "An agent with a track record", "Brass Tacks", "Found money, on autopilot.",
         "The ledger shown here is seeded, backdated history so a verdict exists to look at. "
@@ -36100,7 +36702,7 @@ ledger_entry · artifact · agent_run`,
     //  Arrow keys move the demo, but never while the viewer is typing into the
     //  app underneath -- the whole point is that it stays usable.
     document.addEventListener("keydown", function(e){
-      if(bar.hidden) return;
+      if(bar.hidden && !sideModeOn) return;
       var t = e.target;
       if(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if(e.key === "ArrowRight"){ e.preventDefault(); goTo(i + 1); }
@@ -36113,7 +36715,10 @@ ledger_entry · artifact · agent_run`,
       goTo(0);
     }
 
-    if(tour === "owner"){
+    //  Arriving from the onboarding walkthrough, the demo is already rolling
+    //  — a second welcome card would be a speed bump, so the beats begin at
+    //  once. A direct visit to ?tour=owner still gets the card.
+    if(tour === "owner" && q.get("from") !== "onboarding"){
       card("Interactive demo", "Brass Tacks", "Found money, on autopilot.",
         "You drive this one. The app stays live underneath — click anything you like, "
         + "and use Next when you want the tour to move on.",

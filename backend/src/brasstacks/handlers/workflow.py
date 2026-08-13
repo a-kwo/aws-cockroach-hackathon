@@ -127,7 +127,10 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
         hydrate_environment()
         settings = Settings.load()
     except (ValueError, RuntimeError) as exc:
-        return respond(500, {"error": str(exc)})
+        # The detail names parameter paths and environment variables — a map
+        # of the deployment. It goes to the log; the caller gets a sentence.
+        print(f"workflow configuration failed: {exc}")
+        return respond(500, {"error": "the workflow service is not configured"})
 
     from datetime import datetime, timezone
 

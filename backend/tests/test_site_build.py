@@ -299,19 +299,34 @@ def test_templates_carry_the_data_placeholder():
 def test_landing_routes_directly_to_the_demo():
     """The nav offers signup; the page itself opens the interactive demo.
 
-    Both calls to action deliberately bypass onboarding. A judge — or anyone
-    else — must reach the working product without handing over a name.
-
-    They used to drop the visitor into a bare `app/` with no session and no
-    explanation, which showed the board with none of the reasoning behind it.
-    Both now open the guided-but-interactive demo instead, so the raw
-    unexplained entry is gone rather than merely relabelled.
+    The demo now begins on the signup page in tour mode: a walkthrough of
+    onboarding with sample answers that types itself in, then hands off to
+    the board. A judge still reaches the working product without handing
+    over a name — tour mode pre-fills every field, holds no session, and
+    never POSTs — so the original principle stands even though the demo
+    now shows what onboarding looks like first.
     """
     html = (build_web.SITE / "landing.html").read_text(encoding="utf-8")
     assert 'class="nav-cta" href="register/">Sign up</a>' in html
-    assert html.count('href="app/?tour=owner"><span>Try the interactive demo</span>') == 2
+    assert html.count('href="signup/?tour=owner"><span>Try the interactive demo</span>') == 2
     # The unguided drop-in is retired, not just renamed.
     assert 'href="app/">' not in html
+
+
+def test_signup_tour_mode_shows_onboarding_without_writing_anything():
+    """?tour= walks the signup page as the demo's opening chapter. Three
+    things make that safe to show a stranger: no session is required (the
+    register redirect is tour-guarded), nothing the walkthrough types is
+    drafted into localStorage, and submit never reaches the onboarding API —
+    the success step renders locally and hands off to the app tour.
+    """
+    html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
+    assert "const TOUR" in html
+    assert "if (!currentSession() && !TOUR) window.location.replace" in html
+    # The draft writer and the submit path both bail out in tour mode.
+    assert html.count("if (TOUR) return;") >= 2
+    assert "Interactive demo · nothing was saved." in html
+    assert "../app/?tour=owner&from=onboarding" in html
 
 
 def test_signup_collects_the_agent_scope():
@@ -1209,6 +1224,72 @@ def test_deploy_template_exposes_the_workflow_read_route():
     assert "WorkflowEndpoint:" in template
 
 
+def test_deploy_template_supports_a_custom_site_domain():
+    """The demo URL judges type must be a real domain, not d2xxxx.cloudfront.net.
+
+    Both parameters default to empty so a fresh clone still deploys with the
+    CloudFront domain and no certificate — the alias only attaches when both
+    values are supplied, and `sam deploy` reuses previous parameter values, so
+    CI deploys that never mention the domain cannot detach it.
+    """
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+
+    # The two optional parameters, defaulting to off.
+    assert "SiteDomainName:" in template
+    assert "SiteCertificateArn:" in template
+    for parameter in ("SiteDomainName:", "SiteCertificateArn:"):
+        block = template.split(parameter, 1)[1]
+        assert 'Default: ""' in block.split("Description:", 1)[0]
+
+    # One condition guards both: an alias without a certificate (or the
+    # reverse) is a CloudFront validation error at deploy time.
+    assert "HasSiteDomain:" in template
+
+    distribution = template.split("SiteDistribution:", 1)[1].split("Outputs:", 1)[0]
+    assert "Aliases:" in distribution
+    assert "!Ref SiteDomainName" in distribution
+    assert "ViewerCertificate:" in distribution
+    assert "AcmCertificateArn: !Ref SiteCertificateArn" in distribution
+    assert "sni-only" in distribution
+    assert "MinimumProtocolVersion:" in distribution
+
+    # The SiteUrl output — what deploy scripts print and verify against —
+    # must name the custom domain when one is configured.
+    site_url = template.split("SiteUrl:", 1)[1].split("SiteBucketName:", 1)[0]
+    assert "!If" in site_url and "HasSiteDomain" in site_url
+
+
+def test_the_board_ships_security_headers():
+    """CloudFront must attach security headers to every page it serves.
+
+    The dashboard keeps the session token in localStorage and renders text that
+    came from scrapes and models, so the headers are the backstop: the CSP
+    stops an injected handler exfiltrating tokens to an arbitrary host (only
+    the API origins are connectable), frame-ancestors stops the board being
+    framed for clickjacking, nosniff and HSTS close the classics. Inline
+    script/style stay allowed — the page is one self-contained file by design.
+    """
+    template = (build_web.REPO / "deploy" / "template.yaml").read_text(encoding="utf-8")
+
+    assert "AWS::CloudFront::ResponseHeadersPolicy" in template
+
+    policy = template.split("AWS::CloudFront::ResponseHeadersPolicy", 1)[1]
+    assert "StrictTransportSecurity:" in policy
+    assert "ContentTypeOptions:" in policy
+    assert "FrameOptions:" in policy
+    assert "ReferrerPolicy:" in policy
+
+    csp = policy.split("ContentSecurityPolicy:", 1)[1]
+    assert "frame-ancestors 'none'" in csp
+    assert "object-src 'none'" in csp
+    assert "connect-src" in csp
+    assert "execute-api" in csp, "the page must still reach its own API"
+
+    # Declared but never attached is the quiet failure mode.
+    distribution = template.split("SiteDistribution:", 1)[1].split("Outputs:", 1)[0]
+    assert "ResponseHeadersPolicyId:" in distribution
+
+
 def test_the_sweep_wakes_while_the_businesses_it_watches_are_open():
     """Every observation in the corpus was captured before its tenant opened.
 
@@ -1526,10 +1607,11 @@ def test_the_profile_page_no_longer_touches_the_password():
 
 def test_the_profile_page_requires_a_session():
     """Without one the API answers 401, so filling in three steps first would
-    lose the lot."""
+    lose the lot. The one exception is the guided demo's walkthrough (?tour=),
+    which needs no session precisely because it never calls the API."""
     html = (build_web.SITE / "signup.html").read_text(encoding="utf-8")
 
-    assert 'if (!currentSession()) window.location.replace("../register/");' in html
+    assert 'if (!currentSession() && !TOUR) window.location.replace("../register/");' in html
     assert "Bearer ${session.token}" in html
 
 

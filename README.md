@@ -7,6 +7,12 @@ actually paid. Verdicts go on a permanent ledger, **including the failures**.
 
 Built for the AWS + CockroachDB hackathon.
 
+**Live demo: [trybrasstacks.com](https://trybrasstacks.com)** — the landing page, with
+the owner dashboard at [/app/](https://trybrasstacks.com/app/) and onboarding at
+[/signup/](https://trybrasstacks.com/signup/). Served by the deployed stack described
+below; the guided tour on the dashboard runs against committed sample data, so nothing
+a visitor clicks can touch a real tenant's ledger.
+
 The production-shaped multi-user execution design is documented in
 [`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md). It
 separates agent reasoning from durable tasks, approval, idempotency, and external
