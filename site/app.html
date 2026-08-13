@@ -23722,23 +23722,6 @@
             </nav>
           </section>
 
-          <!-- The moves already approved that the Meter is still measuring.
-               They come from the workspace finds, not this session's clicks:
-               Growth used to have nowhere that showed them, so the guided
-               tour pointed at an empty Approved list while its caption
-               counted seven moves in flight. Money here is a labelled
-               prediction, never a verified figure. -->
-          <section class="list-panel inflight-panel" id="growthInflight" aria-label="Approved moves still being measured" data-enter hidden>
-            <header class="list-panel-header">
-              <div class="list-panel-title">
-                <h2>In flight</h2>
-              </div>
-              <span class="list-count" id="growthInflightCount">0</span>
-            </header>
-            <ul class="inflight-list" id="growthInflightList"></ul>
-            <p class="inflight-money" id="growthInflightMoney"></p>
-          </section>
-
           <section class="decision-lists" aria-label="Approved and rejected decisions" data-enter>
             <article class="list-panel approved-panel">
               <header class="list-panel-header">
@@ -27889,9 +27872,28 @@
         bindDynamicActions();
         return;
       }
-      const approved = getApprovedPosts();
+      const sessionApproved = getApprovedPosts();
       const rejected = getRejectedPosts();
       const pending = getPendingPosts();
+
+      //  The Approved list is the durable record, not a session log: the
+      //  moves CockroachDB says are accepted and still inside their
+      //  measurement window sit here beside anything approved just now.
+      //  Each row carries the outcome strip, so "Add what this move earned"
+      //  is available on every move the Meter has not yet scored.
+      const liveMine = Array.isArray(liveWorkflowWorkspaces) && liveWorkflowWorkspaces.length
+        ? liveWorkflowWorkspaces[0]
+        : null;
+      const growthWorkspace = liveMine || btData;
+      const sessionIds = new Set(sessionApproved.map(post => post.id));
+      growthDurablePosts = (growthWorkspace.finds || [])
+        .filter(found => !found.verdict && ["accepted", "live"].includes(found.status))
+        .filter(found => !sessionIds.has(found.id))
+        //  Largest prediction first, so the row the tour talks about leads.
+        .sort((a, b) => (Number(b.predictedDaily) || 0) - (Number(a.predictedDaily) || 0))
+        .map(found => findToPost(found, { serverVerified: true }));
+      const approved = growthDurablePosts.concat(sessionApproved);
+
       // Named for what it is. `approvedTotal` beside a green `+$690` was read,
       // reasonably, as a total the business had taken in; it is a sum of
       // predictions and never touches the ledger-backed summary.
@@ -27906,37 +27908,6 @@
 
       renderGrowthDecisionList("approvedList", approved, "approved");
       renderGrowthDecisionList("rejectedList", rejected, "rejected");
-
-      //  The In flight panel: approved moves the Meter is still measuring,
-      //  read from the workspace finds rather than this session's decisions.
-      //  Same source and same row shape as the For You in-flight board.
-      const liveMine = Array.isArray(liveWorkflowWorkspaces) && liveWorkflowWorkspaces.length
-        ? liveWorkflowWorkspaces[0]
-        : null;
-      const growthWorkspace = liveMine || btData;
-      const inFlight = (growthWorkspace.finds || []).filter(found =>
-        !found.verdict && ["accepted", "live"].includes(found.status));
-      const inflightPanel = document.getElementById("growthInflight");
-      if (inflightPanel) {
-        inflightPanel.hidden = !inFlight.length;
-        document.getElementById("growthInflightCount").textContent = inFlight.length;
-        document.getElementById("growthInflightList").innerHTML = inFlight.map(found => `
-          <li>
-            <span class="inflight-emoji" aria-hidden="true">${escapeHtml(found.emoji || "💡")}</span>
-            <span class="inflight-title">${escapeHtml(found.shortTitle || found.title || "Move")}</span>
-            <span class="inflight-stage">${escapeHtml(moveStage(found, growthWorkspace.tasks || []))}</span>
-            <span class="inflight-verify">${found.verifyAfter ? `verifies ${escapeHtml(shortDate(found.verifyAfter))}` : "no verify date"}</span>
-          </li>`).join("");
-        //  Prediction only — the verified figure is the ledger's to report,
-        //  and this function never draws from the ledger-backed summary.
-        const predicted = inFlight.reduce((sum, found) => sum + (Number(found.predictedDaily) || 0), 0);
-        const nextVerdict = inFlight.map(found => found.verifyAfter).filter(Boolean).sort()[0];
-        const moneyEl = document.getElementById("growthInflightMoney");
-        moneyEl.hidden = !inFlight.length;
-        moneyEl.innerHTML = inFlight.length ? `
-          <strong>${escapeHtml(dailyMoney(predicted))}/day predicted</strong>
-          <span>not earned until the Meter verifies it${nextVerdict ? ` · first verdict ${escapeHtml(shortDate(nextVerdict))}` : ""}</span>` : "";
-      }
 
       renderRevenueChart();
       bindDynamicActions();
@@ -30710,6 +30681,10 @@ ledger_entry · artifact · agent_run`,
     //  the figure away. Restored on render from here.
     const openOutcomePanels = new Set();
 
+    //  The durable approved rows (accepted in CockroachDB, still measuring)
+    //  are not in `posts`, so outcome saves need their own lookup table.
+    let growthDurablePosts = [];
+
     function outcomeStripHtml(post, status) {
       //  Only a move the owner accepted can have earned anything. A find that
       //  was passed over has no outcome to report and never will.
@@ -30739,7 +30714,7 @@ ledger_entry · artifact · agent_run`,
         : "";
 
       return `
-        <details class="outcome-panel" data-outcome-panel="${escapeHtml(post.id)}"${openOutcomePanels.has(post.id) ? " open" : ""}>
+        <details class="outcome-panel" data-outcome-panel="${escapeHtml(post.id)}"${reported ? ` data-reported="true"` : ""}${openOutcomePanels.has(post.id) ? " open" : ""}>
           <summary>
             <span class="outcome-summary-icon" aria-hidden="true">${reported ? "✓" : "＋"}</span>
             <span class="outcome-summary-copy">
@@ -30803,7 +30778,8 @@ ledger_entry · artifact · agent_run`,
     }
 
     async function saveOutcome(postId, button) {
-      const post = posts.find(item => item.id === postId);
+      const post = posts.find(item => item.id === postId)
+        || growthDurablePosts.find(item => item.id === postId);
       if (!post) return;
       const row = button.closest(".outcome-panel");
       const amount = String(row?.querySelector("[data-outcome-amount]")?.value || "").trim();
@@ -36093,38 +36069,49 @@ ledger_entry · artifact · agent_run`,
         side:true,
         sideCaption:"What makes this different from a chatbot: every approved move is stored with what the agent expects it to earn.",
         run:function(){ view("growth"); }, settle:500 },
-      //  #growthInflight, not #approvedList: the Approved list holds this
-      //  session's clicks and is empty on a fresh tour, so these three steps
-      //  used to point their ring at nothing. The In flight panel shows the
-      //  measuring moves the captions are counting.
-      { ch:2, caption:"Seven moves are in flight right now. The biggest — lead every listing with the ocean-view patio — predicts $22 a day.",
+      //  The Approved list now holds the durable record — the measuring
+      //  moves from CockroachDB, largest prediction first — so these steps
+      //  ring real rows: the patio move, then the reported-outcome strip on
+      //  the lunch bento, which is the "Add what this move earned" feature.
+      //  One beat, not two: the CockroachDB claim rides with the row it is
+      //  about instead of holding the same ring for a second step.
+      { ch:2, caption:"Seven approved moves are still inside their measurement window. The biggest — the ocean-view patio — predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it between now and then.",
         side:true,
-        sideCaption:"Seven moves are in flight right now. The biggest — the ocean-view patio — predicts $22 a day.",
-        run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:550 },
-      { ch:2, caption:"That number was written to CockroachDB the night it was proposed, with the date it gets graded: 1 September. Nobody can edit it between now and then.",
+        sideCaption:"Seven approved moves are still being measured. The biggest — the ocean-view patio — predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it between now and then.",
+        run:function(){ view("growth"); scrollTo("#approvedList .decision-row-group:first-child"); }, target:"#approvedList .decision-row-group:first-child", settle:550 },
+      { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so the owner added what it earned: $500 a week.",
         side:true,
-        sideCaption:"That number was written to CockroachDB the night it was proposed, with its grading date. Nobody can edit it between now and then.",
-        run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:450 },
-      { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so it published none. The owner ran it anyway and reported $500 a week.",
-        side:true,
-        sideCaption:"One already came back: the agent published no figure for the lunch bento — the owner ran it anyway and reported $500 a week.",
-        run:function(){ view("growth"); scrollTo("#growthInflight"); }, target:"#growthInflight", settle:450 },
-      { ch:2, caption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
-        side:true,
-        sideCaption:"That is the whole claim: the prediction is written down first, and the verdict is owed on a date the agent does not get to move.",
-        run:function(){ view("growth"); }, settle:200 }
+        sideCaption:"The agent published no figure for the lunch bento, so the owner added what it earned: $500 a week.",
+        run:function(){ view("growth"); scrollTo("#approvedList .outcome-panel[data-reported]"); }, target:"#approvedList .outcome-panel[data-reported]", settle:450 }
+      //  No closing homily: the bento beat is the last owner step, and its
+      //  pill reads "Open the Memory Engine →".
     ];
 
+    //  The operator half speaks the same language as the owner half now:
+    //  every step is a beat — streamed caption on the pill, ring only on
+    //  what the caption is about, bobbing pill to move on. The view-sized
+    //  ring on the whole console is gone for the same reason the chat and
+    //  Growth ones went.
     var CONSOLE_STEPS = [
       { ch:3, caption:"This is the Memory Engine — every business, every night, read live from the cluster.",
-        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#view-admin"); }, target:"#view-admin", settle:500 },
+        side:true,
+        sideCaption:"This is the Memory Engine — every business, every night, read live from the CockroachDB cluster.",
+        run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#view-admin"); }, settle:500 },
       { ch:3, caption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
+        side:true,
+        sideCaption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memorySummary"); }, target:"#memorySummary", settle:400 },
       { ch:3, caption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
+        side:true,
+        sideCaption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="radar"]'); }, target:'[data-stage="radar"]', settle:400 },
       { ch:3, caption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
+        side:true,
+        sideCaption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="analyst"]'); }, target:'[data-stage="analyst"]', settle:400 },
       { ch:3, caption:"Switch to the live graph to watch each agent hand its work to the next.",
+        side:true,
+        sideCaption:"The live graph: watch each agent hand its work to the next.",
         // The graph stays empty until an owner is picked, so the step picks one
         // rather than leaving the viewer on "Select an owner to see where work
         // is moving" while the caption promises a live handoff.
@@ -36137,6 +36124,8 @@ ledger_entry · artifact · agent_run`,
           }, 260);
         }, target:"#memoryVisualPipeline", settle:900 },
       { ch:3, caption:"The memory isn't a cache sitting beside the app. It is the product — two CockroachDB tools, working at runtime.",
+        side:true,
+        sideCaption:"The memory isn't a cache beside the app. It is the product — two CockroachDB tools, working at runtime.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memoryEfficiencyHero"); }, target:"#memoryEfficiencyHero", settle:600 }
     ];
 
@@ -36552,6 +36541,11 @@ ledger_entry · artifact · agent_run`,
       bar.hidden = true;
       spot.classList.remove("on");
       document.body.classList.remove("bt-demo-on");
+      //  The last console step is a beat: its pill and caption must not
+      //  survive into the closing card. Ordered after the class removal so
+      //  exitSide cannot re-show the bar.
+      exitSide();
+      bar.hidden = true;
       card(
         "An agent with a track record", "Brass Tacks", "Found money, on autopilot.",
         "The ledger shown here is seeded, backdated history so a verdict exists to look at. "
