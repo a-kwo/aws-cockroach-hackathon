@@ -325,7 +325,9 @@ def test_signup_tour_mode_shows_onboarding_without_writing_anything():
     assert "if (!currentSession() && !TOUR) window.location.replace" in html
     # The draft writer and the submit path both bail out in tour mode.
     assert html.count("if (TOUR) return;") >= 2
-    assert "Interactive demo · nothing was saved." in html
+    # The mode label was owner-removed; the guarantee is the write-guards
+    # above, and the success step stays silent about mechanics.
+    assert 'document.getElementById("successMode").textContent = "";' in html
     assert "../app/?tour=owner&from=onboarding" in html
 
 
