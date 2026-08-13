@@ -277,6 +277,60 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
   .menu-row { grid-template-columns: minmax(0,1fr) 84px 28px; }
 }
 </style>
+<style id="setup-facelift-v2">
+/* ==== Workspace setup, in the brand's own hand ========================
+   The wizard wore a generic SaaS teal. It joins the house language: warm
+   paper, one brass accent, big tight display type with the serif-italic
+   word, hairline cards, pill choices that feel like picking, not filling.
+   A token override -- structure and behaviour untouched. */
+:root {
+  --bg: #f7f6f2;
+  --paper: rgba(255, 255, 255, .92);
+  --paper-solid: #ffffff;
+  --ink: #17181c;
+  --ink-2: #3b3d44;
+  --soft: #6d6f77;
+  --muted: #96979d;
+  --line: #e7e5df;
+  --line-soft: rgba(23, 24, 28, .08);
+  --teal: #a87524;            /* every old teal reads brass now */
+  --teal-soft: rgba(168, 117, 36, .1);
+  --gold: #a87524;
+  --gold-soft: rgba(168, 117, 36, .12);
+  --shadow: 0 1px 2px rgba(23, 24, 28, .04), 0 18px 50px rgba(23, 24, 28, .07);
+}
+h1, h2 { letter-spacing: -.04em; }
+h1#signupTitle { font-size: clamp(38px, 5vw, 58px); line-height: 1.02; font-weight: 800; }
+h1#signupTitle em {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: -.01em;
+}
+.setup-kicker { letter-spacing: .28em !important; font-size: 10px !important; }
+/* Choices feel like objects: lifted pills, brass when chosen. */
+.goal-card, [role="radio"], [role="checkbox"], .chip-toggle, .segment-chip {
+  border-radius: 16px !important;
+  transition: transform .16s var(--ease), box-shadow .16s var(--ease),
+              border-color .16s var(--ease), background .16s var(--ease);
+}
+.goal-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.goal-card[aria-checked="true"], .goal-card[aria-pressed="true"] {
+  border-color: rgba(168, 117, 36, .55) !important;
+  background: rgba(168, 117, 36, .07) !important;
+}
+.goal-card[aria-checked="true"] b, .goal-card[aria-pressed="true"] b {
+  background: var(--gold) !important;
+  color: #fff !important;
+}
+/* Primary actions: ink pill with a brass hover, like the app. */
+button[type="submit"], .primary-action, .form-actions .continue, #createWorkspace {
+  border-radius: 999px !important;
+}
+/* The brief panel is the product talking — warm it. */
+.brief-pill { border-radius: 999px !important; }
+</style>
 </head>
 <body>
 <div class="page-shell">
@@ -289,7 +343,7 @@ footer { margin-top: auto; padding: 16px 30px 26px; color: var(--muted); font-si
     <section class="form-card" aria-labelledby="signupTitle">
       <header class="form-head">
         <span class="setup-kicker"><i aria-hidden="true"></i>Workspace setup</span>
-        <h1 id="signupTitle">Teach the agents what matters.</h1>
+        <h1 id="signupTitle">Teach the agents what <em>matters</em>.</h1>
         <div class="progress" aria-label="Onboarding progress">
           <span class="progress-step active" data-progress="1">1 · Business</span>
           <span class="progress-step" data-progress="2">2 · Buyers</span>
@@ -978,10 +1032,8 @@ form.addEventListener("submit", async event => {
     document.getElementById("successBusiness").textContent = profile.business.name;
     document.getElementById("successMarket").textContent = profile.business.location;
     document.getElementById("successGoal").textContent = profile.objective;
-    document.getElementById("successCopy").textContent =
-      "In the live product this profile is written to CockroachDB as business-scoped memory. "
-      + "The demo continues on the sample workspace instead.";
-    document.getElementById("successMode").textContent = "Interactive demo · nothing was saved.";
+    document.getElementById("successCopy").textContent = "";
+    document.getElementById("successMode").textContent = "";
     const open = document.getElementById("openWorkspace");
     open.href = "../app/?tour=owner&from=onboarding";
     showStep(3);
