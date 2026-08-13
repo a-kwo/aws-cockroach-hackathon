@@ -402,6 +402,86 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 4px rgba(168, 117, 36, .1) !important;
   outline: 0 !important;
 }
+/* ==== The brief is ALIVE ==============================================
+   Motion that reads as thinking, not decoration: a breathing live-dot, a
+   radar sweep actually running in the header, data-packets travelling down
+   the lines between the agent's nodes, and memory pills that pop in as
+   each answer lands. All of it stops under prefers-reduced-motion. */
+.brief-eyebrow { display: inline-flex; align-items: center; gap: 8px; }
+.brief-eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e2a85c;
+  animation: briefPulse 2.2s ease-in-out infinite;
+}
+@keyframes briefPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 168, 92, .45); }
+  55% { box-shadow: 0 0 0 7px rgba(226, 168, 92, 0); }
+}
+/* The radar, actually sweeping, top-right of the head. */
+.brief-head { position: relative; }
+.brief-head::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px dashed rgba(226, 168, 92, .35);
+  background: conic-gradient(from 0deg, rgba(226, 168, 92, .5), rgba(226, 168, 92, .06) 70deg, transparent 110deg, transparent 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 32%, #000 34%, #000 66%, transparent 68%);
+  mask: radial-gradient(circle, transparent 32%, #000 34%, #000 66%, transparent 68%);
+  animation: briefSweep 5s linear infinite;
+}
+@keyframes briefSweep { to { transform: rotate(360deg); } }
+/* Data travels between the nodes: a brass packet running down each line. */
+.scope-line { position: relative; overflow: visible !important; }
+.scope-line::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: #eebd77;
+  box-shadow: 0 0 8px rgba(238, 189, 119, .8);
+  animation: packetRun 2.6s ease-in-out infinite;
+}
+.scope-line + .scope-node + .scope-line::after { animation-delay: 1.3s; }
+@keyframes packetRun {
+  0% { top: -2px; opacity: 0; }
+  18% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { top: calc(100% - 3px); opacity: 0; }
+}
+/* Memory pills pop in as answers land; every recompute re-plays them,
+   which reads exactly like the agent re-thinking. */
+.brief-pill { animation: pillIn .34s var(--ease) both; }
+.brief-pills .brief-pill:nth-child(2) { animation-delay: .05s; }
+.brief-pills .brief-pill:nth-child(3) { animation-delay: .1s; }
+.brief-pills .brief-pill:nth-child(4) { animation-delay: .15s; }
+.brief-pills .brief-pill:nth-child(5) { animation-delay: .2s; }
+.brief-pills .brief-pill:nth-child(6) { animation-delay: .25s; }
+@keyframes pillIn {
+  from { opacity: 0; transform: translateY(5px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+/* The ready node glows, gently. */
+.scope-status { animation: statusBreathe 3.4s ease-in-out infinite; }
+@keyframes statusBreathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 168, 92, 0); }
+  50% { box-shadow: 0 0 12px rgba(226, 168, 92, .25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brief-eyebrow::before, .brief-head::after, .scope-line::after,
+  .brief-pill, .scope-status { animation: none !important; }
+  .scope-line::after { display: none; }
+}
 /* The brief panel is the product talking — warm it. */
 .brief-pill { border-radius: 999px !important; }
 </style>
