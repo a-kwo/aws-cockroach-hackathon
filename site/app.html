@@ -35810,6 +35810,40 @@ ledger_entry · artifact · agent_run`,
       + 'body.bt-demo-on .app{height:auto;padding-top:104px;}}';
     document.head.appendChild(style);
 
+    // The opening beat: a step marked `side` retires the bottom bar. Its
+    // caption types itself out over the top of the board, holds a moment,
+    // fades — and then a lone Next pill appears at the right edge, bobbing
+    // gently until it is pressed.
+    style.textContent +=
+      /* Small enough to live in the band between the topbar and the card's
+         top edge, so it never sits over the recommendation itself. */
+      '.bt-demo-topcap{position:fixed;z-index:99999;top:60px;left:50%;'
+      + 'transform:translateX(-50%);max-width:min(760px,calc(100vw - 32px));margin:0;'
+      + 'text-align:center;font:700 clamp(12.5px,1.15vw,15px)/1.4 -apple-system,'
+      + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#f4f2ec;'
+      + 'text-shadow:0 2px 18px rgba(0,0,0,.8),0 0 3px rgba(0,0,0,.9);'
+      + 'pointer-events:none;opacity:0;transition:opacity .5s ease;}'
+      + '.bt-demo-topcap.show{opacity:1;}'
+      + '.bt-demo-topcap.typing::after{content:"\\258B";color:#e8b94a;margin-left:2px;'
+      + 'animation:btSideCaret 1s steps(1) infinite;}'
+      + '@keyframes btSideCaret{50%{opacity:0;}}'
+      + '.bt-demo-nextfab{position:fixed;z-index:99999;right:26px;top:50%;'
+      + 'transform:translateY(-50%);opacity:0;transition:opacity .4s ease;}'
+      + '.bt-demo-nextfab.show{opacity:1;}'
+      + '.bt-demo-nextfab button{font:700 15px -apple-system,BlinkMacSystemFont,'
+      + '"Segoe UI",Inter,sans-serif;border-radius:999px;cursor:pointer;'
+      + 'padding:12px 22px;border:1px solid #D9A93F;background:#D9A93F;color:#14161c;'
+      + 'box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 22px rgba(217,169,63,.35);}'
+      /* The bounce class is only ever added when the viewer has not asked
+         for reduced motion — the JS gate, same as the caption stream. */
+      + '.bt-demo-nextfab.bounce button{animation:btNextBounce 1.7s ease-in-out infinite;}'
+      + '.bt-demo-nextfab button:hover{background:#e8b94a;border-color:#e8b94a;}'
+      + '@keyframes btNextBounce{0%,100%{transform:translateY(0);}'
+      + '50%{transform:translateY(-8px);}}'
+      + '@media (max-width:760px){'
+      + '.bt-demo-topcap{top:66px;}'
+      + '.bt-demo-nextfab{top:auto;bottom:18px;transform:none;}}';
+
     // ---- defensive drivers: a missing target is skipped, never thrown --------
     function scrollTo(sel){ try{ var el=document.querySelector(sel); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }
     function click(sel){ try{ var el=document.querySelector(sel); if(el) el.click(); }catch(e){} }
@@ -35928,13 +35962,21 @@ ledger_entry · artifact · agent_run`,
 
     var OWNER_STEPS = [
       { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, its agents work the night shift — and this is what the owner wakes up to.",
-        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); }, target:"#feedStage", settle:400 },
-      { ch:0, caption:"Each card is one finding from last night, grouped by the day it arrived. Scroll the feed — pricing, hours, reviews, supply.",
-        run:function(){ view("autopilot"); evidence(false); focusCard(1); }, target:CURRENT.trim(), settle:300 },
+        //  The card, not #feedStage: the stage is the whole scrolling column,
+        //  so its ring ran past the bottom of the viewport instead of framing
+        //  the recommendation the caption is talking about.
+        //  `side`: this step speaks from the right rail instead of the bottom
+        //  bar, streams its shorter caption, and waits for a scroll before it
+        //  offers Next — the opening beat teaches the feed gesture.
+        side:true,
+        sideCaption:"The Brass Tacks agent team curates specific recs each night. Scroll to see more.",
+        run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); }, target:CURRENT.trim(), settle:400 },
+      //  The "each card is one finding, scroll the feed" step is gone: the
+      //  opening beat already says it and waits while the viewer scrolls.
       { ch:0, caption:"Open it and it isn't a hunch. Weekend patio bookings: a specific move, $9 a day, and a date it gets checked.",
-        run:function(){ view("autopilot"); evidence(false); focusCard(1); planSheet(true); }, target:CURRENT + ".feed-plan", settle:350 },
+        run:function(){ view("autopilot"); evidence(false); focusCard(7); planSheet(true); }, target:CURRENT + ".feed-plan", settle:350 },
       { ch:0, caption:"And its evidence: the real reviews the vector search returned, each scored by how closely it matched. Guests naming the patio, and one warning about the wait.",
-        run:function(){ view("autopilot"); focusCard(1); evidence(true); }, settle:400 },
+        run:function(){ view("autopilot"); focusCard(7); evidence(true); }, settle:400 },
       { ch:0, caption:"That similarity score is stored with every recommendation. Retrieval you can audit, not a black box.",
         run:function(){ view("autopilot"); evidence(false); }, target:CURRENT + ".feed-plan", settle:300 },
 
@@ -36040,6 +36082,106 @@ ledger_entry · artifact · agent_run`,
     var i = 0;
     var spotTarget = null;
 
+    // ---- the opening beat ---------------------------------------------------
+    //  A step marked `side` hides the bottom bar (the board gets its height
+    //  back). Its caption types itself out over the top of the board, holds
+    //  a few seconds, fades — then a single Next pill appears at the right
+    //  edge, bobbing until pressed. All the while the ring rides whatever
+    //  card the viewer scrolls to.
+    var topcap = document.createElement("p");
+    topcap.className = "bt-demo-topcap";
+    document.body.appendChild(topcap);
+    topcap.hidden = true;
+
+    var nextFab = document.createElement("div");
+    nextFab.className = "bt-demo-nextfab";
+    nextFab.innerHTML = '<button type="button">Next &#8594;</button>';
+    nextFab.querySelector("button").addEventListener("click", function(){ goTo(i + 1); });
+    document.body.appendChild(nextFab);
+    nextFab.hidden = true;
+
+    var REDUCED_TOUR = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function stream(el, text, done){
+      if(el.__btStream) window.clearInterval(el.__btStream);
+      el.classList.remove("typing");
+      if(REDUCED_TOUR){ el.textContent = text; if(done) done(); return; }
+      el.textContent = "";
+      el.classList.add("typing");
+      var k = 0;
+      el.__btStream = window.setInterval(function(){
+        k += 1;
+        el.textContent = text.slice(0, k);
+        if(k >= text.length){
+          window.clearInterval(el.__btStream);
+          el.__btStream = 0;
+          el.classList.remove("typing");
+          if(done) done();
+        }
+      }, 46);
+    }
+
+    var sideModeOn = false;
+    var sideTimers = [];
+    function clearSideTimers(){
+      sideTimers.forEach(function(t){ window.clearTimeout(t); });
+      sideTimers = [];
+    }
+
+    function enterSide(s){
+      bar.hidden = true; syncInset();
+      sideModeOn = true;
+      clearSideTimers();
+      nextFab.hidden = true; nextFab.classList.remove("show", "bounce");
+      topcap.hidden = false;
+      requestAnimationFrame(function(){ topcap.classList.add("show"); });
+      stream(topcap, s.sideCaption || s.caption, function(){
+        //  Read, hold, fade — then hand the stage back to the board and let
+        //  the pill do the asking.
+        sideTimers.push(window.setTimeout(function(){
+          topcap.classList.remove("show");
+          sideTimers.push(window.setTimeout(function(){
+            topcap.hidden = true;
+            nextFab.hidden = false;
+            if(!REDUCED_TOUR) nextFab.classList.add("bounce");
+            requestAnimationFrame(function(){ nextFab.classList.add("show"); });
+          }, 550));
+        }, 5600));
+      });
+    }
+
+    function exitSide(){
+      sideModeOn = false;
+      clearSideTimers();
+      if(topcap.__btStream){ window.clearInterval(topcap.__btStream); topcap.__btStream = 0; }
+      topcap.classList.remove("typing", "show");
+      topcap.hidden = true;
+      nextFab.classList.remove("show", "bounce");
+      nextFab.hidden = true;
+      if(document.body.classList.contains("bt-demo-on") && bar.hidden){
+        bar.hidden = false; syncInset();
+      }
+    }
+
+    //  While the beat is on: move `.is-current` (and with it the ring) onto
+    //  the card nearest the top of the view as the viewer scrolls.
+    var sideScrollFrame = 0;
+    window.addEventListener("scroll", function(){
+      if(!sideModeOn || sideScrollFrame) return;
+      sideScrollFrame = requestAnimationFrame(function(){
+        sideScrollFrame = 0;
+        var cards = document.querySelectorAll(".feed-card");
+        if(!cards.length) return;
+        var best = 0, bestD = Infinity;
+        cards.forEach(function(c, n){
+          var d = Math.abs(c.getBoundingClientRect().top - 62);
+          if(d < bestD){ bestD = d; best = n; }
+        });
+        cards.forEach(function(c, n){ c.classList.toggle("is-current", n === best); });
+        placeSpot();
+      });
+    }, true);
+
     function placeSpot(){
       if(!spotTarget){ spot.classList.remove("on"); return; }
       var el;
@@ -36094,6 +36236,7 @@ ledger_entry · artifact · agent_run`,
       i = n;
       var s = steps[i];
       paint();
+      if(s.side) enterSide(s); else exitSide();
       spotTarget = null; spot.classList.remove("on");
       try{ if(s.run) s.run(); }catch(e){}
       if(s.target){
@@ -36170,7 +36313,7 @@ ledger_entry · artifact · agent_run`,
     //  Arrow keys move the demo, but never while the viewer is typing into the
     //  app underneath -- the whole point is that it stays usable.
     document.addEventListener("keydown", function(e){
-      if(bar.hidden) return;
+      if(bar.hidden && !sideModeOn) return;
       var t = e.target;
       if(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if(e.key === "ArrowRight"){ e.preventDefault(); goTo(i + 1); }
