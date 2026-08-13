@@ -23969,7 +23969,7 @@
           <header class="orders-appbar" data-enter>
             <h1 id="ordersHeading" class="sr-only">Supplies</h1>
             <div class="orders-supplier" id="ordersSupplierBox" hidden>
-              <label class="orders-supplier-label" for="ordersSupplierSelect">Supplier</label>
+              <label class="orders-supplier-label sr-only" for="ordersSupplierSelect">Supplier</label>
               <select id="ordersSupplierSelect" aria-label="Which supplier the agent orders from"></select>
               <input type="email" id="ordersSupplierEmail" placeholder="orders@your-supplier.com" hidden
                      aria-label="Your supplier's email address" />
@@ -23985,7 +23985,7 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.2v.1" />
               </svg>
-              <span id="ordersBannerLabel">Sample data &mdash; tap for what's real</span>
+              <span id="ordersBannerLabel">Sample data</span>
             </summary>
             <p>
               <strong>Preview, not live.</strong> The ordering and payment rules below
@@ -24021,7 +24021,7 @@
                  crowds the board, one tap to see everything on offer. Filled by
                  renderCatalogue() from the live store; hidden when empty. -->
             <details class="orders-catalogue" id="ordersCatalogue" hidden>
-              <summary><span>What the store sells</span><span class="orders-catalogue-count"></span></summary>
+              <summary><span class="orders-catalogue-count"></span></summary>
               <div class="orders-catalogue-grid" id="ordersCatalogueGrid"></div>
             </details>
             <p class="orders-note" id="ordersAskNote" hidden></p>
@@ -34029,22 +34029,18 @@ ledger_entry · artifact · agent_run`,
           <div class="orders-stat${needsYou ? " is-alert" : ""}">
             <span>Needs you</span>
             <strong>${needsYou}</strong>
-            <small>${needsYou ? "Action needed" : "All clear"}</small>
           </div>
-          <div class="orders-stat">
+          <div class="orders-stat" title="${escapeHtml(figures.paymentLabel)}">
             <span>Spent this week</span>
             <strong>${cents(figures.spentWeekCents || 0)}</strong>
-            <small>${escapeHtml(figures.paymentLabel)}</small>
           </div>
           <div class="orders-stat${low ? " is-warn" : ""}">
             <span>Low stock</span>
             <strong>${low}</strong>
-            <small>${low ? "Restock soon" : "Stocked up"}</small>
           </div>
           <div class="orders-stat">
             <span>Orders placed</span>
             <strong>${figures.placed}</strong>
-            <small>Recent activity</small>
           </div>`;
       }
 
@@ -34163,7 +34159,7 @@ ledger_entry · artifact · agent_run`,
               : `<span class="orders-conn-dot test" aria-hidden="true"></span><span>Payments &middot; Simulated</span>`;
           }
           const bannerLabel = el("ordersBannerLabel");
-          if (bannerLabel) bannerLabel.textContent = "Live — tap for what's real and what's simulated";
+          if (bannerLabel) bannerLabel.textContent = "Live";
           const payChip = el("ordersPayChip");
           if (payChip) {
             payChip.textContent = stripeLive ? "Stripe · Test mode" : "Payments · Simulated";
