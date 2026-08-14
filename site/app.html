@@ -25822,7 +25822,9 @@
         ? "Open the Chat tab once to load live payment status."
         : active === "email"
           ? "No card in play — your supplier invoices you directly."
-          : state.payment?.provider === "stripe"
+          : active === "zinc"
+            ? "No card in play — Amazon orders draw on the Zinc balance."
+            : state.payment?.provider === "stripe"
             ? "Stripe, test mode. Every placed order is a real PaymentIntent; its reference sits on the receipt under Chat → Supplies → Activity."
             : "Simulated. Add STRIPE_SECRET_KEY and STRIPE_PAYMENT_METHOD to SSM under /brasstacks/ and test-mode Stripe charges take over automatically.";
       return `
@@ -34279,18 +34281,22 @@ ledger_entry · artifact · agent_run`,
             })(),
           ]);
           renderOrdersStats({
-            needsYou: (state.pending || []).length + pendingMoveCount(),
+            needsYou: (state.pending || []).length + pendingMoveCount()
+              + (state.messages || []).filter(m => m.status === "draft").length,
             spentWeekCents: state.spent_week_cents || 0,
             lowCount: (state.stock || []).filter(row => row.is_low).length,
             placed: (state.history || []).filter(row => row.status === "placed").length,
             paymentLabel: state.supplier?.active === "email"
               ? "Supplier invoices you"
-              : state.payment?.provider === "stripe" ? "Stripe · test mode" : "Simulated",
+              : state.supplier?.active === "zinc"
+                ? "Zinc balance pays"
+                : state.payment?.provider === "stripe" ? "Stripe · test mode" : "Simulated",
           });
 
           // The supplier switch: simulated today, DoorDash when the waitlist
-          // clears, or the owner's supplier by email. Options the deployment
-          // cannot honour are visible but disabled, with the reason.
+          // clears, or Amazon through Zinc once its credentials land. Options
+          // the deployment cannot honour are visible but disabled, with the
+          // reason.
           const box = el("ordersSupplierBox");
           const select = el("ordersSupplierSelect");
           if (box && select && state?.supplier) {
@@ -34313,6 +34319,7 @@ ledger_entry · artifact · agent_run`,
               const labels = {
                 simulated: "Simulated store &middot; memory live",
                 doordash: "DoorDash &middot; connected",
+                zinc: "Amazon &middot; via Zinc",
                 email: `Email &rarr; ${escapeHtml(state.supplier.email || "your supplier")}`,
               };
               conn.innerHTML = `<span class="orders-conn-dot" aria-hidden="true"></span><span>${labels[active] || escapeHtml(active)}</span>`;
@@ -34390,11 +34397,48 @@ ledger_entry · artifact · agent_run`,
             <li><span>Delivery &amp; fees</span><span>${money(cart.fees_cents || 0)}</span></li>
           </ul>` : "";
 
+        //  What approving actually does with money, per destination. On the
+        //  card the owner approves — not in the chat — because the card is
+        //  where the decision is made.
+        function destinationLine(storeName) {
+          const label = state?.supplier?.active === "zinc"
+            ? "Amazon (Zinc)"
+            : (storeName || "the active supplier");
+          return `<div class="orders-meta"><span>Ordered through ${escapeHtml(label)}</span></div>`;
+        }
+
+        //  A rep draft is a decision the owner owes too, so it sits in
+        //  Needs you beside the machine approvals. Same rows, same buttons
+        //  as under Your reps — one decision, visible from both places.
+        function repDraftCards() {
+          const contacts = new Map((state.contacts || []).map(c => [c.id, c]));
+          return (state.messages || []).filter(m => m.status === "draft").map(m => {
+            const who = contacts.get(m.contact_id);
+            const name = who ? who.name : "a removed contact";
+            const label = `${m.channel === "whatsapp" ? "WhatsApp" : "Email"} ${m.kind === "order" ? "order" : "message"} to ${name}`;
+            return `
+            <article class="orders-row pending">
+              <div class="orders-row-top">
+                <span class="orders-row-title">${escapeHtml(label)}</span>
+                <span class="orders-row-total">${m.kind === "order" ? `~${money(m.total_cents || 0)}` : ""}</span>
+              </div>
+              <p class="orders-why">${escapeHtml(m.body)}</p>
+              ${m.kind === "order" ? `<div class="orders-meta"><span>Sent to ${escapeHtml(name)}</span></div>` : ""}
+              <div class="orders-actions">
+                <button type="button" class="orders-btn approve" data-live-message-send="${escapeHtml(m.id)}">Send to ${escapeHtml(name)}</button>
+                <button type="button" class="orders-btn ghost" data-live-message-discard="${escapeHtml(m.id)}">Discard</button>
+              </div>
+            </article>`;
+          });
+        }
+
         function renderPending() {
           const rows = state.pending || [];
-          el("ordersPendingCount").textContent = String(rows.length);
-          el("ordersPendingCount").classList.toggle("has-items", rows.length > 0);
-          el("ordersPendingEmpty").hidden = rows.length > 0;
+          const drafts = repDraftCards();
+          const total = rows.length + drafts.length;
+          el("ordersPendingCount").textContent = String(total);
+          el("ordersPendingCount").classList.toggle("has-items", total > 0);
+          el("ordersPendingEmpty").hidden = total > 0;
           el("ordersPendingList").innerHTML = rows.map(p => `
             <article class="orders-row pending">
               <div class="orders-row-top">
@@ -34403,11 +34447,12 @@ ledger_entry · artifact · agent_run`,
               </div>
               ${cartHtml(p.cart)}
               <p class="orders-why">${escapeHtml(p.reason || "")}</p>
+              ${destinationLine(p.cart?.store_name)}
               <div class="orders-actions">
                 <button type="button" class="orders-btn approve" data-live-approve="${escapeHtml(p.id)}">Approve &amp; pay ${money(p.total_cents || 0)}</button>
                 <button type="button" class="orders-btn ghost" data-live-reject="${escapeHtml(p.id)}">Not now</button>
               </div>
-            </article>`).join("");
+            </article>`).join("") + drafts.join("");
         }
 
         function renderStanding() {
@@ -34943,9 +34988,30 @@ ledger_entry · artifact · agent_run`,
       function renderPending() {
         const list = el("ordersPendingList");
         const count = el("ordersPendingCount");
-        count.textContent = String(pending.length);
-        count.classList.toggle("has-items", pending.length > 0);
-        el("ordersPendingEmpty").hidden = pending.length > 0;
+        //  Rep drafts sit in Needs you beside the machine approvals, same
+        //  as the live board — one place to owe a decision.
+        const drafts = repMessages.filter(m => m.status === "draft").map(m => {
+          const who = repContacts.find(c => c.id === m.contact_id);
+          const name = who ? who.name : "a removed contact";
+          const label = `${m.channel === "whatsapp" ? "WhatsApp" : "Email"} ${m.kind === "order" ? "order" : "message"} to ${name}`;
+          return `
+          <article class="orders-row pending">
+            <div class="orders-row-top">
+              <span class="orders-row-title">${escapeHtml(label)}</span>
+              <span class="orders-row-total">${m.kind === "order" && m.cart ? `~${money(m.cart.total_cents)}` : ""}</span>
+            </div>
+            <p class="orders-why">${escapeHtml(m.body)}</p>
+            ${m.kind === "order" ? `<div class="orders-meta"><span>Sent to ${escapeHtml(name)}</span></div>` : ""}
+            <div class="orders-actions">
+              <button type="button" class="orders-btn approve" data-rep-send="${escapeHtml(m.id)}">Send to ${escapeHtml(name)}</button>
+              <button type="button" class="orders-btn ghost" data-rep-discard="${escapeHtml(m.id)}">Discard</button>
+            </div>
+          </article>`;
+        });
+        const total = pending.length + drafts.length;
+        count.textContent = String(total);
+        count.classList.toggle("has-items", total > 0);
+        el("ordersPendingEmpty").hidden = total > 0;
         list.innerHTML = pending.map((p, i) => `
           <article class="orders-row ${p.priceMoved ? "blocked" : "pending"}">
             <div class="orders-row-top">
@@ -34954,12 +35020,13 @@ ledger_entry · artifact · agent_run`,
             </div>
             ${lineHtml(p.cart)}
             <p class="orders-why">${escapeHtml(p.reason)}</p>
+            <div class="orders-meta"><span>Ordered through Simulated store</span></div>
             <div class="orders-actions">
               <button type="button" class="orders-btn approve" data-approve="${i}">Approve &amp; pay ${money(p.cart.total)}</button>
               <button type="button" class="orders-btn ghost" data-reject="${i}">Not now</button>
               ${p.priceMoved ? "" : `<button type="button" class="orders-btn ghost" data-drift="${i}">Simulate a price change</button>`}
             </div>
-          </article>`).join("");
+          </article>`).join("") + drafts.join("");
       }
 
       function renderStanding() {
@@ -35115,7 +35182,8 @@ ledger_entry · artifact · agent_run`,
           })(),
         ]);
         renderOrdersStats({
-          needsYou: pending.length + pendingMoveCount(),
+          needsYou: pending.length + pendingMoveCount()
+            + repMessages.filter(m => m.status === "draft").length,
           spentWeekCents: history.reduce((sum, row) => sum + row.total, 0),
           lowCount: stock.filter(row => row.remaining <= row.reorderAt).length,
           placed: history.length,

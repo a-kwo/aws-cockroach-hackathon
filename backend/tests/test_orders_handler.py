@@ -349,8 +349,9 @@ class TestStock:
 
 
 class TestSupplierSwitch:
-    """Two machine shops behind one seam: simulated, and DoorDash when the
-    waitlist clears. The email supplier mode was folded into rep messaging
+    """Three machine shops behind one seam: simulated, DoorDash when the
+    waitlist clears, and Amazon through Zinc when its credentials land in
+    Parameter Store. The email supplier mode was folded into rep messaging
     on 2026-08-13 — a cart for a human supplier is a rep message now, drawn
     up by the agent and released only by the owner's Send (see
     test_supplier_reps.TestCartsThroughReps). Machines can be ordered from
@@ -378,12 +379,31 @@ class TestSupplierSwitch:
             email_sender=getattr(board, "email_sender", None),
             email_source="agents@brasstacks.example"
             if getattr(board, "email_sender", None) else None,
-            doordash_tool=getattr(board, "doordash_tool", None))
+            doordash_tool=getattr(board, "doordash_tool", None),
+            zinc_factory=getattr(board, "zinc_factory", None))
 
-    def test_the_state_lists_the_two_machine_suppliers(self, board):
+    def zinc(self, board, address="12 Vine St, Portland, OR 97209"):
+        """Configure Zinc: a factory (the deployment side) plus a business
+        address on file (the tenant side). Returns the fake shop and the
+        addresses the factory was invoked with."""
+        board.repo.update_business_profile(
+            board.business_id, name="Rosa's", category="restaurant",
+            city=address, profile_data={})
+        shop = FakeOrderingTool(catalogue=dict(CATALOGUE))
+        shop.name = "zinc"
+        built_with = []
+
+        def factory(shipping_address):
+            built_with.append(shipping_address)
+            return shop
+
+        board.zinc_factory = factory
+        return shop, built_with
+
+    def test_the_state_lists_the_three_machine_suppliers(self, board):
         state = json.loads(self.call(board)["body"])
         options = {o["id"]: o for o in state["supplier"]["options"]}
-        assert set(options) == {"simulated", "doordash"}
+        assert set(options) == {"simulated", "doordash", "zinc"}
         assert state["supplier"]["active"] == "simulated"
 
     def test_doordash_is_marked_waitlisted_until_a_tool_exists(self, board):
@@ -406,6 +426,75 @@ class TestSupplierSwitch:
         assert response["statusCode"] == 200
         assert board.store.get_supplier(board.business_id)["supplier"] == \
             "doordash"
+
+    def test_zinc_is_marked_unconfigured_until_credentials_land(self, board):
+        state = json.loads(self.call(board)["body"])
+        zinc = next(o for o in state["supplier"]["options"]
+                    if o["id"] == "zinc")
+        assert zinc["available"] is False
+        assert "zinc_client_token" in zinc["note"].lower()
+
+    def test_zinc_cannot_be_selected_before_configuration(self, board):
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "zinc"})
+        assert response["statusCode"] == 400
+        assert "zinc" in json.loads(response["body"])["error"].lower()
+
+    def test_the_ship_to_is_the_business_own_address(self, board):
+        """The owner never types a second address: the ship-to is derived
+        from the signup profile, per tenant, at request time."""
+        _, built_with = self.zinc(board)
+        self.call(board, method="POST", action="supplier",
+                  body={"supplier": "zinc"})
+        assert built_with[0]["address_line1"] == "12 Vine St"
+        assert built_with[0]["city"] == "Portland"
+        assert built_with[0]["state"] == "OR"
+        assert built_with[0]["postal_code"] == "97209"
+        assert built_with[0]["first_name"] == "Rosa's"
+
+    def test_an_unreadable_business_address_disables_zinc_with_the_remedy(
+            self, board):
+        """A factory without a deliverable address must not fail at
+        checkout with an approved order in hand — the option is disabled
+        and the note says what to fix."""
+        self.zinc(board)
+        board.repo.update_business_profile(
+            board.business_id, name="Rosa's", category="restaurant",
+            city="Portland, somewhere nice", profile_data={})
+        state = json.loads(self.call(board)["body"])
+        zinc = next(o for o in state["supplier"]["options"]
+                    if o["id"] == "zinc")
+        assert zinc["available"] is False
+        assert "Profile" in zinc["note"]
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "zinc"})
+        assert response["statusCode"] == 400
+
+    def test_zinc_becomes_selectable_with_credentials_and_an_address(
+            self, board):
+        self.zinc(board)
+        response = self.call(board, method="POST", action="supplier",
+                             body={"supplier": "zinc"})
+        assert response["statusCode"] == 200
+        assert board.store.get_supplier(board.business_id)["supplier"] == \
+            "zinc"
+
+    def test_a_zinc_order_never_touches_the_card(self, board):
+        """Zinc draws on its own funded balance (or the Amazon account's
+        gift balance) — charging the Stripe card as well would be paying
+        twice, the same rule the retired email mode lived by."""
+        self.zinc(board)
+        board.store.set_supplier(board.business_id, supplier="zinc")
+        board.store.add_authority(board.business_id, scope="tomatoes",
+                                  level="auto", per_order_cap_cents=100_00,
+                                  period_cap_cents=300_00)
+        answer = json.loads(self.call(
+            board, method="POST", action="ask",
+            body={"text": "order 2 tomatoes"})["body"])
+        assert answer["kind"] == "placed"
+        assert board.payments.charged == []
+        placed = board.store.list_orders(board.business_id, status="placed")
+        assert placed[0]["payment_reference"] is None
 
     def test_selecting_email_redirects_to_reps(self, board):
         """The mode is retired, and the refusal says where the feature went

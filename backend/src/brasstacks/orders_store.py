@@ -25,8 +25,10 @@ VALID_LEVELS = {"ask_always", "ask_if_over", "auto"}
 ORDER_STATUSES = {"placed", "awaiting_approval", "failed", "rejected"}
 #: Which shop the Quartermaster talks to. `simulated` is the default and the
 #: only one that needs no credentials; `doordash` activates when the waitlist
-#: clears; `email` sends approved orders to the owner's supplier.
-VALID_SUPPLIERS = {"simulated", "doordash", "email"}
+#: clears; `zinc` places on Amazon once its Parameter Store entries land.
+#: `email` is retired as a supplier mode — carts for humans travel as rep
+#: messages now — but stays valid so legacy rows load rather than crash.
+VALID_SUPPLIERS = {"simulated", "doordash", "zinc", "email"}
 
 
 def _validate_supplier(supplier: str, supplier_email: str | None) -> str | None:

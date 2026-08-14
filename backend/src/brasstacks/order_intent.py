@@ -28,6 +28,10 @@ MAX_TOKENS = 600
 
 ORDER_INTENT_SCHEMA: Mapping[str, Any] = {
     "type": "object",
+    #  Required by the structured-output API on every object, not a style
+    #  choice: omitting it is a 400 on each live call, which the ask
+    #  handler's keyword fallback then swallows without a trace.
+    "additionalProperties": False,
     "properties": {
         "is_order_request": {
             "type": "boolean",
@@ -37,6 +41,7 @@ ORDER_INTENT_SCHEMA: Mapping[str, Any] = {
             "type": "array",
             "items": {
                 "type": "object",
+                "additionalProperties": False,
                 "properties": {
                     "name": {
                         "type": "string",

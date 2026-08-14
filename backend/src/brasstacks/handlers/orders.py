@@ -314,6 +314,12 @@ DOORDASH_WAITLIST_REASON = (
     "waitlist, and orders will flow through it the moment access lands."
 )
 
+#: Why Amazon-via-Zinc is a slot rather than a shop, until its parameters land.
+ZINC_UNCONFIGURED_REASON = (
+    "Amazon ordering via Zinc isn't configured yet — add ZINC_CLIENT_TOKEN "
+    "to Parameter Store and the option switches on."
+)
+
 
 def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                payment_tool: Any = None, payment_provider: str = "simulated",
@@ -321,6 +327,7 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                email_sender: Any = None, email_source: str | None = None,
                whatsapp_sender: Any = None,
                doordash_tool: Any = None,
+               zinc_factory: Any = None,
                ) -> dict[str, Any]:
     moment = now or datetime.now(timezone.utc)
     today = moment.date()
@@ -345,7 +352,26 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
     email_ok = bool(email_sender and email_source)
     whatsapp_ok = bool(whatsapp_sender)
 
-    from brasstacks.ordering import UnavailableOrderingTool
+    from brasstacks.ordering import (
+        UnavailableOrderingTool,
+        zinc_shipping_address,
+    )
+
+    #  Zinc ships to the business's own signup address — the owner never
+    #  types it twice, and each tenant's orders go to that tenant's door.
+    #  No deliverable address means the option stays off with the remedy in
+    #  the note, never a failure at checkout with an approved order in hand.
+    zinc_tool = None
+    zinc_reason = ZINC_UNCONFIGURED_REASON
+    if zinc_factory is not None:
+        tenant = repo.get_business(business_id) or {}
+        try:
+            zinc_tool = zinc_factory(zinc_shipping_address(
+                business_name=tenant.get("name") or "",
+                address_text=tenant.get("city"),
+                phone=(tenant.get("profile_data") or {}).get("phone")))
+        except ValueError as exc:
+            zinc_reason = str(exc)
 
     #  The email supplier mode folded into rep messaging: a cart for a human
     #  goes out as a rep message ("email my rep: order …"), behind the same
@@ -355,6 +381,12 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         active_tool = doordash_tool or UnavailableOrderingTool(
             name="doordash", reason=DOORDASH_WAITLIST_REASON)
         active_payment = payment_tool if doordash_tool else None
+    elif supplier == "zinc":
+        active_tool = zinc_tool or UnavailableOrderingTool(
+            name="zinc", reason=zinc_reason)
+        #  Zinc draws on its own funded balance (or the Amazon account's gift
+        #  balance); charging the Stripe card as well would be paying twice.
+        active_payment = None
     else:
         active_tool = tool
         active_payment = payment_tool
@@ -370,6 +402,12 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
              "available": doordash_tool is not None,
              "note": ("Connected." if doordash_tool is not None
                       else DOORDASH_WAITLIST_REASON)},
+            {"id": "zinc", "label": "Amazon (via Zinc)",
+             "available": zinc_tool is not None,
+             "note": (("Connected — approved orders place on Amazon through "
+                       "Zinc, shipped to your business address. The card is "
+                       "never charged; the Zinc balance pays.")
+                      if zinc_tool is not None else zinc_reason)},
         ],
     }
 
@@ -479,9 +517,9 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                 return respond(200, {
                     "kind": "message_drafted",
                     "reason": (f"Drafted a {channel} order to "
-                               f"{contact['name']} — review it on the "
-                               "Supplies board and press Send. Nothing "
-                               "goes out until you do."),
+                               f"{contact['name']} — it's waiting under "
+                               "Needs you on the Supplies board. Nothing "
+                               "goes out until you press Send."),
                     "state": state()})
             if channel == "whatsapp":
                 body_text = compose_rep_text(
@@ -499,9 +537,9 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
             return respond(200, {
                 "kind": "message_drafted",
                 "reason": (f"Drafted a {channel} message to "
-                           f"{contact['name']} — review it on the Supplies "
-                           "board and press Send. Nothing goes out until "
-                           "you do."),
+                           f"{contact['name']} — it's waiting under Needs "
+                           "you on the Supplies board. Nothing goes out "
+                           "until you press Send."),
                 "state": state()})
 
         request = None
@@ -696,6 +734,8 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         choice = str(payload.get("supplier") or "").strip()
         if choice == "doordash" and doordash_tool is None:
             return respond(400, {"error": DOORDASH_WAITLIST_REASON})
+        if choice == "zinc" and zinc_tool is None:
+            return respond(400, {"error": zinc_reason})
         if choice == "email":
             return respond(400, {
                 "error": ("Emailing your supplier now goes through reps: "
@@ -879,6 +919,32 @@ def _payment(settings_env) -> tuple[Any, str]:
     return FakePaymentTool(), "simulated"
 
 
+def make_ses_sender(ses: Any):
+    """The emailer the deployed Lambda actually uses, extracted so a test can
+    pin its signature against what ``run_orders`` calls it with. It once
+    lacked ``reply_to`` entirely — the injected fakes in the suite accepted
+    it happily while the real closure would have raised TypeError on the
+    first live send."""
+
+    def send(*, source, recipient, subject, body, reply_to=None):
+        request = {
+            "Source": source,
+            "Destination": {"ToAddresses": [recipient]},
+            "Message": {
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
+            },
+        }
+        #  Reply-To routes the rep's answer to the owner's inbox. SES only
+        #  requires the *source* to be a verified identity.
+        if str(reply_to or "").strip():
+            request["ReplyToAddresses"] = [str(reply_to).strip()]
+        response = ses.send_email(**request)
+        return str(response.get("MessageId") or "")
+
+    return send
+
+
 def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     method = str(((event or {}).get("requestContext") or {})
                  .get("http", {}).get("method") or "").upper()
@@ -914,17 +980,8 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     email_sender = None
     if email_source:
         import boto3
-        ses = boto3.client("ses", region_name=settings.aws_region)
-
-        def email_sender(*, source, recipient, subject, body):
-            response = ses.send_email(
-                Source=source,
-                Destination={"ToAddresses": [recipient]},
-                Message={
-                    "Subject": {"Data": subject, "Charset": "UTF-8"},
-                    "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
-                })
-            return str(response.get("MessageId") or "")
+        email_sender = make_ses_sender(
+            boto3.client("ses", region_name=settings.aws_region))
 
     #  WhatsApp Business Cloud API, spoken directly over httpx like the
     #  Stripe adapter — no SDK dependency. Both parameters hydrate from SSM
@@ -965,6 +1022,38 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
     # the option visible on screen and honestly refused at runtime.
     doordash_tool = None
 
+    #  Amazon through Zinc (api.zinc.com): one Parameter Store entry
+    #  switches it on (/brasstacks/ZINC_CLIENT_TOKEN). A zn_test_ key routes
+    #  to Zinc's sandbox automatically — same lifecycle, nothing ships. The
+    #  ship-to is NOT configuration — run_orders derives it per tenant from
+    #  the business's own signup address, which is why this is a factory
+    #  rather than a tool. ZINC_RETAILER_CREDENTIALS_ID optionally pins a
+    #  managed retailer account instead of the default wallet checkout.
+    zinc_factory = None
+    zinc_token = os.environ.get("ZINC_CLIENT_TOKEN", "").strip()
+    if zinc_token:
+        from brasstacks.ordering import ZincOrderingTool
+        zinc_retailer = os.environ.get("ZINC_RETAILER",
+                                       "amazon").strip() or "amazon"
+        zinc_credentials_id = os.environ.get(
+            "ZINC_RETAILER_CREDENTIALS_ID", "").strip() or None
+        #  Zinc requires a delivery contact number and signup doesn't collect
+        #  one (yet): a tenant phone in the profile wins, this deployment
+        #  fallback covers the rest, and with neither the option stays off
+        #  with the reason rather than inventing a number.
+        zinc_phone = os.environ.get("ZINC_PHONE_NUMBER", "").strip()
+
+        def zinc_factory(shipping_address):
+            if zinc_phone and not shipping_address.get("phone_number"):
+                shipping_address = dict(shipping_address,
+                                        phone_number=zinc_phone)
+            return ZincOrderingTool(
+                client_token=zinc_token,
+                shipping_address=shipping_address,
+                retailer=zinc_retailer,
+                retailer_credentials_id=zinc_credentials_id,
+            )
+
     try:
         with psycopg.connect(settings.cockroach_url, autocommit=True) as conn:
             return run_orders(
@@ -979,6 +1068,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 email_source=email_source,
                 whatsapp_sender=whatsapp_sender,
                 doordash_tool=doordash_tool,
+                zinc_factory=zinc_factory,
             )
     except psycopg.Error:
         return respond(503, {"error": "orders are unavailable right now"})

@@ -175,6 +175,31 @@ class TestModelFailure:
             parse_order_request("tomatoes", reasoner=reasoner)
 
 
+class TestTheSchemaIsApiLegal:
+    def test_every_object_forbids_additional_properties(self):
+        """The Anthropic structured-output API rejects any 'object' whose
+        schema does not explicitly set additionalProperties to false. This
+        one omission 400'd every live parse — silently, because the ask
+        handler deliberately falls back to the keyword parser on model
+        failure — so owners could only order the twelve catalogue words
+        while every test still passed."""
+        from brasstacks.order_intent import ORDER_INTENT_SCHEMA
+
+        def walk(node, path="$"):
+            if isinstance(node, dict):
+                if node.get("type") == "object":
+                    assert node.get("additionalProperties") is False, (
+                        f"object at {path} must set additionalProperties "
+                        "to False")
+                for key, value in node.items():
+                    walk(value, f"{path}.{key}")
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    walk(value, f"{path}[{index}]")
+
+        walk(ORDER_INTENT_SCHEMA)
+
+
 class TestThePrompt:
     def test_the_owners_words_reach_the_model(self):
         reasoner = said(items=[{"name": "tomatoes", "quantity": 1}])

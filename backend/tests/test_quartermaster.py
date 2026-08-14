@@ -69,6 +69,36 @@ class TestTheHappyPath:
                    authorities=[standing()])
         assert len(t.placed) == 1
 
+    def test_a_still_confirming_receipt_is_not_reported_as_final(self):
+        """Zinc's ordering call is asynchronous: the receipt can come back
+        ``processing`` with only the approved ceiling known. Saying "Placed
+        for $X" then would present the ceiling as the final price — the
+        reason must say the store is still confirming, and hand the owner
+        the reference to chase it by."""
+        class SlowStore:
+            name = "slow"
+
+            def draft(self, *, items, near=None):
+                return tool().draft(items=items, near=near)
+
+            def place(self, *, cart, idempotency_key):
+                from datetime import datetime, timezone
+
+                from brasstacks.ordering import Receipt
+                return Receipt(external_reference="zinc:req-77",
+                               total_cents=cart.total_cents,
+                               lines=cart.lines,
+                               placed_at=datetime.now(timezone.utc),
+                               store_name=cart.store_name,
+                               status="processing")
+
+        plan = plan_order(request=ask_for(("tomatoes", 2)), tool=SlowStore(),
+                          authorities=[standing()])
+        assert plan.status is Status.PLACED
+        assert "confirming" in plan.reason
+        assert "zinc:req-77" in plan.reason
+        assert "up to $9.00" in plan.reason
+
 
 class TestApprovalRequired:
     def test_an_uncovered_order_waits_for_the_owner(self):

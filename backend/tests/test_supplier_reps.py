@@ -534,6 +534,43 @@ class TestSenderIdentity:
                                   "<night@brasstacks.example>")
         assert sent["reply_to"] == "maya@harborviewjapanese.com"
 
+    def test_the_real_ses_sender_forwards_the_reply_to(self):
+        """The tests above use injected fakes; this one pins the boto3
+        closure the deployed Lambda actually builds. It once lacked the
+        ``reply_to`` parameter entirely, which the fakes could never
+        catch — a live send would have been a TypeError."""
+        from brasstacks.handlers.orders import make_ses_sender
+
+        calls = []
+
+        class FakeSes:
+            def send_email(self, **kwargs):
+                calls.append(kwargs)
+                return {"MessageId": "ses-1"}
+
+        send = make_ses_sender(FakeSes())
+        provider_id = send(source="a@b.example", recipient="rep@c.example",
+                           subject="s", body="b",
+                           reply_to="owner@d.example")
+        assert provider_id == "ses-1"
+        assert calls[0]["ReplyToAddresses"] == ["owner@d.example"]
+        assert calls[0]["Source"] == "a@b.example"
+
+    def test_the_real_ses_sender_omits_an_absent_reply_to(self):
+        from brasstacks.handlers.orders import make_ses_sender
+
+        calls = []
+
+        class FakeSes:
+            def send_email(self, **kwargs):
+                calls.append(kwargs)
+                return {"MessageId": "ses-2"}
+
+        make_ses_sender(FakeSes())(source="a@b.example",
+                                   recipient="rep@c.example",
+                                   subject="s", body="b", reply_to=None)
+        assert "ReplyToAddresses" not in calls[0]
+
 
 class TestCartsThroughReps:
     """Order-by-email folds into rep messaging.
@@ -602,7 +639,8 @@ class TestCartsThroughReps:
 
     def test_the_email_supplier_mode_is_retired(self, board):
         state = board.body(board.call())
-        assert [option["id"] for option in state["supplier"]["options"]]             == ["simulated", "doordash"]
+        assert "email" not in [option["id"]
+                               for option in state["supplier"]["options"]]
         response = board.call(method="POST", action="supplier",
                               body={"supplier": "email",
                                     "email": "old@supplier.com"})

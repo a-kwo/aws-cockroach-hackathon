@@ -328,10 +328,19 @@ def _place(*, tool: OrderingTool, cart: Cart, idempotency_key: str,
             charge=charge,
         )
 
+    if receipt.status == "processing":
+        # An asynchronous provider (Zinc) can outlast the polls. The order is
+        # in flight and only the approved ceiling is known — saying "Placed
+        # for" would present that ceiling as the final price.
+        reason = (f"Order sent for up to {_money(receipt.total_cents)} — the "
+                  f"store is still confirming it (reference "
+                  f"{receipt.external_reference}).")
+    else:
+        reason = (f"Placed for {_money(receipt.total_cents)}."
+                  + (" Paid by card." if charge is not None else ""))
     return OrderPlan(
         status=Status.PLACED,
-        reason=f"Placed for {_money(receipt.total_cents)}."
-               + (" Paid by card." if charge is not None else ""),
+        reason=reason,
         cart=cart,
         receipt=receipt,
         authorization=authorization,
