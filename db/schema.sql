@@ -843,11 +843,18 @@ CREATE TABLE IF NOT EXISTS supplier_contact (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES business(id) ON DELETE CASCADE,
   name        STRING NOT NULL,
-  email       STRING NOT NULL,
+  -- At least one of email / phone, enforced by the store: a rep the agent
+  -- cannot reach on any channel is not a contact.
+  email       STRING,
+  phone       STRING,
   category    STRING,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   INDEX supplier_contact_by_business (business_id)
 );
+
+-- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists.
+ALTER TABLE supplier_contact ADD COLUMN IF NOT EXISTS phone STRING;
+ALTER TABLE supplier_contact ALTER COLUMN email DROP NOT NULL;
 
 -- Messages the agent drafted for a rep. status: draft | sent | discarded.
 -- A draft costs nothing; only the owner's explicit send moves it to 'sent',
@@ -859,9 +866,23 @@ CREATE TABLE IF NOT EXISTS supplier_message (
                      ON DELETE CASCADE,
   subject            STRING NOT NULL,
   body               STRING NOT NULL,
+  -- email | whatsapp. iMessage is deliberately absent: Apple offers no API
+  -- a server could call, so offering it would be a simulation wearing the
+  -- wrong name.
+  channel            STRING NOT NULL DEFAULT 'email',
   status             STRING NOT NULL DEFAULT 'draft',
   external_reference STRING,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   sent_at            TIMESTAMPTZ,
   INDEX supplier_message_by_business (business_id, created_at DESC)
 );
+
+ALTER TABLE supplier_message
+  ADD COLUMN IF NOT EXISTS channel STRING NOT NULL DEFAULT 'email';
+-- Order-by-email folded into rep messaging: a message may carry a priced
+-- cart (kind = 'order'), estimates at last known prices. The supplier
+-- invoices directly, so no card is ever charged on this path.
+ALTER TABLE supplier_message
+  ADD COLUMN IF NOT EXISTS kind STRING NOT NULL DEFAULT 'note';
+ALTER TABLE supplier_message ADD COLUMN IF NOT EXISTS cart JSONB;
+ALTER TABLE supplier_message ADD COLUMN IF NOT EXISTS total_cents INT8;

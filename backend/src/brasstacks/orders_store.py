@@ -16,6 +16,7 @@ trusting callers, because a cap stored as 120.5 is a bug found in a receipt.
 
 from __future__ import annotations
 
+import re as _re
 import uuid
 from datetime import date, datetime
 from typing import Any, Iterable, Sequence
@@ -40,16 +41,38 @@ def _validate_supplier(supplier: str, supplier_email: str | None) -> str | None:
                 "the email supplier needs your supplier's email address")
     return email
 
-def _validate_contact(name: str, email: str,
-                      category: str | None) -> tuple[str, str, str | None]:
+#: Channels a rep message can travel over. iMessage is deliberately absent:
+#: Apple offers no API a server could call, so offering it would be a lie.
+VALID_MESSAGE_CHANNELS = {"email", "whatsapp"}
+
+#: A note carries the owner's words; an order carries a priced cart too.
+VALID_MESSAGE_KINDS = {"note", "order"}
+
+
+def _validate_contact(name: str, email: str | None, phone: str | None,
+                      category: str | None
+                      ) -> tuple[str, str | None, str | None, str | None]:
     cleaned_name = str(name or "").strip()
     if not cleaned_name:
         raise ValueError("a contact needs a name")
-    cleaned_email = str(email or "").strip()
-    if not cleaned_email or "@" not in cleaned_email:
+    cleaned_email = str(email or "").strip() or None
+    if cleaned_email and "@" not in cleaned_email:
         raise ValueError(f"{cleaned_name} needs a real email address")
+    raw_phone = str(phone or "").strip()
+    cleaned_phone = None
+    if raw_phone:
+        compact = _re.sub(r"[\s().\-]", "", raw_phone)
+        if not _re.fullmatch(r"\+?\d{7,15}", compact):
+            raise ValueError(
+                f"{cleaned_name}'s phone doesn't look like a phone number — "
+                "digits and a country code, like +14155550134")
+        cleaned_phone = compact
+    if cleaned_email is None and cleaned_phone is None:
+        raise ValueError(
+            f"{cleaned_name} needs at least one way to be reached — an "
+            "email address or a phone number")
     cleaned_category = str(category or "").strip().lower() or None
-    return cleaned_name, cleaned_email, cleaned_category
+    return cleaned_name, cleaned_email, cleaned_phone, cleaned_category
 
 
 #: The only fields update_order may touch. Anything else is a caller typo, and
@@ -320,15 +343,16 @@ class InMemoryOrdersStore:
 
     # -- supplier contacts ---------------------------------------------------
 
-    def add_contact(self, business_id: str, *, name: str, email: str,
+    def add_contact(self, business_id: str, *, name: str,
+                    email: str | None = None, phone: str | None = None,
                     category: str | None = None) -> dict[str, Any]:
-        cleaned_name, cleaned_email, cleaned_category = _validate_contact(
-            name, email, category)
+        cleaned_name, cleaned_email, cleaned_phone, cleaned_category =             _validate_contact(name, email, phone, category)
         row = {
             "id": str(uuid.uuid4()),
             "business_id": business_id,
             "name": cleaned_name,
             "email": cleaned_email,
+            "phone": cleaned_phone,
             "category": cleaned_category,
         }
         self._contacts.append(row)
@@ -349,13 +373,30 @@ class InMemoryOrdersStore:
     # -- rep messages ----------------------------------------------------------
 
     def create_message(self, business_id: str, *, contact_id: str,
-                       subject: str, body: str) -> dict[str, Any]:
+                       subject: str, body: str,
+                       channel: str = "email",
+                       kind: str = "note",
+                       cart: dict[str, Any] | None = None,
+                       total_cents: int | None = None) -> dict[str, Any]:
+        if channel not in VALID_MESSAGE_CHANNELS:
+            raise ValueError(
+                f"channel must be one of {sorted(VALID_MESSAGE_CHANNELS)}, "
+                f"got {channel!r}")
+        if kind not in VALID_MESSAGE_KINDS:
+            raise ValueError(
+                f"kind must be one of {sorted(VALID_MESSAGE_KINDS)}, "
+                f"got {kind!r}")
+        _require_cents(total_cents, "total_cents", optional=True)
         row = {
             "id": str(uuid.uuid4()),
             "business_id": business_id,
             "contact_id": contact_id,
             "subject": str(subject or "").strip(),
             "body": str(body or ""),
+            "channel": channel,
+            "kind": kind,
+            "cart": cart,
+            "total_cents": total_cents,
             "status": "draft",
             "external_reference": None,
             "created_at": datetime.now(),
@@ -705,37 +746,41 @@ class PostgresOrdersStore:
 
     # -- supplier contacts ---------------------------------------------------
 
-    def add_contact(self, business_id, *, name, email,
+    def add_contact(self, business_id, *, name, email=None, phone=None,
                     category=None) -> dict[str, Any]:
-        cleaned_name, cleaned_email, cleaned_category = _validate_contact(
-            name, email, category)
+        cleaned_name, cleaned_email, cleaned_phone, cleaned_category = (
+            _validate_contact(name, email, phone, category))
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO supplier_contact (business_id, name, email,
-                                              category)
-                VALUES (%s, %s, %s, %s)
+                                              phone, category)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (business_id, cleaned_name, cleaned_email, cleaned_category),
+                (business_id, cleaned_name, cleaned_email, cleaned_phone,
+                 cleaned_category),
             )
             contact_id = str(cur.fetchone()[0])
         self._conn.commit()
         return {"id": contact_id, "name": cleaned_name,
-                "email": cleaned_email, "category": cleaned_category}
+                "email": cleaned_email, "phone": cleaned_phone,
+                "category": cleaned_category}
 
     def list_contacts(self, business_id) -> list[dict[str, Any]]:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, name, email, category FROM supplier_contact
+                SELECT id, name, email, phone, category
+                FROM supplier_contact
                 WHERE business_id = %s
                 ORDER BY created_at
                 """,
                 (business_id,),
             )
             return [{"id": str(row[0]), "name": row[1], "email": row[2],
-                     "category": row[3]} for row in cur.fetchall()]
+                     "phone": row[3], "category": row[4]}
+                    for row in cur.fetchall()]
 
     def remove_contact(self, business_id, contact_id) -> bool:
         with self._conn.cursor() as cur:
@@ -753,30 +798,47 @@ class PostgresOrdersStore:
     # -- rep messages ----------------------------------------------------------
 
     def create_message(self, business_id, *, contact_id, subject,
-                       body) -> dict[str, Any]:
+                       body, channel="email", kind="note", cart=None,
+                       total_cents=None) -> dict[str, Any]:
+        if channel not in VALID_MESSAGE_CHANNELS:
+            raise ValueError(
+                f"channel must be one of {sorted(VALID_MESSAGE_CHANNELS)}, "
+                f"got {channel!r}")
+        if kind not in VALID_MESSAGE_KINDS:
+            raise ValueError(
+                f"kind must be one of {sorted(VALID_MESSAGE_KINDS)}, "
+                f"got {kind!r}")
+        _require_cents(total_cents, "total_cents", optional=True)
+        import json as _json
         with self._conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO supplier_message (business_id, contact_id,
-                                              subject, body, status)
-                VALUES (%s, %s, %s, %s, 'draft')
+                                              subject, body, channel, kind,
+                                              cart, total_cents, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'draft')
                 RETURNING id, created_at
                 """,
                 (business_id, contact_id,
-                 str(subject or "").strip(), str(body or "")),
+                 str(subject or "").strip(), str(body or ""), channel, kind,
+                 _json.dumps(cart) if cart is not None else None,
+                 total_cents),
             )
             message_id, created_at = cur.fetchone()
         self._conn.commit()
         return {"id": str(message_id), "contact_id": contact_id,
                 "subject": str(subject or "").strip(),
-                "body": str(body or ""), "status": "draft",
+                "body": str(body or ""), "channel": channel,
+                "kind": kind, "cart": cart, "total_cents": total_cents,
+                "status": "draft",
                 "external_reference": None, "created_at": created_at}
 
     def list_messages(self, business_id, *, limit=50) -> list[dict[str, Any]]:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, contact_id, subject, body, status,
+                SELECT id, contact_id, subject, body, channel, kind,
+                       cart, total_cents, status,
                        external_reference, created_at
                 FROM supplier_message
                 WHERE business_id = %s
@@ -786,15 +848,18 @@ class PostgresOrdersStore:
                 (business_id, limit),
             )
             return [{"id": str(row[0]), "contact_id": str(row[1]),
-                     "subject": row[2], "body": row[3], "status": row[4],
-                     "external_reference": row[5], "created_at": row[6]}
+                     "subject": row[2], "body": row[3], "channel": row[4],
+                     "kind": row[5], "cart": row[6],
+                     "total_cents": row[7], "status": row[8],
+                     "external_reference": row[9], "created_at": row[10]}
                     for row in cur.fetchall()]
 
     def get_message(self, business_id, message_id) -> dict[str, Any] | None:
         with self._conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, contact_id, subject, body, status,
+                SELECT id, contact_id, subject, body, channel, kind,
+                       cart, total_cents, status,
                        external_reference, created_at
                 FROM supplier_message
                 WHERE business_id = %s AND id = %s
@@ -805,8 +870,10 @@ class PostgresOrdersStore:
         if row is None:
             return None
         return {"id": str(row[0]), "contact_id": str(row[1]),
-                "subject": row[2], "body": row[3], "status": row[4],
-                "external_reference": row[5], "created_at": row[6]}
+                "subject": row[2], "body": row[3], "channel": row[4],
+                "kind": row[5], "cart": row[6],
+                "total_cents": row[7], "status": row[8],
+                "external_reference": row[9], "created_at": row[10]}
 
     def mark_message_sent(self, business_id, message_id, *,
                           external_reference) -> bool:

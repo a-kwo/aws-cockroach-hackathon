@@ -41,7 +41,14 @@ from brasstacks.handlers.login import bearer_token
 from brasstacks.order_intent import NotAnOrderRequest, parse_order_request
 from brasstacks.ordering import Cart, FakeOrderingTool
 from brasstacks.purchase_authority import Level, PurchaseAuthority
-from brasstacks.rep_messages import compose_rep_message, match_rep_message
+from brasstacks.rep_messages import (
+    compose_rep_message,
+    compose_rep_order,
+    compose_rep_order_text,
+    compose_rep_text,
+    match_rep_message,
+    wants_cart,
+)
 from brasstacks.secrets import hydrate_environment
 from brasstacks.stock import StockItem, estimate_remaining
 
@@ -312,6 +319,7 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                payment_tool: Any = None, payment_provider: str = "simulated",
                reasoner: Any = None, now: datetime | None = None,
                email_sender: Any = None, email_source: str | None = None,
+               whatsapp_sender: Any = None,
                doordash_tool: Any = None,
                ) -> dict[str, Any]:
     moment = now or datetime.now(timezone.utc)
@@ -335,23 +343,15 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
     setting = store.get_supplier(business_id)
     supplier = setting["supplier"]
     email_ok = bool(email_sender and email_source)
+    whatsapp_ok = bool(whatsapp_sender)
 
-    from brasstacks.ordering import EmailOrderingTool, UnavailableOrderingTool
+    from brasstacks.ordering import UnavailableOrderingTool
 
-    if supplier == "email" and email_ok and setting["supplier_email"]:
-        active_tool = EmailOrderingTool(
-            catalogue=dict(CATALOGUE), recipient=setting["supplier_email"],
-            source=email_source, send=email_sender)
-        # The supplier invoices directly; charging the card too would be
-        # paying twice.
-        active_payment = None
-    elif supplier == "email":
-        active_tool = UnavailableOrderingTool(
-            name="email",
-            reason=("Email ordering isn't configured on this deployment — "
-                    "it needs a verified sending address."))
-        active_payment = None
-    elif supplier == "doordash":
+    #  The email supplier mode folded into rep messaging: a cart for a human
+    #  goes out as a rep message ("email my rep: order …"), behind the same
+    #  single Send as every other message. A legacy 'email' setting prices
+    #  against the simulated store like the default.
+    if supplier == "doordash":
         active_tool = doordash_tool or UnavailableOrderingTool(
             name="doordash", reason=DOORDASH_WAITLIST_REASON)
         active_payment = payment_tool if doordash_tool else None
@@ -370,12 +370,6 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
              "available": doordash_tool is not None,
              "note": ("Connected." if doordash_tool is not None
                       else DOORDASH_WAITLIST_REASON)},
-            {"id": "email", "label": "Email my supplier",
-             "available": email_ok,
-             "note": ("Approved orders are emailed to your supplier, who "
-                      "invoices you directly — the card is never charged."
-                      if email_ok else
-                      "Needs a verified sending address on this deployment.")},
         ],
     }
 
@@ -406,6 +400,13 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         #  direction costs an email a human actually reads.
         intent = match_rep_message(text, store.list_contacts(business_id))
         if intent is not None:
+            if intent.get("channel") == "imessage":
+                return respond(200, {
+                    "kind": "failed",
+                    "reason": ("iMessage doesn't offer an API a server can "
+                               "call, so I can't send one. I can WhatsApp "
+                               "or email your rep instead."),
+                    "state": state()})
             if intent.get("contact") is None:
                 return respond(200, {
                     "kind": "failed",
@@ -419,18 +420,88 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                     "kind": "failed",
                     "reason": f"Tell me what to say to {contact['name']}.",
                     "state": state()})
+            #  The verb picks the channel; a plain verb takes what the
+            #  contact has, preferring email. Asking for a channel the
+            #  contact lacks is an honest miss, never a silent fallback.
+            channel = intent.get("channel")
+            if channel is None:
+                channel = "email" if contact.get("email") else "whatsapp"
+            if channel == "whatsapp" and not contact.get("phone"):
+                return respond(200, {
+                    "kind": "failed",
+                    "reason": (f"{contact['name']} has no phone number on "
+                               "file — add one under Your reps to send "
+                               "WhatsApp messages."),
+                    "state": state()})
+            if channel == "email" and not contact.get("email"):
+                return respond(200, {
+                    "kind": "failed",
+                    "reason": (f"{contact['name']} has no email address on "
+                               "file — add one under Your reps, or say "
+                               "\"whatsapp my rep …\" instead."),
+                    "state": state()})
             business = repo.get_business(business_id) or {}
-            composed = compose_rep_message(
-                contact_name=contact["name"], gist=intent["gist"],
-                business_name=str(business.get("name") or ""))
-            store.create_message(business_id, contact_id=contact["id"],
-                                 subject=composed["subject"],
-                                 body=composed["body"])
+            business_name = str(business.get("name") or "")
+            #  A gist that OPENS with an order verb is a cart. It is priced
+            #  at last known catalogue prices — estimates, since the rep
+            #  invoices directly — and it still waits for Send: a human
+            #  supplier is never emailed automatically, whatever standing
+            #  authority exists.
+            if wants_cart(intent["gist"]):
+                items = simple_parse(intent["gist"], CATALOGUE)
+                if not items:
+                    return respond(200, {
+                        "kind": "failed",
+                        "reason": ("Nothing in that order matched the "
+                                   "catalogue, so there is nothing I can "
+                                   "price. Name items from the catalogue."),
+                        "state": state()})
+                lines = [{"name": name, "quantity": quantity,
+                          "unit_price_cents": CATALOGUE[name],
+                          "total_cents": quantity * CATALOGUE[name]}
+                         for name, quantity in items]
+                total = sum(line["total_cents"] for line in lines)
+                if channel == "whatsapp":
+                    body_text = compose_rep_order_text(
+                        lines=lines, total_cents=total,
+                        business_name=business_name)
+                    subject = ""
+                else:
+                    composed = compose_rep_order(
+                        contact_name=contact["name"], lines=lines,
+                        total_cents=total, business_name=business_name)
+                    body_text = composed["body"]
+                    subject = composed["subject"]
+                store.create_message(
+                    business_id, contact_id=contact["id"], subject=subject,
+                    body=body_text, channel=channel, kind="order",
+                    cart={"lines": lines}, total_cents=total)
+                return respond(200, {
+                    "kind": "message_drafted",
+                    "reason": (f"Drafted a {channel} order to "
+                               f"{contact['name']} — review it on the "
+                               "Supplies board and press Send. Nothing "
+                               "goes out until you do."),
+                    "state": state()})
+            if channel == "whatsapp":
+                body_text = compose_rep_text(
+                    gist=intent["gist"], business_name=business_name)
+                store.create_message(business_id, contact_id=contact["id"],
+                                     subject="", body=body_text,
+                                     channel="whatsapp")
+            else:
+                composed = compose_rep_message(
+                    contact_name=contact["name"], gist=intent["gist"],
+                    business_name=business_name)
+                store.create_message(business_id, contact_id=contact["id"],
+                                     subject=composed["subject"],
+                                     body=composed["body"])
             return respond(200, {
                 "kind": "message_drafted",
-                "reason": (f"Drafted a message to {contact['name']} — "
-                           "review it on the Supplies board and press Send. "
-                           "Nothing goes out until you do."),
+                "reason": (f"Drafted a {channel} message to "
+                           f"{contact['name']} — review it on the Supplies "
+                           "board and press Send. Nothing goes out until "
+                           "you do."),
                 "state": state()})
 
         request = None
@@ -625,10 +696,11 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         choice = str(payload.get("supplier") or "").strip()
         if choice == "doordash" and doordash_tool is None:
             return respond(400, {"error": DOORDASH_WAITLIST_REASON})
-        if choice == "email" and not email_ok:
+        if choice == "email":
             return respond(400, {
-                "error": ("Email ordering isn't available on this deployment "
-                          "yet — it needs a verified sending address.")})
+                "error": ("Emailing your supplier now goes through reps: "
+                          "add them under Your reps, then say "
+                          "\"email my rep: order \u2026\" in Chat.")})
         try:
             store.set_supplier(business_id, supplier=choice,
                                supplier_email=payload.get("email"))
@@ -652,7 +724,8 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
             store.add_contact(
                 business_id,
                 name=str(payload.get("name") or ""),
-                email=str(payload.get("email") or ""),
+                email=payload.get("email"),
+                phone=payload.get("phone"),
                 category=payload.get("category"),
             )
         except ValueError as exc:
@@ -675,12 +748,28 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         if contact is None:
             return respond(404, {"error": "no such contact"})
         business = repo.get_business(business_id) or {}
-        composed = compose_rep_message(
-            contact_name=contact["name"], gist=text,
-            business_name=str(business.get("name") or ""))
-        store.create_message(business_id, contact_id=contact["id"],
-                             subject=composed["subject"],
-                             body=composed["body"])
+        channel = str(payload.get("channel") or "").strip() or (
+            "email" if contact.get("email") else "whatsapp")
+        if channel == "whatsapp":
+            if not contact.get("phone"):
+                return respond(400, {
+                    "error": f"{contact['name']} has no phone number on file"})
+            body_text = compose_rep_text(
+                gist=text, business_name=str(business.get("name") or ""))
+            store.create_message(business_id, contact_id=contact["id"],
+                                 subject="", body=body_text,
+                                 channel="whatsapp")
+        else:
+            if not contact.get("email"):
+                return respond(400, {
+                    "error": f"{contact['name']} has no email address on "
+                             "file"})
+            composed = compose_rep_message(
+                contact_name=contact["name"], gist=text,
+                business_name=str(business.get("name") or ""))
+            store.create_message(business_id, contact_id=contact["id"],
+                                 subject=composed["subject"],
+                                 body=composed["body"])
         return respond(200, {"kind": "message_drafted", "state": state()})
 
     if action == "message/send":
@@ -692,7 +781,7 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
             return respond(409, {"error": "this message was already "
                                  + ("sent" if message["status"] == "sent"
                                     else "discarded")})
-        if not email_ok:
+        if (message.get("channel") or "email") == "email" and not email_ok:
             return respond(400, {
                 "error": ("Sending email isn't available on this deployment "
                           "yet — it needs a verified sending address.")})
@@ -701,15 +790,70 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
              if row["id"] == message["contact_id"]), None)
         if contact is None:
             return respond(404, {"error": "that contact no longer exists"})
-        try:
-            provider_id = email_sender(
-                source=email_source, recipient=contact["email"],
-                subject=message["subject"], body=message["body"])
-        except Exception as exc:
-            return respond(502, {
-                "error": f"the message could not be sent: {exc}"})
+        channel = message.get("channel") or "email"
+        if channel == "whatsapp":
+            if not whatsapp_ok:
+                return respond(400, {
+                    "error": ("WhatsApp isn't configured on this deployment "
+                              "yet — it needs a WhatsApp Business number "
+                              "and access token.")})
+            if not contact.get("phone"):
+                return respond(400, {
+                    "error": f"{contact['name']} has no phone number on "
+                             "file"})
+            try:
+                provider_id = whatsapp_sender(
+                    recipient=contact["phone"], body=message["body"])
+            except Exception as exc:
+                return respond(502, {
+                    "error": f"the message could not be sent: {exc}"})
+            reference = f"whatsapp:{provider_id}"
+        else:
+            #  From: the platform's verified identity wearing the business's
+            #  name; Reply-To: the owner's signup address. The From can never
+            #  truthfully be the owner's own mailbox — its domain's DNS would
+            #  disown the message — but this way the rep sees the business
+            #  and a reply reaches the owner, which is the part that matters.
+            business = repo.get_business(business_id) or {}
+            display = str(business.get("name") or "").strip()
+            source = (f'"{display} (via Brass Tacks)" <{email_source}>'
+                      if display else email_source)
+            try:
+                provider_id = email_sender(
+                    source=source, recipient=contact["email"],
+                    subject=message["subject"], body=message["body"],
+                    reply_to=repo.owner_email_for_business(business_id))
+            except Exception as exc:
+                return respond(502, {
+                    "error": f"the message could not be sent: {exc}"})
+            reference = f"email:{provider_id}"
         store.mark_message_sent(business_id, message_id,
-                                external_reference=f"email:{provider_id}")
+                                external_reference=reference)
+        #  An order message is also an order: once it is genuinely on its
+        #  way to the rep, it enters the books — Activity gets the receipt,
+        #  the stock model learns what was bought, weekly spend counts it.
+        if message.get("kind") == "order" and message.get("cart"):
+            lines = message["cart"].get("lines") or []
+            items = [[line["name"], int(line["quantity"])] for line in lines]
+            store.create_order(
+                business_id,
+                title=_title([(line["name"], line["quantity"])
+                              for line in lines]),
+                trigger=TRIGGER_OWNER_INSTRUCTION,
+                status="placed",
+                items=items,
+                category=None,
+                cart=message["cart"],
+                total_cents=message.get("total_cents"),
+                reason=(f"Sent to {contact['name']} — they invoice "
+                        "directly; the card was never charged."),
+                fingerprint=None,
+                external_reference=reference,
+                now=moment)
+            store.record_purchase(
+                business_id,
+                [(line["name"], int(line["quantity"])) for line in lines],
+                on=today)
         return respond(200, {"kind": "message_sent", "state": state()})
 
     if action == "message/discard":
@@ -782,6 +926,41 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 })
             return str(response.get("MessageId") or "")
 
+    #  WhatsApp Business Cloud API, spoken directly over httpx like the
+    #  Stripe adapter — no SDK dependency. Both parameters hydrate from SSM
+    #  (/brasstacks/WHATSAPP_ACCESS_TOKEN, /brasstacks/WHATSAPP_PHONE_NUMBER_ID)
+    #  the day the Meta business verification lands; until then the sender is
+    #  None and message/send refuses with the reason.
+    whatsapp_token = os.environ.get("WHATSAPP_ACCESS_TOKEN", "").strip()
+    whatsapp_number_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "").strip()
+    whatsapp_sender = None
+    if whatsapp_token and whatsapp_number_id:
+        def whatsapp_sender(*, recipient, body):
+            import httpx
+            response = httpx.post(
+                f"https://graph.facebook.com/v20.0/{whatsapp_number_id}"
+                "/messages",
+                headers={"Authorization": f"Bearer {whatsapp_token}"},
+                json={
+                    "messaging_product": "whatsapp",
+                    "to": str(recipient).lstrip("+"),
+                    "type": "text",
+                    "text": {"body": body},
+                },
+                timeout=15.0,
+            )
+            payload = {}
+            try:
+                payload = response.json()
+            except ValueError:
+                pass
+            if response.status_code >= 400:
+                detail = ((payload.get("error") or {}).get("message")
+                          or f"WhatsApp API returned {response.status_code}")
+                raise RuntimeError(detail)
+            messages = payload.get("messages") or [{}]
+            return str(messages[0].get("id") or "")
+
     # The DoorDash adapter lands here when the waitlist clears; None keeps
     # the option visible on screen and honestly refused at runtime.
     doordash_tool = None
@@ -798,6 +977,7 @@ def handler(event: Any = None, context: Any = None) -> dict[str, Any]:
                 reasoner=reasoner,
                 email_sender=email_sender,
                 email_source=email_source,
+                whatsapp_sender=whatsapp_sender,
                 doordash_tool=doordash_tool,
             )
     except psycopg.Error:

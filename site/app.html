@@ -24138,12 +24138,13 @@
             <div id="ordersRepsList" class="orders-list"></div>
             <form class="orders-form" id="ordersRepForm">
               <label>Name<input type="text" name="name" placeholder="Dana Cruz" required /></label>
-              <label>Email<input type="email" name="email" placeholder="dana@supplier.com" required /></label>
+              <label>Email<input type="email" name="email" placeholder="dana@supplier.com" /></label>
+              <label>Phone<input type="tel" name="phone" placeholder="+1 415 555 0134" /></label>
               <label>Supplies<input type="text" name="category" placeholder="produce" /></label>
               <button class="orders-btn primary small" type="submit">Add rep</button>
             </form>
             <div id="ordersMessagesList" class="orders-list"></div>
-            <p class="orders-empty" id="ordersRepsEmpty">Add the rep you order produce from — then tell the agent &ldquo;ask my produce rep&hellip;&rdquo; in Chat and review the draft here.</p>
+            <p class="orders-empty" id="ordersRepsEmpty">Add the rep you order produce from — email, phone, or both — then tell the agent &ldquo;ask my produce rep&hellip;&rdquo; or &ldquo;whatsapp my produce rep&hellip;&rdquo; in Chat and review the draft here.</p>
           </section>
 
           <!-- The rules that make it automatic, one pane at a time. -->
@@ -34581,7 +34582,7 @@ ledger_entry · artifact · agent_run`,
                 ${c.category ? `<span class="orders-tag auto">${escapeHtml(c.category)}</span>` : ""}
               </span>
               <span class="orders-arow-side">
-                <span class="orders-arow-date">${escapeHtml(c.email)}</span>
+                <span class="orders-arow-date">${escapeHtml([c.email, c.phone].filter(Boolean).join(" · "))}</span>
                 <button type="button" class="orders-btn ghost small" data-live-contact-remove="${escapeHtml(c.id)}">Remove</button>
               </span>
             </div>`).join("");
@@ -34600,7 +34601,7 @@ ledger_entry · artifact · agent_run`,
             if (m.status === "draft") return `
               <article class="orders-row pending">
                 <div class="orders-row-top">
-                  <span class="orders-row-title">Draft to ${escapeHtml(name)}</span>
+                  <span class="orders-row-title">${m.channel === "whatsapp" ? "WhatsApp" : "Email"} draft to ${escapeHtml(name)}</span>
                   <span class="orders-tag">waiting on you</span>
                 </div>
                 <p class="orders-why">${escapeHtml(m.body)}</p>
@@ -34711,7 +34712,8 @@ ledger_entry · artifact · agent_run`,
           const form = event.target;
           const answer = await act("contacts", {
             name: form.name.value.trim(),
-            email: form.email.value.trim(),
+            email: form.email.value.trim() || null,
+            phone: form.phone.value.trim() || null,
             category: form.category.value.trim() || null,
           });
           if (answer) form.reset();
@@ -34865,25 +34867,28 @@ ledger_entry · artifact · agent_run`,
       //  The humans who supply the sample store, and messages to them —
       //  mirrors of the live board's rep rows, local to this browser.
       const repContacts = [
-        { id: "rep-1", name: "Dana Cruz", email: "dana@harborproduce.example", category: "produce" },
+        { id: "rep-1", name: "Dana Cruz", email: "dana@harborproduce.example",
+          phone: "+14155550134", category: "produce" },
       ];
       const repMessages = [];
 
+      const REP_VERB_CHANNELS = { email: "email", whatsapp: "whatsapp", text: "whatsapp", imessage: "imessage" };
       function matchRepIntent(text) {
         const cleaned = String(text || "").trim();
         let explicit = true;
-        let m = /^(?:message|tell|ask|email)\s+(?:my\s+)?(.+?)\s+reps?\b\s*[:,\-—]?\s*([\s\S]*)$/i.exec(cleaned);
+        let m = /^(message|tell|ask|email|whatsapp|text|imessage)\s+(?:my\s+)?(.+?)\s+reps?\b\s*[:,\-—]?\s*([\s\S]*)$/i.exec(cleaned);
         if (!m) {
           explicit = false;
-          m = /^(?:message|tell|ask|email)\s+([^:]{1,60}?)\s*:\s*([\s\S]+)$/i.exec(cleaned);
+          m = /^(message|tell|ask|email|whatsapp|text|imessage)\s+([^:]{1,60}?)\s*:\s*([\s\S]+)$/i.exec(cleaned);
         }
         if (!m) return null;
-        const target = m[1].trim().toLowerCase();
+        const channel = REP_VERB_CHANNELS[m[1].toLowerCase()] || null;
+        const target = m[2].trim().toLowerCase();
         const contact = repContacts.find(c =>
           target === String(c.category || "").toLowerCase()
           || c.name.toLowerCase().includes(target));
         if (!contact && !explicit) return null;
-        return { target: m[1].trim(), contact, gist: m[2].trim() };
+        return { target: m[2].trim(), contact, gist: m[3].trim(), channel };
       }
 
       // Deterministic test-mode Stripe references, like the fake payment
@@ -35058,7 +35063,7 @@ ledger_entry · artifact · agent_run`,
               ${c.category ? `<span class="orders-tag auto">${escapeHtml(c.category)}</span>` : ""}
             </span>
             <span class="orders-arow-side">
-              <span class="orders-arow-date">${escapeHtml(c.email)}</span>
+              <span class="orders-arow-date">${escapeHtml([c.email, c.phone].filter(Boolean).join(" · "))}</span>
               <button type="button" class="orders-btn ghost small" data-rep-remove="${escapeHtml(c.id)}">Remove</button>
             </span>
           </div>`).join("");
@@ -35074,7 +35079,7 @@ ledger_entry · artifact · agent_run`,
           if (m.status === "draft") return `
             <article class="orders-row pending">
               <div class="orders-row-top">
-                <span class="orders-row-title">Draft to ${escapeHtml(name)}</span>
+                <span class="orders-row-title">${m.channel === "whatsapp" ? "WhatsApp" : "Email"} draft to ${escapeHtml(name)}</span>
                 <span class="orders-tag">waiting on you</span>
               </div>
               <p class="orders-why">${escapeHtml(m.body)}</p>
@@ -35145,6 +35150,11 @@ ledger_entry · artifact · agent_run`,
         //  the wrong guess in either direction costs a human an email.
         const repIntent = matchRepIntent(text);
         if (repIntent) {
+          if (repIntent.channel === "imessage") {
+            return { kind: "failed", reason: "iMessage doesn't offer an API "
+              + "a server can call, so I can't send one. I can WhatsApp or "
+              + "email your rep instead." };
+          }
           if (!repIntent.contact) {
             return { kind: "failed", reason: `There's no ${repIntent.target} `
               + "rep on file — add them under Your reps on the Supplies "
@@ -35154,20 +35164,64 @@ ledger_entry · artifact · agent_run`,
             return { kind: "failed",
                      reason: `Tell me what to say to ${repIntent.contact.name}.` };
           }
+          const channel = repIntent.channel
+            || (repIntent.contact.email ? "email" : "whatsapp");
+          if (channel === "whatsapp" && !repIntent.contact.phone) {
+            return { kind: "failed", reason: `${repIntent.contact.name} has `
+              + "no phone number on file — add one under Your reps." };
+          }
+          if (channel === "email" && !repIntent.contact.email) {
+            return { kind: "failed", reason: `${repIntent.contact.name} has `
+              + "no email address on file — add one under Your reps." };
+          }
+          //  A gist that OPENS with an order verb is a cart — priced from
+          //  the sample catalogue, estimates only, and it still waits for
+          //  Send like every other message. Mirrors the live routing.
+          let repKind = "note";
+          let repCart = null;
+          let repBody;
+          if (/^(?:order|buy|send|get|restock)\b/i.test(repIntent.gist)) {
+            const items = readRequest(repIntent.gist);
+            if (!items.length) {
+              return { kind: "failed", reason: "Nothing in that order "
+                + "matched the catalogue, so there is nothing I can price. "
+                + "Name items from the catalogue." };
+            }
+            repKind = "order";
+            const lines = items.map(([n, q]) => ({ name: n, quantity: q,
+              unit_price_cents: CATALOGUE[n], total_cents: q * CATALOGUE[n] }));
+            const total = lines.reduce((sum, l) => sum + l.total_cents, 0);
+            repCart = { lines, total_cents: total };
+            const listed = lines.map(l => `- ${l.name}: ${l.quantity}`).join("\n");
+            repBody = channel === "whatsapp"
+              ? `Order from Harborview Japanese:\n${listed}\n`
+                + `Estimated ${money(total)} at last known prices — please `
+                + "invoice as usual.\n\n— sent by the owner's Brass Tacks "
+                + "supply agent after the owner approved this order."
+              : `Hello ${repIntent.contact.name},\n\nHarborview Japanese `
+                + `would like to order:\n\n${listed}\n\nEstimated value `
+                + `${money(total)} at last known prices — please invoice as `
+                + "usual.\n\nSent by the owner's Brass Tacks supply agent, "
+                + "after the owner approved this order. Replies go to the "
+                + "owner.";
+          } else {
+            repBody = channel === "whatsapp"
+              ? `${repIntent.gist}\n\n— Harborview Japanese, sent by the `
+                + "owner's Brass Tacks supply agent after the owner approved "
+                + "this message."
+              : `Hello ${repIntent.contact.name},\n\nA message from `
+                + `Harborview Japanese:\n\n${repIntent.gist}\n\nSent by the `
+                + "owner's Brass Tacks supply agent, after the owner approved "
+                + "this message. Replies go to the owner.";
+          }
           repMessages.unshift({
             id: `rep-msg-${repMessages.length + 1}`,
             contact_id: repIntent.contact.id,
             status: "draft",
-            body: `Hello ${repIntent.contact.name},
-
-A message from `
-              + `Harborview Japanese:
-
-${repIntent.gist}
-
-Sent by the `
-              + "owner's Brass Tacks supply agent, after the owner approved "
-              + "this message. Replies go to the owner.",
+            channel,
+            kind: repKind,
+            cart: repCart,
+            body: repBody,
           });
           renderAll();
           return { kind: "message_drafted",
@@ -35204,7 +35258,9 @@ Sent by the `
         const items = [];
         for (const name of Object.keys(CATALOGUE)) {
           if (!lower.includes(name.split(" ")[0])) continue;
-          const near = lower.match(new RegExp(`(\\d+)[^.]{0,18}?${name.split(" ")[0]}`));
+          //  Never across an "and" or a comma, mirroring the live parser:
+          //  "8 nori and 2 soy sauce" must not give the 8 to the soy.
+          const near = lower.match(new RegExp(`(\\d+)(?:(?!\\band\\b)(?!,)\\D){0,18}?${name.split(" ")[0]}`));
           items.push([name, near ? Math.max(1, parseInt(near[1], 10)) : 1]);
         }
         return items;
@@ -35229,14 +35285,24 @@ Sent by the `
         const form = event.target;
         const name = form.name.value.trim();
         const email = form.email.value.trim();
-        if (!name || !email.includes("@")) {
-          note("A rep needs a name and a real email address.", true);
+        const phone = form.phone.value.trim().replace(/[\s().\-]/g, "");
+        if (!name || (!email && !phone)) {
+          note("A rep needs a name and at least one way to be reached — email or phone.", true);
+          return;
+        }
+        if (email && !email.includes("@")) {
+          note("That email address doesn't look right.", true);
+          return;
+        }
+        if (phone && !/^\+?\d{7,15}$/.test(phone)) {
+          note("That phone number doesn't look right — digits and a country code, like +14155550134.", true);
           return;
         }
         repContacts.push({
           id: `rep-${repContacts.length + 2}`,
           name,
-          email,
+          email: email || null,
+          phone: phone || null,
           category: form.category.value.trim().toLowerCase() || null,
         });
         form.reset();
@@ -35258,8 +35324,18 @@ Sent by the `
           const row = repMessages.find(m => m.id === target.dataset.repSend);
           if (row && row.status === "draft") {
             row.status = "sent";
-            row.ref = `email:sample-${row.id}`;
-            note("Sent (sample) — live, this emails the rep and their reply lands in your inbox.");
+            row.ref = `${row.channel === "whatsapp" ? "whatsapp" : "email"}:sample-${row.id}`;
+            //  An order message is also an order: once sent, it enters the
+            //  sample books, same as the live board.
+            if (row.kind === "order" && row.cart) {
+              const who = repContacts.find(c => c.id === row.contact_id);
+              history.unshift({
+                title: row.cart.lines.map(l => `${l.name} ×${l.quantity}`).join(", "),
+                total: row.cart.total_cents, when: "Just now",
+                ref: row.ref, tag: `sent to ${who ? who.name : "your rep"}`,
+              });
+            }
+            note("Sent (sample) — live, this reaches the rep and their reply lands in your inbox.");
             renderAll();
           }
           return;

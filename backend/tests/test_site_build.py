@@ -4334,9 +4334,10 @@ def test_the_demo_orders_through_the_preview_quartermaster():
     assert "tour" in gate
     # The preview exposes the chat's order hook, answering the live contract.
     assert "window.__btPreviewAsk" in html
-    # 3200, not 1600: the hook now checks for a rep-message intent first
-    # (mirroring the live API's routing), which sits ahead of the order path.
-    hook = html.split("window.__btPreviewAsk", 1)[1][:3200]
+    # A generous window: the hook now routes rep messages (including carts
+    # for reps, mirroring the live API) ahead of the plain order path, so
+    # the order code sits well past the function's opening.
+    hook = html.split("window.__btPreviewAsk", 1)[1][:9000]
     assert "needs_approval" in hook or "submit(" in hook
     # The chat tries the preview engine before refusing to act.
     branch = html.split("if (!chatLive) {", 1)[1][:1200]

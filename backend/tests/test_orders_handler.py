@@ -349,9 +349,12 @@ class TestStock:
 
 
 class TestSupplierSwitch:
-    """Three shops behind one seam: simulated, DoorDash-when-it-clears, and
-    the owner's supplier by email. The owner switches on the screen; the
-    payload says which options are genuinely available and why."""
+    """Two machine shops behind one seam: simulated, and DoorDash when the
+    waitlist clears. The email supplier mode was folded into rep messaging
+    on 2026-08-13 — a cart for a human supplier is a rep message now, drawn
+    up by the agent and released only by the owner's Send (see
+    test_supplier_reps.TestCartsThroughReps). Machines can be ordered from
+    on autopilot; people get asked."""
 
     def sender(self, board):
         sent = []
@@ -377,10 +380,10 @@ class TestSupplierSwitch:
             if getattr(board, "email_sender", None) else None,
             doordash_tool=getattr(board, "doordash_tool", None))
 
-    def test_the_state_lists_the_three_options(self, board):
+    def test_the_state_lists_the_two_machine_suppliers(self, board):
         state = json.loads(self.call(board)["body"])
         options = {o["id"]: o for o in state["supplier"]["options"]}
-        assert set(options) == {"simulated", "doordash", "email"}
+        assert set(options) == {"simulated", "doordash"}
         assert state["supplier"]["active"] == "simulated"
 
     def test_doordash_is_marked_waitlisted_until_a_tool_exists(self, board):
@@ -404,23 +407,22 @@ class TestSupplierSwitch:
         assert board.store.get_supplier(board.business_id)["supplier"] == \
             "doordash"
 
-    def test_email_needs_a_configured_sender(self, board):
-        response = self.call(board, method="POST", action="supplier",
-                             body={"supplier": "email",
-                                   "email": "orders@wholesaler.example"})
-        assert response["statusCode"] == 400
-
-    def test_email_selection_stores_the_address(self, board):
+    def test_selecting_email_redirects_to_reps(self, board):
+        """The mode is retired, and the refusal says where the feature went
+        rather than pretending it never existed."""
         self.sender(board)
         response = self.call(board, method="POST", action="supplier",
                              body={"supplier": "email",
                                    "email": "orders@wholesaler.example"})
-        assert response["statusCode"] == 200
-        setting = board.store.get_supplier(board.business_id)
-        assert setting["supplier_email"] == "orders@wholesaler.example"
+        assert response["statusCode"] == 400
+        assert "rep" in json.loads(response["body"])["error"].lower()
 
-    def test_an_email_order_mails_the_supplier_and_never_touches_the_card(
+    def test_a_legacy_email_setting_falls_back_to_the_simulated_store(
             self, board):
+        """A tenant who stored supplier='email' before the merge must not
+        crash, must not silently email anyone, and must still be able to
+        order — the cart prices against the simulated store like the
+        default."""
         self.sender(board)
         board.store.set_supplier(board.business_id, supplier="email",
                                  supplier_email="orders@wholesaler.example")
@@ -431,14 +433,9 @@ class TestSupplierSwitch:
             board, method="POST", action="ask",
             body={"text": "order 2 tomatoes"})["body"])
         assert answer["kind"] == "placed"
-        assert len(board.sent) == 1
-        assert board.sent[0]["recipient"] == "orders@wholesaler.example"
-        # The supplier invoices directly; charging the card too would be
-        # paying twice.
-        assert board.payments.charged == []
+        assert board.sent == []
         placed = board.store.list_orders(board.business_id, status="placed")
-        assert placed[0]["external_reference"].startswith("email:")
-        assert placed[0]["payment_reference"] is None
+        assert placed[0]["external_reference"].startswith("fake-")
 
     def test_a_waitlisted_doordash_order_fails_honestly(self, board):
         # The owner somehow has doordash stored (say access was revoked):

@@ -19,7 +19,7 @@ from brasstacks.handlers.orders import run_orders
 from brasstacks.ordering import FakeOrderingTool
 from brasstacks.orders_store import InMemoryOrdersStore
 from brasstacks.payments import FakePaymentTool
-from brasstacks.rep_messages import compose_rep_message
+from brasstacks.rep_messages import compose_rep_message, compose_rep_text
 from brasstacks.repository import InMemoryRepository
 
 NOW = datetime(2026, 8, 13, 12, 0, tzinfo=timezone.utc)
@@ -81,6 +81,27 @@ class TestContacts:
                                  category=None)
         assert bare["category"] is None
 
+    def test_a_phone_number_is_kept_and_normalised(self, store):
+        row = store.add_contact("biz-1", name="Dana", email="dana@x.com",
+                                phone=" +1 (415) 555-0134 ", category=None)
+        assert row["phone"] == "+14155550134"
+
+    def test_phone_alone_is_a_valid_channel(self, store):
+        row = store.add_contact("biz-1", name="Dana", email=None,
+                                phone="+14155550134", category="produce")
+        assert row["email"] is None
+        assert row["phone"] == "+14155550134"
+
+    def test_a_contact_needs_at_least_one_channel(self, store):
+        with pytest.raises(ValueError):
+            store.add_contact("biz-1", name="Dana", email=None, phone=None,
+                              category=None)
+
+    def test_a_garbage_phone_is_refused(self, store):
+        with pytest.raises(ValueError):
+            store.add_contact("biz-1", name="Dana", email=None,
+                              phone="call the shop", category=None)
+
 
 # ------------------------------------------------------------- composition
 
@@ -119,6 +140,19 @@ class TestCompose:
         with pytest.raises(ValueError):
             compose_rep_message(contact_name="Dana", gist="   ",
                                 business_name="Harborview Japanese")
+
+    def test_the_whatsapp_text_is_short_but_keeps_both_promises(self):
+        text = compose_rep_text(
+            gist="Any heirloom tomatoes this week?",
+            business_name="Harborview Japanese")
+        assert "Any heirloom tomatoes this week?" in text
+        assert "Harborview Japanese" in text
+        assert "Brass Tacks" in text
+        assert "approved" in text
+
+    def test_the_whatsapp_text_refuses_emptiness_too(self):
+        with pytest.raises(ValueError):
+            compose_rep_text(gist=" ", business_name="X")
 
 
 # ----------------------------------------------------------- message rows
@@ -179,7 +213,8 @@ def owner():
     business_id = repo.create_business(name="Harborview Japanese",
                                        category="restaurant")
     account_id = repo.create_account(business_id, username="maya",
-                                     password_hash="not-used")
+                                     password_hash="not-used",
+                                     email="maya@harborviewjapanese.com")
     token = "maya-session-token"
     repo.create_session(token_fingerprint(token), business_id=business_id,
                         account_id=account_id,
@@ -201,22 +236,29 @@ def event(*, token=None, method="GET", action=None, body=None):
 
 
 class RepBoard:
-    """The orders board with a recording mail robot attached."""
+    """The orders board with recording mail and WhatsApp robots attached."""
 
-    def __init__(self, *, email: bool = True):
+    def __init__(self, *, email: bool = True, whatsapp: bool = True):
         self.repo, self.business_id, self.token = owner()
         self.store = InMemoryOrdersStore()
         self.tool = FakeOrderingTool(catalogue=dict(CATALOGUE))
         self.payments = FakePaymentTool()
         self.sent: list[dict] = []
+        self.texted: list[dict] = []
 
-        def sender(*, source, recipient, subject, body):
+        def sender(*, source, recipient, subject, body, reply_to=None):
             self.sent.append({"source": source, "recipient": recipient,
-                              "subject": subject, "body": body})
+                              "subject": subject, "body": body,
+                              "reply_to": reply_to})
             return f"msg-{len(self.sent)}"
+
+        def texter(*, recipient, body):
+            self.texted.append({"recipient": recipient, "body": body})
+            return f"wamid-{len(self.texted)}"
 
         self.email_sender = sender if email else None
         self.email_source = "night@brasstacks.example" if email else None
+        self.whatsapp_sender = texter if whatsapp else None
 
     def call(self, *, method="GET", action=None, body=None, token="default"):
         return run_orders(
@@ -225,6 +267,7 @@ class RepBoard:
             repo=self.repo, store=self.store, tool=self.tool,
             payment_tool=self.payments, payment_provider="simulated",
             email_sender=self.email_sender, email_source=self.email_source,
+            whatsapp_sender=self.whatsapp_sender,
             now=NOW)
 
     def body(self, response):
@@ -232,7 +275,7 @@ class RepBoard:
 
     def add_rep(self, **overrides):
         payload = {"name": "Dana Cruz", "email": "dana@harborproduce.com",
-                   "category": "produce"}
+                   "phone": "+14155550134", "category": "produce"}
         payload.update(overrides)
         response = self.call(method="POST", action="contacts", body=payload)
         assert response["statusCode"] == 200, response["body"]
@@ -382,3 +425,186 @@ class TestChatIntent:
                               body={"text": "order 2 tomatoes"})
         answer = board.body(response)
         assert answer["kind"] in {"placed", "needs_approval"}
+
+
+class TestWhatsApp:
+    """The second channel: same doctrine, different pipe.
+
+    "WhatsApp my produce rep …" drafts a WhatsApp message; Send routes it
+    through the WhatsApp seam instead of SES. iMessage gets an honest no —
+    Apple offers no API a server could call, and pretending otherwise is
+    exactly the kind of simulation wearing the wrong name this codebase
+    refuses.
+    """
+
+    def draft_whatsapp(self, board,
+                       text="whatsapp my produce rep: any uni today?"):
+        board.add_rep()
+        response = board.call(method="POST", action="ask",
+                              body={"text": text})
+        assert response["statusCode"] == 200, response["body"]
+        return board.body(response)
+
+    def test_the_verb_picks_the_channel(self, board):
+        answer = self.draft_whatsapp(board)
+        assert answer["kind"] == "message_drafted"
+        draft = answer["state"]["messages"][0]
+        assert draft["channel"] == "whatsapp"
+        assert "any uni today?" in draft["body"]
+
+    def test_texting_works_as_a_verb_too(self, board):
+        answer = self.draft_whatsapp(
+            board, text="text my produce rep: any uni today?")
+        assert answer["state"]["messages"][0]["channel"] == "whatsapp"
+
+    def test_email_verb_still_means_email(self, board):
+        board.add_rep()
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "email my produce rep: any uni today?"})
+        assert board.body(response)["state"]["messages"][0]["channel"] \
+            == "email"
+
+    def test_sending_routes_through_the_whatsapp_seam(self, board):
+        answer = self.draft_whatsapp(board)
+        message_id = answer["state"]["messages"][0]["id"]
+        response = board.call(method="POST", action="message/send",
+                              body={"id": message_id})
+        assert response["statusCode"] == 200, response["body"]
+        assert len(board.texted) == 1
+        assert board.texted[0]["recipient"] == "+14155550134"
+        assert "any uni today?" in board.texted[0]["body"]
+        assert board.sent == []
+        sent = [m for m in board.body(board.call())["messages"]
+                if m["status"] == "sent"][0]
+        assert sent["external_reference"] == "whatsapp:wamid-1"
+
+    def test_a_rep_without_a_phone_gets_an_honest_answer(self, board):
+        board.add_rep(phone=None)
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "whatsapp my produce rep: any uni today?"})
+        answer = board.body(response)
+        assert answer["kind"] == "failed"
+        assert "phone" in answer["reason"].lower()
+
+    def test_without_whatsapp_config_the_refusal_is_honest(self):
+        muted = RepBoard(whatsapp=False)
+        answer = TestWhatsApp().draft_whatsapp(muted)
+        response = muted.call(method="POST", action="message/send",
+                              body={"id": answer["state"]["messages"][0]["id"]})
+        assert response["statusCode"] == 400
+        assert "whatsapp" in json.loads(response["body"])["error"].lower()
+
+    def test_imessage_is_refused_with_the_reason(self, board):
+        board.add_rep()
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "imessage my produce rep: any uni today?"})
+        answer = board.body(response)
+        assert answer["kind"] == "failed"
+        assert "imessage" in answer["reason"].lower()
+        assert answer["state"]["messages"] == []
+
+    def test_a_phone_only_rep_defaults_to_whatsapp(self, board):
+        board.add_rep(email=None)
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "ask my produce rep: any uni today?"})
+        draft = board.body(response)["state"]["messages"][0]
+        assert draft["channel"] == "whatsapp"
+
+
+class TestSenderIdentity:
+    """The rep sees the business; the reply reaches the owner.
+
+    The From can never truthfully be the owner's Gmail — SES sends from the
+    platform's verified identity, and gmail.com's own DNS would disown the
+    message anywhere else. What CAN be true: the display name carries the
+    business, and Reply-To carries the signup email, which makes the
+    template's "Replies go to the owner" a statement of fact.
+    """
+
+    def test_the_send_carries_display_name_and_reply_to(self, board):
+        state = TestMessageRoute().draft(board)
+        board.call(method="POST", action="message/send",
+                   body={"id": state["messages"][0]["id"]})
+        sent = board.sent[0]
+        assert sent["source"] == ('"Harborview Japanese (via Brass Tacks)" '
+                                  "<night@brasstacks.example>")
+        assert sent["reply_to"] == "maya@harborviewjapanese.com"
+
+
+class TestCartsThroughReps:
+    """Order-by-email folds into rep messaging.
+
+    A structured cart to a human supplier is just a message that happens to
+    carry items — so it lives in the same drafts, behind the same single
+    Send. The consequence is deliberate: a human supplier is never emailed
+    automatically, whatever standing authority exists. Machines can be
+    ordered from on autopilot; people get asked.
+    """
+
+    def test_an_order_verb_in_the_gist_drafts_a_cart(self, board):
+        board.add_rep()
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "email my produce rep: order 8 tomatoes"})
+        answer = board.body(response)
+        assert answer["kind"] == "message_drafted", answer
+        draft = answer["state"]["messages"][0]
+        assert draft["kind"] == "order"
+        assert draft["total_cents"] == 8 * 4_50
+        assert draft["cart"]["lines"][0]["name"] == "tomatoes"
+        assert "8" in draft["body"] and "$36.00" in draft["body"]
+        assert "invoice" in draft["body"].lower()
+        assert board.sent == []
+
+    def test_a_question_naming_an_item_stays_a_note(self, board):
+        """"any tomatoes this week?" contains a catalogue word, and turning
+        that into a cart would be the misfiling this router exists to
+        prevent. Only a leading order verb makes a cart."""
+        board.add_rep()
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "ask my produce rep: any tomatoes this week?"})
+        draft = board.body(response)["state"]["messages"][0]
+        assert draft["kind"] == "note"
+        assert draft.get("cart") is None
+
+    def test_an_order_nobody_can_price_is_an_honest_miss(self, board):
+        board.add_rep()
+        response = board.call(
+            method="POST", action="ask",
+            body={"text": "email my produce rep: order 3 unicorn steaks"})
+        answer = board.body(response)
+        assert answer["kind"] == "failed"
+        assert "catalogue" in answer["reason"].lower()
+
+    def test_sending_a_cart_message_writes_the_books(self, board):
+        board.add_rep()
+        drafted = board.body(board.call(
+            method="POST", action="ask",
+            body={"text": "email my produce rep: order 8 tomatoes"}))
+        message_id = drafted["state"]["messages"][0]["id"]
+        response = board.call(method="POST", action="message/send",
+                              body={"id": message_id})
+        assert response["statusCode"] == 200, response["body"]
+        assert len(board.sent) == 1
+        assert "8" in board.sent[0]["body"]
+        state = board.body(board.call())
+        placed = [row for row in state["history"]
+                  if row["status"] == "placed"]
+        assert len(placed) == 1
+        assert placed[0]["total_cents"] == 8 * 4_50
+        assert placed[0]["external_reference"].startswith("email:")
+        assert "invoice" in placed[0]["reason"].lower()
+
+    def test_the_email_supplier_mode_is_retired(self, board):
+        state = board.body(board.call())
+        assert [option["id"] for option in state["supplier"]["options"]]             == ["simulated", "doordash"]
+        response = board.call(method="POST", action="supplier",
+                              body={"supplier": "email",
+                                    "email": "old@supplier.com"})
+        assert response["statusCode"] == 400
+        assert "rep" in json.loads(response["body"])["error"].lower()
