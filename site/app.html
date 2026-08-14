@@ -21845,6 +21845,17 @@
       body.console-mode .view-tab { color: #8b9dab !important; }
       body.console-mode .view-tab.active,
       body.console-mode .view-tab.active svg { color: #79c4d8 !important; }
+
+      /* My agent on a phone: the chat pane fills the screen between the top
+         bar and the bottom nav, so the composer sits at the thumb instead of
+         mid-scroll; the Supplies canvas is the next screenful down. */
+      body.chat-mode .chat-pane {
+        height: calc(100dvh - 54px - var(--nav-h) - var(--nav-safe) - 24px);
+        max-height: none;
+      }
+      body.chat-mode .chat-canvas { min-height: 70dvh; }
+      /* A keyboard-shortcut hint has no audience on a touch screen. */
+      .chat-composer-hint, .drawer-composer-hint { display: none !important; }
     }
   </style>
 
@@ -23101,7 +23112,119 @@
 
     #detailDrawer .evidence-sheet-list { margin: 0; padding: 0; list-style: none; overflow: visible; }
     #detailDrawer .evidence-sheet-empty { color: var(--owner-muted, #8f8b83); font-size: 13px; }
-    #detailDrawer .drawer-costs .feed-detail-list { margin-top: 2px; }
+    /* The document's costs section. The feed lays these rows out under
+       body.autopilot-mode — a class the My agent view never carries — so the
+       document restates the layout itself: one aligned table, labels left,
+       values right, and the at-a-glance trio continuing the same geometry. */
+    #detailDrawer .drawer-costs .feed-detail-list { margin: 2px 0 0; padding: 0; }
+    #detailDrawer .drawer-costs .feed-detail-row {
+      display: grid;
+      grid-template-columns: minmax(0, 230px) minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-height: 44px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(242, 239, 233, .08);
+    }
+    #detailDrawer .drawer-costs .feed-detail-row dt {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #a5a199;
+      font-size: 12.5px;
+      font-weight: 640;
+    }
+    #detailDrawer .drawer-costs .feed-detail-row dt i {
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      color: #cf9d5c;
+    }
+    #detailDrawer .drawer-costs .feed-detail-row dt svg { width: 17px; height: 17px; }
+    #detailDrawer .drawer-costs .feed-detail-row dd {
+      min-width: 0;
+      margin: 0;
+      color: #e8e5dc;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    #detailDrawer .drawer-costs .feed-detail-row.is-cost dd { color: #e6c391; }
+    #detailDrawer .drawer-costs .feed-glance-heading { margin-top: 20px; }
+    #detailDrawer .drawer-costs .feed-glance-heading > span {
+      color: #cf9d5c;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    #detailDrawer .drawer-costs .feed-glance-grid { display: block; margin-top: 4px; }
+    #detailDrawer .drawer-costs .feed-glance-item {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 200px) minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-height: 44px;
+      padding: 8px 0;
+      border: 0;
+      border-bottom: 1px solid rgba(242, 239, 233, .08);
+      text-align: left;
+    }
+    #detailDrawer .drawer-costs .feed-glance-item:last-child { border-bottom: 0; }
+    #detailDrawer .drawer-costs .feed-glance-item > i {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      color: #cf9d5c;
+    }
+    #detailDrawer .drawer-costs .feed-glance-item > i svg { width: 17px; height: 17px; }
+    #detailDrawer .drawer-costs .feed-glance-item strong {
+      margin: 0;
+      color: #a5a199;
+      font-size: 12.5px;
+      font-weight: 640;
+    }
+    /* !important plus the .detail-section hop: the drawer's generic
+       .detail-section p re-ink (muted, 11px, !important) would otherwise
+       out-rank this and dim the values. */
+    #detailDrawer .detail-section .drawer-costs .feed-glance-item p {
+      min-width: 0;
+      margin: 0;
+      color: #e8e5dc !important;
+      font-size: 14px !important;
+      line-height: 1.5 !important;
+      overflow-wrap: anywhere;
+    }
+    #detailDrawer .drawer-costs .feed-cost-note {
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(211, 171, 126, .16);
+      border-radius: 10px;
+      background: rgba(211, 171, 126, .06);
+      color: #a5a199;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    #detailDrawer .drawer-costs .feed-cost-note b { color: #e6c391; }
+    body.day-mode #detailDrawer .drawer-costs .feed-detail-row,
+    body.day-mode #detailDrawer .drawer-costs .feed-glance-item { border-bottom-color: rgba(16, 17, 20, .08); }
+    body.day-mode #detailDrawer .drawer-costs .feed-glance-item:last-child { border-bottom: 0; }
+    body.day-mode #detailDrawer .drawer-costs .feed-detail-row dt,
+    body.day-mode #detailDrawer .drawer-costs .feed-glance-item strong { color: #77787e; }
+    body.day-mode #detailDrawer .drawer-costs .feed-detail-row dt i,
+    body.day-mode #detailDrawer .drawer-costs .feed-glance-item > i,
+    body.day-mode #detailDrawer .drawer-costs .feed-glance-heading > span { color: #96702a; }
+    body.day-mode #detailDrawer .drawer-costs .feed-detail-row dd,
+    body.day-mode #detailDrawer .detail-section .drawer-costs .feed-glance-item p { color: #101114 !important; }
+    body.day-mode #detailDrawer .drawer-costs .feed-detail-row.is-cost dd { color: #96702a; }
+    body.day-mode #detailDrawer .drawer-costs .feed-cost-note { color: #3f4149; }
+    @media (max-width: 620px) {
+      #detailDrawer .drawer-costs .feed-detail-row { grid-template-columns: minmax(0, 132px) minmax(0, 1fr); }
+      #detailDrawer .drawer-costs .feed-glance-item { grid-template-columns: 20px minmax(0, 102px) minmax(0, 1fr); }
+    }
     body.day-mode .evidence-exhibit { border-color: rgba(16, 17, 20, .1) !important; border-left-color: rgba(170, 125, 42, .55) !important; background: #faf9f6; }
     body.day-mode .exhibit-quote { color: #26282d !important; }
     body.day-mode .exhibit-when { color: #77787e; }
@@ -31871,13 +31994,11 @@ ledger_entry · artifact · agent_run`,
           <section class="detail-section">
             <div class="detail-section-label">Signal</div>
             <h3>${escapeHtml(post.fullSignal || post.signal || "")}</h3>
-            <p>Found ${post.sourceTime} through ${post.feature.toLowerCase()} monitoring.</p>
           </section>
 
           <section class="detail-section">
             <div class="detail-section-label">The plan · ${(post.steps || []).filter(Boolean).length || 1} steps</div>
             ${planMapHtml(post)}
-            <p>${status === "pending" ? "Nothing changes until you choose Do it — in the feed or right here in chat." : status === "approved" ? "This idea is now in Where it came from." : "You passed on this recommendation."}</p>
           </section>
 
           <section class="detail-section">
