@@ -468,14 +468,14 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
                 return respond(200, {
                     "kind": "failed",
                     "reason": (f"{contact['name']} has no phone number on "
-                               "file — add one under Your reps to send "
+                               "file — add one under Your Reps to send "
                                "WhatsApp messages."),
                     "state": state()})
             if channel == "email" and not contact.get("email"):
                 return respond(200, {
                     "kind": "failed",
                     "reason": (f"{contact['name']} has no email address on "
-                               "file — add one under Your reps, or say "
+                               "file — add one under Your Reps, or say "
                                "\"whatsapp my rep …\" instead."),
                     "state": state()})
             business = repo.get_business(business_id) or {}
@@ -739,7 +739,7 @@ def run_orders(event: Any, *, repo: Any, store: Any, tool: Any,
         if choice == "email":
             return respond(400, {
                 "error": ("Emailing your supplier now goes through reps: "
-                          "add them under Your reps, then say "
+                          "add them under Your Reps, then say "
                           "\"email my rep: order \u2026\" in Chat.")})
         try:
             store.set_supplier(business_id, supplier=choice,

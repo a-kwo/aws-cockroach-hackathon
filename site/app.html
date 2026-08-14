@@ -24131,7 +24131,7 @@
             <header class="orders-zone-head">
               <div class="orders-zone-title">
                 <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="7.5" cy="7" r="4" /><path d="M22 7.5l-5.5 5.5-2.5-2.5" /></svg></span>
-                <h2 id="ordersRepsHeading">Your reps</h2>
+                <h2 id="ordersRepsHeading">Your Reps</h2>
               </div>
               <span class="orders-count" id="ordersRepsCount">0</span>
             </header>
@@ -34409,7 +34409,7 @@ ledger_entry · artifact · agent_run`,
 
         //  A rep draft is a decision the owner owes too, so it sits in
         //  Needs you beside the machine approvals. Same rows, same buttons
-        //  as under Your reps — one decision, visible from both places.
+        //  as under Your Reps — one decision, visible from both places.
         function repDraftCards() {
           const contacts = new Map((state.contacts || []).map(c => [c.id, c]));
           return (state.messages || []).filter(m => m.status === "draft").map(m => {
@@ -35287,7 +35287,7 @@ ledger_entry · artifact · agent_run`,
           }
           if (!repIntent.contact) {
             return { kind: "failed", reason: `There's no ${repIntent.target} `
-              + "rep on file — add them under Your reps on the Supplies "
+              + "rep on file — add them under Your Reps on the Supplies "
               + "board first." };
           }
           if (!repIntent.gist) {
@@ -35298,11 +35298,11 @@ ledger_entry · artifact · agent_run`,
             || (repIntent.contact.email ? "email" : "whatsapp");
           if (channel === "whatsapp" && !repIntent.contact.phone) {
             return { kind: "failed", reason: `${repIntent.contact.name} has `
-              + "no phone number on file — add one under Your reps." };
+              + "no phone number on file — add one under Your Reps." };
           }
           if (channel === "email" && !repIntent.contact.email) {
             return { kind: "failed", reason: `${repIntent.contact.name} has `
-              + "no email address on file — add one under Your reps." };
+              + "no email address on file — add one under Your Reps." };
           }
           //  A gist that OPENS with an order verb is a cart — priced from
           //  the sample catalogue, estimates only, and it still waits for
@@ -36243,7 +36243,7 @@ ledger_entry · artifact · agent_run`,
                 + `on Supplies under Needs you. ${verdict.reason}`, toSupplies);
             } else if (verdict.kind === "message_drafted") {
               replaceLoading(`${verdict.reason} The draft is on Supplies under `
-                + "Your reps — nothing goes out until you press Send.", toSupplies);
+                + "Your Reps — nothing goes out until you press Send.", toSupplies);
             } else {
               replaceLoading(`That didn't go through: ${verdict.reason}`, { error: true });
             }
@@ -36893,9 +36893,9 @@ ledger_entry · artifact · agent_run`,
         run:function(){ view("chat"); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
       //  The human channel. Suppliers who are people get asked, never
       //  autopiloted — the same doctrine the backend enforces.
-      { ch:2, caption:"Suppliers who are people, not APIs, live under Your reps: email or WhatsApp.",
+      { ch:2, caption:"Suppliers who are people, not APIs, live under Your Reps: email or WhatsApp.",
         side:true,
-        sideCaption:"Suppliers who are people live under Your reps: a name, an email, a WhatsApp number.",
+        sideCaption:"Suppliers who are people live under Your Reps: a name, an email, a WhatsApp number.",
         run:function(){ view("chat"); supplies(); scrollTo("#ordersRepsList"); }, target:"#ordersRepsList", settle:450 },
       { ch:2, caption:"A cart for a human is a message: drafted, priced, waiting on you.",
         side:true,
@@ -36933,9 +36933,9 @@ ledger_entry · artifact · agent_run`,
         side:true,
         sideCaption:"Seven moves are still being measured. The biggest, the ocean-view patio, predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it.",
         run:function(){ view("growth"); scrollTo("#approvedList .decision-row-group:first-child"); }, target:"#approvedList .decision-row-group:first-child", settle:550 },
-      { ch:3, caption:"One is back. The agent published no figure for the lunch bento, so the owner added what it earned: $500 a week.",
+      { ch:3, caption:"Owners can add an estimate of how any move did; that feedback helps agents learn from their mistakes.",
         side:true,
-        sideCaption:"The agent published no figure for the lunch bento, so the owner added what it earned: $500 a week.",
+        sideCaption:"Owners can add an estimate of how any move did; that feedback helps agents learn from their mistakes.",
         run:function(){ view("growth"); scrollTo("#approvedList .outcome-panel[data-reported]"); }, target:"#approvedList .outcome-panel[data-reported]", settle:450 }
       //  No closing homily: the bento beat is the last owner step, and its
       //  pill reads "Open the Memory Engine →".
