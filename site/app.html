@@ -34883,6 +34883,31 @@ ledger_entry · artifact · agent_run`,
                           "wasabi paste": 950, "pickled ginger": 600, "green tea": 1800, "white miso": 2600 };
       const FEES = 299;
 
+      //  The supplier switch, sample edition: the same three machine shops
+      //  the live board offers, with Amazon (via Zinc) selectable so the
+      //  demo can walk the whole Zinc path. DoorDash keeps its honest
+      //  waitlist note, exactly like live.
+      let supplier = "simulated";
+      const SUPPLIERS = [
+        { id: "simulated", label: "Simulated store", available: true,
+          note: "Practice mode \u2014 carts price against a fixed catalogue and nothing is delivered." },
+        { id: "doordash", label: "DoorDash", available: false,
+          note: "DoorDash hasn't granted API access yet \u2014 the application is on the waitlist." },
+        { id: "zinc", label: "Amazon (via Zinc)", available: true,
+          note: "Approved orders place on Amazon through Zinc, shipped to the business address. The card is never charged \u2014 the Zinc wallet pays." },
+      ];
+
+      //  What the sample Amazon search returns \u2014 real-listing-shaped
+      //  titles and prices in cents, so the demo cart looks like what the
+      //  live adapter actually builds from Zinc's product search.
+      const AMAZON = {
+        "nitrile gloves": { title: "MED PRIDE Nitrile Exam Gloves, Box of 200", price: 1499 },
+        "paper towels": { title: "Bounty Select-A-Size Paper Towels, 12 Double Rolls", price: 3249 },
+        "napkins": { title: "Tork Xpressnap Dispenser Napkins, 6,000 count", price: 6995 },
+        "trash bags": { title: "Hefty Strong 30-Gallon Trash Bags, 74 count", price: 1987 },
+        "takeout containers": { title: "Stock Your Home Takeout Containers with Lids, 50 pack", price: 2699 },
+      };
+
       // Mirrors purchase_authority.PurchaseAuthority.
       const limits = [
         { scope: "pantry", level: "auto", perOrder: 12000, periodCap: 20000, spent: 4850 },
@@ -34914,6 +34939,8 @@ ledger_entry · artifact · agent_run`,
       const repContacts = [
         { id: "rep-1", name: "Dana Cruz", email: "dana@harborproduce.example",
           phone: "+14155550134", category: "produce" },
+        { id: "rep-2", name: "Kenji Moto", email: null,
+          phone: "+13105550172", category: "seafood" },
       ];
       const repMessages = [];
 
@@ -35020,11 +35047,11 @@ ledger_entry · artifact · agent_run`,
             </div>
             ${lineHtml(p.cart)}
             <p class="orders-why">${escapeHtml(p.reason)}</p>
-            <div class="orders-meta"><span>Ordered through Simulated store</span></div>
+            <div class="orders-meta"><span>Ordered through ${escapeHtml(p.cart.store || "Simulated store")}</span></div>
             <div class="orders-actions">
-              <button type="button" class="orders-btn approve" data-approve="${i}">Approve &amp; pay ${money(p.cart.total)}</button>
+              <button type="button" class="orders-btn approve" data-approve="${i}">${p.cart.store ? `Approve \u2014 up to ${money(p.cart.total)}` : `Approve &amp; pay ${money(p.cart.total)}`}</button>
               <button type="button" class="orders-btn ghost" data-reject="${i}">Not now</button>
-              ${p.priceMoved ? "" : `<button type="button" class="orders-btn ghost" data-drift="${i}">Simulate a price change</button>`}
+              ${p.priceMoved || p.cart.store ? "" : `<button type="button" class="orders-btn ghost" data-drift="${i}">Simulate a price change</button>`}
             </div>
           </article>`).join("") + drafts.join("");
       }
@@ -35094,7 +35121,7 @@ ledger_entry · artifact · agent_run`,
             </span>
             <span class="orders-arow-side">
               <span class="orders-arow-total">${money(h.total)}</span>
-              <span class="orders-arow-date">${escapeHtml(h.when)}</span>
+              <span class="orders-arow-date">${escapeHtml(h.when)}${h.ref ? ` · ${escapeHtml(h.ref)}` : ""}</span>
             </span>
           </div>`).join("");
       }
@@ -35168,7 +35195,24 @@ ledger_entry · artifact · agent_run`,
         }).join("");
       }
 
+      function renderSupplier() {
+        const box = el("ordersSupplierBox");
+        const select = el("ordersSupplierSelect");
+        if (!box || !select) return;
+        box.hidden = false;
+        select.innerHTML = SUPPLIERS.map(option => `
+          <option value="${escapeHtml(option.id)}"
+                  ${option.id === supplier ? "selected" : ""}
+                  ${option.available ? "" : "disabled"}>
+            ${escapeHtml(option.label)}${option.available ? "" : " (waiting)"}
+          </option>`).join("");
+        select.title = SUPPLIERS.map(option => `${option.label}: ${option.note}`).join("\n");
+        const conn = el("ordersConnection");
+        if (conn) conn.innerHTML = `<span class="orders-conn-dot" aria-hidden="true"></span><span>${supplier === "zinc" ? "Amazon &middot; via Zinc &middot; sample" : "Simulated store &middot; sample"}</span>`;
+      }
+
       function renderAll() {
+        renderSupplier();
         renderPending(); renderStanding(); renderStock(); renderLimits(); renderHistory(); renderCatalogue();
         renderReps(); renderRepMessages();
         // Sample figures, like everything else on the preview board — the
@@ -35210,6 +35254,24 @@ ledger_entry · artifact · agent_run`,
         renderAll();
         return { kind: "needs_approval", reason: verdict.reason };
       }
+
+      el("ordersSupplierSelect")?.addEventListener("change", event => {
+        supplier = event.target.value;
+        note(supplier === "zinc"
+          ? "Approved orders now place on Amazon through Zinc (sample) \u2014 the wallet pays; the card is never charged."
+          : "Back to the practice store \u2014 nothing is delivered, nothing is charged.", false);
+        renderAll();
+      });
+
+      //  The guided tour flips the sample supplier switch through this.
+      window.__btPreviewSupply = {
+        setSupplier(id) { supplier = id; renderAll(); },
+        //  The tour clears the machine queue when its supply chapter takes
+        //  over: the scripted bluefin approval card from the chat beats
+        //  must not sit under the Zinc beacon, or the viewer is made to
+        //  approve an order the captions never mentioned.
+        clearPending() { pending.splice(0); renderAll(); },
+      };
 
       //  The chat orders through this in preview and demo mode — same parse,
       //  same purchase authority, same board updates as the ask form below.
@@ -35294,6 +35356,47 @@ ledger_entry · artifact · agent_run`,
           renderAll();
           return { kind: "message_drafted",
                    reason: `Drafted a message to ${repIntent.contact.name}.` };
+        }
+        //  Amazon through Zinc, sample edition: when the switch points at
+        //  Amazon, an order prices from the real-listing-shaped samples.
+        //  The line carries the product title, the fees line is the named
+        //  tax-and-shipping allowance, and the total is the ceiling the
+        //  owner approves \u2014 the live adapter's honesty rules, mirrored.
+        if (supplier === "zinc") {
+          const wanted = [];
+          const lower = String(text || "").toLowerCase();
+          for (const key of Object.keys(AMAZON)) {
+            if (!lower.includes(key.split(" ")[0])) continue;
+            const near = lower.match(new RegExp(`(\\d+)(?:(?!\\band\\b)(?!,)\\D){0,18}?${key.split(" ")[0]}`));
+            wanted.push([key, near ? Math.max(1, parseInt(near[1], 10)) : 1]);
+          }
+          if (!wanted.length) {
+            if (!/\b(order|buy|get|restock|purchase|need)\b/i.test(String(text || ""))) {
+              return { kind: "not_an_order" };
+            }
+            return { kind: "failed", reason: "Nothing matching that came back "
+              + "from the sample Amazon search. Try: "
+              + Object.keys(AMAZON).join(", ") + "." };
+          }
+          const lines = wanted.map(([key, qty]) => ({ name: AMAZON[key].title,
+            qty, unit: AMAZON[key].price, total: AMAZON[key].price * qty }));
+          const subtotal = lines.reduce((sum, l) => sum + l.total, 0);
+          const fees = Math.ceil(subtotal * 0.15);
+          const cart = { lines, subtotal, fees, total: subtotal + fees,
+                         store: "Amazon (via Zinc)" };
+          const title = wanted.map(([key, qty]) => `${key} \u00d7${qty}`).join(", ");
+          pending.push({ title, cart, category: null, trigger: "owner",
+            reason: "No standing authority covers this \u2014 approve the "
+              + "ceiling and it places on Amazon through Zinc." });
+          note(`Needs your approval \u2014 ${money(cart.total)} is the ceiling: `
+            + "the listed price plus a named tax-and-shipping allowance. "
+            + "Nothing has been charged.", false);
+          renderAll();
+          return { kind: "needs_approval",
+                   reason: `Found it on Amazon \u2014 ${lines[0].name}, `
+                     + `${money(lines[0].unit)}. Approve up to ${money(cart.total)} `
+                     + "under Needs you and I place it through Zinc. The wallet "
+                     + "pays \u2014 your card is never charged." };
         }
         const items = readRequest(text);
         if (!items.length) {
@@ -35429,6 +35532,18 @@ ledger_entry · artifact · agent_run`,
         }
         if (target.dataset.approve != null) {
           const item = pending[Number(target.dataset.approve)];
+          if (item.cart.store) {
+            //  The Zinc path: the wallet pays, the reference is the order id,
+            //  and the card is never in the room.
+            note(`Placed on Amazon through Zinc for up to ${money(item.cart.total)} \u2014 the Zinc wallet pays; your card was never charged.`, false);
+            history.unshift({ title: item.title, total: item.cart.total,
+                              when: "Just now",
+                              ref: `zinc:sample-${history.length + 1}`,
+                              tag: "you approved" });
+            pending.splice(Number(target.dataset.approve), 1);
+            renderAll();
+            return;
+          }
           if (item.priceMoved) {
             note("Re-priced, placed and paid at the new total.", false);
           } else {
@@ -35702,6 +35817,7 @@ ledger_entry · artifact · agent_run`,
           // used: sections, lists, and a preview with "Read the full
           // response" past ~900 characters — not a wall of prose.
           const structured = !message.loading && !message.error
+            && !message.streaming
             && typeof renderAssistantChatHtml === "function";
           const body = structured
             ? renderAssistantChatHtml(message.text)
@@ -35742,6 +35858,78 @@ ledger_entry · artifact · agent_run`,
       //  replaceLoading are module-scoped; these are their handles.
       window.__btTourSay = push;
       window.__btTourReplace = replaceLoading;
+
+      //  The tour's lines arrive the way a real conversation does: the
+      //  owner's words type in, the dots think for a beat, the answer
+      //  streams back. Instant paste is how a fixture looks, not how anyone
+      //  talks. The promise chain serialises beats that fire close together,
+      //  so a reply never starts before its question has finished typing.
+      const TOUR_REDUCED_CHAT =
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let tourChain = Promise.resolve();
+      function streamInto(message, text, tick, done) {
+        if (TOUR_REDUCED_CHAT) {
+          message.text = text;
+          message.streaming = false;
+          renderThread();
+          done();
+          return;
+        }
+        //  Mutate the bubble's text node in place. Re-rendering the thread
+        //  each tick restarts every turn's entry animation, which held the
+        //  streaming bubble at opacity 0 until the text was already
+        //  complete — the caller renders once when the stream ends.
+        const node = thread.lastElementChild
+          ? thread.lastElementChild.querySelector(".chat-msg")
+          : null;
+        let k = 0;
+        const timer = window.setInterval(() => {
+          k += 1;
+          message.text = text.slice(0, k);
+          if (node) {
+            node.textContent = message.text;
+            thread.scrollTop = thread.scrollHeight;
+          }
+          if (k >= text.length) {
+            window.clearInterval(timer);
+            message.streaming = false;
+            done();
+          }
+        }, tick);
+      }
+      window.__btTourType = text => {
+        tourChain = tourChain.then(() => new Promise(resolve => {
+          const message = { role: "owner", text: "", streaming: true };
+          messages.push(message);
+          renderThread();
+          streamInto(message, text, 34, () => {
+            push("agent", "", { loading: true });
+            window.setTimeout(resolve, TOUR_REDUCED_CHAT ? 0 : 220);
+          });
+        }));
+      };
+      window.__btTourStreamReply = (text, options) => {
+        tourChain = tourChain.then(() => new Promise(resolve => {
+          //  The dots hold a moment — an instant answer reads as canned.
+          window.setTimeout(() => {
+            const index = messages.findIndex(m => m.loading);
+            if (index >= 0) messages.splice(index, 1);
+            const message = { role: "agent", text: "", streaming: true };
+            messages.push(message);
+            renderThread();
+            //  Every reply streams over about five seconds whatever its
+            //  length — the pace of an answer being composed, not pasted.
+            const tick = Math.max(18, Math.round(5000 / Math.max(1, text.length)));
+            streamInto(message, text, tick, () => {
+              //  The action chip and structured rendering arrive with the
+              //  finished answer, not mid-stream.
+              Object.assign(message, options || {});
+              renderThread();
+              resolve();
+            });
+          }, TOUR_REDUCED_CHAT ? 0 : 900);
+        }));
+      };
 
       push("agent", chatLive
         ? ("Hi — ask me anything about your business, and I'll answer from "
@@ -36504,8 +36692,14 @@ ledger_entry · artifact · agent_run`,
     var said = {};
     function sayOnce(key, fn){ if(said[key]) return; said[key] = true; fn(); }
     function supplies(){ try{ if(window.__btShowSuppliesCanvas) window.__btShowSuppliesCanvas(); }catch(e){} }
-    function owner(t){ try{ if(window.__btTourSay){ window.__btTourSay("owner",t); window.__btTourSay("agent","",{loading:true}); } }catch(e){} }
-    function agent(t,opts){ try{ if(window.__btTourReplace) window.__btTourReplace(t,opts||{}); }catch(e){} }
+    function owner(t){ try{
+      if(window.__btTourType) window.__btTourType(t);
+      else if(window.__btTourSay){ window.__btTourSay("owner",t); window.__btTourSay("agent","",{loading:true}); }
+    }catch(e){} }
+    function agent(t,opts){ try{
+      if(window.__btTourStreamReply) window.__btTourStreamReply(t,opts||{});
+      else if(window.__btTourReplace) window.__btTourReplace(t,opts||{});
+    }catch(e){} }
     // The Supplies board reads live cluster state; a demo session cannot fetch
     // it, so we inject a representative store so the real board (prices,
     // standing orders, stock gauges, spend limits, paid history) has something
@@ -36514,6 +36708,12 @@ ledger_entry · artifact · agent_run`,
       if(window.__btOrdersApplyState) window.__btOrdersApplyState(s);
       var n=document.getElementById("ordersAskNote"); if(n){ n.textContent=""; n.hidden=true; }
     }catch(e){} }
+
+    //  The supply beats drive the sample board the way a viewer's own typing
+    //  would: same parser, same purchase authority, same renders.
+    function previewAsk(t){ try{ if(window.__btPreviewAsk) window.__btPreviewAsk(t); }catch(e){} }
+    function previewSupplier(id){ try{ if(window.__btPreviewSupply) window.__btPreviewSupply.setSupplier(id); }catch(e){} }
+    function previewClearPending(){ try{ if(window.__btPreviewSupply) window.__btPreviewSupply.clearPending(); }catch(e){} }
 
     var TOUR_STORE = {
       store: { catalogue: [
@@ -36569,12 +36769,13 @@ ledger_entry · artifact · agent_run`,
     var CHAPTERS = [
       "The morning board",
       "Your agent, at work",
+      "The supply line",
       "Did it work?",
       "The memory that makes it possible"
     ];
 
     var OWNER_STEPS = [
-      { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, its agents work the night shift — and this is what the owner wakes up to.",
+      { ch:0, caption:"A real coastal Japanese restaurant. While it sleeps, agents on AWS Lambda work the night shift. This is what the owner wakes up to.",
         //  The card, not #feedStage: the stage is the whole scrolling column,
         //  so its ring ran past the bottom of the viewport instead of framing
         //  the recommendation the caption is talking about.
@@ -36582,7 +36783,7 @@ ledger_entry · artifact · agent_run`,
         //  bar, streams its shorter caption, and waits for a scroll before it
         //  offers Next — the opening beat teaches the feed gesture.
         side:true,
-        sideCaption:"The Brass Tacks agent team curates specific recs each night. Scroll to see more.",
+        sideCaption:"Agents on AWS Lambda work the night shift and curate these recs. Scroll to see more.",
         run:function(){ view("autopilot"); evidence(false); planSheet(false); focusCard(0); feedTop(); }, target:CURRENT.trim(), settle:400 },
       //  The "each card is one finding, scroll the feed" step is gone: the
       //  opening beat already says it and waits while the viewer scrolls.
@@ -36608,9 +36809,9 @@ ledger_entry · artifact · agent_run`,
       //  Spoken over the open evidence panel, ring on a similarity score:
       //  the number is CockroachDB's cosine similarity for that row, stored
       //  with the find — the audit trail the demo keeps pointing at.
-      { ch:0, caption:"Each score is how closely CockroachDB's vector search matched that review to this find — stored with the recommendation, so retrieval can be audited.",
+      { ch:0, caption:"Each score comes from CockroachDB's distributed vector index: how closely that review matched this find, stored so retrieval can be audited.",
         side:true,
-        sideCaption:"Each score is how closely CockroachDB's vector search matched that review to this find — stored so retrieval can be audited.",
+        sideCaption:"Each score comes from CockroachDB's distributed vector index, stored with the find so retrieval can be audited.",
         run:function(){ view("autopilot"); focusCard(7); evidence(true); }, target:"#evidenceSheet .evidence-similarity", settle:500 },
 
       //  From here on, every step is a beat: the caption streams on a pill
@@ -36618,43 +36819,100 @@ ledger_entry · artifact · agent_run`,
       //  marks what the caption is about, and the bobbing pill carries on.
       //  View-sized rings are gone — a golden box around the whole screen
       //  said nothing the view itself didn't.
-      { ch:1, caption:"She doesn't hunt through menus. She just asks — this is the same agent, in conversation.",
+      { ch:1, caption:"No hunting through menus. The owner just asks the same agent in conversation.",
         side:true,
-        sideCaption:"No menus to hunt through — the owner just asks the same agent, in conversation.",
+        sideCaption:"No menus to hunt through. The owner just asks the agent in conversation.",
         run:function(){ view("chat"); evidence(false); }, settle:450 },
-      { ch:1, caption:"Ask what needs a decision, and it answers from the work it has already done.",
+      //  Question and answer live in ONE beat: the owner's words type in,
+      //  the dots think, the reply streams back — no Next press between a
+      //  question and its answer, because no real conversation has one.
+      { ch:1, caption:"Ask what needs a decision. The answer reads live CockroachDB state over its MCP server; nothing is spent without your yes.",
         side:true,
-        sideCaption:"Ask what needs a decision, and it answers from the work it has already done.",
-        run:function(){ view("chat"); sayOnce("approve-q", function(){ owner("What needs my approval?"); }); }, settle:300 },
-      { ch:1, caption:"It drafts every move and then waits. It never spends money or publishes anything without an explicit yes.",
+        sideCaption:"Ask what needs a decision. The answer reads live CockroachDB state over the MCP server. Nothing is spent without your yes.",
+        run:function(){ view("chat"); sayOnce("approve-q", function(){
+          owner("What needs my approval?");
+          agent("A couple of moves are waiting on you. I've drafted each one with its plan and evidence. Approve and I'll place them; I never spend or publish without your yes.");
+        }); }, settle:300 },
+      { ch:2, caption:"It runs the supply side too, on AWS Lambda. Ask to order and the board opens: price list, auto-stock, every order placed.",
         side:true,
-        sideCaption:"It drafts every move and then waits — nothing is spent or published without an explicit yes.",
-        run:function(){ view("chat"); sayOnce("approve-a", function(){ agent("A couple of moves are waiting on you — I've drafted each one, with its plan and its evidence. Approve and I'll place them. I never spend or publish without your yes."); }); }, settle:300 },
-      { ch:1, caption:"It runs the supply side too. Ask it to order, and it opens a priced catalogue.",
+        sideCaption:"It runs the supply side too, on AWS Lambda: price list, auto-stock, every order placed.",
+        run:function(){ view("chat"); sayOnce("supply-q", function(){
+          owner("Order supplies for me");
+          agent("Here's your supply board: the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}});
+        }); orders(TOUR_STORE); supplies(); previewSupplier("simulated"); details(".orders-catalogue", true); scrollTo("#ordersCatalogue"); }, target:"#ordersCatalogue", settle:600 },
+      { ch:2, caption:"Auto-stock reorders what runs low, always under a spending cap no model can talk past.",
         side:true,
-        sideCaption:"It runs the supply side too — ask it to order, and a priced catalogue opens.",
-        run:function(){ view("chat"); sayOnce("supply-q", function(){ owner("Order supplies for me"); }); }, settle:300 },
-      { ch:1, caption:"A real price list, what's on auto-stock, and every order it has already placed — charged only when an order actually ships.",
-        side:true,
-        sideCaption:"A real price list, what's on auto-stock, and every order placed — charged only when an order ships.",
-        run:function(){ view("chat"); sayOnce("supply-a", function(){ agent("Here's your supply board — the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}}); }); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersCatalogue"); }, target:"#ordersCatalogue", settle:600 },
-      { ch:1, caption:"Auto-stock reorders what runs low — always under a spending cap the owner sets, which no model can talk its way past.",
-        side:true,
-        sideCaption:"Auto-stock reorders what runs low — always under a spending cap the owner sets.",
-        run:function(){ view("chat"); orders(TOUR_STORE); supplies(); details(".orders-catalogue", true); scrollTo("#ordersStandingList"); }, target:"#ordersStandingList", settle:500 },
-      { ch:1, caption:"And a receipt for everything it bought, with what it actually paid.",
+        sideCaption:"Auto-stock reorders what runs low, always under a spending cap the owner sets.",
+        run:function(){ view("chat"); orders(TOUR_STORE); supplies(); previewSupplier("simulated"); details(".orders-catalogue", true); scrollTo("#ordersStandingList"); }, target:"#ordersStandingList", settle:500 },
+      { ch:2, caption:"And a receipt for everything it bought, with what it actually paid.",
         side:true,
         sideCaption:"And a receipt for everything it bought, with what it actually paid.",
         run:function(){ view("chat"); orders(TOUR_STORE); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
+
+      //  ---- the supply line, part two: the new shops -----------------------
+      //  Where it shops is a switch. The sample board offers the same three
+      //  machine suppliers the live one does, and the demo flips it to
+      //  Amazon (via Zinc) so the viewer can walk the whole path.
+      { ch:2, caption:"Where it shops is the owner's call. Here it's real Amazon, through Zinc.",
+        side:true,
+        sideCaption:"Where it shops is the owner's call: practice store, DoorDash, or real Amazon through Zinc.",
+        run:function(){ view("chat"); supplies(); previewSupplier("zinc"); previewClearPending(); scrollTo("#ordersSupplierBox"); }, target:"#ordersSupplierBox", settle:400 },
+      //  The Zinc ask: the agent finds the actual listing and prices it. The
+      //  pending card carries the product title, the named allowance, and the
+      //  ceiling — the same card the live board draws.
+      { ch:2, caption:"Ask in plain words. The agent finds the real product on Amazon and prices it.",
+        side:true,
+        sideCaption:"\u201cOrder 2 boxes of nitrile gloves\u201d: the agent finds the real Amazon listing and prices it.",
+        run:function(){ view("chat"); supplies(); previewSupplier("zinc");
+          sayOnce("zinc-q", function(){
+            owner("Order 2 boxes of nitrile gloves");
+            previewAsk("order 2 nitrile gloves");
+            agent("Found them on Amazon: MED PRIDE nitrile exam gloves, $14.99 a box. Approve up to $34.48 under Needs you (price plus a tax and shipping allowance) and I place it through Zinc. Your card is never charged.", {action:{view:"orders", label:"Open Supplies"}});
+          });
+          scrollTo("#ordersPendingList"); }, target:"#ordersPendingList .orders-row.pending", settle:600 },
+      //  The approval is the money moment, so the viewer presses it — the
+      //  dot waits on Approve and the beat ends when the row leaves the list.
+      { ch:2, caption:"The owner approves a ceiling, never a surprise. Approve it.",
+        side:true,
+        sideCaption:"The total is a ceiling. A price that moves past it stops the order. Approve it.",
+        sideBeacon:"#ordersPendingList [data-approve]",
+        sideDone:function(){ return !document.querySelector("#ordersPendingList [data-approve]"); },
+        run:function(){ view("chat"); supplies(); previewSupplier("zinc"); scrollTo("#ordersPendingList"); }, target:"#ordersPendingList .orders-row.pending", settle:450 },
+      { ch:2, caption:"Placed through Zinc: receipt in Activity with its reference, card untouched.",
+        side:true,
+        sideCaption:"Placed through Zinc. The receipt lands in Activity with its reference; the wallet paid, the card never touched.",
+        run:function(){ view("chat"); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
+      //  The human channel. Suppliers who are people get asked, never
+      //  autopiloted — the same doctrine the backend enforces.
+      { ch:2, caption:"Suppliers who are people, not APIs, live under Your reps: email or WhatsApp.",
+        side:true,
+        sideCaption:"Suppliers who are people live under Your reps: a name, an email, a WhatsApp number.",
+        run:function(){ view("chat"); supplies(); scrollTo("#ordersRepsList"); }, target:"#ordersRepsList", settle:450 },
+      { ch:2, caption:"A cart for a human is a message: drafted, priced, waiting on you.",
+        side:true,
+        sideCaption:"\u201cEmail my produce rep: order 8 nori\u201d: a cart for a human is a message, waiting on you.",
+        run:function(){ view("chat"); supplies();
+          sayOnce("rep-q", function(){
+            owner("Email my produce rep: order 8 nori");
+            previewAsk("email my produce rep: order 8 nori");
+            agent("Drafted an email to Dana Cruz with the cart priced at last known prices. It's under Needs you; nothing goes out until you press Send.", {action:{view:"orders", label:"Open Supplies"}});
+          });
+          scrollTo("#ordersPendingList"); }, target:"#ordersPendingList .orders-row.pending", settle:600 },
+      { ch:2, caption:"Nothing emails itself. Press Send and Amazon SES delivers it under the business's name.",
+        side:true,
+        sideCaption:"Nothing emails itself: press Send. Amazon SES delivers it under the business's name; replies land in the owner's inbox.",
+        sideBeacon:"#ordersPendingList [data-rep-send]",
+        sideDone:function(){ return !document.querySelector("#ordersPendingList [data-rep-send]"); },
+        run:function(){ view("chat"); supplies(); scrollTo("#ordersPendingList"); }, target:"#ordersPendingList .orders-row.pending", settle:450 },
 
       // No verdict exists yet for this tenant: the earliest measurement window
       // closes on 2026-09-01. The chapter that used to show a finished track
       // record now shows the same machinery mid-flight, which is the honest
       // version -- and the Growth chart is deliberately not a target here,
       // because it needs two months of ledger and there are none.
-      { ch:2, caption:"Here is what makes this different from a chatbot. Every move the owner approves is stored with what the agent expects it to earn.",
+      { ch:3, caption:"What makes this different from a chatbot: every approved move is stored in CockroachDB with what it is expected to earn.",
         side:true,
-        sideCaption:"What makes this different from a chatbot: every approved move is stored with what the agent expects it to earn.",
+        sideCaption:"What makes this different from a chatbot: every approved move is stored in CockroachDB with what it is expected to earn.",
         run:function(){ view("growth"); }, settle:500 },
       //  The Approved list now holds the durable record — the measuring
       //  moves from CockroachDB, largest prediction first — so these steps
@@ -36662,11 +36920,11 @@ ledger_entry · artifact · agent_run`,
       //  the lunch bento, which is the "Add what this move earned" feature.
       //  One beat, not two: the CockroachDB claim rides with the row it is
       //  about instead of holding the same ring for a second step.
-      { ch:2, caption:"Seven approved moves are still inside their measurement window. The biggest — the ocean-view patio — predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it between now and then.",
+      { ch:3, caption:"Seven moves are still in their measurement window. The biggest, the ocean-view patio, predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it.",
         side:true,
-        sideCaption:"Seven approved moves are still being measured. The biggest — the ocean-view patio — predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it between now and then.",
+        sideCaption:"Seven moves are still being measured. The biggest, the ocean-view patio, predicts $22 a day, written to CockroachDB with its grading date. Nobody can edit it.",
         run:function(){ view("growth"); scrollTo("#approvedList .decision-row-group:first-child"); }, target:"#approvedList .decision-row-group:first-child", settle:550 },
-      { ch:2, caption:"One has already come back. The agent would not put a figure on the lunch bento — its evidence did not support one — so the owner added what it earned: $500 a week.",
+      { ch:3, caption:"One is back. The agent published no figure for the lunch bento, so the owner added what it earned: $500 a week.",
         side:true,
         sideCaption:"The agent published no figure for the lunch bento, so the owner added what it earned: $500 a week.",
         run:function(){ view("growth"); scrollTo("#approvedList .outcome-panel[data-reported]"); }, target:"#approvedList .outcome-panel[data-reported]", settle:450 }
@@ -36680,23 +36938,23 @@ ledger_entry · artifact · agent_run`,
     //  ring on the whole console is gone for the same reason the chat and
     //  Growth ones went.
     var CONSOLE_STEPS = [
-      { ch:3, caption:"This is the Memory Engine — every business, every night, read live from the cluster.",
+      { ch:4, caption:"The Memory Engine: every business, every night, read live from the CockroachDB cluster.",
         side:true,
-        sideCaption:"This is the Memory Engine — every business, every night, read live from the CockroachDB cluster.",
+        sideCaption:"The Memory Engine: every business, every night, read live from the CockroachDB cluster.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#view-admin"); }, settle:500 },
-      { ch:3, caption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
+      { ch:4, caption:"One night is one AWS Lambda run: Radar, Analyst, the owner's decision, Maker, Meter.",
         side:true,
-        sideCaption:"One night is one pipeline: Radar, Analyst, the owner's decision, Maker, Meter.",
+        sideCaption:"One night is one AWS Lambda run: Radar, Analyst, the owner's decision, Maker, Meter.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memorySummary"); }, target:"#memorySummary", settle:400 },
-      { ch:3, caption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
+      { ch:4, caption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's distributed vector index.",
         side:true,
-        sideCaption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's vector index.",
+        sideCaption:"Radar watches rivals, reviews and trends, then embeds each one with Amazon Bedrock into CockroachDB's distributed vector index.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="radar"]'); }, target:'[data-stage="radar"]', settle:400 },
-      { ch:3, caption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
+      { ch:4, caption:"The Analyst runs six concrete questions through the vector index, then reasons over what comes back.",
         side:true,
-        sideCaption:"The Analyst searches that memory with six concrete questions, then reasons over what comes back.",
+        sideCaption:"The Analyst runs six concrete questions through the vector index, then reasons over what comes back.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo('[data-stage="analyst"]'); }, target:'[data-stage="analyst"]', settle:400 },
-      { ch:3, caption:"Switch to the live graph to watch each agent hand its work to the next.",
+      { ch:4, caption:"Switch to the live graph to watch each agent hand its work to the next.",
         side:true,
         sideCaption:"The live graph: watch each agent hand its work to the next.",
         // The graph stays empty until an owner is picked, so the step picks one
@@ -36710,9 +36968,9 @@ ledger_entry · artifact · agent_run`,
             scrollTo("#memoryVisualPipeline");
           }, 260);
         }, target:"#memoryVisualPipeline", settle:900 },
-      { ch:3, caption:"The memory isn't a cache sitting beside the app. It is the product — two CockroachDB tools, working at runtime.",
+      { ch:4, caption:"The memory is not a cache beside the app. It is the product: CockroachDB vector indexing and its MCP server, at runtime.",
         side:true,
-        sideCaption:"The memory isn't a cache beside the app. It is the product — two CockroachDB tools, working at runtime.",
+        sideCaption:"The memory is not a cache beside the app. It is the product: CockroachDB vector indexing and its MCP server, at runtime.",
         run:function(){ view("admin"); click('[data-memory-view="operations"]'); scrollTo("#memoryEfficiencyHero"); }, target:"#memoryEfficiencyHero", settle:600 }
     ];
 
@@ -36837,6 +37095,27 @@ ledger_entry · artifact · agent_run`,
     function dropRing(){
       spotTarget = null;
       spot.classList.remove("on");
+    }
+
+    //  The click-and-see beat: the dot waits on a control (Approve, Send),
+    //  and the beat ends when `doneFn` reports the world changed — the row
+    //  left the list, the receipt landed. No sheet involved.
+    function beaconUntil(sel, doneFn){
+      beacon.classList.remove("quiet");
+      beaconSel = sel;
+      beacon.hidden = false;
+      if(!REDUCED_TOUR) beacon.classList.add("ping");
+      positionBeacon();
+      var tick = function(){
+        var done = false;
+        try{ done = Boolean(doneFn && doneFn()); }catch(e){}
+        //  dropRing too: the click just removed the row the ring was
+        //  framing, and a spotlight left behind reads as a stray golden
+        //  box around whatever slid into the space.
+        if(done){ dropRing(); hideBeacon(); showFab(); return; }
+        positionBeacon();
+      };
+      if(!beaconPoll) beaconPoll = window.setInterval(tick, 250);
     }
 
     //  Open, read, put away, then Next: while the awaited sheet is up the
@@ -36983,7 +37262,7 @@ ledger_entry · artifact · agent_run`,
       //  Only the opening beat lets the ring roam with the scroll; a beat
       //  that points at one specific control keeps the ring (and beacon) on
       //  it whatever the viewer does.
-      sideFollowCards = !s.sideAwait;
+      sideFollowCards = !(s.sideAwait || s.sideBeacon);
       clearSideTimers();
       hideBeacon();
       nextFab.hidden = true; nextFab.classList.remove("show", "bounce");
@@ -36992,11 +37271,21 @@ ledger_entry · artifact · agent_run`,
       //  Re-seat the caption once the step's entry scroll has settled.
       sideTimers.push(window.setTimeout(positionTopcap, 500));
       sideTimers.push(window.setTimeout(positionTopcap, 1100));
+      //  Supply-side click beats don't wait for the caption: the dot lands
+      //  while the last words are still typing, so the viewer never sits
+      //  reading a finished caption with nothing lit yet.
+      if(s.sideBeacon){
+        var lead = REDUCED_TOUR ? 0
+          : Math.max(400, ((s.sideCaption || s.caption).length * 46) - 1600);
+        sideTimers.push(window.setTimeout(function(){
+          beaconUntil(s.sideBeacon, s.sideDone);
+        }, lead));
+      }
       stream(topcap, s.sideCaption || s.caption, function(){
         //  Read, hold, fade. A beat that ends in a beacon starts it the
         //  moment the fade begins — the dot should not keep the viewer
         //  waiting on an empty screen.
-        var beaconBeat = Boolean(s.sideAwait || s.sideEvidence);
+        var beaconBeat = Boolean(s.sideAwait || s.sideEvidence || s.sideBeacon);
         sideTimers.push(window.setTimeout(function(){
           topcap.classList.remove("show");
           if(s.sideEvidence) evidenceBeat();
