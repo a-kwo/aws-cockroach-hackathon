@@ -35804,6 +35804,7 @@ ledger_entry · artifact · agent_run`,
           <circle cx="12" cy="7.6" r="4.3" /><path d="M8.8 11.5h6.4" /><path d="M12 11.5v8.1" />
         </svg>`;
 
+      let settledTurns = 0;
       function renderThread() {
         thread.innerHTML = messages.map((message, index) => {
           if (message.role === "owner") {
@@ -35844,6 +35845,14 @@ ledger_entry · artifact · agent_run`,
         // Suggestions earn their space only until the owner has spoken.
         const hints = document.getElementById("chatHints");
         if (hints) hints.hidden = messages.some(message => message.role === "owner");
+        //  Only turns the viewer has not seen yet get the entry rise.
+        //  Rebuilding the HTML restarts every turn's animation, so each
+        //  message landing mid-conversation made the whole thread blink.
+        const turns = thread.querySelectorAll(".chat-turn");
+        turns.forEach((turn, index) => {
+          if (index < settledTurns) turn.style.animation = "none";
+        });
+        settledTurns = Math.max(settledTurns, turns.length);
         thread.scrollTop = thread.scrollHeight;
       }
 
@@ -36799,9 +36808,9 @@ ledger_entry · artifact · agent_run`,
       //  The evidence beat: nothing opens on the viewer's behalf. The dot
       //  lands on the plan sheet's × first, then the ring and the dot move
       //  to the evidence row, and the beat ends when the viewer opens it.
-      { ch:0, caption:"Evidence that led to this find is kept for the user to see.",
+      { ch:0, caption:"CockroachDB Distributed Vector Indexing is used to store evidence found overnight. That's used to inform recommendations.",
         side:true,
-        sideCaption:"Evidence that led to this find is kept for the user to see.",
+        sideCaption:"CockroachDB Distributed Vector Indexing is used to store evidence found overnight. That's used to inform recommendations.",
         sideEvidence:true,
         //  evidence(false): arriving by Back re-plays the beat, and the beat
         //  must start with the document closed or it bounces straight out.
@@ -36809,9 +36818,9 @@ ledger_entry · artifact · agent_run`,
       //  Spoken over the open evidence panel, ring on a similarity score:
       //  the number is CockroachDB's cosine similarity for that row, stored
       //  with the find — the audit trail the demo keeps pointing at.
-      { ch:0, caption:"Each score comes from CockroachDB's distributed vector index: how closely that review matched this find, stored so retrieval can be audited.",
+      { ch:0, caption:"Each score is the result of a vector similarity search: how closely the stored evidence in CockroachDB matched the Analyst agent's queries. Only top-scoring evidence is added to the Analyst's context.",
         side:true,
-        sideCaption:"Each score comes from CockroachDB's distributed vector index, stored with the find so retrieval can be audited.",
+        sideCaption:"Each score is a vector similarity search result: how closely the stored evidence in CockroachDB matched the Analyst agent's queries. Only top-scoring evidence enters the Analyst's context.",
         run:function(){ view("autopilot"); focusCard(7); evidence(true); }, target:"#evidenceSheet .evidence-similarity", settle:500 },
 
       //  From here on, every step is a beat: the caption streams on a pill

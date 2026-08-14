@@ -680,7 +680,7 @@ input:focus, select:focus, textarea:focus {
 
           <div class="question" data-question="menu">
             <div class="question-head">
-              <h3>Scan your menu or price list <small>Optional</small></h3>
+              <h3>Scan your menu or price list <small>(Optional)</small></h3>
             </div>
             <div class="scan-row">
               <!-- `capture="environment"` opens the rear camera on a phone
@@ -1137,11 +1137,24 @@ function updateBrief() {
   var scopeSentenceEl = document.getElementById("scopeSentence"); if (scopeSentenceEl) scopeSentenceEl.textContent = category && location
     ? `Radar will monitor ${categoryLabel.toLowerCase()} signals around ${location}, then store only business-scoped market evidence.`
     : "Tell us what you do and where you operate. Radar will use that boundary instead of searching the entire market.";
-  document.getElementById("scopePills").innerHTML = [
-    category ? categoryLabel : "Business type",
-    location || "Street address",
-    fieldValue("website") ? "Known website" : "Website optional",
-  ].map((text,index) => `<span class="brief-pill ${(!category && index===0) || (!location && index===1) ? "placeholder" : ""}">${escapeHtml(text)}</span>`).join("");
+  //  Pills update in place: recreating the nodes replays their entry
+  //  animation on every keystroke, which read as the whole panel blinking
+  //  while the form was being typed into.
+  function renderPills(el, pills) {
+    while (el.children.length > pills.length) el.removeChild(el.lastChild);
+    pills.forEach((pill, index) => {
+      let node = el.children[index];
+      if (!node) { node = document.createElement("span"); el.appendChild(node); }
+      const cls = "brief-pill" + (pill.placeholder ? " placeholder" : "");
+      if (node.className !== cls) node.className = cls;
+      if (node.textContent !== pill.text) node.textContent = pill.text;
+    });
+  }
+  renderPills(document.getElementById("scopePills"), [
+    { text: category ? categoryLabel : "Business type", placeholder: !category },
+    { text: location || "Street address", placeholder: !location },
+    { text: fieldValue("website") ? "Known website" : "Website optional" },
+  ]);
 
   var buyerSentenceEl = document.getElementById("buyerSentence"); if (buyerSentenceEl) buyerSentenceEl.textContent = buyerReady
     ? `Analyst will rank market signals for ${selections.segments.join(", ")} and prioritize ${selections.goal.toLowerCase()} across ${offers.join(", ")}.`
@@ -1151,7 +1164,11 @@ function updateBrief() {
     ...(offers.length ? offers : ["Top offers"]),
     ...(selections.channels.length ? [selections.channels.join(" + ")] : []),
   ];
-  document.getElementById("buyerPills").innerHTML = buyerPills.map((text,index) => `<span class="brief-pill ${(!selections.segments.length && index===0) || (!offers.length && index===1) ? "placeholder" : ""}">${escapeHtml(text)}</span>`).join("");
+  renderPills(document.getElementById("buyerPills"), buyerPills.map((text, index) => ({
+    text,
+    placeholder: (!selections.segments.length && index === 0)
+      || (!offers.length && index === 1),
+  })));
   saveDraft();
 }
 
@@ -1401,25 +1418,131 @@ function wireFirstNight() {
     + ".bt-demo-topcap.show{opacity:1;}"
     + ".bt-demo-topcap.typing::after{content:'\\258B';color:#e8b94a;margin-left:2px;"
     + "animation:btCaret 1s steps(1) infinite;}@keyframes btCaret{50%{opacity:0;}}"
-    + ".bt-demo-nextfab{position:fixed;z-index:9999;right:26px;top:50%;transform:translateY(-50%);"
-    + "opacity:0;transition:opacity .4s ease;}.bt-demo-nextfab.show{opacity:1;}"
-    + ".bt-demo-nextfab button{font:700 15px -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;"
-    + "border-radius:999px;cursor:pointer;padding:12px 22px;border:1px solid #D9A93F;"
-    + "background:#D9A93F;color:#14161c;box-shadow:0 10px 30px rgba(0,0,0,.25);}"
-    + ".bt-demo-nextfab.bounce button{animation:btNextBounce 1.7s ease-in-out infinite;}"
-    + "@keyframes btNextBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}"
-    + "@media (max-width:760px){.bt-demo-nextfab{top:auto;bottom:18px;transform:none;}}";
+    + ".bt-demo-beacon{position:fixed;z-index:9999;width:10px;height:10px;cursor:pointer;"
+    + "opacity:0;transition:opacity .3s ease;}"
+    + ".bt-demo-beacon.show{opacity:1;}"
+    + ".bt-demo-beacon i{position:absolute;inset:0;border-radius:50%;background:#D9A93F;"
+    + "box-shadow:0 0 12px rgba(217,169,63,.85);}"
+    + ".bt-demo-beacon span{position:absolute;inset:0;border-radius:50%;"
+    + "border:2px solid rgba(217,169,63,.7);opacity:0;}"
+    + ".bt-demo-beacon.ping span{animation:btBeaconPing 1.8s ease-out infinite;}"
+    + ".bt-demo-beacon.ping span:nth-child(2){animation-delay:.9s;}"
+    + "@keyframes btBeaconPing{0%{transform:scale(1);opacity:.85;}100%{transform:scale(3.6);opacity:0;}}"
+    + ".bt-demo-beacon em{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);"
+    + "font:700 12px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;font-style:normal;"
+    + "color:#3a3428;background:rgba(251,249,244,.94);padding:3px 8px;border-radius:8px;"
+    + "border:1px solid rgba(168,117,36,.35);white-space:nowrap;box-shadow:0 4px 14px rgba(23,24,28,.18);}"
+    + ".bt-demo-night{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;"
+    + "align-items:center;justify-content:center;gap:18px;text-align:center;padding:24px;"
+    + "background:radial-gradient(circle at 50% 38%,#1a1813,#0e0d0a);color:#FBF9F4;"
+    + "opacity:0;transition:opacity .6s ease;"
+    + "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;}"
+    + ".bt-demo-night.show{opacity:1;}"
+    + ".bt-demo-night .tag{font:800 12px/1;letter-spacing:.22em;text-transform:uppercase;color:#e8b94a;}"
+    + ".bt-demo-night h1{margin:0;font:800 clamp(30px,5.5vw,54px)/1.05;letter-spacing:-.03em;}"
+    + ".bt-demo-night-stages{display:flex;flex-direction:column;gap:12px;margin-top:10px;text-align:left;}"
+    + ".bt-demo-night-stages div{display:flex;align-items:center;gap:11px;color:#8a8f99;"
+    + "font:600 15px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;"
+    + "transition:color .4s ease;}"
+    + ".bt-demo-night-stages i{width:9px;height:9px;border-radius:50%;background:rgba(244,242,236,.22);"
+    + "flex:none;transition:background .4s ease,box-shadow .4s ease;}"
+    + ".bt-demo-night-stages div.on{color:#f4f2ec;}"
+    + ".bt-demo-night-stages div.on i{background:#e8b94a;box-shadow:0 0 12px rgba(232,185,74,.8);}"
+    + ".bt-demo-night .fine{margin:8px 0 0;font:500 13px/1.5;color:#8a8f99;max-width:46ch;}";
   document.head.appendChild(style);
 
   var cap = document.createElement("p");
   cap.className = "bt-demo-topcap";
   document.body.appendChild(cap);
-  var fab = document.createElement("div");
-  fab.className = "bt-demo-nextfab";
-  fab.innerHTML = '<button type="button">Next →</button>';
-  fab.hidden = true;
-  document.body.appendChild(fab);
-  var fabBtn = fab.querySelector("button");
+  //  The dot from the app tour: pinned to the control the viewer should
+  //  press, with a "Click here" label, forwarding its clicks.
+  var beacon = document.createElement("div");
+  beacon.className = "bt-demo-beacon";
+  beacon.innerHTML = '<span></span><span></span><i></i><em>Click here</em>';
+  beacon.hidden = true;
+  document.body.appendChild(beacon);
+  var beaconTarget = null;
+  var beaconPoll = 0;
+  beacon.addEventListener("click", function(){
+    if (beaconTarget) beaconTarget.click();
+  });
+  function positionBeacon(){
+    if (beacon.hidden || !beaconTarget) return;
+    var r = beaconTarget.getBoundingClientRect();
+    if (!r.width || r.bottom < 0 || r.top > window.innerHeight){
+      beacon.classList.remove("show");
+      return;
+    }
+    if (r.width < 48 || r.height < 30){
+      beacon.style.left = (r.left + r.width / 2 - 5) + "px";
+      beacon.style.top = (r.top + r.height / 2 - 5) + "px";
+    } else {
+      beacon.style.left = (r.right - 22) + "px";
+      beacon.style.top = (r.top + 10) + "px";
+    }
+    beacon.classList.add("show");
+  }
+  function showBeacon(el){
+    beaconTarget = el;
+    beacon.hidden = false;
+    if (!REDUCED) beacon.classList.add("ping");
+    if (el) el.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "center" });
+    positionBeacon();
+    if (!beaconPoll) beaconPoll = window.setInterval(positionBeacon, 250);
+    window.addEventListener("scroll", positionBeacon, true);
+  }
+  function hideBeacon(){
+    window.clearInterval(beaconPoll);
+    beaconPoll = 0;
+    beacon.classList.remove("show", "ping");
+    beacon.hidden = true;
+    beaconTarget = null;
+  }
+
+  //  The intermediate screen a real owner sees while their first night
+  //  runs. Sample edition: nothing is invoked, the stages light on a
+  //  timer, and it says so in plain words.
+  var night = document.createElement("div");
+  night.className = "bt-demo-night";
+  night.hidden = true;
+  //  An explicit display:none, not just [hidden]: the class's display:flex
+  //  outranks the UA hidden rule, and the "hidden" overlay was silently
+  //  covering the whole page and eating every click.
+  night.style.display = "none";
+  night.innerHTML =
+    '<span class="tag">Interactive demo</span>'
+    + '<h1>Your first night is running</h1>'
+    + '<div class="bt-demo-night-stages">'
+    + '<div><i></i><span>Radar sweeps reviews, rivals and local demand</span></div>'
+    + '<div><i></i><span>Analyst searches the memory and reasons over it</span></div>'
+    + '<div><i></i><span>The morning board is set</span></div>'
+    + '</div>'
+    + '<p class="fine">Sample workspace: no real night starts here. A live first night runs about 90 seconds on AWS Lambda.</p>';
+  document.body.appendChild(night);
+  function firstNight(){
+    night.hidden = false;
+    night.style.display = "flex";
+    requestAnimationFrame(function(){ night.classList.add("show"); });
+    var stages = night.querySelectorAll(".bt-demo-night-stages div");
+    var pace = REDUCED ? 200 : 1400;
+    stages.forEach(function(stage, index){
+      window.setTimeout(function(){ stage.classList.add("on"); }, pace * (index + 1));
+    });
+    window.setTimeout(function(){
+      window.location.href = "../app/?tour=owner&from=onboarding";
+    }, REDUCED ? 900 : pace * 3 + 1600);
+  }
+
+  //  "Start my first night" must not start anything in the demo: the click
+  //  is caught before the page's own handlers, the interstitial plays, and
+  //  only then does the app tour open on its sample workspace.
+  var openWorkspace = document.getElementById("openWorkspace");
+  if (openWorkspace) openWorkspace.addEventListener("click", function(event){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    hideBeacon();
+    firstNight();
+  }, true);
 
   var streamTimer = 0;
   function stream(text, done){
@@ -1440,34 +1563,47 @@ function wireFirstNight() {
     }, 46);
   }
 
-  //  A beat streams its caption while its actions play out on the form, and
-  //  the pill only appears once BOTH are finished — a Next over a form still
-  //  typing itself would invite skipping the very thing being shown.
-  function beat(text, label, actions, onNext){
-    fab.hidden = true;
-    fab.classList.remove("show", "bounce");
+  //  A beat streams its caption while its actions play out on the form.
+  //  When BOTH are finished, the pinging dot lands on the form's own next
+  //  control — Continue, Create workspace, Start my first night — so moving
+  //  on is the real gesture, and the page advances itself the way it would
+  //  for a real owner. `doneFn` watches for that advance and hands over.
+  function beat(text, actions, awaitSel, doneFn, onDone){
+    hideBeacon();
     //  Each beat opens at the top of the page: the header and the first
     //  fields in view, then the scroll follows the typing down.
     if (!REDUCED) window.scrollTo({ top: 0, behavior: "smooth" });
     cap.hidden = false;
     cap.classList.add("show");
-    fabBtn.onclick = onNext;
     var actionsDone = !actions || !actions.length;
     var captionDone = false;
-    var maybePill = function(){
-      if (!actionsDone || !captionDone) return;
-      fabBtn.textContent = label;
-      fab.hidden = false;
-      if (!REDUCED) fab.classList.add("bounce");
-      requestAnimationFrame(function(){ fab.classList.add("show"); });
+    var beaconUp = false;
+    var maybeBeacon = function(){
+      if (!actionsDone || !captionDone || beaconUp) return;
+      beaconUp = true;
+      var el = document.querySelector(awaitSel);
+      if (el) showBeacon(el);
     };
-    if (!actionsDone) seqRun(actions.slice(), function(){ actionsDone = true; maybePill(); });
+    if (!actionsDone) seqRun(actions.slice(), function(){ actionsDone = true; maybeBeacon(); });
     stream(text, function(){
       window.setTimeout(function(){
         cap.classList.remove("show");
-        window.setTimeout(function(){ captionDone = true; maybePill(); }, 500);
-      }, 2600);
+        window.setTimeout(function(){ cap.hidden = true; captionDone = true; maybeBeacon(); }, 500);
+      }, 2100);
     });
+    if (doneFn){
+      var watch = window.setInterval(function(){
+        if (!doneFn()) return;
+        window.clearInterval(watch);
+        hideBeacon();
+        window.setTimeout(onDone, 600);
+      }, 250);
+    }
+  }
+
+  function stepActive(n){
+    var el = document.querySelector('.form-step[data-step="' + n + '"]');
+    return Boolean(el && el.classList.contains("active"));
   }
 
   //  Through the page's own handlers, so the live brief on the right fills
@@ -1535,23 +1671,23 @@ function wireFirstNight() {
   }
 
   function beatOne(){
-    beat("First, the business: the boundary Radar searches every night.",
-      "Next →", [
+    beat("First, you fill out basic info about your business",
+      [
         { id: "ownerName", text: "Maya Chen" },
         { id: "email", text: "maya@harborviewjapanese.com" },
         { id: "businessName", text: "Harborview Japanese" },
         { id: "category", value: "restaurant_cafe" },
         { id: "location", text: "18 Harbor Point Road, Ocean City" },
         { id: "website", text: "https://harborviewjapanese.example.com" },
-      ], function(){
-        pick('[data-next="2"]');
-        window.setTimeout(beatTwo, 900);
-      });
+      ],
+      '[data-next="2"]',
+      function(){ return stepActive(2); },
+      beatTwo);
   }
 
   function beatTwo(){
     beat("Then buyers and a goal: facts embedded with Amazon Bedrock into CockroachDB's vector index.",
-      "Next →", [
+      [
         { sel: '[data-multi="segments"][data-value="Local residents"]' },
         { sel: '[data-multi="segments"][data-value="Families"]' },
         { sel: '[data-multi="segments"][data-value="Visitors and tourists"]' },
@@ -1560,17 +1696,17 @@ function wireFirstNight() {
         { sel: '[data-multi="channels"][data-value="Phone"]' },
         { sel: '[data-multi="channels"][data-value="Delivery"]' },
         { sel: '[data-goal="More demand"]' },
-      ], function(){
-        document.getElementById("onboardingForm").requestSubmit();
-        window.setTimeout(beatThree, 900);
-      });
+      ],
+      '#createWorkspace',
+      function(){ return stepActive(3); },
+      beatThree);
   }
 
   function beatThree(){
-    beat("That's it. The agents take the night shift from here.",
-      "See the morning board →", null, function(){
-        window.location.href = "../app/?tour=owner&from=onboarding";
-      });
+    //  The dot lands on "Start my first night" itself; the click plays the
+    //  sample interstitial and only then opens the morning board tour.
+    beat("Onboarding is complete. Your agent team is ready to work for you",
+      null, '#openWorkspace', null, null);
   }
 
   //  Give the page's own script a beat to finish wiring before typing.
