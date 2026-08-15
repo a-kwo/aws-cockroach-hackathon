@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Paints the phone browser's strip above the page. Without it that strip
+       takes a default pale colour over the near-black app — a visible "empty
+       space above the menu". Kept in sync with day mode by applyTheme(). -->
+  <meta name="theme-color" id="themeColorMeta" content="#0c0b09" />
   <title>Brass Tacks — Decision Lens</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='34' fill='%23e2a85c'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23101114'/%3E%3C/svg%3E" />
 
@@ -33081,6 +33085,8 @@ ledger_entry · artifact · agent_run`,
     function applyTheme(mode) {
       const day = mode === "day";
       document.body.classList.toggle("day-mode", day);
+      //  The phone browser's strip above the page follows the theme.
+      document.getElementById("themeColorMeta")?.setAttribute("content", day ? "#f5f5f7" : "#0c0b09");
       if (themeToggleButton) {
         themeToggleButton.setAttribute("aria-pressed", String(day));
         themeToggleButton.setAttribute("aria-label", day ? "Switch to night mode" : "Switch to day mode");
