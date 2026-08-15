@@ -23598,15 +23598,7 @@
       border-radius: 14px !important;
     }
 
-    /* The disclosure chip lives in the canvas header — right-aligned, tiny,
-       and its expanded claims drop over the board instead of pushing it. */
-    .orders-mock-banner.in-canvas-head {
-      margin-left: auto !important;
-      position: relative;
-      width: fit-content !important;
-    }
-    /* The supplier switch sits ahead of the chip; when it is visible it takes
-       the auto margin and the chip tucks in beside it. */
+    /* The supplier switch in the canvas header, right-aligned. */
     .orders-supplier.in-canvas-head {
       margin-left: auto;
       display: flex;
@@ -23614,57 +23606,6 @@
       gap: 8px;
     }
     .orders-supplier.in-canvas-head[hidden] { display: none; }
-    .orders-supplier.in-canvas-head ~ .orders-mock-banner.in-canvas-head {
-      margin-left: 10px !important;
-    }
-    .orders-supplier.in-canvas-head[hidden] ~ .orders-mock-banner.in-canvas-head {
-      margin-left: auto !important;
-    }
-    /* In the canvas header the chip is its info glyph alone, sample or live —
-       the claims stay one tap away, and the label stays in the DOM for screen
-       readers. No pill chrome: a quiet mark, not a button competing with the
-       supplier switch beside it. */
-    .orders-mock-banner.in-canvas-head summary #ordersBannerLabel {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-    body.chat-mode .orders-mock-banner.in-canvas-head > summary,
-    .orders-mock-banner.in-canvas-head > summary {
-      border: 0 !important;
-      background: none !important;
-      box-shadow: none !important;
-      padding: 6px !important;
-      color: var(--owner-muted, #8f8b83) !important;
-    }
-    .orders-mock-banner.in-canvas-head > summary::after { display: none !important; }
-    .orders-mock-banner.in-canvas-head > summary:hover { color: var(--owner-ink, #f2efe9) !important; }
-    .orders-mock-banner.in-canvas-head[open] {
-      width: fit-content !important;
-      border-radius: 999px !important;
-    }
-    .orders-mock-banner.in-canvas-head[open] > p {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 8px);
-      width: min(440px, 82vw);
-      z-index: 40;
-      margin: 0;
-      padding: 14px 16px;
-      border: 1px solid rgba(242, 239, 233, .16);
-      border-radius: 14px;
-      background: #191712;
-      color: #d8d4ca;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
-    }
-    body.day-mode .orders-mock-banner.in-canvas-head[open] > p {
-      background: #ffffff;
-      color: #3f4149;
-      border-color: #e7e8ec;
-    }
 
     /* Decisions on the left, navigation on the right. */
     .chat-move-actions [data-chat-full-details] { margin-left: auto !important; }
@@ -34413,10 +34354,6 @@ ledger_entry · artifact · agent_run`,
           }
           const bannerLabel = el("ordersBannerLabel");
           if (bannerLabel) bannerLabel.textContent = "Live";
-          //  Live mode: the supplier switch beside this chip already names the
-          //  one simulation, so the chip folds to its info glyph — the word
-          //  stays for screen readers, the claims stay one tap away.
-          screen.querySelector(".orders-mock-banner")?.classList.add("is-live");
           const payChip = el("ordersPayChip");
           if (payChip) {
             payChip.textContent = stripeLive ? "Stripe · Test mode" : "Payments · Simulated";
@@ -36615,21 +36552,19 @@ ledger_entry · artifact · agent_run`,
         const board = document.getElementById("ordersBoard");
         const host = document.getElementById("chatCanvasSupplies");
         if (board && host && board.parentElement !== host) host.appendChild(board);
-        //  The sample/live disclosure rides the canvas header instead of
-        //  costing the board a row — same element, same expandable claims,
-        //  zero vertical space.
+        //  The sample/live disclosure stays in the DOM — its claims are what
+        //  the honesty tests pin — but draws nothing: the owner asked for the
+        //  chip gone, and the supplier switch's own label ("Simulated store")
+        //  is the visible admission of what is simulated.
         const banner = board?.querySelector(".orders-mock-banner");
+        if (banner) banner.hidden = true;
+        //  The supplier switch rides the canvas header, and the app bar it
+        //  leaves behind is an empty row — hide it.
         const tabsRow = document.getElementById("chatCanvasTabs")?.parentElement;
-        if (banner && tabsRow && banner.parentElement !== tabsRow) {
-          banner.classList.add("in-canvas-head");
-          tabsRow.appendChild(banner);
-        }
-        //  The supplier switch rides there too, ahead of the disclosure, and
-        //  the app bar it leaves behind is an empty row — hide it.
         const supplier = document.getElementById("ordersSupplierBox");
         if (supplier && tabsRow && supplier.parentElement !== tabsRow) {
           supplier.classList.add("in-canvas-head");
-          tabsRow.insertBefore(supplier, banner && banner.parentElement === tabsRow ? banner : null);
+          tabsRow.appendChild(supplier);
         }
         const appbar = board?.querySelector(".orders-appbar");
         if (appbar) appbar.hidden = true;
