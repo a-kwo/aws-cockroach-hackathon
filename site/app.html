@@ -36880,7 +36880,10 @@ ledger_entry · artifact · agent_run`,
       + '.bt-demo-bar{bottom:auto;top:8px;width:calc(100vw - 16px);padding:11px 13px 10px;}'
       + '.bt-demo-caption{font-size:14px;margin-bottom:10px;}'
       + '.bt-demo-bar button{padding:7px 12px;font-size:12px;}'
-      + 'body.bt-demo-on .app{height:auto;padding-top:104px;}}';
+      /* The measured inset, not a hard-coded 104px: syncInset() sets it to 0
+         whenever the bar hides (side beats, interactive turns), so the page
+         never keeps a blank band above the menu for a bar that is not there. */
+      + 'body.bt-demo-on .app{height:auto;padding-top:var(--bt-demo-inset,104px);}}';
     document.head.appendChild(style);
 
     // The opening beat: a step marked `side` retires the bottom bar. Its
