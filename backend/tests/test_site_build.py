@@ -2091,10 +2091,11 @@ def test_the_supplies_stat_bar_sits_on_the_supplies_screen():
     """The four numbers head the screen they describe.
 
     Spent this week and Low stock are facts about the pantry, so they belong
-    above the pantry, not above a conversation. They are also read-only
-    headers now rather than buttons: on their own screen there is nowhere
-    left for them to navigate to, and a control that does nothing is worse
-    than a label.
+    above the pantry, not above a conversation. An earlier design made them
+    buttons wired to a chat canvas that no longer existed — dead controls.
+    They are buttons again now, but wired to the board itself: each number
+    jumps to the section it counts, so the stats are the board's table of
+    contents rather than a separate menu.
     """
     html = (build_web.SITE / "app.html").read_text(encoding="utf-8")
 
@@ -2117,9 +2118,13 @@ def test_the_supplies_stat_bar_sits_on_the_supplies_screen():
     assert "Spent this week" in stats
     assert "Low stock" in stats
     assert "ordersStats" in stats
-    # Read-only: tiles, not buttons wired to a canvas that no longer exists.
-    assert "<button" not in stats
+    # Buttons that go somewhere on THIS screen — never the removed canvas.
+    assert 'data-stat-jump="pending"' in stats
+    assert 'data-stat-jump="stock"' in stats
+    assert 'data-stat-jump="activity"' in stats
     assert "data-canvas" not in stats
+    # And the shared click handler actually answers the jump.
+    assert 'closest("[data-stat-jump]")' in html
 
     # Both modes fill it. The preview's numbers are sample data like the rest
     # of that screen, and its banner already says so.
