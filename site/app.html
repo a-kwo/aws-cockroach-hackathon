@@ -23915,6 +23915,41 @@
       background: rgba(170, 125, 42, .12);
       color: #8a6420;
     }
+
+    /* ============================================================
+       Supplies board navigation: the four stat cards are buttons
+       that jump to the section they count, and the landing zone
+       rings briefly so the eye follows the jump.
+       ============================================================ */
+    button.orders-stat {
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+    button.orders-stat:hover {
+      border-color: rgba(226, 168, 92, .45) !important;
+      background: rgba(226, 168, 92, .06);
+      transform: translateY(-1px);
+    }
+    button.orders-stat:active { transform: translateY(0); }
+    body.day-mode button.orders-stat:hover {
+      border-color: rgba(170, 125, 42, .45) !important;
+      background: #faf9f6;
+    }
+
+    @keyframes zoneFlashRing {
+      0% { box-shadow: 0 0 0 2px rgba(226, 168, 92, .55); }
+      100% { box-shadow: 0 0 0 2px rgba(226, 168, 92, 0); }
+    }
+    .orders-zone.zone-flash { animation: zoneFlashRing 1.3s ease forwards; }
+    @media (prefers-reduced-motion: reduce) {
+      .orders-zone.zone-flash { animation: none; }
+      button.orders-stat, button.orders-stat:hover { transform: none; }
+      /* Restated from the base sheet: this is the file's last reduced-motion
+         block, and the accessibility test reads the last block. */
+      .visual-flow-particle { animation: none !important; }
+    }
   </style>
 
 </head>
@@ -24330,30 +24365,6 @@
             <p class="orders-empty" id="ordersHistoryEmpty">No orders yet.</p>
           </section>
 
-          <!-- The humans who supply the store, and the messages the agent
-               drafts for them. A draft costs nothing and no model writes to
-               a human: the owner's words travel verbatim, and only the
-               owner's Send moves them. -->
-          <section class="orders-zone" aria-labelledby="ordersRepsHeading" data-enter>
-            <header class="orders-zone-head">
-              <div class="orders-zone-title">
-                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="7.5" cy="7" r="4" /><path d="M22 7.5l-5.5 5.5-2.5-2.5" /></svg></span>
-                <h2 id="ordersRepsHeading">Your Reps</h2>
-              </div>
-              <span class="orders-count" id="ordersRepsCount">0</span>
-            </header>
-            <div id="ordersRepsList" class="orders-list"></div>
-            <form class="orders-form" id="ordersRepForm">
-              <label>Name<input type="text" name="name" placeholder="Dana Cruz" required /></label>
-              <label>Email<input type="email" name="email" placeholder="dana@supplier.com" /></label>
-              <label>Phone<input type="tel" name="phone" placeholder="+1 415 555 0134" /></label>
-              <label>Supplies<input type="text" name="category" placeholder="produce" /></label>
-              <button class="orders-btn primary small" type="submit">Add rep</button>
-            </form>
-            <div id="ordersMessagesList" class="orders-list"></div>
-            <p class="orders-empty" id="ordersRepsEmpty">Add the rep you order produce from — email, phone, or both — then tell the agent &ldquo;ask my produce rep&hellip;&rdquo; or &ldquo;whatsapp my produce rep&hellip;&rdquo; in Chat and review the draft here.</p>
-          </section>
-
           <!-- The rules that make it automatic, one pane at a time. -->
           <section class="orders-zone" aria-label="On autopilot" data-enter>
             <header class="orders-zone-head">
@@ -24443,6 +24454,36 @@
               <div id="ordersLimitsList" class="orders-list"></div>
               <p class="orders-empty" id="ordersLimitsEmpty" hidden>No limits yet &mdash; everything asks you first.</p>
             </div>
+          </section>
+
+          <!-- The humans who supply the store, and the messages the agent
+               drafts for them. A draft costs nothing and no model writes to
+               a human: the owner's words travel verbatim, and only the
+               owner's Send moves them. Last on the board because it is setup,
+               not a decision; drafts owed a decision surface in Needs you.
+               The add form folds behind its button like every other pane's. -->
+          <section class="orders-zone" aria-labelledby="ordersRepsHeading" data-enter>
+            <header class="orders-zone-head">
+              <div class="orders-zone-title">
+                <span class="orders-zone-ico" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="7.5" cy="7" r="4" /><path d="M22 7.5l-5.5 5.5-2.5-2.5" /></svg></span>
+                <h2 id="ordersRepsHeading">Your Reps</h2>
+                <span class="orders-count" id="ordersRepsCount">0</span>
+              </div>
+              <button type="button" class="orders-btn ghost small" id="ordersAddRep">Add a rep</button>
+            </header>
+            <div id="ordersRepsList" class="orders-list"></div>
+            <form class="orders-form" id="ordersRepForm" hidden>
+              <label>Name<input type="text" name="name" placeholder="Dana Cruz" required /></label>
+              <label>Email<input type="email" name="email" placeholder="dana@supplier.com" /></label>
+              <label>Phone<input type="tel" name="phone" placeholder="+1 415 555 0134" /></label>
+              <label>Supplies<input type="text" name="category" placeholder="produce" /></label>
+              <div class="orders-form-actions">
+                <button class="orders-btn primary small" type="submit">Save</button>
+                <button type="button" class="orders-btn ghost small" data-form-cancel>Cancel</button>
+              </div>
+            </form>
+            <div id="ordersMessagesList" class="orders-list"></div>
+            <p class="orders-empty" id="ordersRepsEmpty">Add the rep you order produce from &mdash; email, phone, or both &mdash; then tell the agent &ldquo;ask my produce rep&hellip;&rdquo; or &ldquo;whatsapp my produce rep&hellip;&rdquo; in Chat and review the draft here.</p>
           </section>
         </div>
       </section>
@@ -34315,24 +34356,27 @@ ledger_entry · artifact · agent_run`,
         const cents = c => `$${Math.floor(c / 100)}.${String(c % 100).padStart(2, "0")}`;
         const needsYou = figures.needsYou;
         const low = figures.lowCount;
+        //  The four numbers are also the board's table of contents: each one
+        //  jumps to the section it counts, so navigation is the numbers
+        //  themselves rather than a separate menu.
         holder.hidden = false;
         holder.innerHTML = `
-          <div class="orders-stat${needsYou ? " is-alert" : ""}">
+          <button type="button" class="orders-stat${needsYou ? " is-alert" : ""}" data-stat-jump="pending" title="Jump to Needs you">
             <span>Needs you</span>
             <strong>${needsYou}</strong>
-          </div>
-          <div class="orders-stat" title="${escapeHtml(figures.paymentLabel)}">
+          </button>
+          <button type="button" class="orders-stat" data-stat-jump="activity" title="${escapeHtml(figures.paymentLabel)} — jump to Activity">
             <span>Spent this week</span>
             <strong>${cents(figures.spentWeekCents || 0)}</strong>
-          </div>
-          <div class="orders-stat${low ? " is-warn" : ""}">
+          </button>
+          <button type="button" class="orders-stat${low ? " is-warn" : ""}" data-stat-jump="stock" title="Jump to Stock">
             <span>Low stock</span>
             <strong>${low}</strong>
-          </div>
-          <div class="orders-stat">
+          </button>
+          <button type="button" class="orders-stat" data-stat-jump="activity" title="Jump to Activity">
             <span>Orders placed</span>
             <strong>${figures.placed}</strong>
-          </div>`;
+          </button>`;
       }
 
       // Recommendations awaiting a decision are counted alongside orders
@@ -34368,6 +34412,37 @@ ledger_entry · artifact · agent_run`,
             form.hidden = false;
             form.scrollIntoView({ behavior: "smooth", block: "center" });
           }
+          return;
+        }
+        //  The stat cards are the board's navigation: each number jumps to
+        //  the section it counts, switching the autopilot pane when the
+        //  destination lives inside one. A brief ring says "you are here".
+        const stat = event.target.closest("[data-stat-jump]");
+        if (stat) {
+          const goal = stat.dataset.statJump;
+          if (goal === "stock") screen.querySelector('[data-otab="stock"]')?.click();
+          const heading = goal === "pending" ? "ordersPendingHeading"
+            : goal === "stock" ? "ordersStandingHeading"
+            : "ordersHistoryHeading";
+          const zone = document.getElementById(heading)?.closest(".orders-zone");
+          if (zone) {
+            zone.scrollIntoView({ behavior: "smooth", block: "start" });
+            zone.classList.remove("zone-flash");
+            void zone.offsetWidth;
+            zone.classList.add("zone-flash");
+          }
+          return;
+        }
+        //  The rep form folds behind its button like every other pane's;
+        //  shared here because both engines render the same zone.
+        if (event.target.closest("#ordersAddRep")) {
+          const form = document.getElementById("ordersRepForm");
+          if (form) form.hidden = !form.hidden;
+          return;
+        }
+        if (event.target.closest("#ordersRepForm [data-form-cancel]")) {
+          const form = document.getElementById("ordersRepForm");
+          if (form) form.hidden = true;
         }
       });
 
@@ -34957,7 +35032,7 @@ ledger_entry · artifact · agent_run`,
             phone: form.phone.value.trim() || null,
             category: form.category.value.trim() || null,
           });
-          if (answer) form.reset();
+          if (answer) { form.reset(); form.hidden = true; }
         });
 
         // The chat pane drives this board from outside: after a chat order,
@@ -35672,6 +35747,7 @@ ledger_entry · artifact · agent_run`,
           category: form.category.value.trim().toLowerCase() || null,
         });
         form.reset();
+        form.hidden = true;
         renderAll();
       });
 
