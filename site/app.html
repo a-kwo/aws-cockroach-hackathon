@@ -22688,10 +22688,22 @@
       .feed-rail { position: static; order: 2; }
     }
     @media (max-width: 900px) {
+      /* Match the base rule's deepest selector: the row!important above is
+         (0,4,2), and a (0,2,2) column override silently lost to it — the
+         detail panel rode shotgun into a 0-width column on phones. */
       .post-body,
-      body.autopilot-mode .post-body { flex-direction: column !important; gap: 14px; }
+      body.autopilot-mode .post-body,
+      body.autopilot-mode .feed-card .post-body,
+      body.autopilot-mode .feed-stage .feed-card .post-body {
+        flex-direction: column !important;
+        gap: 14px;
+      }
       .feed-detail-panel,
-      body.autopilot-mode .feed-detail-panel { flex: 1 1 auto; width: 100% !important; }
+      body.autopilot-mode .feed-detail-panel,
+      body.day-mode .feed-detail-panel {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+      }
     }
 
     /* Phone: nothing inside a card may widen it past the screen. */
