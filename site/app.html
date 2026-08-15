@@ -23620,9 +23620,11 @@
     .orders-supplier.in-canvas-head[hidden] ~ .orders-mock-banner.in-canvas-head {
       margin-left: auto !important;
     }
-    /* Live mode: the chip folds to its info glyph — the claims stay one tap
-       away, and the label stays in the DOM for screen readers. */
-    .orders-mock-banner.is-live.in-canvas-head summary #ordersBannerLabel {
+    /* In the canvas header the chip is its info glyph alone, sample or live —
+       the claims stay one tap away, and the label stays in the DOM for screen
+       readers. No pill chrome: a quiet mark, not a button competing with the
+       supplier switch beside it. */
+    .orders-mock-banner.in-canvas-head summary #ordersBannerLabel {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -23630,6 +23632,16 @@
       clip-path: inset(50%);
       white-space: nowrap;
     }
+    body.chat-mode .orders-mock-banner.in-canvas-head > summary,
+    .orders-mock-banner.in-canvas-head > summary {
+      border: 0 !important;
+      background: none !important;
+      box-shadow: none !important;
+      padding: 6px !important;
+      color: var(--owner-muted, #8f8b83) !important;
+    }
+    .orders-mock-banner.in-canvas-head > summary::after { display: none !important; }
+    .orders-mock-banner.in-canvas-head > summary:hover { color: var(--owner-ink, #f2efe9) !important; }
     .orders-mock-banner.in-canvas-head[open] {
       width: fit-content !important;
       border-radius: 999px !important;
@@ -35192,7 +35204,6 @@ ledger_entry · artifact · agent_run`,
             </div>
             ${lineHtml(p.cart)}
             <p class="orders-why">${escapeHtml(p.reason)}</p>
-            <div class="orders-meta"><span>Ordered through ${escapeHtml(p.cart.store || "Simulated store")}</span></div>
             <div class="orders-actions">
               <button type="button" class="orders-btn approve" data-approve="${i}">${p.cart.store ? `Approve \u2014 up to ${money(p.cart.total)}` : `Approve &amp; pay ${money(p.cart.total)}`}</button>
               <button type="button" class="orders-btn ghost" data-reject="${i}">Not now</button>
