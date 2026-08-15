@@ -19546,7 +19546,7 @@
       display: grid;
       place-items: center;
       padding: 20px;
-      background: rgba(3,5,12,.62);
+      background: rgba(10,9,6,.62);
       backdrop-filter: blur(6px);
       animation: rcptFade .16s ease;
     }
@@ -19555,7 +19555,7 @@
       width: min(420px, 100%);
       border: 1px solid var(--owner-line-strong, rgba(255,255,255,.14));
       border-radius: 18px;
-      background: linear-gradient(150deg, #151b36, #0b0f22);
+      background: linear-gradient(150deg, #1a1711, #0f0d0a);
       box-shadow: 0 30px 80px rgba(0,0,0,.5);
       padding: 22px;
       position: relative;
@@ -20725,7 +20725,12 @@
     .chat-canvas-head strong { color: var(--owner-ink); font-size: 13px; }
 
     .chat-thread {
-      flex: 1;
+      /* Hug the conversation instead of claiming the whole pane — a short
+         thread used to stretch, stranding "Try asking" at the bottom of a
+         column of nothing. The composer's margin-top:auto keeps the input
+         anchored at the bottom; the thread still shrinks and scrolls when
+         the conversation outgrows the pane. */
+      flex: 0 1 auto;
       min-height: 0;
       overflow-y: auto;
       padding: 16px 14px;
@@ -20946,6 +20951,7 @@
 
     .chat-composer {
       flex: none;
+      margin-top: auto;
       display: flex;
       gap: 8px;
       padding: 12px 14px;
@@ -23598,6 +23604,31 @@
       margin-left: auto !important;
       position: relative;
       width: fit-content !important;
+    }
+    /* The supplier switch sits ahead of the chip; when it is visible it takes
+       the auto margin and the chip tucks in beside it. */
+    .orders-supplier.in-canvas-head {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .orders-supplier.in-canvas-head[hidden] { display: none; }
+    .orders-supplier.in-canvas-head ~ .orders-mock-banner.in-canvas-head {
+      margin-left: 10px !important;
+    }
+    .orders-supplier.in-canvas-head[hidden] ~ .orders-mock-banner.in-canvas-head {
+      margin-left: auto !important;
+    }
+    /* Live mode: the chip folds to its info glyph — the claims stay one tap
+       away, and the label stays in the DOM for screen readers. */
+    .orders-mock-banner.is-live.in-canvas-head summary #ordersBannerLabel {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
     .orders-mock-banner.in-canvas-head[open] {
       width: fit-content !important;
@@ -34370,6 +34401,10 @@ ledger_entry · artifact · agent_run`,
           }
           const bannerLabel = el("ordersBannerLabel");
           if (bannerLabel) bannerLabel.textContent = "Live";
+          //  Live mode: the supplier switch beside this chip already names the
+          //  one simulation, so the chip folds to its info glyph — the word
+          //  stays for screen readers, the claims stay one tap away.
+          screen.querySelector(".orders-mock-banner")?.classList.add("is-live");
           const payChip = el("ordersPayChip");
           if (payChip) {
             payChip.textContent = stripeLive ? "Stripe · Test mode" : "Payments · Simulated";
@@ -34518,16 +34553,6 @@ ledger_entry · artifact · agent_run`,
             <li><span>Delivery &amp; fees</span><span>${money(cart.fees_cents || 0)}</span></li>
           </ul>` : "";
 
-        //  What approving actually does with money, per destination. On the
-        //  card the owner approves — not in the chat — because the card is
-        //  where the decision is made.
-        function destinationLine(storeName) {
-          const label = state?.supplier?.active === "zinc"
-            ? "Amazon (Zinc)"
-            : (storeName || "the active supplier");
-          return `<div class="orders-meta"><span>Ordered through ${escapeHtml(label)}</span></div>`;
-        }
-
         //  A rep draft is a decision the owner owes too, so it sits in
         //  Needs you beside the machine approvals. Same rows, same buttons
         //  as under Your Reps — one decision, visible from both places.
@@ -34568,7 +34593,6 @@ ledger_entry · artifact · agent_run`,
               </div>
               ${cartHtml(p.cart)}
               <p class="orders-why">${escapeHtml(p.reason || "")}</p>
-              ${destinationLine(p.cart?.store_name)}
               <div class="orders-actions">
                 <button type="button" class="orders-btn approve" data-live-approve="${escapeHtml(p.id)}">Approve &amp; pay ${money(p.total_cents || 0)}</button>
                 <button type="button" class="orders-btn ghost" data-live-reject="${escapeHtml(p.id)}">Not now</button>
@@ -36589,6 +36613,15 @@ ledger_entry · artifact · agent_run`,
           banner.classList.add("in-canvas-head");
           tabsRow.appendChild(banner);
         }
+        //  The supplier switch rides there too, ahead of the disclosure, and
+        //  the app bar it leaves behind is an empty row — hide it.
+        const supplier = document.getElementById("ordersSupplierBox");
+        if (supplier && tabsRow && supplier.parentElement !== tabsRow) {
+          supplier.classList.add("in-canvas-head");
+          tabsRow.insertBefore(supplier, banner && banner.parentElement === tabsRow ? banner : null);
+        }
+        const appbar = board?.querySelector(".orders-appbar");
+        if (appbar) appbar.hidden = true;
         const oldView = document.getElementById("view-orders");
         if (oldView && !oldView.contains(document.getElementById("ordersBoard"))) oldView.remove();
       })();
