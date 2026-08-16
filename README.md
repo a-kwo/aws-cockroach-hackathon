@@ -35,6 +35,11 @@ embedding the vector index holds, so no AWS, no retrieval, no memory. **Reasonin
 runs on the Anthropic API** (Bedrock could not grant this account any current Claude
 model — details under [Disclosures](#disclosures)).
 
+![Brass Tacks architecture — the agents on AWS, CockroachDB as the memory layer](docs/architecture.png)
+
+*The same picture as a vector: [`docs/architecture.svg`](docs/architecture.svg). The
+Mermaid diagrams below carry the same content and render directly on GitHub.*
+
 ```mermaid
 flowchart LR
   BROWSER["Owner's browser<br/>trybrasstacks.com"]
