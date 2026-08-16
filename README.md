@@ -26,6 +26,112 @@ wrong, because nothing it said was written down. This writes it down first.
 
 ---
 
+## Architecture
+
+Three worlds, one brain. **CockroachDB is the memory layer** — every vector, every
+prediction, every verdict is a row there, and nothing renders that is not. **AWS is
+the runtime and the retrieval muscle** — Bedrock's Titan model generates every
+embedding the vector index holds, so no AWS, no retrieval, no memory. **Reasoning
+runs on the Anthropic API** (Bedrock could not grant this account any current Claude
+model — details under [Disclosures](#disclosures)).
+
+```mermaid
+flowchart LR
+  BROWSER["Owner's browser<br/>trybrasstacks.com"]
+
+  subgraph AWS["AWS — runtime and retrieval"]
+    CF["CloudFront + S3<br/>static frontend"]
+    APIGW["API Gateway"]
+    EB["EventBridge Scheduler<br/>the 6 AM wake"]
+    subgraph NIGHTL["Lambda: night — one container, every active tenant"]
+      RADAR["RADAR<br/>observes rivals, reviews, demand"]
+      ANALYST["ANALYST<br/>retrieves memory, writes one find + a prediction"]
+      MAKER["MAKER<br/>builds the deliverable"]
+      METER["METER<br/>judges old predictions"]
+    end
+    ASK["Lambda · ask<br/>the Ask agent"]
+    REQ["Lambdas · decision, orders,<br/>workflow, auth, onboarding"]
+    RAIL["Task rail<br/>SQS FIFO → Step Functions → SES"]
+    S3A["S3 · Maker artifacts"]
+    BEDROCK["Bedrock<br/>Titan Text Embeddings V2"]
+  end
+
+  subgraph CRDB["CockroachDB Cloud — the memory layer"]
+    VEC["Vector index<br/>vector_cosine_ops"]
+    REL["Relational memory<br/>observations · finds · evidence ·<br/>predictions · ledger · decisions ·<br/>orders · tasks · owners · sessions"]
+    MCP["Managed MCP Server<br/>read-only"]
+  end
+
+  TAVILY["Tavily<br/>web search"]
+  CLAUDE["Anthropic API<br/>Claude reasoning"]
+  STRIPE["Stripe · test mode"]
+
+  BROWSER --> CF
+  BROWSER --> APIGW
+  APIGW --> ASK
+  APIGW --> REQ
+  EB --> NIGHTL
+  RADAR --> TAVILY
+  RADAR -- "embed each observation" --> BEDROCK
+  RADAR -- "INSERT rows + vectors, deduped" --> VEC
+  ANALYST -- "embed concrete hypotheses" --> BEDROCK
+  ANALYST -- "vector search over ALL memory" --> VEC
+  VEC -- "evidence rows + similarity" --> ANALYST
+  ANALYST -- "reason over the evidence" --> CLAUDE
+  ANALYST -- "write find + prediction" --> REL
+  MAKER --> S3A
+  METER -- "read PRIOR nights' predictions,<br/>write VERIFIED / ESTIMATED / MISS" --> REL
+  ASK -- "answers owner questions<br/>from live rows" --> MCP
+  REQ -- "decisions, orders, state" --> REL
+  REQ --> RAIL
+  RAIL --> REL
+  REQ -- "charge / refund" --> STRIPE
+```
+
+The spine is temporal, and that is the whole product. The Analyst's prediction is
+durably stored on one night; the Meter that judges it runs weeks later in a process
+that shares nothing with the one that wrote it except the database:
+
+```mermaid
+sequenceDiagram
+  participant EB as EventBridge · 6 AM
+  participant R as Radar
+  participant A as Analyst
+  participant B as Bedrock Titan
+  participant DB as CockroachDB
+  participant C as Claude · Anthropic API
+  participant M as Meter
+
+  rect rgb(240, 240, 240)
+    Note over EB,M: Night 1
+    EB->>R: wake
+    R->>B: embed tonight's observations
+    R->>DB: INSERT observations + vectors (content-hash dedup)
+    A->>B: embed concrete hypothesis queries — pricing, waits, hours, rivals
+    A->>DB: vector search over ALL accumulated memory
+    DB-->>A: evidence rows with similarity scores
+    A->>C: reason over the union of evidence
+    A->>DB: write the find, its evidence trail, and a PREDICTION — "$23/day, verify after 21 days"
+  end
+
+  rect rgb(240, 240, 240)
+    Note over EB,M: Night 22 — a different run, three weeks later
+    EB->>M: wake
+    M->>DB: read the prediction Night 1 wrote
+    M->>DB: compare against observed outcomes
+    M->>DB: verdict → VERIFIED / ESTIMATED / MISS, onto the permanent ledger
+  end
+```
+
+Setup automation uses the **ccloud CLI** (provision the cluster, networking,
+backups); the **Cloud Managed MCP Server** is how the Ask agent reads the live
+cluster at runtime; and the **vector index** is what the Radar writes and the
+Analyst searches every night. Those three are the CockroachDB tools in play, and
+each one is exercised at runtime or in the committed setup scripts — not just at
+dev time.
+
+---
+
 ## See it in 30 seconds, with no credentials
 
 The demo data is committed, so you do not need AWS keys or a database to look at the
