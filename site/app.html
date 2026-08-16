@@ -37590,19 +37590,25 @@ ledger_entry · artifact · agent_run`,
         }, lead));
       }
       stream(topcap, s.sideCaption || s.caption, function(){
-        //  Read, hold, fade. A beat that ends in a beacon starts it the
-        //  moment the fade begins — the dot should not keep the viewer
-        //  waiting on an empty screen.
+        //  Read, hold, fade. A beat that ends in a beacon starts it shortly
+        //  after the words finish — the dot should not keep the viewer
+        //  waiting on an empty screen — but the caption itself lingers a
+        //  few seconds beyond that, so a finished sentence can be read
+        //  before it goes.
         var beaconBeat = Boolean(s.sideAwait || s.sideEvidence || s.sideBeacon);
+        if(s.sideEvidence || s.sideAwait){
+          sideTimers.push(window.setTimeout(function(){
+            if(s.sideEvidence) evidenceBeat();
+            else showBeacon(s.target, s.sideAwait);
+          }, 400));
+        }
         sideTimers.push(window.setTimeout(function(){
           topcap.classList.remove("show");
-          if(s.sideEvidence) evidenceBeat();
-          else if(s.sideAwait) showBeacon(s.target, s.sideAwait);
           sideTimers.push(window.setTimeout(function(){
             topcap.hidden = true;
             if(!beaconBeat) showFab();
           }, 550));
-        }, beaconBeat ? 400 : 2100));
+        }, beaconBeat ? 4500 : 5000));
       });
     }
 

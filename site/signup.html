@@ -1568,8 +1568,17 @@ function wireFirstNight() {
   //  control — Continue, Create workspace, Start my first night — so moving
   //  on is the real gesture, and the page advances itself the way it would
   //  for a real owner. `doneFn` watches for that advance and hands over.
+  var capTimers = [];
+  function clearCapTimers(){
+    capTimers.forEach(function(t){ window.clearTimeout(t); });
+    capTimers = [];
+  }
   function beat(text, actions, awaitSel, doneFn, onDone){
     hideBeacon();
+    //  The dot may now land while the previous caption still lingers, so a
+    //  fresh beat must silence the old fade timers before re-showing the
+    //  pill — a stale one would hide this beat's caption mid-stream.
+    clearCapTimers();
     //  Each beat opens at the top of the page: the header and the first
     //  fields in view, then the scroll follows the typing down.
     if (!REDUCED) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1586,10 +1595,14 @@ function wireFirstNight() {
     };
     if (!actionsDone) seqRun(actions.slice(), function(){ actionsDone = true; maybeBeacon(); });
     stream(text, function(){
-      window.setTimeout(function(){
+      //  The finished caption lingers a few seconds so it can actually be
+      //  read — but it should not keep the beat waiting, so the dot is free
+      //  to land moments after the words finish, while the pill still shows.
+      capTimers.push(window.setTimeout(function(){ captionDone = true; maybeBeacon(); }, 400));
+      capTimers.push(window.setTimeout(function(){
         cap.classList.remove("show");
-        window.setTimeout(function(){ cap.hidden = true; captionDone = true; maybeBeacon(); }, 500);
-      }, 2100);
+        capTimers.push(window.setTimeout(function(){ cap.hidden = true; }, 500));
+      }, 5000));
     });
     if (doneFn){
       var watch = window.setInterval(function(){
