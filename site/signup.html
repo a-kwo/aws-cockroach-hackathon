@@ -1602,11 +1602,14 @@ function wireFirstNight() {
       if (el) showBeacon(el);
     };
     if (!actionsDone) seqRun(actions.slice(), function(){ actionsDone = true; maybeBeacon(); });
+    //  The dot no longer waits for the words to finish: it is free to land
+    //  a second before the caption completes, while the last words are
+    //  still typing, so moving on never waits on a sentence being read.
+    capTimers.push(window.setTimeout(function(){ captionDone = true; maybeBeacon(); },
+      REDUCED ? 0 : Math.max(0, text.length * 46 - 600)));
     stream(text, function(){
-      //  The finished caption lingers a few seconds so it can actually be
-      //  read — but it should not keep the beat waiting, so the dot is free
-      //  to land moments after the words finish, while the pill still shows.
-      capTimers.push(window.setTimeout(function(){ captionDone = true; maybeBeacon(); }, 400));
+      //  The finished caption still lingers a few seconds so it can
+      //  actually be read before it fades.
       capTimers.push(window.setTimeout(function(){
         cap.classList.remove("show");
         capTimers.push(window.setTimeout(function(){ cap.hidden = true; }, 500));
@@ -1689,15 +1692,15 @@ function wireFirstNight() {
       box.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     var proceed = function(){
-      window.setTimeout(function(){ seqRun(actions, done); }, REDUCED ? 0 : (action.pause || 300));
+      window.setTimeout(function(){ seqRun(actions, done); }, REDUCED ? 0 : (action.pause || 220));
     };
     if (action.text !== undefined){
-      window.setTimeout(function(){ typeInto(action.id, action.text, proceed); }, REDUCED ? 0 : 380);
+      window.setTimeout(function(){ typeInto(action.id, action.text, proceed); }, REDUCED ? 0 : 250);
     } else if (action.value !== undefined){
       //  A <select> has nothing to type: it snaps to its choice mid-sequence.
-      window.setTimeout(function(){ set(action.id, action.value); proceed(); }, REDUCED ? 0 : 380);
+      window.setTimeout(function(){ set(action.id, action.value); proceed(); }, REDUCED ? 0 : 250);
     } else if (el){
-      window.setTimeout(function(){ el.click(); proceed(); }, REDUCED ? 0 : 400);
+      window.setTimeout(function(){ el.click(); proceed(); }, REDUCED ? 0 : 300);
     } else proceed();
   }
 

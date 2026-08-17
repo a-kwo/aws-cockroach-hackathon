@@ -37588,23 +37588,23 @@ ledger_entry · artifact · agent_run`,
           beaconUntil(s.sideBeacon, s.sideDone);
         }, lead));
       }
+      //  Evidence and await beats no longer wait for the words to finish
+      //  either: their dot (or sheet) arrives a second before the caption
+      //  completes, while the last words are still typing.
+      if(s.sideEvidence || s.sideAwait){
+        sideTimers.push(window.setTimeout(function(){
+          if(s.sideEvidence) evidenceBeat();
+          else showBeacon(s.target, s.sideAwait);
+        }, REDUCED_TOUR ? 0
+          : Math.max(0, ((s.sideCaption || s.caption).length * 46) - 600)));
+      }
       stream(topcap, s.sideCaption || s.caption, function(){
-        //  Read, hold, fade. A beat that ends in a beacon starts it shortly
-        //  after the words finish — the dot should not keep the viewer
-        //  waiting on an empty screen — but the caption itself lingers a
-        //  few seconds beyond that, so a finished sentence can be read
-        //  before it goes.
+        //  Read, hold, fade: the caption lingers a few seconds after the
+        //  words finish, so a finished sentence can be read before it goes.
         var beaconBeat = Boolean(s.sideAwait || s.sideEvidence || s.sideBeacon);
-        if(s.sideEvidence || s.sideAwait){
-          sideTimers.push(window.setTimeout(function(){
-            if(s.sideEvidence) evidenceBeat();
-            else showBeacon(s.target, s.sideAwait);
-          }, 400));
-        }
-        //  The Next pill no longer waits out the caption's fade: it arrives
-        //  a second before the fade completes, while the finished sentence
-        //  is still on screen.
-        if(!beaconBeat) sideTimers.push(window.setTimeout(showFab, 4550));
+        //  The Next pill arrives well before the caption's fade, while the
+        //  finished sentence is still on screen.
+        if(!beaconBeat) sideTimers.push(window.setTimeout(showFab, 3550));
         sideTimers.push(window.setTimeout(function(){
           topcap.classList.remove("show");
           sideTimers.push(window.setTimeout(function(){
