@@ -37133,9 +37133,9 @@ ledger_entry · artifact · agent_run`,
       //  Question and answer live in ONE beat: the owner's words type in,
       //  the dots think, the reply streams back — no Next press between a
       //  question and its answer, because no real conversation has one.
-      { ch:1, caption:"When you ask a question, the agent answers from live CockroachDB state over its MCP server; nothing is spent without your yes.",
+      { ch:1, caption:"When you ask a question, the agent reads from CockroachDB via the MCP server and uses stored data to inform its response.",
         side:true,
-        sideCaption:"When you ask a question, the agent answers from live CockroachDB state over the MCP server. Nothing is spent without your yes.",
+        sideCaption:"When you ask a question, the agent reads from CockroachDB via the MCP server and uses stored data to inform its response.",
         run:function(){ view("chat"); sayOnce("approve-q", function(){
           owner("What needs my approval?");
           agent("A couple of moves are waiting on you. I've drafted each one with its plan and evidence. Approve and I'll place them; I never spend or publish without your yes.");
