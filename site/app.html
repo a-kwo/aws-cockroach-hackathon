@@ -36894,8 +36894,7 @@ ledger_entry · artifact · agent_run`,
       /* Small enough to live in the band between the topbar and the card's
          top edge, so it never sits over the recommendation itself. */
       '.bt-demo-topcap{position:fixed;z-index:99999;top:68px;left:50%;'
-      + 'transform:translateX(-50%);box-sizing:border-box;'
-      + 'max-width:min(760px,calc(100vw - 32px));margin:0;'
+      + 'transform:translateX(-50%);max-width:min(760px,calc(100vw - 32px));margin:0;'
       + 'text-align:center;font:700 clamp(12.5px,1.15vw,15px)/1.4 -apple-system,'
       + 'BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#f4f2ec;'
       + 'text-shadow:0 2px 18px rgba(0,0,0,.8),0 0 3px rgba(0,0,0,.9);'
@@ -37512,21 +37511,9 @@ ledger_entry · artifact · agent_run`,
     function stream(el, text, done){
       if(el.__btStream) window.clearInterval(el.__btStream);
       el.classList.remove("typing");
-      el.style.width = "";
-      el.style.minHeight = "";
       if(REDUCED_TOUR){ el.textContent = text; if(done) done(); return; }
-      //  Lock the caption to the finished sentence's size before the first
-      //  character types. Left to shrink-to-fit, the box re-wraps as a word
-      //  crosses the line boundary and the text stutters between one line
-      //  and two while it streams.
-      el.classList.add("typing");
-      el.textContent = text;
-      var full = el.getBoundingClientRect();
-      if(full.width){
-        el.style.width = Math.ceil(full.width) + "px";
-        el.style.minHeight = Math.ceil(full.height) + "px";
-      }
       el.textContent = "";
+      el.classList.add("typing");
       var k = 0;
       el.__btStream = window.setInterval(function(){
         k += 1;
@@ -37602,9 +37589,6 @@ ledger_entry · artifact · agent_run`,
           beaconUntil(s.sideBeacon, s.sideDone);
         }, lead));
       }
-      //  Resolve the boxed/bare state before stream() measures the finished
-      //  sentence — the padding the pill adds is part of the size it locks.
-      positionTopcap();
       stream(topcap, s.sideCaption || s.caption, function(){
         //  Read, hold, fade. A beat that ends in a beacon starts it shortly
         //  after the words finish — the dot should not keep the viewer
