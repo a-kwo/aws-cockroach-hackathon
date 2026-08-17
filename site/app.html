@@ -37133,20 +37133,13 @@ ledger_entry · artifact · agent_run`,
       //  Question and answer live in ONE beat: the owner's words type in,
       //  the dots think, the reply streams back — no Next press between a
       //  question and its answer, because no real conversation has one.
-      { ch:1, caption:"Ask what needs a decision. The answer reads live CockroachDB state over its MCP server; nothing is spent without your yes.",
+      { ch:1, caption:"When you ask a question, the agent answers from live CockroachDB state over its MCP server; nothing is spent without your yes.",
         side:true,
-        sideCaption:"Ask what needs a decision. The answer reads live CockroachDB state over the MCP server. Nothing is spent without your yes.",
+        sideCaption:"When you ask a question, the agent answers from live CockroachDB state over the MCP server. Nothing is spent without your yes.",
         run:function(){ view("chat"); sayOnce("approve-q", function(){
           owner("What needs my approval?");
           agent("A couple of moves are waiting on you. I've drafted each one with its plan and evidence. Approve and I'll place them; I never spend or publish without your yes.");
         }); }, settle:300 },
-      { ch:2, caption:"It runs the supply side too, on AWS Lambda. Ask to order and the board opens: price list, auto-stock, every order placed.",
-        side:true,
-        sideCaption:"It runs the supply side too, on AWS Lambda: price list, auto-stock, every order placed.",
-        run:function(){ view("chat"); sayOnce("supply-q", function(){
-          owner("Order supplies for me");
-          agent("Here's your supply board: the price list, what's on auto-stock, and everything I've already placed. I only charge when an order ships.", {action:{view:"orders", label:"Open Supplies"}});
-        }); orders(TOUR_STORE); supplies(); previewSupplier("simulated"); details(".orders-catalogue", true); scrollTo("#ordersCatalogue"); }, target:"#ordersCatalogue", settle:600 },
       { ch:2, caption:"Auto-stock reorders what runs low, always under a spending cap no model can talk past.",
         side:true,
         sideCaption:"Auto-stock reorders what runs low, always under a spending cap the owner sets.",
@@ -37160,41 +37153,30 @@ ledger_entry · artifact · agent_run`,
       //  Where it shops is a switch. The sample board offers the same three
       //  machine suppliers the live one does, and the demo flips it to
       //  Amazon (via Zinc) so the viewer can walk the whole path.
-      { ch:2, caption:"Where it shops is the owner's call. Here it's real Amazon, through Zinc.",
-        side:true,
-        sideCaption:"Where it shops is the owner's call: practice store, DoorDash, or real Amazon through Zinc.",
-        run:function(){ view("chat"); supplies(); previewSupplier("zinc"); previewClearPending(); scrollTo("#ordersSupplierBox"); }, target:"#ordersSupplierBox", settle:400 },
       //  The Zinc ask: the agent finds the actual listing and prices it. The
       //  pending card carries the product title, the named allowance, and the
-      //  ceiling — the same card the live board draws.
+      //  ceiling — the same card the live board draws. This beat also flips
+      //  the supplier switch and clears the practice pending list, work the
+      //  departed "where it shops" beat used to do.
       { ch:2, caption:"Ask in plain words. The agent finds the real product on Amazon and prices it.",
         side:true,
         sideCaption:"\u201cOrder 2 boxes of nitrile gloves\u201d: the agent finds the real Amazon listing and prices it.",
-        run:function(){ view("chat"); supplies(); previewSupplier("zinc");
+        run:function(){ view("chat"); supplies(); previewSupplier("zinc"); previewClearPending();
           sayOnce("zinc-q", function(){
             owner("Order 2 boxes of nitrile gloves");
             previewAsk("order 2 nitrile gloves");
             agent("Found them on Amazon: MED PRIDE nitrile exam gloves, $14.99 a box. Approve up to $34.48 under Needs you (price plus a tax and shipping allowance) and I place it through Zinc. Your card is never charged.", {action:{view:"orders", label:"Open Supplies"}});
           });
           scrollTo("#ordersPendingList"); }, target:"#ordersPendingList .orders-row.pending", settle:600 },
-      //  The approval is the money moment, so the viewer presses it — the
-      //  dot waits on Approve and the beat ends when the row leaves the list.
-      { ch:2, caption:"The owner approves a ceiling, never a surprise. Approve it.",
-        side:true,
-        sideCaption:"The total is a ceiling. A price that moves past it stops the order. Approve it.",
-        sideBeacon:"#ordersPendingList [data-approve]",
-        sideDone:function(){ return !document.querySelector("#ordersPendingList [data-approve]"); },
-        run:function(){ view("chat"); supplies(); previewSupplier("zinc"); scrollTo("#ordersPendingList"); }, target:"#ordersPendingList .orders-row.pending", settle:450 },
-      { ch:2, caption:"Placed through Zinc: receipt in Activity with its reference, card untouched.",
-        side:true,
-        sideCaption:"Placed through Zinc. The receipt lands in Activity with its reference; the wallet paid, the card never touched.",
-        run:function(){ view("chat"); supplies(); scrollTo("#ordersHistoryList"); }, target:"#ordersHistoryList", settle:500 },
       //  The human channel. Suppliers who are people get asked, never
-      //  autopiloted — the same doctrine the backend enforces.
+      //  autopiloted — the same doctrine the backend enforces. The pending
+      //  gloves cart is cleared on the way in: with the approval beat gone
+      //  nobody presses its button, and a stale pending row would steal the
+      //  ring from the rep draft the next beats are about.
       { ch:2, caption:"Suppliers who are people, not APIs, live under Your Reps: email or WhatsApp.",
         side:true,
         sideCaption:"Suppliers who are people live under Your Reps: a name, an email, a WhatsApp number.",
-        run:function(){ view("chat"); supplies(); scrollTo("#ordersRepsList"); }, target:"#ordersRepsList", settle:450 },
+        run:function(){ view("chat"); supplies(); previewClearPending(); scrollTo("#ordersRepsList"); }, target:"#ordersRepsList", settle:450 },
       { ch:2, caption:"A cart for a human is a message: drafted, priced, waiting on you.",
         side:true,
         sideCaption:"\u201cEmail my produce rep: order 8 nori\u201d: a cart for a human is a message, waiting on you.",
