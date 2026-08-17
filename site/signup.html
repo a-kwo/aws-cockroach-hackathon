@@ -1670,9 +1670,9 @@ function wireFirstNight() {
         if (done) done();
         return;
       }
-      window.setTimeout(tick, 48 + Math.random() * 64);
+      window.setTimeout(tick, 14 + Math.random() * 22);
     };
-    window.setTimeout(tick, 320);
+    window.setTimeout(tick, 140);
   }
 
   //  One action at a time, and the page travels with the work: each field
@@ -1689,15 +1689,15 @@ function wireFirstNight() {
       box.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     var proceed = function(){
-      window.setTimeout(function(){ seqRun(actions, done); }, REDUCED ? 0 : (action.pause || 620));
+      window.setTimeout(function(){ seqRun(actions, done); }, REDUCED ? 0 : (action.pause || 300));
     };
     if (action.text !== undefined){
-      window.setTimeout(function(){ typeInto(action.id, action.text, proceed); }, REDUCED ? 0 : 820);
+      window.setTimeout(function(){ typeInto(action.id, action.text, proceed); }, REDUCED ? 0 : 380);
     } else if (action.value !== undefined){
       //  A <select> has nothing to type: it snaps to its choice mid-sequence.
-      window.setTimeout(function(){ set(action.id, action.value); proceed(); }, REDUCED ? 0 : 820);
+      window.setTimeout(function(){ set(action.id, action.value); proceed(); }, REDUCED ? 0 : 380);
     } else if (el){
-      window.setTimeout(function(){ el.click(); proceed(); }, REDUCED ? 0 : 700);
+      window.setTimeout(function(){ el.click(); proceed(); }, REDUCED ? 0 : 400);
     } else proceed();
   }
 
