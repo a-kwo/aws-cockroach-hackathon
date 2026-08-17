@@ -37601,11 +37601,14 @@ ledger_entry · artifact · agent_run`,
             else showBeacon(s.target, s.sideAwait);
           }, 400));
         }
+        //  The Next pill no longer waits out the caption's fade: it arrives
+        //  a second before the fade completes, while the finished sentence
+        //  is still on screen.
+        if(!beaconBeat) sideTimers.push(window.setTimeout(showFab, 4550));
         sideTimers.push(window.setTimeout(function(){
           topcap.classList.remove("show");
           sideTimers.push(window.setTimeout(function(){
             topcap.hidden = true;
-            if(!beaconBeat) showFab();
           }, 550));
         }, beaconBeat ? 4500 : 5000));
       });
