@@ -1401,6 +1401,9 @@ function wireFirstNight() {
 (function signupTour(){
   if (!new URLSearchParams(window.location.search).get("tour")) return;
   var REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  //  Programmatic focus gives the typed field a real blinking caret — but on
+  //  a touch screen it would also raise the keyboard over the demo.
+  var FINE_POINTER = window.matchMedia("(pointer: fine)").matches;
 
   //  The tour IS the demo: an "Explore demo" escape hatch in the corner
   //  competes with the walkthrough it would only lead back into.
@@ -1448,7 +1451,12 @@ function wireFirstNight() {
     + "flex:none;transition:background .4s ease,box-shadow .4s ease;}"
     + ".bt-demo-night-stages div.on{color:#f4f2ec;}"
     + ".bt-demo-night-stages div.on i{background:#e8b94a;box-shadow:0 0 12px rgba(232,185,74,.8);}"
-    + ".bt-demo-night .fine{margin:8px 0 0;font:500 13px/1.5;color:#8a8f99;max-width:46ch;}";
+    + ".bt-demo-night .fine{margin:8px 0 0;font:500 13px/1.5;color:#8a8f99;max-width:46ch;}"
+    //  The page's own brass focus look, as a class: on touch screens the
+    //  field cannot be focused without raising the keyboard, but it should
+    //  still light up while the demo types into it.
+    + ".field input.bt-demo-typefield{border-color:rgba(168,117,36,.6) !important;"
+    + "background:#fff;box-shadow:0 0 0 4px rgba(168,117,36,.1) !important;}";
   document.head.appendChild(style);
 
   var cap = document.createElement("p");
@@ -1645,16 +1653,26 @@ function wireFirstNight() {
       if (done) done();
       return;
     }
+    //  The caption's streaming made the fields look pre-filled by contrast:
+    //  a short answer finished in half a second while the viewer's eyes were
+    //  still on the pill. So the field announces itself first — focus ring,
+    //  blinking caret — and the characters land at a human, uneven pace.
+    el.classList.add("bt-demo-typefield");
+    if (FINE_POINTER) el.focus({ preventScroll: true });
     var k = 0;
-    var timer = window.setInterval(function(){
+    var tick = function(){
       k += 1;
       el.value = text.slice(0, k);
       el.dispatchEvent(new Event("input", { bubbles: true }));
       if (k >= text.length){
-        window.clearInterval(timer);
+        el.classList.remove("bt-demo-typefield");
+        if (FINE_POINTER) el.blur();
         if (done) done();
+        return;
       }
-    }, 62);
+      window.setTimeout(tick, 48 + Math.random() * 64);
+    };
+    window.setTimeout(tick, 320);
   }
 
   //  One action at a time, and the page travels with the work: each field
