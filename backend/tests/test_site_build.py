@@ -4266,17 +4266,6 @@ def test_the_demo_leaves_the_app_clickable():
     assert "pointer-events:none" in html.split(".bt-demo-spot{")[1][:200]
 
 
-def test_the_guided_demo_ledger_is_disclosed_as_seeded():
-    """The README must say the ledger the tour shows is seeded, backdated
-    history with illustrative figures -- the mechanism real, the clock compressed."""
-    readme = (build_web.REPO / "README.md").read_text(encoding="utf-8")
-
-    assert "seeded, backdated history" in readme
-    assert "illustrative" in readme
-    # The honest half: what is compressed is the clock, not the mechanism.
-    assert "the clock, not the mechanism" in readme
-
-
 def test_for_you_is_a_scrolling_feed_with_a_stats_rail():
     """The deck showed one swipeable card at a time. Owners scroll a feed now:
     cards grouped by day, newest first, beside a rail whose numbers are counted

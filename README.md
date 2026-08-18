@@ -7,42 +7,18 @@ actually paid. Verdicts go on a permanent ledger, **including the failures**.
 
 Built for the AWS + CockroachDB hackathon.
 
-**Live demo: [trybrasstacks.com](https://trybrasstacks.com)** — the landing page, with
-the owner dashboard at [/app/](https://trybrasstacks.com/app/) and onboarding at
-[/signup/](https://trybrasstacks.com/signup/). Served by the deployed stack described
-below; the guided tour on the dashboard runs against committed sample data, so nothing
-a visitor clicks can touch a real tenant's ledger.
-
-The production-shaped multi-user execution design is documented in
-[`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md). It
-separates agent reasoning from durable tasks, approval, idempotency, and external
-tools. The append-only redo/reconsider policy is documented in
-[`docs/RECONSIDER_DECISION_CYCLES.md`](docs/RECONSIDER_DECISION_CYCLES.md). The professional Maker review, SES delivery telemetry, and chat revision flow are documented in
-[`docs/MAKER_REVIEW_DELIVERY_REVISION.md`](docs/MAKER_REVIEW_DELIVERY_REVISION.md).
-
-The claim this rests on: the Meter judges predictions made on earlier nights by agent
-runs that no longer exist. A stateless advisor can give advice forever and never be
-wrong, because nothing it said was written down. This writes it down first.
+**Live demo: [trybrasstacks.com](https://trybrasstacks.com)** The
+fastest way in is the **guided interactive demo**: press *Try the interactive
+demo* on the landing page. 
 
 ---
 
 ## Try it in the browser — nothing to install
 
-**[trybrasstacks.com](https://trybrasstacks.com)** is the deployed product. The
-fastest way in is the **guided interactive demo**: press *Try the interactive
-demo* on the landing page (it opens
-[/signup/?tour=owner](https://trybrasstacks.com/signup/?tour=owner)). The demo
-walks onboarding on a sample workspace, plays a sample first night, then tours
+The demo walks through onboarding on a sample workspace, plays a sample first night, then tours
 the morning board and the operator console — the captions name each CockroachDB
 and AWS piece as it appears on screen. The tour runs against committed sample
 data, so nothing a visitor clicks can touch a real tenant's ledger.
-
-You can also browse directly: the dashboard at
-[/app/](https://trybrasstacks.com/app/) and onboarding at
-[/signup/](https://trybrasstacks.com/signup/). Signing up for a *real*
-workspace is open — no invite needed. The nightly spend is capped instead:
-`MAX_TENANTS_PER_NIGHT` bounds how many active tenants a night runs for, since
-each one costs a search, ~50 embeddings and a Claude call.
 
 Worth seeing on the way through:
 
@@ -122,113 +98,6 @@ fixture build above) falls back to browser-only demo mode: the profile is stored
 under `brass-tacks-onboarding-profile-v1` and nothing persists server-side. With
 `?tour=` the page walks itself with sample answers and persists nothing at all.
 
-### Sign in with Google (optional)
-
-Owners can create an account with a username and password, or with Google. Both
-paths land in the same place — an `owner_account` row with no business attached.
-
-**It is off until you configure it.** With no OAuth client the three routes answer
-404 and the sign-up page draws no button, so a fresh clone and the current deploy
-behave exactly as before.
-
-To turn it on:
-
-1. In the Google Cloud console, **APIs & Services → Credentials → Create
-   credentials → OAuth client ID**, type **Web application**.
-2. Under **Authorized redirect URIs** paste the stack's `GoogleCallbackEndpoint`
-   output verbatim — Google string-matches it, so a missing `/v1` or a trailing
-   slash is a `redirect_uri_mismatch`.
-3. Put five values in Parameter Store under `/brasstacks/`:
-   `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
-   `GOOGLE_OAUTH_REDIRECT_URI` (the same URL as step 2),
-   `GOOGLE_OAUTH_STATE_SECRET` (any long random string), and
-   `BRASSTACKS_SITE_URL` if it is not already there.
-4. Re-run the frontend deploy. It checks for `GOOGLE_OAUTH_CLIENT_ID` and draws
-   the button only if it exists.
-
-The consent screen needs only the default `openid email profile` scopes. This
-flow reads an identity and stores no Google access token, so it does not need
-verification review.
-
-Three details that are deliberate rather than incidental:
-
-- **The spend control is a nightly cap, not a signup gate.** Signup is open so a
-  judge can walk in, but a workspace runs a nightly Tavily search, ~50 embeddings
-  and a Claude call — so `MAX_TENANTS_PER_NIGHT` bounds how many active tenants a
-  night processes. (An invite gate also exists in the handlers and switches on
-  whenever `/brasstacks/BRASSTACKS_INVITE_CODE` is set; for Google signups the
-  code is carried across the OAuth round trip inside the HMAC-signed `state`, so
-  it cannot be edited in the browser on the way back. It is unset for judging.)
-- **The callback never returns a session token.** It is a redirect, and a token
-  in a redirect is a token in browser history and in the next request's
-  `Referer`. It hands over a one-time code instead — two minutes, single use,
-  stored only as a SHA-256 — which the landing page trades for a real token over
-  POST. Same rule the rest of the app follows: a database read must not be enough
-  to impersonate an owner.
-- **Accounts are keyed on Google's subject, never on the email address.** An
-  address here is not unique (several seeded tenants share one inbox), so it
-  identifies nobody, and matching on it would let an address that changed hands
-  inherit somebody's business. Signing in with Google therefore always yields its
-  own account and never adopts an existing password account.
-
-There is still no password reset, no email verification of our own, and no
-lockout after repeated failures — see `backend/src/brasstacks/auth.py`. Google
-sign-in does not change that; it sidesteps it for the owners who use it.
-
-### Publish Maker posts to Google Business Profile (optional)
-
-Maker can now turn a `google_business_post` artifact into one owner-confirmed
-public action. The owner connects a tenant-owned Business Profile, chooses the
-exact location, reviews the exact artifact revision, and clicks **Publish now**.
-The provider receipt is stored in `tool_execution`; the recommendation becomes
-`live`, and Meter starts its window from the execution timestamp rather than the
-draft timestamp. Copy remains available as a fallback.
-
-This is a separate authorization from Sign in with Google. Enable the Google
-Business Profile APIs for the same Cloud project, obtain Google approval for API
-access, and add the stack's `GoogleBusinessCallbackEndpoint` output to the OAuth
-client's Authorized redirect URIs. Store that exact URL as
-`/brasstacks/GOOGLE_BUSINESS_REDIRECT_URI`. The existing OAuth client ID, client
-secret, state secret and site URL are reused. The CloudFormation stack creates a
-dedicated KMS key and supplies its ARN to the execution Lambda. Refresh tokens
-are encrypted with a tenant-bound encryption context before CockroachDB storage;
-no token is returned to the browser or included in a Maker prompt.
-
-Run `python db/migrate.py --schema-only` in CI before `sam deploy`. The migration
-adds `external_connection`, `find.executed_at`, and the immutable link from the
-find to its successful `tool_execution` receipt.
-
-### Telling the Meter what a move actually earned
-
-The Meter's honest default reports **no data**, which produces an `estimated`
-verdict rather than a win. That is deliberate — but on its own it means no find
-can ever be `verified`, and the published hit rate stays undefined forever. A
-small business has no payments API to integrate; what it has is an owner who can
-count.
-
-So the **Growth** tab carries a result box on every approved move: an amount, the
-period it covers (a day, a week, or a month), and optionally how they know. It
-posts to `POST /finds/{find_id}/outcome`, which writes one append-only
-`find_outcome` row scoped to the caller's session.
-
-Three things it deliberately does not do:
-
-- **It does not score anything.** The row waits; the Meter judges it when the
-  measurement window closes. A figure reported on day two of fourteen is not a
-  result, and the interface says when the verdict is due rather than implying one.
-- **It does not move the forecast or the record.** The Growth headline stays a
-  sum of predictions and the chart stays drawn from the ledger. Nothing the owner
-  types can increase the verified figure.
-- **It cannot rewrite a measured verdict.** An `estimated` row is replaced when a
-  real figure arrives afterwards — that is the common case, since a find often
-  comes due before anyone has counted. A `verified` or `miss` row is final, in the
-  repository as well as in the UI.
-
-Money is entered as text and parsed to integer cents with `Decimal` on the
-server. The browser never multiplies by 100: `12.34 * 100` is 1233.9999999999998
-in JavaScript, and that is exactly how a cent goes missing.
-
-The migration adds the `find_outcome` table.
 
 ## Where things live
 
@@ -296,64 +165,6 @@ python scripts/export_fixture.py           # refresh db/fixtures/demo.json
 python scripts/build_web.py                # rebuild the site
 ```
 
-### Durable multi-tenant task execution
-
-An approved recommendation is no longer interpreted as “invoke Maker and hope.” The request
-commits one `work_task` in CockroachDB, SQS FIFO buffers the dispatch, Step Functions Standard
-orchestrates the attempt, and the Maker worker must atomically claim the row before it constructs
-the model client. Duplicate deliveries therefore exit before spending tokens or generating a
-second draft. A five-minute SQL-only reconciler recovers missed messages and expired leases.
-
-An accepted recommendation can be returned to For You safely. Brass Tacks appends a
-`owner.reopened` event, supersedes the old task and artifact, increments the decision cycle,
-and leaves the earlier Do it and tool receipts intact. A later approval creates a new
-cycle-aware Maker task. Customer-facing actions and Meter results cannot be erased; they
-require a corrective task or recommendation revision.
-
-The first constrained execution tool sends a concise review notification to a configured inbox through
-Amazon SES. The complete working artifact stays in Brass Tacks. A configuration set and EventBridge
-destination record sent, delivered, opened, clicked, bounce, complaint, and delay events when SES
-publishes them. Owners can request a new version through chat without losing prior artifacts or
-receipts. The implementation and acceptance test are in
-[`docs/MAKER_REVIEW_DELIVERY_REVISION.md`](docs/MAKER_REVIEW_DELIVERY_REVISION.md); the broader
-AgentCore/OAuth/browser roadmap remains in
-[`docs/MULTI_TENANT_AGENT_PLATFORM.md`](docs/MULTI_TENANT_AGENT_PLATFORM.md).
-
-## Tests
-
-```bash
-python -m pip install -e "backend[dev]"   # once — the suite imports psycopg
-python -m pytest -q                       # 1,963 offline tests, ~30 seconds
-python -m pytest -m integration -q        # 113 cloud/live tests when configured
-```
-
-The unit suite must stay green with no cloud account. `backend/tests/test_site_build.py`
-asserts the honesty invariants: only verified money reaches the headline figure, at most
-one projected month, an estimate is never labelled "Actual", and a miss always survives
-into the view model.
-
-
-### Live workflow freshness
-
-The site is still rendered from a CockroachDB export so it has an immediate, resilient first
-paint. In a connected build, that snapshot is no longer the operator view's ceiling:
-
-- `Do it` / `Pass` writes through the Decision API and is projected into the UI immediately.
-- The app performs one read-only Workflow API sync at startup, then Memory Engine revalidates
-  every 15 seconds while its tab remains visible.
-- Decisions from another device, immutable decision-cycle events, durable task states and
-  events, tool receipts, current and superseded Maker artifacts, current agent runs, and Meter
-  verdicts are merged into the operator matrix without
-  rebuilding the site.
-- Conditional `ETag` requests return `304` when nothing changed; polling pauses when the tab is
-  hidden or the operator leaves Memory Engine.
-- If the endpoint is down, the last good live state remains visible as stale. Before the first
-  live response, the build snapshot remains the honest fallback.
-
-The endpoint returns the compact workflow receipt, not observation embeddings or the full
-corpus. It is a SQL-only read path and consumes zero model tokens. Tenant access comes from a
-configured business allowlist rather than a request parameter.
-
 ### Memory Engine operator views
 
 Memory Engine has two synchronized operator views:
@@ -397,143 +208,6 @@ operator can compare efficiency without mixing one business's memory with anothe
   to the Windows trust store. Point at the downloaded file instead.
 - Edit `.env` with `python scripts/env_file.py set KEY value`, never by hand.
 - CLI output needs `PYTHONIOENCODING=utf-8` on Windows; every find carries an emoji.
-
-## Disclosures
-
-**CockroachDB is the memory layer, and it is load-bearing.**
-
-| Tool | What the agent actually does with it |
-|---|---|
-| Distributed Vector Indexing | Radar embeds every observation; the Analyst runs six semantic searches over the whole corpus before proposing anything. `VECTOR(1024)` with a `business_id` prefix. |
-| Cloud Managed MCP Server | The **Ask** agent answers owner questions by running SQL against the live cluster read-only over the managed MCP server. Read-only is enforced twice (no write consent, scoped Cloud RBAC), every turn writes an `agent_run` row carrying the executed SQL, and the prompt forbids answering from the model's own knowledge — an answer that touched no tools is recorded as such. |
-| ccloud CLI | Cluster provisioning, SQL user creation, network config. |
-
-**AWS**
-
-| Service | Role |
-|---|---|
-| Bedrock | Titan Text Embeddings V2 generates every vector in the index. No embeddings, no retrieval, no memory. |
-| Lambda | Container-image API handlers, queue bridge, atomic Maker worker, email tool, reconciler and scheduled agents. |
-| SQS FIFO | Buffers approved work, orders only conflicting resources, deduplicates one dispatch attempt, and retains exhausted messages in a DLQ. |
-| Step Functions Standard | Runs one durable Maker workflow attempt and records the orchestration receipt. CockroachDB remains the task source of truth. |
-| EventBridge Scheduler | Fires the nightly intelligence loop and the SQL-only Maker reconciliation safety net. |
-| S3 | Stores complete Maker artifacts separately from the public site bucket. |
-| SES | Optional first execution tool: email one completed draft to a server-configured owner/test inbox. |
-| API Gateway | Throttled HTTP routes for Ask, decisions, authentication, onboarding and live workflow state. |
-
-Deployed with AWS SAM — see `deploy/` for the template and the runbook.
-
-### Deploying
-
-One command, from a machine with Docker, the SAM CLI and AWS credentials:
-
-```bash
-python scripts/deploy.py                 # the board, plus the Lambdas if they changed
-python scripts/deploy.py site            # the board only
-python scripts/deploy.py backend --force # the Lambdas, whether or not they changed
-```
-
-It runs the test suite first, fingerprints everything that goes into the Lambda
-image, and **skips the image build entirely when nothing in it changed** — which
-is the difference between fifteen seconds for a CSS edit and five minutes. Then
-it publishes the board (build with live endpoints, sync, invalidate CloudFront)
-and verifies what it left behind: stack status, the nightly schedule, and an
-HTTP check on the deployed page.
-
-Three sharp edges it exists to blunt, each of which has drawn blood:
-
-- **`sam deploy --parameter-overrides` re-splits its argument on whitespace.**
-  A shell's quotes are stripped before SAM sees them, so `cron(0 18 * * ? *)`
-  arrives as `cron(0`, EventBridge rejects it, and the stack update rolls back
-  taking every Lambda with it.
-- **SAM lives behind a space** (`C:\Program Files\...\sam.cmd`), which Git Bash
-  cannot launch. Nothing here goes through a shell.
-- **`sam deploy` does not touch the site.** The board is static files behind a
-  24-hour cache; deploying the Lambdas alone changes nothing a visitor sees.
-
-The GitHub workflows still exist as a fallback and are `workflow_dispatch` only.
-
-### Turning the autopilot on
-
-The nightly schedule is what makes this a loop rather than a button, and it
-**ships disabled**: `ScheduleState` defaults to `DISABLED` in
-`deploy/template.yaml`, because a deploy that silently started spending on
-embeddings and Claude calls every night is a thing you would discover from a
-bill. Turning it on is meant to be a deliberate act.
-
-The `Deploy Brass Tacks` workflow asks for it explicitly — **Run workflow** takes
-`schedule_state` (defaults to `ENABLED`) and `schedule_expression` (defaults to
-`cron(0 18 * * ? *)`, read in the stack's `ScheduleTimezone`). Both are sent to
-CloudFormation on every deploy, because `sam deploy` reuses a stack's previous
-value for any parameter it is not given: a changed template default never
-reaches a stack that already exists.
-
-18:00 rather than dawn, and that is a data decision. The only three sweeps that
-ran on the original `cron(0 6 * * ? *)` fired at 06:28, 08:07 and 08:40 local, so
-every observation was captured while its tenant was closed — Radar read shut
-storefronts, "not available right now" reached the Analyst as an outage, and a
-find was published on it. 18:00 is inside trading hours for a restaurant, a shop
-and a salon alike, and the owner still wakes up to finished work.
-
-To confirm what is actually deployed:
-
-```bash
-aws scheduler get-schedule --name NightFunctionNightly --region us-east-1 \
-  --query "{State:State,Expr:ScheduleExpression,Tz:ScheduleExpressionTimezone}"
-```
-
-**Reasoning runs on the Anthropic API, not Bedrock.** This is forced, not preferred.
-AWS could not grant this account any current Claude model: `agreementAvailability` is
-`NOT_AVAILABLE` across three regions while region, entitlement and authorization are all
-green, and the grant that did arrive was for two retired models that return
-`ResourceNotFoundException`. 27 non-Anthropic Bedrock models invoke fine, so nothing is
-wrong with Bedrock, the credentials or the region. Embeddings stay on Bedrock, so
-retrieval is AWS end to end. Model calls sit behind a provider interface, so a future
-grant is a config change.
-
-**The live demo tenant is a real restaurant with its identity stripped.** The
-deployed board is built from a real coastal restaurant's data — its reviews, its
-competitors, and an agent's revenue advice about it — renamed "Harborview
-Japanese" by `scripts/anonymise_fixture.py` before the fixture is committed. The
-replacement map is gitignored (`.anonymise-map.example.json` documents its
-shape), because committing it would publish exactly what the script exists to
-remove. This is identity-stripping, not anonymity: verbatim review text is still
-searchable, and a determined reader could find the restaurant. The finds, the
-retrieval similarities and the evidence rows are genuine, the embeddings are real
-Titan vectors, and every number the site renders is queried out of the cluster,
-not typed into the markup.
-
-**Its ledger holds no verdict yet, and the site says so.** A verdict takes real
-elapsed time — a prediction is stored on one night and only scored once its
-measurement window closes — and this tenant's earliest window closes 2026-09-01.
-So the deployed Growth tab shows moves still being measured rather than a
-fabricated track record. The judged states — verified, modelled, and a deliberate
-miss built on thin evidence — are demonstrated instead by the fictional seed
-tenant, **Rosa's Trattoria** (`db/seed/`, hand-written, carries nobody's real
-reviews), and the ledger the guided tour shows is that kind of
-**seeded, backdated history** with illustrative figures, planted so a verdict
-exists to look at: `scripts/seed.py` dates finds weeks back with windows elapsed,
-and the Meter genuinely reads each prior prediction back out of CockroachDB and
-scores it. What is compressed there is the clock, not the mechanism — the memory
-layer doing the one thing a stateless agent cannot, on real rows, with only the
-passage of time stood in for.
-
-## Provenance
-
-`Product Demo/` held a pitch deck and a clickable front-end mock built **before this
-project began**, for a different competition that was abandoned. The mock was generated
-with AI and then refined by hand. The directory has since been **removed from the working
-tree**; it remains in git history, and removing it does not retract anything below.
-
-**The shipped frontend descends from that mock.** After three redesigns were tried and
-rejected, `Product Demo/brasstacks-jar-demo.html` was copied to `site/app.html` and
-rebuilt from there: its data now comes from CockroachDB, its invented panels were
-replaced, and a Ledger screen was added — but its layout, CSS and interaction model
-are descended from that file. It was never a build input; the build reads `site/`.
-
-An abandoned React rebuild ("The Night Desk") lived at `frontend/` and was **deleted** —
-it was the third rejected redesign and only caused confusion about which directory was
-the product. It remains in git history.
 
 ## Editable owner profiles
 
