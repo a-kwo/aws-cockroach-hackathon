@@ -236,7 +236,7 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
         </svg>
         <span id="googleLabel">Continue with Google</span>
       </button>
-      <p class="note">Signs you in to a workspace you already have. Creating a new one still takes an invite.</p>
+      <p class="note">Signs you in to a workspace you already have. New here? Create one from the sign-up page.</p>
     </div>
 
     <!-- The demo has one front door, and it is the landing page. It used to be
@@ -379,7 +379,7 @@ const returned = new URLSearchParams(window.location.search).get("error");
 if (returned === "cancelled") {
   fail("That sign-in was cancelled. Try again, or use your password.");
 } else if (returned === "no-account") {
-  fail("That Google account has no workspace here yet. Create one first — it takes an invite code.");
+  fail("That Google account has no workspace here yet. Create one from the sign-up page first.");
 }
 if (returned) history.replaceState(null, "", window.location.pathname);
 

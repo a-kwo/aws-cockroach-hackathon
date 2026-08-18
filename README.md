@@ -26,28 +26,33 @@ wrong, because nothing it said was written down. This writes it down first.
 
 ---
 
-## See it in 30 seconds, with no credentials
+## Try it in the browser — nothing to install
 
-The demo data is committed, so you do not need AWS keys or a database to look at the
-product:
+**[trybrasstacks.com](https://trybrasstacks.com)** is the deployed product. The
+fastest way in is the **guided interactive demo**: press *Try the interactive
+demo* on the landing page (it opens
+[/signup/?tour=owner](https://trybrasstacks.com/signup/?tour=owner)). The demo
+walks onboarding on a sample workspace, plays a sample first night, then tours
+the morning board and the operator console — the captions name each CockroachDB
+and AWS piece as it appears on screen. The tour runs against committed sample
+data, so nothing a visitor clicks can touch a real tenant's ledger.
 
-```bash
-python scripts/build_web.py       # renders web/ from the committed fixture
-cd web && python -m http.server 8901
-```
+You can also browse directly: the dashboard at
+[/app/](https://trybrasstacks.com/app/) and onboarding at
+[/signup/](https://trybrasstacks.com/signup/). Signing up for a *real*
+workspace is open — no invite needed. The nightly spend is capped instead:
+`MAX_TENANTS_PER_NIGHT` bounds how many active tenants a night runs for, since
+each one costs a search, ~50 embeddings and a Claude call.
 
-Then open **http://127.0.0.1:8901** — landing page, onboarding at `/signup/`,
-and the dashboard at `/app/`.
+Worth seeing on the way through:
 
-Worth clicking, in this order:
-
-1. **Sign up** — create a new owner workspace in about two minutes. The minimum agent
-   brief captures who owns the account, what the business sells, where it competes, its
-   primary buyer segments, sales channels, and the first outcome to optimize. The right
-   side previews how those answers narrow Radar and Analyst before any recommendation is
-   allowed to appear. In the public build the profile is stored only in the browser and
-   the resulting workspace starts honestly at zero signals; a configured, authenticated
-   `ONBOARDING_API_ENDPOINT` can persist the same payload later.
+1. **Onboarding** — the minimum agent brief: who owns the account, what the
+   business sells, where it competes, its buyer segments, sales channels, and the
+   first outcome to optimize. The live brief on the right shows how those answers
+   narrow Radar and Analyst before any recommendation is allowed to appear. On
+   the real site the same form posts to the deployed onboarding API and creates
+   a workspace whose facts the Analyst reads; a workspace starts honestly at
+   zero signals until its first night runs.
 2. **For You** — inspect a recommendation, then choose **Do it** or **Pass**. The
    card immediately locks into **Saving**, then shows the recorded decision so repeated clicks
    are not ambiguous. With the live API configured, CockroachDB commits the decision and creates
@@ -70,12 +75,29 @@ Worth clicking, in this order:
    A historical recommendation with no run row says **No receipt** rather than pretending the
    missing token count is zero. In a connected build, the status chip turns **Live** and the
    matrix revalidates against CockroachDB while this tab is visible.
-4. **Growth** — every judged move remains visible, including the espresso miss: predicted
-   +$12.00/day, actual $0.00. Verified money never mixes with projected money.
+4. **Growth** — the deployed tenant's moves are all still inside their measurement
+   windows (the earliest verdict comes due 2026-09-01), and the page says so rather
+   than inventing a track record: predictions are labelled as forecasts, a modelled
+   figure is never labelled *Actual*, and nothing the owner clicks can raise the
+   verified number. The judged states — verified, modelled, and a deliberate miss —
+   are demonstrated by the fictional seed tenant (see Disclosures).
 
 The operator renderer accepts an `ownerWorkspaces` array for a multi-owner portfolio. The
-committed demo fixture contains one fictional owner account, so the UI does not fabricate
-extra tenants merely to make the console look busy.
+committed demo fixture contains one real (identity-stripped) owner account, so the UI does
+not fabricate extra tenants merely to make the console look busy.
+
+### Run the site locally instead (optional, no credentials)
+
+The demo data is committed, so the same pages render with no AWS keys and no
+database:
+
+```bash
+python scripts/build_web.py       # renders web/ from the committed fixture
+cd web && python -m http.server 8901
+```
+
+Then open **http://127.0.0.1:8901** — landing page, onboarding at `/signup/`,
+and the dashboard at `/app/`.
 
 
 ### New owner onboarding
@@ -89,19 +111,21 @@ creates one structured, tenant-scoped agent brief rather than a long questionnai
 - current sales channels and one ranking priority
 - the standing rule that every recommendation still requires owner approval
 
-The app reads the profile under `brass-tacks-onboarding-profile-v1` and switches to a true
-first-run state: no Rosa recommendations, no inherited revenue, no fabricated market memory.
-Radar is shown as **Ready to scan**, Analyst as idle, and the next handoff is the first
-owner-scoped market sweep. This local mode exists so the UX can be tested without creating an
-unsafe public tenant-provisioning endpoint. A future authenticated endpoint can be injected at
-build time with `ONBOARDING_API_ENDPOINT`; the signup payload already matches the business
-facts and owner rules the Analyst consumes.
+On the deployed site the form posts to the onboarding API (injected at build time
+as `ONBOARDING_API_ENDPOINT`): it creates the owner account and workspace, and
+the answers become the `business_fact` rows the Analyst consumes.
+A new workspace switches the app to a true first-run state: no inherited
+recommendations, no inherited revenue, no fabricated market memory. Radar is shown
+as **Ready to scan**, Analyst as idle, and the next handoff is the first
+owner-scoped market sweep. A build with no endpoint configured (such as the local
+fixture build above) falls back to browser-only demo mode: the profile is stored
+under `brass-tacks-onboarding-profile-v1` and nothing persists server-side. With
+`?tour=` the page walks itself with sample answers and persists nothing at all.
 
 ### Sign in with Google (optional)
 
 Owners can create an account with a username and password, or with Google. Both
-paths land in the same place — an `owner_account` row with no business attached —
-and both go through the same invite gate.
+paths land in the same place — an `owner_account` row with no business attached.
 
 **It is off until you configure it.** With no OAuth client the three routes answer
 404 and the sign-up page draws no button, so a fresh clone and the current deploy
@@ -125,6 +149,31 @@ To turn it on:
 The consent screen needs only the default `openid email profile` scopes. This
 flow reads an identity and stores no Google access token, so it does not need
 verification review.
+
+Three details that are deliberate rather than incidental:
+
+- **The spend control is a nightly cap, not a signup gate.** Signup is open so a
+  judge can walk in, but a workspace runs a nightly Tavily search, ~50 embeddings
+  and a Claude call — so `MAX_TENANTS_PER_NIGHT` bounds how many active tenants a
+  night processes. (An invite gate also exists in the handlers and switches on
+  whenever `/brasstacks/BRASSTACKS_INVITE_CODE` is set; for Google signups the
+  code is carried across the OAuth round trip inside the HMAC-signed `state`, so
+  it cannot be edited in the browser on the way back. It is unset for judging.)
+- **The callback never returns a session token.** It is a redirect, and a token
+  in a redirect is a token in browser history and in the next request's
+  `Referer`. It hands over a one-time code instead — two minutes, single use,
+  stored only as a SHA-256 — which the landing page trades for a real token over
+  POST. Same rule the rest of the app follows: a database read must not be enough
+  to impersonate an owner.
+- **Accounts are keyed on Google's subject, never on the email address.** An
+  address here is not unique (several seeded tenants share one inbox), so it
+  identifies nobody, and matching on it would let an address that changed hands
+  inherit somebody's business. Signing in with Google therefore always yields its
+  own account and never adopts an existing password account.
+
+There is still no password reset, no email verification of our own, and no
+lockout after repeated failures — see `backend/src/brasstacks/auth.py`. Google
+sign-in does not change that; it sidesteps it for the owners who use it.
 
 ### Publish Maker posts to Google Business Profile (optional)
 
@@ -181,29 +230,6 @@ in JavaScript, and that is exactly how a cent goes missing.
 
 The migration adds the `find_outcome` table.
 
-Three details that are deliberate rather than incidental:
-
-- **The invite code is still required.** It is a spend control, not a formality —
-  a workspace created through Google runs the same nightly Tavily search, ~50
-  embeddings and Claude call as any other. The code is checked *before* the
-  redirect and carried across the round trip inside the HMAC-signed `state`, so
-  it cannot be edited in the browser on the way back.
-- **The callback never returns a session token.** It is a redirect, and a token
-  in a redirect is a token in browser history and in the next request's
-  `Referer`. It hands over a one-time code instead — two minutes, single use,
-  stored only as a SHA-256 — which the landing page trades for a real token over
-  POST. Same rule the rest of the app follows: a database read must not be enough
-  to impersonate an owner.
-- **Accounts are keyed on Google's subject, never on the email address.** An
-  address here is not unique (several seeded tenants share one inbox), so it
-  identifies nobody, and matching on it would let an address that changed hands
-  inherit somebody's business. Signing in with Google therefore always yields its
-  own account and never adopts an existing password account.
-
-There is still no password reset, no email verification of our own, and no
-lockout after repeated failures — see `backend/src/brasstacks/auth.py`. Google
-sign-in does not change that; it sidesteps it for the owners who use it.
-
 ## Where things live
 
 ```
@@ -232,9 +258,10 @@ backend/src/brasstacks/
 
 deploy/              SAM, Dockerfile, Step Functions ASL and deployment runbook
 
-db/schema.sql        19 tables, including decision_event/work_task/task_event/tool_execution
+db/schema.sql        30 tables, including decision_event/work_task/task_event/tool_execution
                      and find_outcome, the owner's measured results
-db/fixtures/         the exported demo tenant the site build reads
+db/fixtures/         the identity-stripped export of the live demo tenant the site build reads
+db/seed/             the fictional, hand-written Rosa's Trattoria corpus scripts/seed.py plants
 
 docs/MULTI_TENANT_AGENT_PLATFORM.md
                      scale, task, tool, security and rollout plan
@@ -249,8 +276,17 @@ DESIGN.md            the visual system, with the rules and the reasons
 
 ## Running it for real
 
-Needs a CockroachDB Cloud cluster, AWS credentials for Bedrock embeddings, and an
-Anthropic API key. Copy `.env.example` to `.env` and fill it in.
+Needs **Python 3.12+**, a CockroachDB Cloud cluster, AWS credentials for Bedrock
+embeddings, and an Anthropic API key. Install the backend package first — it
+declares every runtime dependency (`psycopg`, `anthropic`, `boto3`, `httpx`,
+`certifi`) plus pytest:
+
+```bash
+python -m pip install -e "backend[dev]"
+```
+
+Then copy `.env.example` to `.env` and fill it in — the example file documents
+every value, including the ones that are safe to leave blank.
 
 ```bash
 python db/migrate.py                       # apply the schema
@@ -286,8 +322,9 @@ AgentCore/OAuth/browser roadmap remains in
 ## Tests
 
 ```bash
-python -m pytest backend/tests -q      # 690 offline tests in this version
-python -m pytest -m integration -q      # 65 cloud/live tests when configured
+python -m pip install -e "backend[dev]"   # once — the suite imports psycopg
+python -m pytest -q                       # 1,963 offline tests, ~30 seconds
+python -m pytest -m integration -q        # 113 cloud/live tests when configured
 ```
 
 The unit suite must stay green with no cloud account. `backend/tests/test_site_build.py`
@@ -454,22 +491,32 @@ wrong with Bedrock, the credentials or the region. Embeddings stay on Bedrock, s
 retrieval is AWS end to end. Model calls sit behind a provider interface, so a future
 grant is a config change.
 
-**Rosa's Trattoria is a fiction.** The corpus is hand-written so the demo is
-reproducible and carries nobody's real reviews. Every number rendered by the site is
-queried out of the cluster, not typed into the markup. There are no real customers,
-testimonials, pricing, benchmarks, peer data or P&L, and `PRODUCT.md` records those
-absences so future work does not invent them.
+**The live demo tenant is a real restaurant with its identity stripped.** The
+deployed board is built from a real coastal restaurant's data — its reviews, its
+competitors, and an agent's revenue advice about it — renamed "Harborview
+Japanese" by `scripts/anonymise_fixture.py` before the fixture is committed. The
+replacement map is gitignored (`.anonymise-map.example.json` documents its
+shape), because committing it would publish exactly what the script exists to
+remove. This is identity-stripping, not anonymity: verbatim review text is still
+searchable, and a determined reader could find the restaurant. The finds, the
+retrieval similarities and the evidence rows are genuine, the embeddings are real
+Titan vectors, and every number the site renders is queried out of the cluster,
+not typed into the markup.
 
-**Her ledger is seeded, backdated history, and the figures are illustrative.** A
-verified verdict takes real elapsed time — a prediction is stored on one night and
-only scored once its measurement window closes days later — which no live demo can
-wait out. So `scripts/seed.py` plants a completed history: finds dated weeks back,
-their windows already elapsed, with owner-measured outcomes. What is compressed is
-the clock, not the mechanism. The embeddings are real Titan vectors, the retrieval
-similarities are computed against them, and the Meter genuinely reads each prior
-prediction back out of CockroachDB and scores it — the demo shows the memory layer
-doing the one thing a stateless agent cannot, on real rows, with only the passage of
-time stood in for.
+**Its ledger holds no verdict yet, and the site says so.** A verdict takes real
+elapsed time — a prediction is stored on one night and only scored once its
+measurement window closes — and this tenant's earliest window closes 2026-09-01.
+So the deployed Growth tab shows moves still being measured rather than a
+fabricated track record. The judged states — verified, modelled, and a deliberate
+miss built on thin evidence — are demonstrated instead by the fictional seed
+tenant, **Rosa's Trattoria** (`db/seed/`, hand-written, carries nobody's real
+reviews), and the ledger the guided tour shows is that kind of
+**seeded, backdated history** with illustrative figures, planted so a verdict
+exists to look at: `scripts/seed.py` dates finds weeks back with windows elapsed,
+and the Meter genuinely reads each prior prediction back out of CockroachDB and
+scores it. What is compressed there is the clock, not the mechanism — the memory
+layer doing the one thing a stateless agent cannot, on real rows, with only the
+passage of time stood in for.
 
 ## Provenance
 
@@ -488,10 +535,6 @@ An abandoned React rebuild ("The Night Desk") lived at `frontend/` and was **del
 it was the third rejected redesign and only caused confusion about which directory was
 the product. It remains in git history.
 
-## Licence
-
-MIT. See `LICENSE`.
-
 ## Editable owner profiles
 
 Signed-in owners can open the three-line menu in the app header to view and edit
@@ -499,3 +542,7 @@ the contact and business facts Brass Tacks uses. Operators see the recorded emai
 for every owner workspace in Memory Engine. See
 [`docs/OWNER_PROFILE.md`](docs/OWNER_PROFILE.md) for storage, privacy, legacy
 email backfill, and Maker-recipient routing details.
+
+## Licence
+
+MIT. See [`LICENSE`](LICENSE).

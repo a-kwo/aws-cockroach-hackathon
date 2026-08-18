@@ -7,7 +7,8 @@
 > [`MULTI_TENANT_AGENT_PLATFORM.md`](MULTI_TENANT_AGENT_PLATFORM.md).
 
 Written 2026-07-28. Companion to `CLAUDE.md` (constraints) and `SESSION_SUMMARY.md`
-(state). This document covers only the backend work that is still open, and it
+(state; a session notes file since removed from the repo — references to it below
+are historical). This document covers only the backend work that is still open, and it
 exists because two of the open items are **hackathon rules compliance, not polish**.
 
 ---

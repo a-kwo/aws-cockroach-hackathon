@@ -975,6 +975,11 @@ def build() -> None:
     # than an unreachable page nobody links to.
     (OUT_DIR / "auth" / "complete" / "index.html").write_text(
         render(SITE / "auth-complete.html", model), encoding="utf-8")
+    # What CloudFront serves for a path with no object behind it. Without this,
+    # a typo'd URL surfaces S3's raw AccessDenied XML. Copied, not render()ed:
+    # the page carries no data, so it has no bt-data block to splice.
+    (OUT_DIR / "404.html").write_text(
+        (SITE / "404.html").read_text(encoding="utf-8"), encoding="utf-8")
 
     s = model["summary"]
     print("built web/{index,register/index,login/index,signup/index,"

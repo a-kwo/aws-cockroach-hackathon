@@ -183,11 +183,6 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
         <input id="password" name="password" type="password" autocomplete="new-password" placeholder="A phrase you'll remember" maxlength="256" required>
         <p class="note">There is no password reset yet, so pick something you will not lose.</p>
       </div>
-      <div class="field">
-        <label for="inviteCode">Invite code</label>
-        <input id="inviteCode" name="inviteCode" type="text" autocomplete="off" spellcheck="false" placeholder="Ask whoever sent you here" maxlength="80" required>
-        <p class="note">Creating a workspace runs live models against your market, so signup is invite-only while this is a demo.</p>
-      </div>
       <button class="submit" id="submit" type="submit">Continue</button>
       <p class="error" id="error"></p>
     </form>
@@ -203,7 +198,6 @@ h1 { margin: 16px 0 0; font-size: 34px; line-height: 1.04; letter-spacing: -.04e
         </svg>
         <span id="googleLabel">Continue with Google</span>
       </button>
-      <p class="note">Your invite code above is still required — creating a workspace costs the same either way.</p>
     </div>
 
     <p class="foot">Already signed up? <a href="../login/">Sign in</a>.</p>
@@ -234,7 +228,6 @@ form.addEventListener("submit", async event => {
 
   const username = document.getElementById("username").value.trim().toLowerCase();
   const password = document.getElementById("password").value;
-  const inviteCode = document.getElementById("inviteCode").value.trim();
   if (!username || !password) {
     fail("Enter a username and password.");
     return;
@@ -256,7 +249,7 @@ form.addEventListener("submit", async event => {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, inviteCode }),
+      body: JSON.stringify({ username, password }),
     });
     let payload = {};
     try { payload = await response.json(); } catch (_) {}
@@ -296,23 +289,13 @@ if (googleStart) {
 
   googleButton.addEventListener("click", () => {
     error.classList.remove("visible");
-    const invite = document.getElementById("inviteCode");
-    const inviteCode = invite.value.trim();
-    //  The gate is a spend control, not a formality -- a workspace runs live
-    //  models nightly whichever way you signed in. Checked here so the owner
-    //  finds out before a trip to Google; the server checks again.
-    if (!inviteCode) {
-      fail("Enter your invite code first — it is required either way.");
-      invite.focus();
-      return;
-    }
-
     googleButton.disabled = true;
     document.getElementById("googleLabel").textContent = "Redirecting to Google";
     //  A real navigation, not fetch(): OAuth is a browser redirect and has to
     //  happen in the address bar where the person can see whose domain it is.
-    window.location.href =
-      `${googleStart}?invite=${encodeURIComponent(inviteCode)}`;
+    //  The invite gate is off for judging; the server still enforces one if
+    //  BRASSTACKS_INVITE_CODE is ever set again.
+    window.location.href = googleStart;
   });
 }
 

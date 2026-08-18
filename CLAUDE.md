@@ -149,6 +149,11 @@ What that means concretely:
 - **Nights cost money per tenant.** Tavily search, ~50 embeddings and a Claude
   call each. Active tenants are capped, and signup stays invite-gated, so a
   curious afternoon cannot multiply the nightly bill without limit.
+  **Amended 2026-08-17, for judging:** the invite gate is off — the SSM
+  parameter `/brasstacks/BRASSTACKS_INVITE_CODE` is unset and the register
+  page no longer shows the field — so a judge can sign up without asking
+  anyone. The gate's code remains in the handlers and re-arms the moment the
+  parameter is set again. `MAX_TENANTS_PER_NIGHT` stays the spend ceiling.
 
 **Why one nightly Lambda rather than one per agent.** `run_night()` already
 sequences Radar → Analyst → Maker → Meter and is covered by the offline suite.

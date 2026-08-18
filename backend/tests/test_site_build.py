@@ -30,6 +30,21 @@ from brasstacks.agents.analyst import ANALYST_QUERIES
 # --------------------------------------------------------------- fixtures
 
 
+@pytest.fixture(scope="module")
+def built_site():
+    """The handful of tests that read the BUILT page (web/), not the source.
+
+    A fresh clone has no web/ until scripts/build_web.py has run once, and the
+    first `pytest` after cloning used to fail those tests with FileNotFoundError
+    — exactly the run a judge makes. Build once here instead; the output is the
+    same gitignored web/ the script writes.
+    """
+    if not all((build_web.OUT_DIR / page).exists()
+               for page in ("app/index.html", "404.html")):
+        build_web.build()
+    return build_web.OUT_DIR
+
+
 def find(**over):
     base = {
         "id": "11111111-2222-3333-4444-555555555555",
@@ -1592,8 +1607,13 @@ def test_the_credentials_page_creates_the_account():
     session token instead.
     """
     html = (build_web.SITE / "register.html").read_text(encoding="utf-8")
-    for field_id in ("username", "password", "inviteCode"):
+    for field_id in ("username", "password"):
         assert f'id="{field_id}"' in html, field_id
+    # The invite gate is off for judging (2026-08-17): no field, nothing sent.
+    # The server-side gate still exists and re-arms if the SSM parameter is set,
+    # but the page must not demand a code nobody has.
+    assert 'id="inviteCode"' not in html
+    assert "inviteCode" not in html.split('JSON.stringify', 1)[1].split(")", 1)[0]
     assert 'autocomplete="new-password"' in html
     assert "registerEndpoint" in html
     assert 'window.location.href = "../signup/"' in html
@@ -1705,17 +1725,17 @@ def test_the_google_button_is_not_drawn_unless_it_was_switched_on(data):
     assert 'getElementById("altAuth").classList.add("available")' in source
 
 
-def test_the_google_button_still_demands_the_invite_code():
-    """The gate is a spend control, not a formality — a workspace created
-    through Google runs the same nightly models as one created with a password.
-    An OAuth path around it would be a hole in the budget."""
+def test_the_google_button_no_longer_demands_an_invite_code():
+    """This asserted the opposite until 2026-08-17, and the reversal is
+    deliberate: the invite gate is off for judging so anyone can sign up, and a
+    page that blocks on a code nobody has would be a dead end. The spend
+    control is now the nightly tenant cap; the server-side gate remains in the
+    handlers and re-arms whenever BRASSTACKS_INVITE_CODE is set."""
     html = (build_web.SITE / "register.html").read_text(encoding="utf-8")
     handler = html.split('googleButton.addEventListener', 1)[1]
 
-    assert "if (!inviteCode)" in handler
-    assert "invite=${encodeURIComponent(inviteCode)}" in handler
-    # The check has to come before the navigation, not alongside it.
-    assert handler.index("if (!inviteCode)") < handler.index("window.location.href")
+    assert "inviteCode" not in handler.split("//  Google sends people back", 1)[0]
+    assert "window.location.href = googleStart" in handler
 
 
 def test_every_workflow_that_publishes_the_site_passes_the_google_switch():
@@ -1839,10 +1859,24 @@ def test_the_landing_page_offers_a_way_back_that_signs_you_in():
     assert "sign-up" not in link
 
 
-def test_the_landing_page_is_built_even_when_the_button_is_off():
+def test_the_landing_page_is_built_even_when_the_button_is_off(built_site):
     """Google matches the redirect URI exactly. A live OAuth client whose
     callback lands on a 404 is a worse failure than an unlinked page."""
-    assert (build_web.OUT_DIR / "auth" / "complete" / "index.html").exists()
+    assert (built_site / "auth" / "complete" / "index.html").exists()
+
+
+def test_a_wrong_url_gets_the_branded_404_page(built_site):
+    """CloudFront maps the S3 403/AccessDenied for a missing key to /404.html.
+    The page is served at whatever path the visitor typo'd, so its links home
+    must be ABSOLUTE — a relative link would 404 again from /nonexistent/."""
+    page = (built_site / "404.html").read_text(encoding="utf-8")
+    assert "Brass Tacks" in page
+    assert 'href="/"' in page
+    assert 'href="/signup/?tour=owner"' in page
+    # No relative navigation anywhere on this page (the favicon's data: URI
+    # navigates nowhere and is allowed).
+    for href in re.findall(r'href="([^"]+)"', page):
+        assert href.startswith(("/", "https://", "data:")), href
 
 
 def test_the_board_sends_the_session_token():
@@ -2330,7 +2364,7 @@ def test_the_topbar_names_the_signed_in_tenant():
     assert "setBrandBusiness();" in live
 
 
-def test_no_fit_level_reintroduces_the_descender_clipping():
+def test_no_fit_level_reintroduces_the_descender_clipping(built_site):
     """fitFeedCards() shrinks type by setting data-fit on the feed-card, and
     those rules carry an attribute selector — so they outrank a plain
     `body.autopilot-mode .post-copy h2` rule on specificity. One of them sets
@@ -2342,7 +2376,7 @@ def test_no_fit_level_reintroduces_the_descender_clipping():
     """
     import re
 
-    html = (build_web.OUT_DIR / "app" / "index.html").read_text(encoding="utf-8")
+    html = (built_site / "app" / "index.html").read_text(encoding="utf-8")
     rules = re.finditer(r"([^{}]*(?:post-copy h2|post-title)[^{}]*)\{([^}]*)\}", html)
     winner = None
     for match in rules:

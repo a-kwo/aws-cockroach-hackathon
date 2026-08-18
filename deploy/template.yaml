@@ -788,8 +788,9 @@ Resources:
             Method: POST
 
   # --------------------------------------------------------------------
-  # Signup step one: the account. Gated by the invite code, because this is
-  # the endpoint a stranger can reach.
+  # Signup step one: the account. An invite gate exists in the handler but
+  # runs only while /brasstacks/BRASSTACKS_INVITE_CODE is set; it is unset
+  # for judging so anyone can sign up.
   # --------------------------------------------------------------------
   RegisterFunction:
     Type: AWS::Serverless::Function
@@ -1313,6 +1314,18 @@ Resources:
         # US/Europe only. This is a demo URL, not a global product, and the
         # cheapest class is a third of the price of full coverage.
         PriceClass: PriceClass_100
+        # A typo'd URL used to surface S3's raw AccessDenied XML: behind OAC
+        # the bucket answers 403 for a missing key (404 if it ever gains
+        # ListBucket). Both map to the branded 404 page the build ships.
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 60
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 60
         Origins:
           - Id: SiteS3Origin
             # RegionalDomainName, not WebsiteURL: the website endpoint would
@@ -1394,8 +1407,9 @@ Outputs:
 
   RegisterEndpoint:
     Description: >
-      Signup step one. POST {"username","password","inviteCode"}; returns a
-      session token the onboarding endpoint then requires.
+      Signup step one. POST {"username","password"}; returns a session token
+      the onboarding endpoint then requires. An inviteCode is demanded only
+      while /brasstacks/BRASSTACKS_INVITE_CODE is set.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/register
 
   LoginEndpoint:
@@ -1406,8 +1420,8 @@ Outputs:
 
   OnboardingEndpoint:
     Description: >
-      Signup. Requires the invite code held at
-      /brasstacks/BRASSTACKS_INVITE_CODE — without it every request is a 403.
+      Signup step two: the business profile. Requires the session token that
+      /register returned.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/onboarding
 
   ProfileEndpoint:
@@ -1416,7 +1430,8 @@ Outputs:
 
   GoogleStartEndpoint:
     Description: >
-      Sign in with Google, leg one. GET ?invite=<code>; redirects to Google.
+      Sign in with Google, leg one; redirects to Google (?invite=<code> is
+      demanded only while /brasstacks/BRASSTACKS_INVITE_CODE is set).
       Answers 404 until the five /brasstacks/GOOGLE_OAUTH_* parameters exist.
     Value: !Sub https://${AskApi}.execute-api.${AWS::Region}.amazonaws.com/v1/auth/google/start
 

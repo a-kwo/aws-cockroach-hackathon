@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Page not found — Brass Tacks</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='34' fill='%23e2a85c'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23101114'/%3E%3C/svg%3E" />
+<!-- CloudFront serves this page for any path that has no object behind it, so
+     the visitor's address bar still shows the typo'd URL. Every link here is
+     absolute; a relative one would resolve against the bad path and 404 again. -->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #FBF9F4; color: #17181C;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+  }
+  main { text-align: center; padding: 40px 24px; max-width: 520px; }
+  .dot {
+    width: 30px; height: 30px; border-radius: 50%; margin: 0 auto 22px;
+    background: radial-gradient(circle at 50% 50%, #101114 0 26%, #e2a85c 27% 100%);
+    box-shadow: 0 0 22px rgba(217, 169, 63, .45);
+  }
+  .tag { font: 800 12px/1 sans-serif; letter-spacing: .22em; text-transform: uppercase; color: #A87524; margin: 0 0 12px; }
+  h1 { margin: 0 0 12px; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.02em; line-height: 1.1; }
+  p { margin: 0 0 28px; color: #5C5E66; font-size: 16px; line-height: 1.55; }
+  .row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  a.button {
+    display: inline-block; padding: 13px 24px; border-radius: 999px;
+    background: #17181C; color: #FBF9F4; text-decoration: none; font-weight: 700; font-size: 15px;
+  }
+  a.plain {
+    display: inline-block; padding: 13px 20px; border-radius: 999px;
+    color: #17181C; text-decoration: none; font-weight: 700; font-size: 15px;
+    border: 1px solid rgba(23, 24, 28, .18);
+  }
+  a.button:hover { background: #2a2c33; }
+  a.plain:hover { background: #fff; }
+</style>
+</head>
+<body>
+<main>
+  <div class="dot" aria-hidden="true"></div>
+  <p class="tag">Brass Tacks</p>
+  <h1>That page isn't here.</h1>
+  <p>The address may have been mistyped, or the page may have moved. Everything worth seeing starts from the front door.</p>
+  <div class="row">
+    <a class="button" href="/">Back to the site</a>
+    <a class="plain" href="/signup/?tour=owner">Try the interactive demo</a>
+  </div>
+</main>
+</body>
+</html>

@@ -306,7 +306,8 @@ display `clamp(42px, 7vw, 86px)`, head `clamp(28px, 3.8vw, 44px)`, body 17px, la
 12px, with 13/15/21/32px as the only supporting steps.
 
 That page carries the larger scale because the reference set is unanimous about it:
-of the fourteen shipped sites captured in `website-screenshots/`, every one leads with
+of the fourteen shipped sites surveyed during design research (screenshots since
+removed from the repo — they were third-party pages), every one leads with
 an oversized headline, one line of subcopy and a single button. **Paper on Ink**
 (`#FBF9F4`) is the off-white used for text sitting on the ink-filled primary button —
 pure white on ink reads colder than this world wants.
